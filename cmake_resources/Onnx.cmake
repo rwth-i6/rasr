@@ -1,10 +1,34 @@
-set(onnx_INCLUDE_DIR "/opt/thirdparty/usr/include")
+set(ONNXRUNTIME_ROOT
+    ""
+    CACHE PATH "Optional root directory of an ONNX Runtime installation"
+)
+
+find_path(
+    onnxruntime_INCLUDE_DIR
+    NAMES onnxruntime_cxx_api.h
+    HINTS ${ONNXRUNTIME_ROOT}
+    PATH_SUFFIXES include
+)
 
 find_library(
-    onnxruntime_LIBRARY onnxruntime REQUIRED HINTS "/opt/thirdparty/usr/lib"
+    onnxruntime_LIBRARY
+    NAMES onnxruntime
+    HINTS ${ONNXRUNTIME_ROOT}
+    PATH_SUFFIXES lib lib64
+)
+
+include(FindPackageHandleStandardArgs)
+find_package_handle_standard_args(
+    ONNXRuntime REQUIRED_VARS onnxruntime_LIBRARY onnxruntime_INCLUDE_DIR
+)
+
+add_library(ONNXRuntime::ONNXRuntime UNKNOWN IMPORTED)
+set_target_properties(
+    ONNXRuntime::ONNXRuntime
+    PROPERTIES IMPORTED_LOCATION "${onnxruntime_LIBRARY}"
+               INTERFACE_INCLUDE_DIRECTORIES "${onnxruntime_INCLUDE_DIR}"
 )
 
 function(add_onnx_dependencies target)
-    target_include_directories(${target} PUBLIC ${onnx_INCLUDE_DIR})
-    target_link_libraries(${target} PUBLIC ${onnxruntime_LIBRARY})
+    target_link_libraries(${target} PUBLIC ONNXRuntime::ONNXRuntime)
 endfunction()

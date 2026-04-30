@@ -5,19 +5,22 @@ set(RasrNnLabelScorer_SOURCES
     Encoder.cc
     EncoderDecoderLabelScorer.cc
     EncoderFactory.cc
-    FixedContextOnnxLabelScorer.cc
     LabelScorer.cc
     LabelScorerFactory.cc
-    NoContextOnnxLabelScorer.cc
     NoOpLabelScorer.cc
     PriorLabelScorer.cc
     ScaledLabelScorer.cc
     ScoreAccessor.cc
     ScoringContext.cc
-    StatefulOnnxLabelScorer.cc
     TransitionLabelScorer.cc
     TransitionTypes.cc
 )
+
+if(${MODULE_ONNX})
+    list(APPEND RasrNnLabelScorer_SOURCES FixedContextOnnxLabelScorer.cc
+         NoContextOnnxLabelScorer.cc StatefulOnnxLabelScorer.cc
+    )
+endif()
 
 add_library(RasrNnLabelScorer STATIC ${RasrNnLabelScorer_SOURCES})
 
@@ -40,5 +43,4 @@ endif()
 
 if(${MODULE_ONNX})
     target_link_libraries(RasrNnLabelScorer PUBLIC RasrOnnx)
-    add_onnx_dependencies(RasrNnLabelScorer)
 endif()

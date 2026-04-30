@@ -29,6 +29,7 @@ target_link_libraries(
 
 target_compile_options(
     RasrAdvancedTreeSearch
-    PRIVATE
-        "-Wno-sign-compare -Winline --param max-inline-insns-auto=10000 --param max-inline-insns-single=10000 --param large-function-growth=25000 --param inline-unit-growth=400"
+    PRIVATE -Wno-sign-compare -Winline --param=max-inline-insns-auto=10000
+            --param=max-inline-insns-single=10000
+            --param=large-function-growth=25000 --param=inline-unit-growth=400
 )

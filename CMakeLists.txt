@@ -38,16 +38,15 @@ function(add_install_library LIBRARY_NAME)
     install(TARGETS ${LIBRARY_NAME} LIBRARY DESTINATION ${CMAKE_INSTALL_PREFIX})
 endfunction()
 
-add_custom_command(
-    OUTPUT ${CMAKE_CURRENT_SOURCE_DIR}/src/SourceVersion.cc
-    COMMAND
-        ${CMAKE_COMMAND} -E copy
-        ${CMAKE_CURRENT_SOURCE_DIR}/src/SourceVersion.release
-        ${CMAKE_CURRENT_SOURCE_DIR}/src/SourceVersion.cc
-    DEPENDS ${CMAKE_CURRENT_SOURCE_DIR}/src/SourceVersion.release
-)
+set(SOURCE_VERSION_FILE "${CMAKE_CURRENT_BINARY_DIR}/src/SourceVersion.cc")
+
 add_custom_target(
-    SourceVersion DEPENDS ${CMAKE_CURRENT_SOURCE_DIR}/src/SourceVersion.cc
+    SourceVersion ALL
+    COMMAND
+        ${CMAKE_COMMAND} "-DOUTPUT_FILE=${SOURCE_VERSION_FILE}" -P
+        "${CMAKE_CURRENT_SOURCE_DIR}/cmake_resources/GenerateSourceVersion.cmake"
+    BYPRODUCTS "${SOURCE_VERSION_FILE}"
+    COMMENT "Generating source version information"
 )
 
 add_subdirectory(src/)

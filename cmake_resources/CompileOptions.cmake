@@ -1,4 +1,5 @@
 set(CMAKE_CXX_STANDARD 20)
+include(CheckCXXCompilerFlag)
 
 add_compile_definitions(CMAKE_DISABLE_MODULES_HH)
 
@@ -14,8 +15,11 @@ add_compile_options(
     -fno-strict-aliasing
 )
 
-if(CMAKE_HOST_SYSTEM_PROCESSOR STREQUAL "linux-x86_64")
-    add_compile_options(-msse3)
+if(CMAKE_SYSTEM_PROCESSOR MATCHES "^(x86_64|AMD64|i[3-6]86)$")
+    check_cxx_compiler_flag("-msse3" COMPILER_SUPPORTS_MSSE3)
+    if(COMPILER_SUPPORTS_MSSE3)
+        add_compile_options(-msse3)
+    endif()
 endif()
 
 if(CMAKE_CXX_COMPILER_ID STREQUAL "GNU")
@@ -35,7 +39,6 @@ if(NOT DEFINED MARCH)
         CACHE STRING "Default target architecture"
     )
 endif()
-include(CheckCXXCompilerFlag)
 check_cxx_compiler_flag("-march=${MARCH}" COMPILER_SUPPORTS_MARCH)
 if(COMPILER_SUPPORTS_MARCH)
     add_compile_options("-march=${MARCH}")
@@ -77,8 +80,6 @@ endif()
 
 if(${MODULE_OPENMP})
     find_package(OpenMP REQUIRED)
-    add_compile_options(OpenMP_CXX_FLAGS)
-    include_directories(OpenMP_CXX_INCLUDE_DIRS)
     link_libraries(OpenMP::OpenMP_CXX)
 endif()
 

@@ -8,7 +8,7 @@ set(aligner_SOURCES
     ConditionalLexiconPlain.cc
     ConditionalLexiconSri.cc
 )
-add_executable(aligner ${ALIGNER_SOURCES})
+add_executable(aligner ${aligner_SOURCES})
 add_install_executable(aligner)
 
 target_link_libraries(aligner PRIVATE RasrCore RasrFsa)

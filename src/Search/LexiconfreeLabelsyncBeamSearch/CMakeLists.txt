@@ -1,11 +1,7 @@
-set(RasrLexiconfreeLabelsyncBeamSearch_SOURCES
-    LexiconfreeLabelsyncBeamSearch.cc
+add_library(
+    RasrLexiconfreeLabelsyncBeamSearch STATIC LexiconfreeLabelsyncBeamSearch.cc
 )
 
-add_library(
-    RasrLexiconfreeLabelsyncBeamSearch STATIC
-    ${RasrLexiconfreeLabelsyncBeamSearch_SOURCES}
-)
 target_link_libraries(
     RasrLexiconfreeLabelsyncBeamSearch PUBLIC RasrBliss RasrCore RasrNn
                                               RasrSearch

@@ -1,7 +1,8 @@
 add_executable(speech-recognizer SpeechRecognizer.cc)
+
 add_install_executable(speech-recognizer)
 
-set(SpeechRecognizer_LIBRARIES
+set(libraries
     RasrAm
     RasrAudio
     RasrBliss
@@ -16,27 +17,27 @@ set(SpeechRecognizer_LIBRARIES
 )
 
 if(${MODULE_SEARCH_WFST})
-    list(APPEND SpeechRecognizer_LIBRARIES RasrSearchWfst RasrOpenFst)
+    list(APPEND libraries RasrSearchWfst RasrOpenFst)
 endif()
 
 if(${MODULE_ONNX})
-    list(APPEND SpeechRecognizer_LIBRARIES RasrOnnx)
+    list(APPEND libraries RasrOnnx)
 endif()
 
 if(${MODULE_NN})
-    list(APPEND SpeechRecognizer_LIBRARIES RasrNn)
+    list(APPEND libraries RasrNn)
 endif()
 
 if(${MODULE_TENSORFLOW})
-    list(APPEND SpeechRecognizer_LIBRARIES RasrTensorflow)
+    list(APPEND libraries RasrTensorflow)
 endif()
 
-target_link_libraries(speech-recognizer PRIVATE ${SpeechRecognizer_LIBRARIES})
+target_link_libraries(speech-recognizer PRIVATE ${libraries})
 
 if(${MODULE_SEARCH_WFST})
-    add_executable(fsa-search-builder FsaSearchBuilder.cc)
+    add_executable(fsa-search-builder)
+
+    target_sources(fsa-search-builder PRIVATE FsaSearchBuilder.cc)
     add_install_executable(fsa-search-builder)
-    target_link_libraries(
-        fsa-search-builder PRIVATE ${SpeechRecognizer_LIBRARIES}
-    )
+    target_link_libraries(fsa-search-builder PRIVATE ${libraries})
 endif()

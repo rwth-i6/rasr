@@ -1,4 +1,5 @@
-set(Lm_SOURCES
+add_library(
+    RasrLm STATIC
     AbstractNNLanguageModel.cc
     BackingOff.cc
     ClassLm.cc
@@ -16,37 +17,33 @@ set(Lm_SOURCES
 )
 
 if(${MODULE_LM_ARPA})
-    list(APPEND Lm_SOURCES ArpaLm.cc)
+    target_sources(RasrLm PRIVATE ArpaLm.cc)
 endif()
 
 if(${MODULE_LM_FSA})
-    list(APPEND Lm_SOURCES FsaLm.cc CheatingSegmentLm.cc)
+    target_sources(RasrLm PRIVATE FsaLm.cc CheatingSegmentLm.cc)
 endif()
 
 if(${MODULE_LM_ZEROGRAM})
-    list(APPEND Lm_SOURCES Zerogram.cc)
+    target_sources(RasrLm PRIVATE Zerogram.cc)
 endif()
 
 if(${MODULE_TENSORFLOW} AND ${MODULE_LM_TFRNN})
-    list(
-        APPEND
-        Lm_SOURCES
-        TFBlasNceSoftmaxAdapter.cc
-        TFNceSoftmaxAdapter.cc
-        TFPassthroughSoftmaxAdapter.cc
-        TFQuantizedBlasNceSoftmaxAdapter.cc
-        TFRecurrentLanguageModel.cc
+    target_sources(
+        RasrLm
+        PRIVATE TFBlasNceSoftmaxAdapter.cc TFNceSoftmaxAdapter.cc
+                TFPassthroughSoftmaxAdapter.cc
+                TFQuantizedBlasNceSoftmaxAdapter.cc TFRecurrentLanguageModel.cc
     )
 endif()
 
 if(${MODULE_ONNX} AND ${MODULE_LM_ONNX})
-    list(APPEND Lm_SOURCES OnnxNceSoftmaxAdapter.cc
-         OnnxPassthroughSoftmaxAdapter.cc OnnxRecurrentLanguageModel.cc
-         OnnxStatelessLanguageModel.cc
+    target_sources(
+        RasrLm
+        PRIVATE OnnxNceSoftmaxAdapter.cc OnnxPassthroughSoftmaxAdapter.cc
+                OnnxRecurrentLanguageModel.cc OnnxStatelessLanguageModel.cc
     )
 endif()
-
-add_library(RasrLm STATIC ${Lm_SOURCES})
 
 target_link_libraries(
     RasrLm

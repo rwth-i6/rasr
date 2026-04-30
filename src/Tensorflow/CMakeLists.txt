@@ -1,6 +1,6 @@
-set(RasrTensorflow_SOURCES
+add_library(
+    RasrTensorflow STATIC
     DummyStateManager.cc
-    TFLstmStateManager.cc
     Graph.cc
     GraphLoader.cc
     MetaGraphLoader.cc
@@ -12,11 +12,10 @@ set(RasrTensorflow_SOURCES
     TensorflowFeatureScorerStateCarryover.cc
     TensorflowForwardNode.cc
     TensorMap.cc
+    TFLstmStateManager.cc
     TransformerStateManager.cc
     VanillaGraphLoader.cc
 )
-
-add_library(RasrTensorflow STATIC ${RasrTensorflow_SOURCES})
 
 target_link_libraries(
     RasrTensorflow PUBLIC RasrBliss RasrCore RasrFlow RasrMath RasrMm RasrNn
@@ -24,4 +23,5 @@ target_link_libraries(
 add_tf_dependencies(RasrTensorflow)
 
 add_executable(check-tensorflow check.cc)
+
 target_link_libraries(check-tensorflow PRIVATE RasrTensorflow)

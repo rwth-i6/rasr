@@ -1,4 +1,5 @@
-set(RasrNnLabelScorer_SOURCES
+add_library(
+    RasrNnLabelScorer STATIC
     BufferedLabelScorer.cc
     CombineLabelScorer.cc
     DataView.cc
@@ -17,12 +18,12 @@ set(RasrNnLabelScorer_SOURCES
 )
 
 if(${MODULE_ONNX})
-    list(APPEND RasrNnLabelScorer_SOURCES FixedContextOnnxLabelScorer.cc
-         NoContextOnnxLabelScorer.cc StatefulOnnxLabelScorer.cc
+    target_sources(
+        RasrNnLabelScorer
+        PRIVATE FixedContextOnnxLabelScorer.cc NoContextOnnxLabelScorer.cc
+                StatefulOnnxLabelScorer.cc
     )
 endif()
-
-add_library(RasrNnLabelScorer STATIC ${RasrNnLabelScorer_SOURCES})
 
 target_link_libraries(
     RasrNnLabelScorer

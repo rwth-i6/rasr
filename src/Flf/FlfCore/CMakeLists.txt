@@ -1,7 +1,8 @@
-set(FlfCore_SOURCES
-    Ftl.cc
+add_library(
+    RasrFlfCore STATIC
     Basic.cc
     Boundaries.cc
+    Ftl.cc
     Lattice.cc
     LatticeInternal.cc
     Semiring.cc
@@ -12,11 +13,10 @@ set(FlfCore_SOURCES
     Weight.cc
 )
 
-add_library(RasrFlfCore STATIC ${FlfCore_SOURCES})
-
 target_link_libraries(
     RasrFlfCore PUBLIC RasrBliss RasrCore RasrFsa RasrLattice RasrSpeech
 )
 
 add_executable(check-flf-core check.cc)
+
 target_link_libraries(check-flf-core PRIVATE RasrFlfCore)

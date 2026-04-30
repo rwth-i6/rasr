@@ -4,7 +4,8 @@ if(${MODULE_FLF_EXT})
     add_subdirectory(FlfExt)
 endif()
 
-set(Flf_SOURCES
+add_library(
+    RasrFlf STATIC
     Archive.cc
     Best.cc
     Cache.cc
@@ -15,19 +16,20 @@ set(Flf_SOURCES
     ConfusionNetwork.cc
     ConfusionNetworkCombination.cc
     ConfusionNetworkIo.cc
-    CorpusProcessor.cc
-    Copy.cc
     Convert.cc
-    Draw.cc
+    Copy.cc
+    CorpusProcessor.cc
     Determinize.cc
+    Draw.cc
     EpsilonRemoval.cc
     Evaluate.cc
     Filter.cc
-    Formattings.cc
     FlfIo.cc
+    Formattings.cc
     FwdBwd.cc
     GammaCorrection.cc
     HtkSlfIo.cc
+    IncrementalRecognizer.cc
     Info.cc
     Io.cc
     LanguageModel.cc
@@ -48,11 +50,10 @@ set(Flf_SOURCES
     PushForwardRescoring.cc
     Recognizer.cc
     RecognizerV2.cc
-    IncrementalRecognizer.cc
-    Rescore.cc
-    RescoreLm.cc
-    RescoreInternal.cc
     Rescale.cc
+    Rescore.cc
+    RescoreInternal.cc
+    RescoreLm.cc
     Segment.cc
     SegmentwiseSpeechProcessor.cc
     StateClusterConfusionNetworkBuilder.cc
@@ -65,8 +66,6 @@ set(Flf_SOURCES
     Traceback.cc
     Union.cc
 )
-
-add_library(RasrFlf STATIC ${Flf_SOURCES})
 
 target_link_libraries(
     RasrFlf
@@ -89,4 +88,5 @@ if(${MODULE_FLF_EXT})
 endif()
 
 add_executable(check-flf check.cc)
+
 target_link_libraries(check-flf PRIVATE RasrFlf)

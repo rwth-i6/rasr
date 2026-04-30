@@ -1,4 +1,5 @@
-set(RasrSearchWfst_SOURCES
+add_library(
+    RasrSearchWfst STATIC
     BookKeeping.cc
     Builder.cc
     ComposedNetwork.cc
@@ -7,6 +8,7 @@ set(RasrSearchWfst_SOURCES
     CreateOperations.cc
     DynamicLmFst.cc
     ExpandingFsaSearch.cc
+    FstOperations.cc
     GrammarFst.cc
     IoOperations.cc
     Lattice.cc
@@ -19,18 +21,15 @@ set(RasrSearchWfst_SOURCES
     LexiconBuilder.cc
     LexiconFst.cc
     Module.cc
-    NonWordTokens.cc
     Network.cc
+    NonWordTokens.cc
     SearchSpace.cc
     StateSequence.cc
     StateTree.cc
     Traceback.cc
-    FstOperations.cc
     UtilityOperations.cc
     WordEnd.cc
 )
-
-add_library(RasrSearchWfst STATIC ${RasrSearchWfst_SOURCES})
 
 target_compile_options(RasrSearchWfst PRIVATE "-Wno-sign-compare")
 
@@ -49,7 +48,9 @@ target_link_libraries(
 )
 
 add_executable(check-search-wfst check.cc)
+
 target_link_libraries(check-search-wfst PRIVATE RasrSearchWfst)
 
 add_executable(check-search-wfst-ctrans check_ctrans.cc)
+
 target_link_libraries(check-search-wfst-ctrans PRIVATE RasrSearchWfst)

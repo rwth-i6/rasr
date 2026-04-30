@@ -1,4 +1,5 @@
-set(Fsa_SOURCES
+add_library(
+    RasrFsa STATIC
     Accessible.cc
     Alphabet.cc
     AlphabetUtility.cc
@@ -17,13 +18,13 @@ set(Fsa_SOURCES
     Output.cc
     Packed.cc
     Permute.cc
-    Properties.cc
     Project.cc
+    Properties.cc
     Prune.cc
     Random.cc
-    Resources.cc
     Rational.cc
     RemoveEpsilons.cc
+    Resources.cc
     Semiring.cc
     Semiring64.cc
     Sort.cc
@@ -34,8 +35,6 @@ set(Fsa_SOURCES
     Types.cc
     Utility.cc
 )
-
-add_library(RasrFsa STATIC ${Fsa_SOURCES})
 
 target_link_libraries(RasrFsa PUBLIC RasrCore)
 

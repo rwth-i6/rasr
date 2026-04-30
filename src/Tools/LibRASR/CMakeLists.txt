@@ -1,14 +1,13 @@
 find_package(pybind11 REQUIRED)
 
-set(librasr_SOURCES LibRASR.cc)
+pybind11_add_module(librasr LibRASR.cc)
+add_install_library(librasr)
 
 if(${MODULE_PYTHON})
-    list(APPEND librasr_SOURCES LabelScorer.cc Lexicon.cc PybindModule.cc
-         Search.cc
+    target_sources(
+        librasr PRIVATE LabelScorer.cc Lexicon.cc PybindModule.cc Search.cc
     )
 endif()
-
-pybind11_add_module(librasr ${librasr_SOURCES})
 
 target_link_libraries(
     librasr
@@ -24,8 +23,6 @@ target_link_libraries(
             RasrSignal
             RasrSpeech
 )
-
-add_install_library(librasr)
 
 if(${MODULE_PYTHON})
     target_link_libraries(librasr PRIVATE RasrPython)

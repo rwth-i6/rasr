@@ -1,14 +1,14 @@
-set(aligner_SOURCES
-    Aligner.cc
+add_executable(
+    aligner
     AlignAutomaton.cc
-    SimpleAlignAutomaton.cc
-    ZeroOrderAlignAutomaton.cc
+    Aligner.cc
     Common.cc
     ConditionalLexicon.cc
     ConditionalLexiconPlain.cc
     ConditionalLexiconSri.cc
+    SimpleAlignAutomaton.cc
+    ZeroOrderAlignAutomaton.cc
 )
-add_executable(aligner ${aligner_SOURCES})
 add_install_executable(aligner)
 
 target_link_libraries(aligner PRIVATE RasrCore RasrFsa)

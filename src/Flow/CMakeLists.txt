@@ -1,10 +1,11 @@
-set(Flow_SOURCES
+add_library(
+    RasrFlow STATIC
     AbstractNode.cc
     Aggregate.cc
     Attributes.cc
     Cache.cc
-    Cutter.cc
     CorpusKeyMap.cc
+    Cutter.cc
     Data.cc
     DataAdaptor.cc
     Datatype.cc
@@ -19,17 +20,16 @@ set(Flow_SOURCES
     Registry.cc
     Repeater.cc
     SequenceFilter.cc
-    WarpTimeFilter.cc
     StringExpressionNode.cc
     Synchronization.cc
     Timestamp.cc
     Vector.cc
     VectorTextInput.cc
+    WarpTimeFilter.cc
 )
-
-add_library(RasrFlow STATIC ${Flow_SOURCES})
 
 target_link_libraries(RasrFlow PUBLIC RasrCore RasrMath)
 
 add_executable(check-flow check.cc)
+
 target_link_libraries(check-flow PRIVATE RasrFlow)

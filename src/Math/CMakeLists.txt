@@ -3,26 +3,25 @@ if(${MODULE_MATH_NR})
     add_subdirectory(Nr)
 endif()
 
-set(RasrMath_SOURCES
+add_library(
+    RasrMath STATIC
     AcousticalAnalyticFunctions.cc
     AnalyticFunctionFactory.cc
+    CudaDataStructure.cc
     EigenvalueProblem.cc
     FastFourierTransform.cc
     Module.cc
     PiecewiseLinearFunction.cc
     Random.cc
-    CudaDataStructure.cc
 )
 
 if(${MODULE_CUDA})
-    list(APPEND RasrMath_SOURCES CudaMatrixKernels.cu)
+    target_sources(RasrMath PRIVATE CudaMatrixKernels.cu)
 endif()
 
 if(${MODULE_SIGNAL_PLP})
-    list(APPEND RasrMath_SOURCES LevinsonLse.cc)
+    target_sources(RasrMath PRIVATE LevinsonLse.cc)
 endif()
-
-add_library(RasrMath STATIC ${RasrMath_SOURCES})
 
 target_link_libraries(RasrMath PUBLIC RasrCore RasrMathLapack RasrMm)
 if(${MODULE_MATH_NR})

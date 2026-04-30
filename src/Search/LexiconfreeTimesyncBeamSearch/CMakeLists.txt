@@ -1,9 +1,7 @@
-set(RasrLexiconfreeTimesyncBeamSearch_SOURCES LexiconfreeTimesyncBeamSearch.cc)
-
 add_library(
-    RasrLexiconfreeTimesyncBeamSearch STATIC
-    ${RasrLexiconfreeTimesyncBeamSearch_SOURCES}
+    RasrLexiconfreeTimesyncBeamSearch STATIC LexiconfreeTimesyncBeamSearch.cc
 )
+
 target_link_libraries(
     RasrLexiconfreeTimesyncBeamSearch PUBLIC RasrBliss RasrCore RasrLattice
                                              RasrNn RasrSearch

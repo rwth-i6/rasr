@@ -1,4 +1,5 @@
-set(RasrAdvancedTreeSearch_SOURCES
+add_library(
+    RasrAdvancedTreeSearch STATIC
     AcousticLookAhead.cc
     AdvancedTreeSearch.cc
     DynamicBeamPruningStrategy.cc
@@ -14,7 +15,6 @@ set(RasrAdvancedTreeSearch_SOURCES
     Trace.cc
 )
 
-add_library(RasrAdvancedTreeSearch STATIC ${RasrAdvancedTreeSearch_SOURCES})
 target_link_libraries(
     RasrAdvancedTreeSearch
     PUBLIC RasrAm

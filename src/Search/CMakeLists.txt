@@ -8,10 +8,11 @@ add_subdirectory(LexiconfreeLabelsyncBeamSearch)
 add_subdirectory(LexiconfreeTimesyncBeamSearch)
 add_subdirectory(TreeTimesyncBeamSearch)
 
-set(RasrSearch_SOURCES
+add_library(
+    RasrSearch STATIC
     Aligner.cc
-    LatticeHandler.cc
     LanguageModelLookahead.cc
+    LatticeHandler.cc
     Module.cc
     PersistentStateTree.cc
     Search.cc
@@ -23,16 +24,16 @@ set(RasrSearch_SOURCES
 )
 
 if(${MODULE_SEARCH_MBR})
-    list(APPEND RasrSearch_SOURCES MinimumBayesRiskSearch.cc
-         MinimumBayesRiskAStarSearch.cc MinimumBayesRiskNBestListSearch.cc
-         MinimumBayesRiskSearchUtil.cc
+    target_sources(
+        RasrSearch
+        PRIVATE MinimumBayesRiskSearch.cc MinimumBayesRiskAStarSearch.cc
+                MinimumBayesRiskNBestListSearch.cc
+                MinimumBayesRiskSearchUtil.cc
     )
 endif()
 if(${MODULE_SEARCH_LINEAR})
-    list(APPEND RasrSearch_SOURCES LinearSearch.cc)
+    target_sources(RasrSearch PRIVATE LinearSearch.cc)
 endif()
-
-add_library(RasrSearch STATIC ${RasrSearch_SOURCES})
 
 target_link_libraries(
     RasrSearch
@@ -60,4 +61,5 @@ if(${MODULE_SEARCH_WFST})
 endif()
 
 add_executable(check-search check.cc)
+
 target_link_libraries(check-search PRIVATE RasrSearch)

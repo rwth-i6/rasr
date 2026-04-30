@@ -1,4 +1,5 @@
-set(Bliss_SOURCES
+add_library(
+    RasrBliss STATIC
     CorpusDescription.cc
     CorpusKey.cc
     CorpusParser.cc
@@ -18,10 +19,8 @@ set(Bliss_SOURCES
 )
 
 if(${MODULE_PYTHON})
-    list(APPEND Bliss_SOURCES PythonSegmentOrdering.cc)
+    target_sources(RasrBliss PRIVATE PythonSegmentOrdering.cc)
 endif()
-
-add_library(RasrBliss ${Bliss_SOURCES})
 
 target_link_libraries(RasrBliss PUBLIC RasrCore RasrFsa RasrMath RasrSpeech)
 
@@ -30,4 +29,5 @@ if(${MODULE_PYTHON})
 endif()
 
 add_executable(check-bliss check.cc)
+
 target_link_libraries(check-bliss PRIVATE RasrBliss)

@@ -1,5 +1,6 @@
 add_executable(acoustic-model-trainer AcousticModelTrainer.cc)
 add_install_executable(acoustic-model-trainer)
+
 target_link_libraries(
     acoustic-model-trainer
     PRIVATE RasrAm
@@ -16,6 +17,7 @@ target_link_libraries(
 
 add_executable(allophone-tool AllophoneTool.cc)
 add_install_executable(allophone-tool)
+
 target_link_libraries(allophone-tool PRIVATE RasrAm RasrBliss RasrCore)
 
 if(${MODULE_CART})

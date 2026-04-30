@@ -1,3 +1,3 @@
-foreach(TOOL ${TOOLS})
-    add_subdirectory(${TOOL})
+foreach(tool ${TOOLS})
+    add_subdirectory(${tool})
 endforeach()

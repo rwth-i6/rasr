@@ -1,4 +1,5 @@
-set(Am_SOURCES
+add_library(
+    RasrAm STATIC
     AcousticModel.cc
     AcousticModelAdaptor.cc
     ClassicAcousticModel.cc
@@ -12,14 +13,14 @@ set(Am_SOURCES
 )
 
 if(${MODULE_CART})
-    list(APPEND Am_SOURCES DecisionTreeStateTying.cc ClassicDecisionTree.cc)
+    target_sources(
+        RasrAm PRIVATE DecisionTreeStateTying.cc ClassicDecisionTree.cc
+    )
 endif()
 
 if(${MODULE_ADAPT_MLLR})
-    list(APPEND Am_SOURCES AdaptedAcousticModel.cc AdaptationTree.cc)
+    target_sources(RasrAm PRIVATE AdaptedAcousticModel.cc AdaptationTree.cc)
 endif()
-
-add_library(RasrAm ${Am_SOURCES})
 
 target_link_libraries(
     RasrAm
@@ -33,4 +34,5 @@ target_link_libraries(
 )
 
 add_executable(check-am check.cc)
+
 target_link_libraries(check-am PRIVATE RasrAm)

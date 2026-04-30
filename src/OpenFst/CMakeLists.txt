@@ -1,8 +1,7 @@
-set(RasrOpenFst_SOURCES Input.cc Module.cc Output.cc SymbolTable.cc)
-
-add_library(RasrOpenFst STATIC ${RasrOpenFst_SOURCES})
+add_library(RasrOpenFst STATIC Input.cc Module.cc Output.cc SymbolTable.cc)
 
 target_link_libraries(RasrOpenFst PUBLIC RasrCore RasrFsa)
 
 add_executable(check-openfst check.cc)
+
 target_link_libraries(check-openfst PRIVATE RasrOpenFst)

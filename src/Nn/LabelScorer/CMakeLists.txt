@@ -38,8 +38,9 @@ target_link_libraries(
 
 if(${MODULE_PYTHON})
     find_package(pybind11 REQUIRED)
-    add_python_dependencies(RasrNnLabelScorer)
-    target_include_directories(RasrNnLabelScorer PUBLIC pybind11_INCLUDE_DIRS)
+    target_link_libraries(
+        RasrNnLabelScorer PUBLIC RasrPythonDependencies pybind11::headers
+    )
 endif()
 
 if(${MODULE_ONNX})

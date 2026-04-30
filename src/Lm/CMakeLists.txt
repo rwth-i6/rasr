@@ -62,11 +62,9 @@ target_link_libraries(
 )
 if(${MODULE_TENSORFLOW} AND ${MODULE_LM_TFRNN})
     target_link_libraries(RasrLm PUBLIC RasrTensorflow)
-    add_tf_dependencies(RasrLm)
 endif()
 if(${MODULE_ONNX})
     target_link_libraries(RasrLm PUBLIC RasrOnnx)
-    add_onnx_dependencies(RasrLm)
 endif()
 
 # check.cc code is broken add_executable(check-lm check.cc)

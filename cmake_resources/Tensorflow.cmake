@@ -1,25 +1,25 @@
 find_package(Python3 REQUIRED COMPONENTS Interpreter)
 
-set(Tensorflow_ROOT
+set(_tensorflow_root
     ""
     CACHE PATH "Optional root directory of a TensorFlow C++ installation"
 )
-set(Tensorflow_INCLUDE_DIR
+set(_tensorflow_include_dir
     ""
     CACHE PATH "TensorFlow include directory"
 )
-set(Tensorflow_LIB_DIR
+set(_tensorflow_lib_dir
     ""
     CACHE PATH "TensorFlow library directory"
 )
 
 # Get the TensorFlow include directory by executing a Python command
-if(NOT Tensorflow_INCLUDE_DIR)
+if(NOT _tensorflow_include_dir)
     execute_process(
         COMMAND "${Python3_EXECUTABLE}" -c
                 "import tensorflow as tf; print(tf.sysconfig.get_include())"
         RESULT_VARIABLE _tensorflow_include_res
-        OUTPUT_VARIABLE Tensorflow_INCLUDE_DIR
+        OUTPUT_VARIABLE _tensorflow_include_dir
         OUTPUT_STRIP_TRAILING_WHITESPACE
     )
 
@@ -28,12 +28,12 @@ if(NOT Tensorflow_INCLUDE_DIR)
     endif()
 endif()
 
-if(NOT Tensorflow_LIB_DIR)
+if(NOT _tensorflow_lib_dir)
     execute_process(
         COMMAND "${Python3_EXECUTABLE}" -c
                 "import tensorflow as tf; print(tf.sysconfig.get_lib())"
         RESULT_VARIABLE _tensorflow_lib_res
-        OUTPUT_VARIABLE Tensorflow_LIB_DIR
+        OUTPUT_VARIABLE _tensorflow_lib_dir
         OUTPUT_STRIP_TRAILING_WHITESPACE
     )
 
@@ -43,12 +43,12 @@ if(NOT Tensorflow_LIB_DIR)
 endif()
 
 # Output the found directory for debugging purposes
-message(STATUS "Tensorflow include directory: ${Tensorflow_INCLUDE_DIR}")
+message(STATUS "Tensorflow include directory: ${_tensorflow_include_dir}")
 
 find_library(
     Tensorflow_CC
     NAMES tensorflow_cc libtensorflow_cc.so.2 libtensorflow_cc.so.1
-    HINTS ${Tensorflow_LIB_DIR} ${Tensorflow_ROOT}
+    HINTS ${_tensorflow_lib_dir} ${_tensorflow_root}
     PATH_SUFFIXES lib lib64 tensorflow REQUIRED
 )
 
@@ -56,7 +56,7 @@ find_library(
     Tensorflow_FRAMEWORK
     NAMES tensorflow_framework libtensorflow_framework.so.2
           libtensorflow_framework.so.1
-    HINTS ${Tensorflow_LIB_DIR} ${Tensorflow_ROOT}
+    HINTS ${_tensorflow_lib_dir} ${_tensorflow_root}
     PATH_SUFFIXES lib lib64 tensorflow REQUIRED
 )
 
@@ -80,22 +80,21 @@ add_library(Tensorflow::CC UNKNOWN IMPORTED)
 set_target_properties(
     Tensorflow::CC
     PROPERTIES IMPORTED_LOCATION "${Tensorflow_CC}"
-               INTERFACE_INCLUDE_DIRECTORIES "${Tensorflow_INCLUDE_DIR}"
+               INTERFACE_INCLUDE_DIRECTORIES "${_tensorflow_include_dir}"
 )
 
 add_library(Tensorflow::Framework UNKNOWN IMPORTED)
 set_target_properties(
     Tensorflow::Framework
     PROPERTIES IMPORTED_LOCATION "${Tensorflow_FRAMEWORK}"
-               INTERFACE_INCLUDE_DIRECTORIES "${Tensorflow_INCLUDE_DIR}"
+               INTERFACE_INCLUDE_DIRECTORIES "${_tensorflow_include_dir}"
 )
 
-function(add_tf_dependencies target)
-    target_link_options(
-        ${target} PUBLIC "LINKER:--no-as-needed"
-        "LINKER:--allow-multiple-definition"
-    )
-    target_link_libraries(
-        ${target} PUBLIC OpenSSL::Crypto Tensorflow::CC Tensorflow::Framework
-    )
-endfunction()
+add_library(Tensorflow::Tensorflow INTERFACE IMPORTED)
+set_target_properties(
+    Tensorflow::Tensorflow
+    PROPERTIES INTERFACE_LINK_LIBRARIES
+               "OpenSSL::Crypto;Tensorflow::CC;Tensorflow::Framework"
+               INTERFACE_LINK_OPTIONS
+               "LINKER:--no-as-needed;LINKER:--allow-multiple-definition"
+)

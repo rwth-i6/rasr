@@ -11,9 +11,15 @@ add_library(
 )
 
 target_link_libraries(
-    RasrPython PUBLIC RasrBliss RasrCore RasrMath RasrNn RasrSearch RasrSpeech
+    RasrPython
+    PUBLIC RasrBliss
+           RasrCore
+           RasrMath
+           RasrNn
+           RasrPythonDependencies
+           RasrSearch
+           RasrSpeech
 )
-add_python_dependencies(RasrPython)
 
 add_executable(check-python check.cc)
 

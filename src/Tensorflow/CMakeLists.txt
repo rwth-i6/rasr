@@ -18,9 +18,15 @@ add_library(
 )
 
 target_link_libraries(
-    RasrTensorflow PUBLIC RasrBliss RasrCore RasrFlow RasrMath RasrMm RasrNn
+    RasrTensorflow
+    PUBLIC RasrBliss
+           RasrCore
+           RasrFlow
+           RasrMath
+           RasrMm
+           RasrNn
+           Tensorflow::Tensorflow
 )
-add_tf_dependencies(RasrTensorflow)
 
 add_executable(check-tensorflow check.cc)
 

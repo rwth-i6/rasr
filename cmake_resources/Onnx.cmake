@@ -28,7 +28,3 @@ set_target_properties(
     PROPERTIES IMPORTED_LOCATION "${onnxruntime_LIBRARY}"
                INTERFACE_INCLUDE_DIRECTORIES "${onnxruntime_INCLUDE_DIR}"
 )
-
-function(add_onnx_dependencies target)
-    target_link_libraries(${target} PUBLIC ONNXRuntime::ONNXRuntime)
-endfunction()

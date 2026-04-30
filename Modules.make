@@ -110,6 +110,9 @@ MODULES += MODULE_TENSORFLOW
 # ONNX integration
 # MODULES += MODULE_ONNX
 
+# Torch integration
+# MODULES += MODULE_TORCH
+
 # define variables for the makefiles
 $(foreach module, $(MODULES), $(eval $(module) = 1))
 

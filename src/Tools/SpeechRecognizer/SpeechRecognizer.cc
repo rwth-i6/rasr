@@ -35,6 +35,9 @@
 #ifdef MODULE_TENSORFLOW
 #include <Tensorflow/Module.hh>
 #endif
+#ifdef MODULE_TORCH
+#include <Torch/Module.hh>
+#endif
 
 class SpeechRecognizer : public Core::Application {
 public:
@@ -60,6 +63,9 @@ public:
 #endif
 #ifdef MODULE_TENSORFLOW
         INIT_MODULE(Tensorflow);
+#endif
+#ifdef MODULE_Torch
+        INIT_MODULE(Torch);
 #endif
 
         setTitle("speech-recognizer");

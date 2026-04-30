@@ -30,6 +30,13 @@
 #pragma pop_macro("ensure")
 #endif
 
+#ifdef MODULE_TORCH
+#pragma push_macro("ensure")
+#undef ensure
+#include <Torch/Tensor.hh>
+#pragma pop_macro("ensure")
+#endif
+
 namespace Nn {
 
 /*
@@ -54,6 +61,10 @@ public:
 
 #ifdef MODULE_PYTHON
     DataView(pybind11::array_t<f32> const& array, size_t size, size_t offset = 0ul);
+#endif
+
+#ifdef MODULE_TORCH
+    DataView(Torch::Tensor&& value);
 #endif
 
     f32 const* data() const {

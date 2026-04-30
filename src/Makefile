@@ -92,6 +92,11 @@ ifdef MODULE_TEST
 SUBDIRS         += Test
 endif
 
+ifdef MODULE_TORCH
+SUBDIRS       += Torch
+TOOLS_MODULES += Torch
+endif
+
 TARGETS		=
 
 # -----------------------------------------------------------------------------
@@ -219,6 +224,9 @@ Test: $(TOOLS_MODULES)
 
 Tools: $(TOOLS_MODULES)
 	$(MAKE) -C Tools
+
+Torch: Core
+	$(MAKE) -C Torch libSprintTorch.$(a)
 
 # -----------------------------------------------------------------------------
 tags:

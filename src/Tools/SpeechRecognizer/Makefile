@@ -60,6 +60,10 @@ COMMON_O += ../../Tensorflow/libSprintTensorflow.$(a)
 CXXFLAGS += $(TF_CXXFLAGS)
 LDFLAGS  := $(TF_LDFLAGS) $(LDFLAGS)
 endif
+ifdef MODULE_TORCH
+COMMON_O += ../../Torch/libSprintTorch.$(a)
+endif
+
 
 # -----------------------------------------------------------------------------
 

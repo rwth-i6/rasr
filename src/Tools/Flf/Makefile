@@ -57,6 +57,9 @@ endif
 ifdef MODULE_LM_ONNX
 FLF_TOOL_O += ../../Onnx/libSprintOnnx.$(a)
 endif
+ifdef MODULE_TORCH
+FLF_TOOL_O += ../../Torch/libSprintTorch.$(a)
+endif
 
 # -----------------------------------------------------------------------------
 

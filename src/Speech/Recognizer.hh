@@ -18,7 +18,9 @@
 #include <Core/Choice.hh>
 #include <Lattice/Archive.hh>
 #include <Mm/Types.hh>
+#ifndef CMAKE_DISABLE_MODULES_HH
 #include <Modules.hh>
+#endif
 #include <Search/Search.hh>
 #include "DataExtractor.hh"
 

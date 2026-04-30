@@ -14,7 +14,9 @@
  */
 #include "Module.hh"
 #include <Flow/Registry.hh>
+#ifndef CMAKE_DISABLE_MODULES_HH
 #include <Modules.hh>
+#endif
 
 // predefined filter
 #ifdef MODULE_AUDIO_RAW

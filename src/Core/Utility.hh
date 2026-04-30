@@ -15,7 +15,9 @@
 #ifndef _CORE_UTILITY_HH
 #define _CORE_UTILITY_HH
 
+#ifndef CMAKE_DISABLE_MODULES_HH
 #include <Modules.hh>
+#endif
 #include <cmath>
 #include <complex>
 #include <cstdlib>

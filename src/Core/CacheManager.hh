@@ -1,8 +1,9 @@
 #ifndef _CORE_CACHE_MANAGER
 #define _CORE_CACHE_MANAGER
 
+#ifndef CMAKE_DISABLE_MODULES_HH
 #include <Modules.hh>
-
+#endif
 #ifdef MODULE_CORE_CACHE_MANAGER
 
 #include <string>

@@ -10,7 +10,6 @@ bison_target(
 
 add_library(
     RasrCore STATIC
-    ${SOURCE_VERSION_FILE}
     ${BISON_ArithmeticExpressionParser_OUTPUTS}
     Application.cc
     Archive.cc
@@ -58,9 +57,7 @@ add_library(
     XmlStream.cc
 )
 
-set_source_files_properties(
-    "${SOURCE_VERSION_FILE}" PROPERTIES GENERATED TRUE HEADER_FILE_ONLY TRUE
-)
+add_dependencies(RasrCore SourceVersion)
 target_include_directories(
     RasrCore PRIVATE ${CMAKE_CURRENT_BINARY_DIR} ${CMAKE_BINARY_DIR}/src
 )

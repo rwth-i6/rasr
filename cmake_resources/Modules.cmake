@@ -57,8 +57,8 @@ add_module_option(MODULE_LM_ARPA ON)
 add_module_option(MODULE_LM_FSA ON)
 add_module_option(MODULE_LM_ZEROGRAM ON)
 add_module_option(MODULE_LM_FFNN ON)
-add_module_option(MODULE_LM_TFRNN ON)
-add_module_option(MODULE_LM_ONNX OFF)
+add_module_option(MODULE_LM_TFRNN OFF)
+add_module_option(MODULE_LM_ONNX ON)
 
 # ****** Math ******
 add_module_option(MODULE_MATH_NR ON)

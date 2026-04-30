@@ -28,27 +28,27 @@ set(CMAKE_INSTALL_PREFIX
     "${CMAKE_CURRENT_SOURCE_DIR}/arch/${ARCH_DESCRIPTION}/"
 )
 
-function(add_install_executable EXECUTABLE_NAME)
-    install(TARGETS ${EXECUTABLE_NAME} RUNTIME DESTINATION .)
+function(add_install_executable executable_name)
+    install(TARGETS ${executable_name} RUNTIME DESTINATION .)
     set_target_properties(
-        ${EXECUTABLE_NAME} PROPERTIES OUTPUT_NAME
-                                      "${EXECUTABLE_NAME}.${ARCH_DESCRIPTION}"
+        ${executable_name} PROPERTIES OUTPUT_NAME
+                                      "${executable_name}.${ARCH_DESCRIPTION}"
     )
 endfunction()
 
-function(add_install_library LIBRARY_NAME)
-    install(TARGETS ${LIBRARY_NAME} LIBRARY DESTINATION ${CMAKE_INSTALL_PREFIX})
+function(add_install_library library_name)
+    install(TARGETS ${library_name} LIBRARY DESTINATION ${CMAKE_INSTALL_PREFIX})
 endfunction()
 
-function(add_rasr_check_executable EXECUTABLE_NAME)
+function(add_rasr_check_executable executable_name)
     if(RASR_BUILD_CHECKS)
-        add_executable(${EXECUTABLE_NAME} ${ARGN})
+        add_executable(${executable_name} ${ARGN})
     endif()
 endfunction()
 
-function(target_link_rasr_check_libraries EXECUTABLE_NAME)
+function(target_link_rasr_check_libraries executable_name)
     if(RASR_BUILD_CHECKS)
-        target_link_libraries(${EXECUTABLE_NAME} ${ARGN})
+        target_link_libraries(${executable_name} ${ARGN})
     endif()
 endfunction()
 

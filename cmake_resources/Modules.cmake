@@ -1,25 +1,25 @@
-function(add_module_option MODULE_NAME DEFAULT_VALUE)
-    option(${MODULE_NAME} "Enable module ${MODULE_NAME}" ${DEFAULT_VALUE})
-    if(${MODULE_NAME})
-        add_compile_definitions(${MODULE_NAME})
-        message(STATUS "Module ${MODULE_NAME} is enabled")
+function(add_module_option module_name default_value)
+    option(${module_name} "Enable module ${module_name}" ${default_value})
+    if(${module_name})
+        add_compile_definitions(${module_name})
+        message(STATUS "Module ${module_name} is enabled")
     else()
-        message(STATUS "Module ${MODULE_NAME} disabled")
+        message(STATUS "Module ${module_name} disabled")
     endif()
 endfunction()
 
 set(TOOLS "")
 
-function(add_tool_option TOOL_NAME DEFAULT_VALUE)
-    option(${TOOL_NAME} "Enable tool ${TOOL_NAME}" ${DEFAULT_VALUE})
-    if(${TOOL_NAME})
+function(add_tool_option tool_name default_value)
+    option(${tool_name} "Enable tool ${tool_name}" ${default_value})
+    if(${tool_name})
         set(TOOLS
-            ${TOOLS} ${TOOL_NAME}
+            ${TOOLS} ${tool_name}
             PARENT_SCOPE
         )
-        message(STATUS "Tool ${TOOL_NAME} is enabled")
+        message(STATUS "Tool ${tool_name} is enabled")
     else()
-        message(STATUS "Tool ${TOOL_NAME} is disabled")
+        message(STATUS "Tool ${tool_name} is disabled")
     endif()
 endfunction()
 

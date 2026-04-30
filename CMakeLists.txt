@@ -37,7 +37,7 @@ function(add_install_executable executable_name)
 endfunction()
 
 function(add_install_library library_name)
-    install(TARGETS ${library_name} LIBRARY DESTINATION ${CMAKE_INSTALL_PREFIX})
+    install(TARGETS ${library_name} LIBRARY DESTINATION .)
 endfunction()
 
 function(add_rasr_check_executable executable_name)

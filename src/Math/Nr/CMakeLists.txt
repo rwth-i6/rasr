@@ -13,6 +13,6 @@ add_library(
 
 target_link_libraries(RasrMathNr PUBLIC RasrCore RasrMath)
 
-add_executable(check-math-nr check.cc)
+add_rasr_check_executable(check-math-nr check.cc)
 
-target_link_libraries(check-math-nr PRIVATE RasrMathNr)
+target_link_rasr_check_libraries(check-math-nr PRIVATE RasrMathNr)

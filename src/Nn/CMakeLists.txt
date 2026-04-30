@@ -1,5 +1,3 @@
-add_subdirectory(LabelScorer)
-
 add_library(
     RasrNn STATIC
     ActivationLayer.cc
@@ -37,6 +35,8 @@ add_library(
     TrainerFeatureScorer.cc
 )
 
+add_subdirectory(LabelScorer)
+
 if(${MODULE_NN_SEQUENCE_TRAINING})
     target_sources(
         RasrNn
@@ -62,7 +62,7 @@ target_link_libraries(
            RasrLattice
            RasrMath
            RasrMm
-           RasrNnLabelScorer
+           RasrSearch
            RasrSpeech
 )
 
@@ -70,6 +70,6 @@ if(${MODULE_PYTHON})
     target_link_libraries(RasrNn PUBLIC RasrPython)
 endif()
 
-add_executable(check-nn check.cc)
+add_rasr_check_executable(check-nn check.cc)
 
-target_link_libraries(check-nn PRIVATE RasrNn)
+target_link_rasr_check_libraries(check-nn PRIVATE RasrNn)

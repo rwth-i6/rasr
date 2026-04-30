@@ -10,6 +10,7 @@ bison_target(
 
 add_library(
     RasrCore STATIC
+    ${SOURCE_VERSION_FILE}
     ${BISON_ArithmeticExpressionParser_OUTPUTS}
     Application.cc
     Archive.cc
@@ -57,13 +58,18 @@ add_library(
     XmlStream.cc
 )
 
-add_dependencies(RasrCore SourceVersion)
-target_include_directories(RasrCore PRIVATE ${CMAKE_CURRENT_BINARY_DIR})
+set_source_files_properties(
+    "${SOURCE_VERSION_FILE}" PROPERTIES GENERATED TRUE HEADER_FILE_ONLY TRUE
+)
+target_include_directories(
+    RasrCore PRIVATE ${CMAKE_CURRENT_BINARY_DIR} ${CMAKE_BINARY_DIR}/src
+)
+target_link_libraries(RasrCore PUBLIC RasrSystemDependencies)
 
-add_executable(check-core check.cc)
+add_rasr_check_executable(check-core check.cc)
 
-target_link_libraries(check-core PRIVATE RasrCore RasrMath)
+target_link_rasr_check_libraries(check-core PRIVATE RasrCore RasrMath)
 
-add_executable(check-core-xml check-xml.cc)
+add_rasr_check_executable(check-core-xml check-xml.cc)
 
-target_link_libraries(check-core-xml PRIVATE RasrCore)
+target_link_rasr_check_libraries(check-core-xml PRIVATE RasrCore)

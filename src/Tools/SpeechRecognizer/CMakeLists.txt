@@ -17,7 +17,7 @@ set(libraries
 )
 
 if(${MODULE_SEARCH_WFST})
-    list(APPEND libraries RasrSearchWfst RasrOpenFst)
+    list(APPEND libraries RasrOpenFst)
 endif()
 
 if(${MODULE_ONNX})

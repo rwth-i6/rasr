@@ -20,8 +20,8 @@ if(${MODULE_AUDIO_WAV_SYSTEM})
     target_sources(RasrAudio PRIVATE Wav.cc)
 endif()
 
-target_link_libraries(RasrAudio PUBLIC RasrCore RasrFlow)
+target_link_libraries(RasrAudio PUBLIC RasrAudioDependencies RasrCore RasrFlow)
 
-add_executable(check-audio check.cc)
+add_rasr_check_executable(check-audio check.cc)
 
-target_link_libraries(check-audio PRIVATE RasrAudio)
+target_link_rasr_check_libraries(check-audio PRIVATE RasrAudio)

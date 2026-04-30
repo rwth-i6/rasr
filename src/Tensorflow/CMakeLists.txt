@@ -28,6 +28,6 @@ target_link_libraries(
            Tensorflow::Tensorflow
 )
 
-add_executable(check-tensorflow check.cc)
+add_rasr_check_executable(check-tensorflow check.cc)
 
-target_link_libraries(check-tensorflow PRIVATE RasrTensorflow)
+target_link_rasr_check_libraries(check-tensorflow PRIVATE RasrTensorflow)

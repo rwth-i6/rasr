@@ -1,6 +1,1 @@
-add_library(RasrTreeTimesyncBeamSearch STATIC TreeTimesyncBeamSearch.cc)
-
-target_link_libraries(
-    RasrTreeTimesyncBeamSearch PUBLIC RasrAm RasrBliss RasrCore RasrLattice
-                                      RasrNn RasrSearch
-)
+target_sources(RasrSearch PRIVATE TreeTimesyncBeamSearch.cc)

@@ -1,13 +1,3 @@
-if(${MODULE_SEARCH_WFST})
-    add_subdirectory(Wfst)
-endif()
-if(${MODULE_ADVANCED_TREE_SEARCH})
-    add_subdirectory(AdvancedTreeSearch)
-endif()
-add_subdirectory(LexiconfreeLabelsyncBeamSearch)
-add_subdirectory(LexiconfreeTimesyncBeamSearch)
-add_subdirectory(TreeTimesyncBeamSearch)
-
 add_library(
     RasrSearch STATIC
     Aligner.cc
@@ -35,6 +25,16 @@ if(${MODULE_SEARCH_LINEAR})
     target_sources(RasrSearch PRIVATE LinearSearch.cc)
 endif()
 
+if(${MODULE_SEARCH_WFST})
+    add_subdirectory(Wfst)
+endif()
+if(${MODULE_ADVANCED_TREE_SEARCH})
+    add_subdirectory(AdvancedTreeSearch)
+endif()
+add_subdirectory(LexiconfreeLabelsyncBeamSearch)
+add_subdirectory(LexiconfreeTimesyncBeamSearch)
+add_subdirectory(TreeTimesyncBeamSearch)
+
 target_link_libraries(
     RasrSearch
     PUBLIC RasrAm
@@ -42,24 +42,13 @@ target_link_libraries(
            RasrCore
            RasrFsa
            RasrLattice
-           RasrLexiconfreeLabelsyncBeamSearch
-           RasrLexiconfreeTimesyncBeamSearch
            RasrLm
            RasrMm
            RasrNn
            RasrSignal
            RasrSpeech
-           RasrTreeTimesyncBeamSearch
 )
 
-if(${MODULE_ADVANCED_TREE_SEARCH})
-    target_link_libraries(RasrSearch PUBLIC RasrAdvancedTreeSearch)
-endif()
+add_rasr_check_executable(check-search check.cc)
 
-if(${MODULE_SEARCH_WFST})
-    target_link_libraries(RasrSearch PUBLIC RasrOpenFst RasrSearchWfst)
-endif()
-
-add_executable(check-search check.cc)
-
-target_link_libraries(check-search PRIVATE RasrSearch)
+target_link_rasr_check_libraries(check-search PRIVATE RasrSearch)

@@ -12,6 +12,6 @@ add_library(
 
 target_link_libraries(RasrCart PUBLIC RasrCore)
 
-add_executable(check-cart check.cc)
+add_rasr_check_executable(check-cart check.cc)
 
-target_link_libraries(check-cart PRIVATE RasrCart)
+target_link_rasr_check_libraries(check-cart PRIVATE RasrCart)

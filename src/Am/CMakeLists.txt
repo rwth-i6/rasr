@@ -33,6 +33,6 @@ target_link_libraries(
            RasrSpeech
 )
 
-add_executable(check-am check.cc)
+add_rasr_check_executable(check-am check.cc)
 
-target_link_libraries(check-am PRIVATE RasrAm)
+target_link_rasr_check_libraries(check-am PRIVATE RasrAm)

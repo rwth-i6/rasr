@@ -1,56 +1,44 @@
-add_library(
-    RasrSearchWfst STATIC
-    BookKeeping.cc
-    Builder.cc
-    ComposedNetwork.cc
-    CompressedNetwork.cc
-    ContextTransducerBuilder.cc
-    CreateOperations.cc
-    DynamicLmFst.cc
-    ExpandingFsaSearch.cc
-    FstOperations.cc
-    GrammarFst.cc
-    IoOperations.cc
-    Lattice.cc
-    LatticeAdaptor.cc
-    LatticeArchive.cc
-    LatticeGenerator.cc
-    LatticeHandler.cc
-    LatticeNetwork.cc
-    LatticeReader.cc
-    LexiconBuilder.cc
-    LexiconFst.cc
-    Module.cc
-    Network.cc
-    NonWordTokens.cc
-    SearchSpace.cc
-    StateSequence.cc
-    StateTree.cc
-    Traceback.cc
-    UtilityOperations.cc
-    WordEnd.cc
+target_sources(
+    RasrSearch
+    PRIVATE BookKeeping.cc
+            Builder.cc
+            ComposedNetwork.cc
+            CompressedNetwork.cc
+            ContextTransducerBuilder.cc
+            CreateOperations.cc
+            DynamicLmFst.cc
+            ExpandingFsaSearch.cc
+            FstOperations.cc
+            GrammarFst.cc
+            IoOperations.cc
+            Lattice.cc
+            LatticeAdaptor.cc
+            LatticeArchive.cc
+            LatticeGenerator.cc
+            LatticeHandler.cc
+            LatticeNetwork.cc
+            LatticeReader.cc
+            LexiconBuilder.cc
+            LexiconFst.cc
+            Module.cc
+            Network.cc
+            NonWordTokens.cc
+            SearchSpace.cc
+            StateSequence.cc
+            StateTree.cc
+            Traceback.cc
+            UtilityOperations.cc
+            WordEnd.cc
 )
 
-target_compile_options(RasrSearchWfst PRIVATE "-Wno-sign-compare")
+target_compile_options(RasrSearch PRIVATE "-Wno-sign-compare")
 
-target_link_libraries(
-    RasrSearchWfst
-    PUBLIC RasrAm
-           RasrBliss
-           RasrCore
-           RasrFlf
-           RasrFsa
-           RasrLattice
-           RasrLm
-           RasrOpenFst
-           RasrSearch
-           RasrSpeech
-)
+target_link_libraries(RasrSearch PUBLIC RasrFlf RasrOpenFst)
 
-add_executable(check-search-wfst check.cc)
+add_rasr_check_executable(check-search-wfst check.cc)
 
-target_link_libraries(check-search-wfst PRIVATE RasrSearchWfst)
+target_link_rasr_check_libraries(check-search-wfst PRIVATE RasrSearch)
 
-add_executable(check-search-wfst-ctrans check_ctrans.cc)
+add_rasr_check_executable(check-search-wfst-ctrans check_ctrans.cc)
 
-target_link_libraries(check-search-wfst-ctrans PRIVATE RasrSearchWfst)
+target_link_rasr_check_libraries(check-search-wfst-ctrans PRIVATE RasrSearch)

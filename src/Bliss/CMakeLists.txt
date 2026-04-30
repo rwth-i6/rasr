@@ -28,6 +28,6 @@ if(${MODULE_PYTHON})
     target_link_libraries(RasrBliss PUBLIC RasrPython)
 endif()
 
-add_executable(check-bliss check.cc)
+add_rasr_check_executable(check-bliss check.cc)
 
-target_link_libraries(check-bliss PRIVATE RasrBliss)
+target_link_rasr_check_libraries(check-bliss PRIVATE RasrBliss)

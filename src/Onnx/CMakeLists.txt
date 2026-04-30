@@ -20,6 +20,6 @@ target_link_libraries(
                     RasrNn
 )
 
-add_executable(check-onnx check.cc)
+add_rasr_check_executable(check-onnx check.cc)
 
-target_link_libraries(check-onnx PRIVATE RasrOnnx)
+target_link_rasr_check_libraries(check-onnx PRIVATE RasrOnnx)

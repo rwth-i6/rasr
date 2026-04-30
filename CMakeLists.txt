@@ -5,6 +5,8 @@ include(cmake_resources/ConfigurationTypes.cmake)
 include(cmake_resources/Modules.cmake)
 include(cmake_resources/CompileOptions.cmake)
 
+option(RASR_BUILD_CHECKS "Build check executables" OFF)
+
 if(${MODULE_PYTHON})
     include(cmake_resources/Python.cmake)
 endif()
@@ -38,15 +40,39 @@ function(add_install_library LIBRARY_NAME)
     install(TARGETS ${LIBRARY_NAME} LIBRARY DESTINATION ${CMAKE_INSTALL_PREFIX})
 endfunction()
 
-set(SOURCE_VERSION_FILE "${CMAKE_CURRENT_BINARY_DIR}/src/SourceVersion.cc")
+function(add_rasr_check_executable EXECUTABLE_NAME)
+    if(RASR_BUILD_CHECKS)
+        add_executable(${EXECUTABLE_NAME} ${ARGN})
+    endif()
+endfunction()
 
-add_custom_target(
-    SourceVersion ALL
-    COMMAND
-        ${CMAKE_COMMAND} "-DOUTPUT_FILE=${SOURCE_VERSION_FILE}" -P
-        "${CMAKE_CURRENT_SOURCE_DIR}/cmake_resources/GenerateSourceVersion.cmake"
-    BYPRODUCTS "${SOURCE_VERSION_FILE}"
-    COMMENT "Generating source version information"
+function(target_link_rasr_check_libraries EXECUTABLE_NAME)
+    if(RASR_BUILD_CHECKS)
+        target_link_libraries(${EXECUTABLE_NAME} ${ARGN})
+    endif()
+endfunction()
+
+set(SOURCE_VERSION_FILE "${CMAKE_CURRENT_BINARY_DIR}/src/SourceVersion.cc")
+set(SOURCE_VERSION_DEPENDS
+    "${CMAKE_CURRENT_SOURCE_DIR}/cmake_resources/GenerateSourceVersion.cmake"
 )
+if(EXISTS "${CMAKE_CURRENT_SOURCE_DIR}/src/SourceVersion.release")
+    list(APPEND SOURCE_VERSION_DEPENDS
+         "${CMAKE_CURRENT_SOURCE_DIR}/src/SourceVersion.release"
+    )
+endif()
+
+add_custom_command(
+    OUTPUT "${SOURCE_VERSION_FILE}"
+    COMMAND
+        ${CMAKE_COMMAND} "-DOUTPUT_FILE=${SOURCE_VERSION_FILE}"
+        "-DSOURCE_DIR=${CMAKE_CURRENT_SOURCE_DIR}" -P
+        "${CMAKE_CURRENT_SOURCE_DIR}/cmake_resources/GenerateSourceVersion.cmake"
+    DEPENDS ${SOURCE_VERSION_DEPENDS}
+    COMMENT "Generating source version information"
+    VERBATIM
+)
+
+add_custom_target(SourceVersion DEPENDS "${SOURCE_VERSION_FILE}")
 
 add_subdirectory(src/)

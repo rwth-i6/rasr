@@ -17,6 +17,6 @@ target_link_libraries(
     RasrFlfCore PUBLIC RasrBliss RasrCore RasrFsa RasrLattice RasrSpeech
 )
 
-add_executable(check-flf-core check.cc)
+add_rasr_check_executable(check-flf-core check.cc)
 
-target_link_libraries(check-flf-core PRIVATE RasrFlfCore)
+target_link_rasr_check_libraries(check-flf-core PRIVATE RasrFlfCore)

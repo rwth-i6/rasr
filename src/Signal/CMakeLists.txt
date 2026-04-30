@@ -102,6 +102,6 @@ if(${MODULE_SIGNAL_ADVANCED_NR})
     target_link_libraries(RasrSignal PUBLIC RasrCore RasrFlow RasrMath RasrMm)
 endif()
 
-add_executable(check-signal check.cc)
+add_rasr_check_executable(check-signal check.cc)
 
-target_link_libraries(check-signal PRIVATE RasrSignal)
+target_link_rasr_check_libraries(check-signal PRIVATE RasrSignal)

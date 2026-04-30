@@ -54,9 +54,16 @@ find_package(LAPACK REQUIRED)
 
 find_library(LIB_RT rt REQUIRED)
 
-link_libraries(
-    LibXml2::LibXml2 ZLIB::ZLIB Threads::Threads LAPACK::LAPACK ${LIB_RT}
+add_library(RasrSystemDependencies INTERFACE)
+target_link_libraries(
+    RasrSystemDependencies INTERFACE LibXml2::LibXml2 ZLIB::ZLIB
+                                     Threads::Threads ${LIB_RT}
 )
+
+add_library(RasrLapackDependencies INTERFACE)
+target_link_libraries(RasrLapackDependencies INTERFACE LAPACK::LAPACK)
+
+add_library(RasrAudioDependencies INTERFACE)
 
 include_directories(${LIBXML2_INCLUDE_DIR})
 include_directories(${CMAKE_SOURCE_DIR}/src)
@@ -68,19 +75,21 @@ if(${MODULE_AUDIO_FFMPEG})
     pkg_check_modules(AVCODEC REQUIRED IMPORTED_TARGET libavcodec)
     pkg_check_modules(AVUTIL REQUIRED IMPORTED_TARGET libavutil)
 
-    include_directories(
-        ${AVFORMAT_INCLUDE_DIRS} ${SWRESAMPLE_INCLUDE_DIRS}
-        ${AVCODEC_INCLUDE_DIRS} ${AVUTIL_INCLUDE_DIRS}
+    target_include_directories(
+        RasrAudioDependencies
+        INTERFACE ${AVFORMAT_INCLUDE_DIRS} ${SWRESAMPLE_INCLUDE_DIRS}
+                  ${AVCODEC_INCLUDE_DIRS} ${AVUTIL_INCLUDE_DIRS}
     )
-    link_libraries(
-        PkgConfig::AVFORMAT PkgConfig::SWRESAMPLE PkgConfig::AVCODEC
-        PkgConfig::AVUTIL
+    target_link_libraries(
+        RasrAudioDependencies
+        INTERFACE PkgConfig::AVFORMAT PkgConfig::SWRESAMPLE PkgConfig::AVCODEC
+                  PkgConfig::AVUTIL
     )
 endif()
 
 if(${MODULE_OPENMP})
     find_package(OpenMP REQUIRED)
-    link_libraries(OpenMP::OpenMP_CXX)
+    target_link_libraries(RasrSystemDependencies INTERFACE OpenMP::OpenMP_CXX)
 endif()
 
 if(${MODULE_CUDA})
@@ -89,9 +98,9 @@ if(${MODULE_CUDA})
 endif()
 
 if(${MODULE_AUDIO_FLAC})
-    link_libraries(FLAC)
+    target_link_libraries(RasrAudioDependencies INTERFACE FLAC)
 endif()
 
 if(${MODULE_AUDIO_WAV_SYSTEM})
-    link_libraries(sndfile)
+    target_link_libraries(RasrAudioDependencies INTERFACE sndfile)
 endif()

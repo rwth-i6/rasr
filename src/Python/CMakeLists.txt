@@ -21,6 +21,6 @@ target_link_libraries(
            RasrSpeech
 )
 
-add_executable(check-python check.cc)
+add_rasr_check_executable(check-python check.cc)
 
-target_link_libraries(check-python PRIVATE RasrPython RasrCore)
+target_link_rasr_check_libraries(check-python PRIVATE RasrPython RasrCore)

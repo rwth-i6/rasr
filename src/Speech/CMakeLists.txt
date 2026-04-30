@@ -139,6 +139,6 @@ if(${MODULE_CART})
     target_link_libraries(RasrSpeech PUBLIC RasrCart)
 endif()
 
-add_executable(check-speech check.cc)
+add_rasr_check_executable(check-speech check.cc)
 
-target_link_libraries(check-speech PRIVATE RasrSpeech)
+target_link_rasr_check_libraries(check-speech PRIVATE RasrSpeech)

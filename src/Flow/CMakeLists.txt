@@ -30,6 +30,6 @@ add_library(
 
 target_link_libraries(RasrFlow PUBLIC RasrCore RasrMath)
 
-add_executable(check-flow check.cc)
+add_rasr_check_executable(check-flow check.cc)
 
-target_link_libraries(check-flow PRIVATE RasrFlow)
+target_link_rasr_check_libraries(check-flow PRIVATE RasrFlow)

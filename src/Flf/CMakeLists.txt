@@ -1,9 +1,5 @@
 add_subdirectory(FlfCore)
 
-if(${MODULE_FLF_EXT})
-    add_subdirectory(FlfExt)
-endif()
-
 add_library(
     RasrFlf STATIC
     Archive.cc
@@ -67,6 +63,10 @@ add_library(
     Union.cc
 )
 
+if(${MODULE_FLF_EXT})
+    add_subdirectory(FlfExt)
+endif()
+
 target_link_libraries(
     RasrFlf
     PUBLIC RasrAm
@@ -83,10 +83,6 @@ target_link_libraries(
            RasrSpeech
 )
 
-if(${MODULE_FLF_EXT})
-    target_link_libraries(RasrFlf PUBLIC RasrFlfExt)
-endif()
+add_rasr_check_executable(check-flf check.cc)
 
-add_executable(check-flf check.cc)
-
-target_link_libraries(check-flf PRIVATE RasrFlf)
+target_link_rasr_check_libraries(check-flf PRIVATE RasrFlf)

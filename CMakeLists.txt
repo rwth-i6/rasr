@@ -53,14 +53,6 @@ function(target_link_rasr_check_libraries executable_name)
 endfunction()
 
 set(SOURCE_VERSION_FILE "${CMAKE_CURRENT_BINARY_DIR}/src/SourceVersion.cc")
-set(SOURCE_VERSION_DEPENDS
-    "${CMAKE_CURRENT_SOURCE_DIR}/cmake_resources/GenerateSourceVersion.cmake"
-)
-if(EXISTS "${CMAKE_CURRENT_SOURCE_DIR}/src/SourceVersion.release")
-    list(APPEND SOURCE_VERSION_DEPENDS
-         "${CMAKE_CURRENT_SOURCE_DIR}/src/SourceVersion.release"
-    )
-endif()
 
 add_custom_command(
     OUTPUT "${SOURCE_VERSION_FILE}"
@@ -68,7 +60,6 @@ add_custom_command(
         ${CMAKE_COMMAND} "-DOUTPUT_FILE=${SOURCE_VERSION_FILE}"
         "-DSOURCE_DIR=${CMAKE_CURRENT_SOURCE_DIR}" -P
         "${CMAKE_CURRENT_SOURCE_DIR}/cmake_resources/GenerateSourceVersion.cmake"
-    DEPENDS ${SOURCE_VERSION_DEPENDS}
     COMMENT "Generating source version information"
     VERBATIM
 )

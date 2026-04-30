@@ -3,7 +3,7 @@ if(NOT DEFINED OUTPUT_FILE)
 endif()
 
 if(NOT DEFINED SOURCE_DIR)
-    get_filename_component(SOURCE_DIR "${CMAKE_CURRENT_LIST_DIR}/.." ABSOLUTE)
+    message(FATAL_ERROR "SOURCE_DIR is required")
 endif()
 
 set(_release_file "${SOURCE_DIR}/src/SourceVersion.release")

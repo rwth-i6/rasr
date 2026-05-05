@@ -13,9 +13,6 @@
  *  limitations under the License.
  */
 #include "Random.hh"
-#ifndef CMAKE_DISABLE_MODULES_HH
-#include <Modules.hh>
-#endif
 #ifdef MODULE_MATH_NR
 #include "Nr/Random.hh"
 #endif

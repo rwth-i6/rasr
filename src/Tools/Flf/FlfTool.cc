@@ -25,9 +25,6 @@
 #include <Lm/Module.hh>
 #include <Math/Module.hh>
 #include <Mm/Module.hh>
-#ifndef CMAKE_DISABLE_MODULES_HH
-#include <Modules.hh>
-#endif
 #include <Signal/Module.hh>
 #include <Speech/Module.hh>
 

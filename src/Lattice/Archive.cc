@@ -21,9 +21,6 @@
 #include <Fsa/Semiring.hh>
 #include <Fsa/Sort.hh>
 #include <Fsa/Static.hh>
-#ifndef CMAKE_DISABLE_MODULES_HH
-#include <Modules.hh>
-#endif
 
 #include "Archive.hh"
 #ifdef MODULE_LATTICE_HTK

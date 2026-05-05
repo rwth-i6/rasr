@@ -17,9 +17,6 @@
 
 #include <Core/Directory.hh>
 #include <Core/Singleton.hh>
-#ifndef CMAKE_DISABLE_MODULES_HH
-#include <Modules.hh>
-#endif
 #include "AssigningFeatureScorer.hh"
 #include "MixtureSetEstimator.hh"
 #include "ScaledFeatureScorer.hh"

@@ -1,8 +1,6 @@
 set(CMAKE_CXX_STANDARD 20)
 include(CheckCXXCompilerFlag)
 
-add_compile_definitions(CMAKE_DISABLE_MODULES_HH)
-
 add_compile_definitions(_GNU_SOURCE)
 add_compile_options(
     -fPIC

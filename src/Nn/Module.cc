@@ -16,9 +16,6 @@
 
 #include <Core/FormatSet.hh>
 #include <Flow/Registry.hh>
-#ifndef CMAKE_DISABLE_MODULES_HH
-#include <Modules.hh>
-#endif
 #include "LabelScorer/CombineLabelScorer.hh"
 #include "LabelScorer/EncoderDecoderLabelScorer.hh"
 #include "LabelScorer/FixedContextOnnxLabelScorer.hh"

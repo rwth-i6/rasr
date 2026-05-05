@@ -33,6 +33,46 @@ namespace Core {
 class Configuration;
 }
 
+struct HMMSequence {
+    HMMSequence()
+            : length(0) {}
+
+    enum {
+        MaxLength = 12
+    };
+
+    s32                          length;
+    Search::StateTree::StateDesc hmm[MaxLength];
+
+    inline const Search::StateTree::StateDesc& operator[](u32 index) const {
+        return hmm[index];
+    }
+
+    bool operator==(const HMMSequence& rhs) const {
+        verify(length < MaxLength);
+        return length == rhs.length && std::equal(hmm, hmm + length, rhs.hmm);
+    }
+
+    void reverse() {
+        for (u32 i = 0; i < length / 2; ++i) {
+            Search::StateTree::StateDesc temp(hmm[i]);
+            hmm[i]              = hmm[length - 1 - i];
+            hmm[length - 1 - i] = temp;
+        }
+    }
+
+    struct Hash {
+        size_t operator()(const HMMSequence& seq) const {
+            size_t ret = seq.length;
+            for (s32 p = 0; p < seq.length; ++p)
+                ret = Core::StandardValueHash<size_t>()(ret + Search::StateTree::StateDesc::Hash()(seq[p]));
+            return ret;
+        }
+    };
+};
+
+typedef Core::HashMap<Search::PersistentStateTree::Exit, u32, Search::PersistentStateTree::Exit::Hash> ExitHash;
+
 class AbstractTreeBuilder : public Core::Component {
 public:
     typedef u32 StateId;
@@ -46,46 +86,6 @@ public:
     virtual void build() = 0;
 
 protected:
-    struct HMMSequence {
-        HMMSequence()
-                : length(0) {}
-
-        enum {
-            MaxLength = 12
-        };
-
-        s32                          length;
-        Search::StateTree::StateDesc hmm[MaxLength];
-
-        inline const Search::StateTree::StateDesc& operator[](u32 index) const {
-            return hmm[index];
-        }
-
-        bool operator==(const HMMSequence& rhs) const {
-            verify(length < MaxLength);
-            return length == rhs.length && std::equal(hmm, hmm + length, rhs.hmm);
-        }
-
-        void reverse() {
-            for (u32 i = 0; i < length / 2; ++i) {
-                Search::StateTree::StateDesc temp(hmm[i]);
-                hmm[i]              = hmm[length - 1 - i];
-                hmm[length - 1 - i] = temp;
-            }
-        }
-
-        struct Hash {
-            size_t operator()(const HMMSequence& seq) const {
-                size_t ret = seq.length;
-                for (s32 p = 0; p < seq.length; ++p)
-                    ret = Core::StandardValueHash<size_t>()(ret + Search::StateTree::StateDesc::Hash()(seq[p]));
-                return ret;
-            }
-        };
-    };
-
-    typedef Core::HashMap<Search::PersistentStateTree::Exit, u32, Search::PersistentStateTree::Exit::Hash> ExitHash;
-
     const Bliss::Lexicon&        lexicon_;
     const Am::AcousticModel&     acousticModel_;
     Search::PersistentStateTree& network_;

@@ -1621,7 +1621,7 @@ HmmTreeBuilder::HmmTreeBuilder(Core::Configuration config, const Bliss::Lexicon&
         verify(!network_.rootState);
         network_.ciRootState = network_.rootState = createRoot();  // context-independent root
 
-        // network_.finalStates.insert(network_.rootState);
+        network_.finalStates.insert(network_.rootState);
 
         for (auto it = iters.first; it != iters.second; ++it) {
             const auto* phoneme = *it;
@@ -1630,7 +1630,7 @@ HmmTreeBuilder::HmmTreeBuilder(Core::Configuration config, const Bliss::Lexicon&
                 // Create coarticulated root states for context dependent phonemes
                 const StateId root = createRoot();
                 network_.coarticulatedRootStates.insert(root);
-                // network_.finalStates.insert(root);
+                network_.finalStates.insert(root);
                 rootPhonemeMap_.insert({phoneme->id(), root});  // Collect them in a map so we can later identify the root belonging to a phoneme
             }
             else {

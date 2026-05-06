@@ -28,6 +28,7 @@ jobs:
         cmake --build build -j4
     - name: Build Python package
       run: |
+        cd rasr
         python3 -m pip install --upgrade pip setuptools wheel
         CMAKE_BUILD_DIR=build python3 -m pip install . --verbose --no-build-isolation
     - name: Import Python package

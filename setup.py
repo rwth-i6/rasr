@@ -81,9 +81,9 @@ class CMakeBuild(build_ext):
         build_args.extend(shlex.split(os.environ.get("CMAKE_BUILD_ARGS", "")))
         subprocess.check_call(["cmake", *build_args])
 
-        return self._find_librasr_artifact(output_dir, build_dir)
+        return self._find_librasr_artifact(output_dir)
 
-    def _find_librasr_artifact(self, output_dir: Path, build_dir: Path) -> Path:
+    def _find_librasr_artifact(self, output_dir: Path) -> Path:
         candidates = list(output_dir.glob("librasr*.so"))
 
         if not candidates:

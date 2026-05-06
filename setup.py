@@ -7,6 +7,7 @@ import subprocess
 import sys
 from pathlib import Path
 
+import numpy
 from setuptools import Extension, dist, setup
 from setuptools.command.build_ext import build_ext
 
@@ -61,6 +62,7 @@ class CMakeBuild(build_ext):
             str(build_dir),
             f"-DCMAKE_BUILD_TYPE={config}",
             f"-DPython3_EXECUTABLE={sys.executable}",
+            f"-DPython3_NumPy_INCLUDE_DIR={numpy.get_include()}",
             f"-DCMAKE_LIBRARY_OUTPUT_DIRECTORY={output_dir}",
         ]
         cmake_args.extend(shlex.split(os.environ.get("CMAKE_ARGS", "")))
@@ -114,6 +116,7 @@ setup(
     description="RASR as a python module.",
     long_description=long_description,
     long_description_content_type="text/markdown",
+    install_requires=["numpy"],
     # use custom distribution class to mark the wheel as platform-specific
     distclass=BinaryDistribution,
     version="0.0.1",

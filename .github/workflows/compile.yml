@@ -26,3 +26,10 @@ jobs:
         cd rasr
         cmake -S . -B build
         cmake --build build -j4
+    - name: Build Python package
+      run: |
+        python3 -m pip install --upgrade pip setuptools wheel
+        CMAKE_BUILD_DIR=build python3 -m pip install . --verbose --no-build-isolation
+    - name: Import Python package
+      run: |
+        python3 -c "import librasr; print(librasr.__name__)"

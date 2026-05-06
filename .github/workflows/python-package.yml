@@ -1,0 +1,31 @@
+name: python-package
+on:
+  push:
+    branches:
+      - master
+  pull_request:
+    branches:
+      - master
+permissions:
+  contents: read
+  packages: read
+jobs:
+  python-package:
+    runs-on: ubuntu-24.04
+    container:
+      image: ghcr.io/rwth-i6/rasr:build
+      credentials:
+        username: ${{ github.actor }}
+        password: ${{ secrets.GITHUB_TOKEN }}
+    steps:
+    - uses: actions/checkout@v2
+      with:
+        path: "rasr"
+    - name: Build and install Python package
+      run: |
+        cd rasr
+        python3 -m pip install --upgrade pip setuptools wheel
+        python3 -m pip install . --verbose
+    - name: Import Python package
+      run: |
+        python3 -c "import librasr; print(librasr.__name__)"

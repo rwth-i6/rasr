@@ -6,6 +6,7 @@ import shlex
 import subprocess
 import sys
 from pathlib import Path
+from typing import Optional
 
 import numpy
 from setuptools import Extension, dist, setup
@@ -13,6 +14,48 @@ from setuptools.command.build_ext import build_ext
 
 PACKAGE_NAME = "librasr"  # keyword to import
 LIBRASR_SUBDIR = Path("src") / "Tools" / "LibRASR"
+INSTALL_REQUIRES = ["numpy"]
+
+
+def _cmake_bool(value: str) -> bool:
+    value = value.strip()
+    if value in {"0", "OFF", "NO", "FALSE", "N", "IGNORE", "NOTFOUND", ""}:
+        return False
+    if value.endswith("-NOTFOUND"):
+        return False
+    return True
+
+
+def _get_cmake_define(name: str) -> Optional[str]:
+    cmake_args = shlex.split(os.environ.get("CMAKE_ARGS", ""))
+
+    for index, arg in enumerate(cmake_args):
+        if arg == "-D" and index + 1 < len(cmake_args):
+            definition = cmake_args[index + 1]
+        elif arg.startswith("-D"):
+            definition = arg[2:]
+        else:
+            continue
+
+        key, separator, value = definition.partition("=")
+        if not separator:
+            continue
+
+        if key == name:
+            return value
+
+    return None
+
+
+def _cmake_module_enabled(name: str, default: bool) -> bool:
+    value = _get_cmake_define(name)
+    if value is None:
+        return default
+    return _cmake_bool(value)
+
+
+if _cmake_module_enabled("MODULE_TENSORFLOW", default=True):
+    INSTALL_REQUIRES.append("tensorflow")
 
 
 class CMakeExtension(Extension):
@@ -116,7 +159,7 @@ setup(
     description="RASR as a python module.",
     long_description=long_description,
     long_description_content_type="text/markdown",
-    install_requires=["numpy", "tensorflow"],
+    install_requires=INSTALL_REQUIRES,
     # use custom distribution class to mark the wheel as platform-specific
     distclass=BinaryDistribution,
     version="0.0.1",

@@ -116,7 +116,7 @@ setup(
     description="RASR as a python module.",
     long_description=long_description,
     long_description_content_type="text/markdown",
-    install_requires=["numpy"],
+    install_requires=["numpy", "tensorflow"],
     # use custom distribution class to mark the wheel as platform-specific
     distclass=BinaryDistribution,
     version="0.0.1",

@@ -25,7 +25,7 @@ jobs:
       run: |
         cd rasr
         python3 -m pip install --upgrade pip setuptools wheel
-        python3 -m pip install . --verbose
+        python3 -m pip install . --verbose --no-build-isolation
     - name: Import Python package
       run: |
         python3 -c "import librasr; print(librasr.__name__)"

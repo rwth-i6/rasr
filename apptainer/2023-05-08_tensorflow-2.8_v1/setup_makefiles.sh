@@ -1,1 +1,0 @@
-../../scripts/setup_apptainer_makefiles.sh

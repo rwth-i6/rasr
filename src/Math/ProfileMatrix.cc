@@ -21,9 +21,6 @@
 #include <Math/CudaMatrix.hh>
 #include <Math/CudaWrapper.hh>
 #include <Math/Random.hh>
-#ifndef CMAKE_DISABLE_MODULES_HH
-#include <Modules.hh>
-#endif
 #include "ProfileMatrix.hh"
 
 const Core::ParameterInt MatrixProfiler::paramNumberOfRepetitions("number-of-repetitions", "number of repetitions", 5);

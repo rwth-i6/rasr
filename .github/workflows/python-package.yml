@@ -1,4 +1,4 @@
-name: compile
+name: python-package
 on:
   push:
     branches:
@@ -10,7 +10,7 @@ permissions:
   contents: read
   packages: read
 jobs:
-  compile:
+  python-package:
     runs-on: ubuntu-24.04
     container:
       image: ghcr.io/rwth-i6/rasr:build
@@ -21,8 +21,11 @@ jobs:
     - uses: actions/checkout@v2
       with:
         path: "rasr"
-    - name: Compile RASR
+    - name: Build and install Python package
       run: |
         cd rasr
-        cmake -S . -B build
-        cmake --build build -j4
+        python3 -m pip install --upgrade pip setuptools wheel
+        python3 -m pip install . --verbose --no-build-isolation
+    - name: Import Python package
+      run: |
+        python3 -c "import librasr; print(librasr.__name__)"

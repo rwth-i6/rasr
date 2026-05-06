@@ -22,9 +22,6 @@
 #include <Flow/ArchiveWriter.hh>
 #include <Math/Module.hh>  // XML I/O stuff for writing parameters
 
-#ifndef CMAKE_DISABLE_MODULES_HH
-#include <Modules.hh>
-#endif
 #ifdef MODULE_PYTHON
 #include "PythonTrainer.hh"
 #endif

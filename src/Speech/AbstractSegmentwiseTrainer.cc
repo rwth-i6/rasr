@@ -18,9 +18,6 @@
 #include <Fsa/Compose.hh>
 #include <Fsa/Project.hh>
 #include <Lattice/Merge.hh>
-#ifndef CMAKE_DISABLE_MODULES_HH
-#include <Modules.hh>
-#endif
 #include "AcousticSegmentwiseTrainer.hh"
 
 using namespace Speech;

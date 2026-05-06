@@ -16,9 +16,6 @@
 #include <Core/CacheManager.hh>
 #include <Core/Directory.hh>
 #include <Core/IoUtilities.hh>
-#ifndef CMAKE_DISABLE_MODULES_HH
-#include <Modules.hh>
-#endif
 #include <cstdlib>
 #include "Filter.hh"
 #include "Network.hh"

@@ -111,7 +111,7 @@ add_module_option(MODULE_ACML OFF)
 add_module_option(MODULE_CUDA ON)
 
 # ****** Tensorflow integration ******
-add_module_option(MODULE_TENSORFLOW OFF)
+add_module_option(MODULE_TENSORFLOW ON)
 
 # ****** ONNX integration ******
 add_module_option(MODULE_ONNX ON)

@@ -81,14 +81,14 @@ class CMakeBuild(build_ext):
         build_args.extend(shlex.split(os.environ.get("CMAKE_BUILD_ARGS", "")))
         subprocess.check_call(["cmake", *build_args])
 
-        return self._find_librasr_artifact(build_dir)
+        return self._find_librasr_artifact(output_dir, build_dir)
 
-    def _find_librasr_artifact(self, build_dir: Path) -> Path:
-        candidates = list((build_dir / LIBRASR_SUBDIR).rglob("librasr*.so"))
+    def _find_librasr_artifact(self, output_dir: Path, build_dir: Path) -> Path:
+        candidates = list(output_dir.glob("librasr*.so"))
 
         if not candidates:
             raise RuntimeError(
-                "Could not find the CMake-built librasr Python extension. "
+                f"Could not find the CMake-built librasr Python extension in {output_dir}."
             )
 
         return max(candidates, key=lambda path: path.stat().st_mtime)
@@ -111,7 +111,7 @@ setup(
     # include shared library and link to lower case package name
     packages=[PACKAGE_NAME],
     package_dir={PACKAGE_NAME: str(LIBRASR_SUBDIR)},
-    ext_modules=[CMakeExtension(PACKAGE_NAME)],
+    ext_modules=[CMakeExtension(f"{PACKAGE_NAME}.{PACKAGE_NAME}")],
     cmdclass={"build_ext": CMakeBuild},
     description="RASR as a python module.",
     long_description=long_description,

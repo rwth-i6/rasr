@@ -18,7 +18,6 @@
 
 #include <Math/CudaVector.hh>
 #include <Math/Module.hh>
-#include <Modules.hh>
 #include <Speech/ModelCombination.hh>
 
 #include "FeedForwardTrainer.hh"

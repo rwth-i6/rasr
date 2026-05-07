@@ -17,7 +17,6 @@
 
 #include <Core/Channel.hh>
 #include <Core/Hash.hh>  // for mix2phoneme map ( lattice coverage statistics)
-#include <Modules.hh>
 #include <Speech/AcousticSegmentwiseTrainer.hh>
 
 #include "ActivationLayer.hh"

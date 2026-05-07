@@ -48,9 +48,9 @@ Useful options:
 - `-G Ninja` to use Ninja as build system (usually faster)
 - `-DCMAKE_EXPORT_COMPILE_COMMANDS=1` to generate file `compile_commands.json` which can be used for parsing the project
   by some LSPs
-- `-DMODULE_<NAME>=OFF` to disable a module, for example `-DMODULE_TENSORFLOW=OFF -DMODULE_LM_TFRNN=OFF` to disable
+- `-DMODULE_<NAME>=0` to disable a module, for example `-DMODULE_TENSORFLOW=0 -DMODULE_LM_TFRNN=0` to disable
   TensorFlow
-- `-D<TOOL>=OFF` to disable a tool, for example `-DLibRASR=OFF` to disable `LibRASR`
+- `-D<TOOL>=0` to disable a tool, for example `-DLibRASR=0` to disable `LibRASR`
 - `-DCMAKE_BUILD_TYPE=<type>` to select the build type. Supported values are `standard`, `debug` and `release`.
   For example, use `-DCMAKE_BUILD_TYPE=debug` to build with debug flags. If unset, RASR uses `standard`.
 

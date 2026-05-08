@@ -22,8 +22,6 @@
 #include <Flow/ArchiveWriter.hh>
 #include <Math/Module.hh>  // XML I/O stuff for writing parameters
 
-#include <Modules.hh>
-
 #ifdef MODULE_PYTHON
 #include "PythonTrainer.hh"
 #endif

@@ -60,7 +60,8 @@ void bindLabelScorer(py::module_& module) {
             .value("INITIAL_BLANK", Nn::TransitionType::INITIAL_BLANK)
             .value("WORD_EXIT", Nn::TransitionType::WORD_EXIT)
             .value("NONWORD_EXIT", Nn::TransitionType::NONWORD_EXIT)
-            .value("SILENCE_EXIT", Nn::TransitionType::SILENCE_EXIT);
+            .value("SILENCE_EXIT", Nn::TransitionType::SILENCE_EXIT)
+            .value("SENTENCE_END", Nn::TransitionType::SENTENCE_END);
 
     // Specify `Python::LabelScorer` as trampoline class and `Core::Ref<Nn::LabelScorer>` as holder type
     py::class_<Nn::LabelScorer, Python::PythonLabelScorer, Core::Ref<Nn::LabelScorer>> pyLabelScorer(
@@ -78,6 +79,7 @@ void bindLabelScorer(py::module_& module) {
             " - `reset`\n"
             " - `signal_no_more_features`\n"
             " - `get_initial_scoring_context`\n"
+            " - `allowed_transition_types`\n"
             " - `extended_scoring_context`\n"
             " - `add_inputs`\n"
             " - `compute_scores_with_times`");
@@ -101,6 +103,11 @@ void bindLabelScorer(py::module_& module) {
             "get_initial_scoring_context",
             [](Python::PythonLabelScorer& self) { return self.getInitialPythonScoringContext(); },
             "Create some arbitrary (hashable) python object which symbolizes the scoring context in the first search step");
+
+    pyLabelScorer.def(
+            "allowed_transition_types",
+            [](Python::PythonLabelScorer& self) { return self.getPythonAllowedTransitionTypes(); },
+            "Return an iterable of `TransitionType` values that can be scored by this label scorer.");
 
     pyLabelScorer.def(
             "extended_scoring_context",

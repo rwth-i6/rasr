@@ -16,7 +16,6 @@
 
 #include <Core/FormatSet.hh>
 #include <Flow/Registry.hh>
-#include <Modules.hh>
 #include <Nn/DummyCompressedVectorFactory.hh>
 #include <Nn/FixedQuantizationCompressedVectorFactory.hh>
 #include <Nn/QuantizedCompressedVectorFactory.hh>

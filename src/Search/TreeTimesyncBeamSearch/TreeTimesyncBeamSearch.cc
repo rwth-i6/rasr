@@ -345,19 +345,14 @@ void TreeTimesyncBeamSearch::reset() {
 }
 
 void TreeTimesyncBeamSearch::enterSegment(Bliss::SpeechSegment const* segment) {
-    initializationTime_.start();
-    for (auto& labelScorer : labelScorers_) {
-        labelScorer->reset();
-    }
+    reset();
+    resetStatistics();
     if (segment != nullptr) {
         languageModel_->setSegment(segment);
         for (auto& hyp : beam_) {
             hyp.lmHistory = languageModel_->startHistory();
         }
     }
-    resetStatistics();
-    initializationTime_.stop();
-    finishedSegment_ = false;
 }
 
 void TreeTimesyncBeamSearch::finishSegment() {

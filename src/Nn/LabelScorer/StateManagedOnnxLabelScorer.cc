@@ -63,7 +63,7 @@ static const std::vector<Onnx::IOSpecification> ioSpec = {
                 false,
                 {Onnx::ValueType::TENSOR},
                 {Onnx::ValueDataType::FLOAT},
-                {{-1, -2}, {-1, 1, -2}, {-1, -1, -2}}}};
+                {{-1, 1, -2}, {-1, -1, -2}}}};
 
 /*
  * ==================================
@@ -334,12 +334,7 @@ void StateManagedOnnxLabelScorer::cacheStatesAndScores(std::vector<StateManagedO
 
     for (size_t b = 0ul; b < scoringContextBatch.size(); ++b) {
         auto scores = std::make_shared<std::vector<Score>>();
-        if (outputs.front().numDims() == 3) {
-            outputs.front().get(b, 0, *scores);
-        }
-        else {
-            outputs.front().get(b, *scores);
-        }
+        outputs.front().get(b, 0, *scores);
         scoreCache_.put(scoringContextBatch[b], scores);
     }
 

@@ -21,7 +21,8 @@ if(${MODULE_ONNX})
     target_sources(
         RasrNn
         PRIVATE FixedContextOnnxLabelScorer.cc NoContextOnnxLabelScorer.cc
-                StatefulOnnxLabelScorer.cc StateManagedOnnxLabelScorer.cc
+                PrefixSpeechLmOnnxLabelScorer.cc StatefulOnnxLabelScorer.cc
+                StateManagedOnnxLabelScorer.cc StatefulOnnxLabelScorer.cc
     )
 endif()
 

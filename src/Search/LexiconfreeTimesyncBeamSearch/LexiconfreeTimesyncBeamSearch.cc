@@ -284,14 +284,8 @@ void LexiconfreeTimesyncBeamSearch::reset() {
 }
 
 void LexiconfreeTimesyncBeamSearch::enterSegment(Bliss::SpeechSegment const* segment) {
-    initializationTime_.start();
-    for (auto& labelScorer : labelScorers_) {
-        labelScorer->reset();
-    }
+    reset();
     resetStatistics();
-    initializationTime_.stop();
-    currentSearchStep_ = 0ul;
-    finishedSegment_   = false;
 }
 
 void LexiconfreeTimesyncBeamSearch::finishSegment() {

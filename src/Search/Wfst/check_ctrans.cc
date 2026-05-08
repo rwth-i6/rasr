@@ -17,7 +17,6 @@
 #include <Bliss/Phoneme.hh>
 #include <Core/Application.hh>
 #include <Core/Debug.hh>
-#include <Modules.hh>
 #include <OpenFst/SymbolTable.hh>
 #include <OpenFst/Types.hh>
 #include <fst/arcsort.h>

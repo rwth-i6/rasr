@@ -88,6 +88,19 @@ void PythonLabelScorer::addPythonInputs(py::array const& inputs) {
 void PythonLabelScorer::setInstance(py::object const& instance) {
     py::gil_scoped_acquire gil;
     pyInstance_ = instance;
+
+    py::object allowedTransitionTypes = getPythonAllowedTransitionTypes();
+    for (py::handle transitionType : allowedTransitionTypes) {
+        enabledTransitions_.enable(transitionType.cast<Nn::TransitionType>());
+    }
+}
+
+py::object PythonLabelScorer::getPythonAllowedTransitionTypes() {
+    PYBIND11_OVERRIDE_PURE_NAME(
+            py::object,
+            Nn::LabelScorer,
+            "allowed_transition_types",
+            getPythonAllowedTransitionTypes);
 }
 
 Nn::ScoringContextRef PythonLabelScorer::extendedScoringContext(Nn::ScoringContextRef scoringContext, Nn::LabelIndex nextToken, Nn::TransitionType transitionType) {

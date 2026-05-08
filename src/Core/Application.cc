@@ -22,7 +22,6 @@
 #ifdef OS_linux
 #include <malloc.h>
 #endif
-#include <Modules.hh>
 #include "Application.hh"
 #include "CacheManager.hh"
 #include "Channel.hh"

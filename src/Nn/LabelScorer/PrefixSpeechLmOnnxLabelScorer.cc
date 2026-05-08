@@ -81,7 +81,7 @@ static const std::vector<Onnx::IOSpecification> stepIoSpec = {
                 false,
                 {Onnx::ValueType::TENSOR},
                 {Onnx::ValueDataType::INT32},
-                {{-1, -1}}},
+                {{-1, -1}, {-1, 1}}},
         Onnx::IOSpecification{
                 "token-length",
                 Onnx::IODirection::INPUT,
@@ -102,7 +102,7 @@ static const std::vector<Onnx::IOSpecification> stepIoSpec = {
                 false,
                 {Onnx::ValueType::TENSOR},
                 {Onnx::ValueDataType::FLOAT},
-                {{-1, -1, -2}}}};
+                {{-1, -1, -2}, {-1, 1, -2}}}};
 
 const Core::ParameterIntVector PrefixSpeechLmOnnxLabelScorer::paramInitialPromptLabels(
         "initial-prompt-labels",

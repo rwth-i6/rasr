@@ -194,6 +194,50 @@ bool StateManagedOnnxScoringContext::isEqual(ScoringContextRef const& other) con
 }
 
 /*
+ * ====================================
+ * === PrefixSpeechLmScoringContext ===
+ * ====================================
+ */
+PrefixSpeechLmScoringContext::PrefixSpeechLmScoringContext()
+        : labelSeq(),
+          historyLength(0ul),
+          parent(),
+          state() {
+}
+
+PrefixSpeechLmScoringContext::PrefixSpeechLmScoringContext(std::vector<LabelIndex>&&                     labelSeq,
+                                                           size_t                                        historyLength,
+                                                           Core::Ref<PrefixSpeechLmScoringContext const> parent,
+                                                           std::shared_ptr<HistoryState>                 state)
+        : labelSeq(std::move(labelSeq)),
+          historyLength(historyLength),
+          parent(parent),
+          state(std::move(state)) {
+}
+
+size_t PrefixSpeechLmScoringContext::hash() const {
+    return Core::MurmurHash3_x64_64(reinterpret_cast<void const*>(labelSeq.data()), labelSeq.size() * sizeof(LabelIndex), 0x8d4a3511);
+}
+
+bool PrefixSpeechLmScoringContext::isEqual(ScoringContextRef const& other) const {
+    auto* otherPtr = dynamic_cast<PrefixSpeechLmScoringContext const*>(other.get());
+    if (otherPtr == nullptr) {
+        return false;
+    }
+
+    if (labelSeq.size() != otherPtr->labelSeq.size()) {
+        return false;
+    }
+
+    for (auto it_l = labelSeq.begin(), it_r = otherPtr->labelSeq.begin(); it_l != labelSeq.end(); ++it_l, ++it_r) {
+        if (*it_l != *it_r) {
+            return false;
+        }
+    }
+    return true;
+}
+
+/*
  * =============================
  * == CtcPrefixScoringContext ==
  * =============================

@@ -33,7 +33,6 @@
 #include <Lattice/Lattice.hh>
 #include <Lattice/Static.hh>
 #include <Lm/FsaLm.hh>
-#include <Modules.hh>
 #include <Search/AdvancedTreeSearch/AdvancedTreeSearch.hh>
 #include <Search/Module.hh>
 #include "AdvancedAccuracyFsaBuilder.hh"

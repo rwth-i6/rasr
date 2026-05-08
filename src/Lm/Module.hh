@@ -17,7 +17,7 @@
 
 #include <Core/Singleton.hh>
 
-#include "CompressedVector.hh"
+#include <Nn/CompressedVector.hh>
 #include "LanguageModel.hh"
 #include "ScaledLanguageModel.hh"
 
@@ -62,7 +62,7 @@ public:
         return createScaledLanguageModel(c, createLanguageModel(c, l));
     }
 
-    Lm::CompressedVectorFactoryPtr<float> createCompressedVectorFactory(Core::Configuration const& config);
+    Nn::CompressedVectorFactoryPtr<float> createCompressedVectorFactory(Core::Configuration const& config);
 };
 
 typedef Core::SingletonHolder<Module_> Module;

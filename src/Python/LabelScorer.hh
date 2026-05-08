@@ -61,6 +61,9 @@ public:
     // Keep track of python object as a member to make sure it doesn't get garbage collected
     void setInstance(py::object const& instance);
 
+    // Must be overridden in python by name "allowed_transition_types"
+    virtual py::object getPythonAllowedTransitionTypes();
+
     // the following methods are protected in the base class
 
     // Must be overridden in python by name "extended_scoring_context_internal"

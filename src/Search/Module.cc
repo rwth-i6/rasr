@@ -12,7 +12,6 @@
  *  See the License for the specific language governing permissions and
  *  limitations under the License.
  */
-#include <Modules.hh>
 #include <Search/LatticeHandler.hh>
 #include <Search/Module.hh>
 #include "LexiconfreeLabelsyncBeamSearch/LexiconfreeLabelsyncBeamSearch.hh"

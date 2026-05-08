@@ -22,7 +22,6 @@
 #include <Core/IoRef.hh>
 #include <Core/ObjectCache.hh>
 #include <Mm/MllrAdaptation.hh>
-#include <Modules.hh>
 #include <Speech/CorpusVisitor.hh>
 
 namespace Am {

@@ -17,8 +17,6 @@
 #ifndef _CORE_CONFIGURATION_HH
 #define _CORE_CONFIGURATION_HH
 
-#include <Modules.hh>
-
 #include <iostream>
 #include <list>
 #include <set>

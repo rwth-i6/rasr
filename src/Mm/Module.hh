@@ -17,7 +17,6 @@
 
 #include <Core/Directory.hh>
 #include <Core/Singleton.hh>
-#include <Modules.hh>
 #include "AssigningFeatureScorer.hh"
 #include "MixtureSetEstimator.hh"
 #include "ScaledFeatureScorer.hh"

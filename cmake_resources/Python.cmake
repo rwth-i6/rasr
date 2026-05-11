@@ -1,5 +1,4 @@
-find_package(Python REQUIRED COMPONENTS Interpreter Development.Module)
-find_package(Python3 REQUIRED COMPONENTS Development NumPy)
+find_package(Python3 REQUIRED COMPONENTS Development NumPy Interpreter Development.Module)
 
 add_library(RasrPythonDependencies INTERFACE)
 target_compile_definitions(

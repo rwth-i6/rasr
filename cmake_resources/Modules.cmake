@@ -113,6 +113,9 @@ add_module_option(MODULE_CUDA ON)
 # ****** Tensorflow integration ******
 add_module_option(MODULE_TENSORFLOW ON)
 
+# ****** Torch integration ******
+add_module_option(MODULE_TORCH ON)
+
 # ****** ONNX integration ******
 add_module_option(MODULE_ONNX ON)
 

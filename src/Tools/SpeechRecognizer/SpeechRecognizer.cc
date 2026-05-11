@@ -63,7 +63,7 @@ public:
 #ifdef MODULE_TENSORFLOW
         INIT_MODULE(Tensorflow);
 #endif
-#ifdef MODULE_Torch
+#ifdef MODULE_TORCH
         INIT_MODULE(Torch);
 #endif
 

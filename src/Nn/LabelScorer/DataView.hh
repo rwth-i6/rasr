@@ -64,7 +64,7 @@ public:
 #endif
 
 #ifdef MODULE_TORCH
-    DataView(Torch::Tensor&& value);
+    DataView(Torch::Tensor&& tensor);
 #endif
 
     f32 const* data() const {

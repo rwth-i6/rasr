@@ -5,5 +5,5 @@ target_compile_definitions(
     RasrPythonDependencies INTERFACE ${Python3_DEFINITIONS}
 )
 target_link_libraries(
-        RasrPythonDependencies INTERFACE Python::Python Python::NumPy
+    RasrPythonDependencies INTERFACE Python::Python Python::NumPy
 )

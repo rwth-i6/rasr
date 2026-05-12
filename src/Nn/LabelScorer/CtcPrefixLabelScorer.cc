@@ -40,7 +40,7 @@ Score CtcPrefixScoreAccessor::getScore(TransitionType transitionType, LabelIndex
 
     if (ctcScores_->nColumns() == 0 or scoringContext_->timePrefixScores->empty()) {
         // Degenerate case such as empty segment
-        return std::numeric_limits<Score>::infinity();
+        return Core::Type<Score>::max;
     }
 
     if (transitionType == SENTENCE_END) {
@@ -76,6 +76,10 @@ Score CtcPrefixScoreAccessor::getScore(TransitionType transitionType, LabelIndex
         totalScore = Math::scoreSum(totalScore, timestepScore);
     }
     scoringContext_->extScores.emplace(labelIndex, totalScore);  // Cache result to avoid repeated computation
+
+    if (std::isinf(totalScore)) {
+        return Core::Type<Score>::max;
+    }
 
     return totalScore - scoringContext_->prefixScore;
 }

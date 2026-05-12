@@ -80,7 +80,7 @@ public:
 
 private:
     Traceback getTracebackWithConfidence() const;
-    Traceback searchTracebackToPythonTraceback(Core::Ref<Search::Traceback const> traceback) const;
+    Traceback searchTracebackToPythonTraceback(Core::Ref<Search::Traceback const> traceback);
 
     bool addConfidenceScores_;
 

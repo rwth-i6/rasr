@@ -39,7 +39,7 @@ SearchAlgorithm::SearchAlgorithm(const Core::Configuration& c)
           searchAlgorithm_(Search::Module::instance().createSearchAlgorithmV2(select("search-algorithm"))),
           lexicon_(new Flf::Lexicon(select("lexicon"))),
           modelCombination_(config, searchAlgorithm_->requiredModelCombination(), searchAlgorithm_->requiredAcousticModel(), lexicon_) {
-    Flf::Module::instance().setLexicon(lexicon_.get());
+    latticeHandler_->setLexicon(lexicon_);
     searchAlgorithm_->setModelCombination(modelCombination_);
 }
 
@@ -94,7 +94,7 @@ void SearchAlgorithm::putFeatures(py::array_t<f32> const& features) {
     searchAlgorithm_->putFeatures({features, T * F}, T);
 }
 
-Traceback SearchAlgorithm::searchTracebackToPythonTraceback(Core::Ref<Search::Traceback const> traceback) const {
+Traceback SearchAlgorithm::searchTracebackToPythonTraceback(Core::Ref<Search::Traceback const> traceback) {
     std::vector<TracebackItem> result;
     result.reserve(traceback->size());
 
@@ -120,7 +120,7 @@ Traceback SearchAlgorithm::searchTracebackToPythonTraceback(Core::Ref<Search::Tr
 Traceback SearchAlgorithm::getTracebackWithConfidence() const {
     auto lattice = searchAlgorithm_->getCurrentBestWordLattice();
 
-    auto flfLattice = convertSearchLatticeToFlf(lattice, latticeHandler_.get(), "", modelCombination_.languageModel()->scale());
+    auto flfLattice = convertSearchLatticeToFlf(lexicon_, lattice, latticeHandler_.get(), "", modelCombination_.languageModel()->scale());
 
     auto semiring         = flfLattice->semiring();
     auto confidenceId     = semiring->size();
@@ -201,7 +201,7 @@ std::vector<Traceback> SearchAlgorithm::getCurrentNBestList(size_t nBestSize) {
     auto lattice = searchAlgorithm_->getCurrentBestWordLattice();
 
     // Use Flf functions to convert search lattice to n-best lattice
-    auto flfLattice   = convertSearchLatticeToFlf(lattice, latticeHandler_.get(), "", modelCombination_.languageModel()->scale());
+    auto flfLattice   = convertSearchLatticeToFlf(lexicon_, lattice, latticeHandler_.get(), "", modelCombination_.languageModel()->scale());
     auto mapLattice   = Flf::mapInput(flfLattice, Flf::MapToLemma);
     auto nBestLattice = Flf::nbest(mapLattice, nBestSize, true);
 

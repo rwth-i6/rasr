@@ -66,7 +66,7 @@ private:
 /*
  * Convert an output lattice from `searchAlgorithm_` to an Flf lattice
  */
-ConstLatticeRef convertSearchLatticeToFlf(Core::Ref<const Search::LatticeAdaptor> latticeAdaptor, Flf::LatticeHandler const* handler, std::string segmentName, f32 lmScale);
+ConstLatticeRef convertSearchLatticeToFlf(LexiconRef lexicon, Core::Ref<const Search::LatticeAdaptor> latticeAdaptor, Flf::LatticeHandler const* handler, std::string segmentName, f32 lmScale);
 
 }  // namespace Flf
 

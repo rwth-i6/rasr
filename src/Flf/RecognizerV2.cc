@@ -76,6 +76,7 @@ void RecognizerNodeV2::recognizeSegment(const Bliss::SpeechSegment* segment) {
     auto traceback = searchAlgorithm_->getCurrentBestTraceback();
 
     auto lattice = convertSearchLatticeToFlf(
+            Lexicon::us(),
             searchAlgorithm_->getCurrentBestWordLattice(),
             latticeHandler_.get(),
             segment->name(),
@@ -110,7 +111,8 @@ void RecognizerNodeV2::work() {
     clog() << Core::XmlClose("layer");
 }
 
-ConstLatticeRef convertSearchLatticeToFlf(Core::Ref<const Search::LatticeAdaptor> latticeAdaptor, Flf::LatticeHandler const* handler, std::string segmentName, f32 lmScale) {
+ConstLatticeRef convertSearchLatticeToFlf(LexiconRef lexicon, Core::Ref<const Search::LatticeAdaptor> latticeAdaptor, Flf::LatticeHandler const* handler, std::string segmentName, f32 lmScale) {
+    verify(handler);
     auto semiring = Semiring::create(Fsa::SemiringTypeTropical, 2);
     semiring->setKey(0, "am");
     semiring->setScale(0, 1.0);
@@ -118,7 +120,7 @@ ConstLatticeRef convertSearchLatticeToFlf(Core::Ref<const Search::LatticeAdaptor
     semiring->setScale(1, lmScale);
 
     auto        sentenceEndLabel        = Fsa::Epsilon;
-    auto const* specialSentenceEndLemma = Lexicon::us()->specialLemma("sentence-end");
+    auto const* specialSentenceEndLemma = lexicon->specialLemma("sentence-end");
     if (specialSentenceEndLemma and specialSentenceEndLemma->nPronunciations() > 0) {
         sentenceEndLabel = specialSentenceEndLemma->pronunciations().first->id();
     }
@@ -136,7 +138,7 @@ ConstLatticeRef convertSearchLatticeToFlf(Core::Ref<const Search::LatticeAdaptor
     StaticLatticeRef    flfLattice    = StaticLatticeRef(new StaticLattice);
     flfLattice->setType(Fsa::TypeAcceptor);
     flfLattice->setProperties(Fsa::PropertyAcyclic | PropertyCrossWord, Fsa::PropertyAll);
-    flfLattice->setInputAlphabet(Lexicon::us()->lemmaPronunciationAlphabet());
+    flfLattice->setInputAlphabet(lexicon->lemmaPronunciationAlphabet());
     flfLattice->setSemiring(semiring);
     flfLattice->setDescription(Core::form("recog(%s)", segmentName.c_str()));
     flfLattice->setBoundaries(ConstBoundariesRef(flfBoundaries));

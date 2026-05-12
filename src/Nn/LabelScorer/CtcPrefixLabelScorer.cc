@@ -40,7 +40,7 @@ Score CtcPrefixScoreAccessor::getScore(TransitionType transitionType, LabelIndex
 
     if (ctcScores_->nColumns() == 0 or scoringContext_->timePrefixScores->empty()) {
         // Degenerate case such as empty segment
-        return std::numeric_limits<Score>::infinity();
+        return Core::Type<Score>::max;
     }
 
     if (transitionType == SENTENCE_END) {
@@ -76,6 +76,10 @@ Score CtcPrefixScoreAccessor::getScore(TransitionType transitionType, LabelIndex
         totalScore = Math::scoreSum(totalScore, timestepScore);
     }
     scoringContext_->extScores.emplace(labelIndex, totalScore);  // Cache result to avoid repeated computation
+
+    if (std::isinf(totalScore)) {
+        return Core::Type<Score>::max;
+    }
 
     return totalScore - scoringContext_->prefixScore;
 }
@@ -152,23 +156,28 @@ std::optional<ScoreAccessorRef> CtcPrefixLabelScorer::getScoreAccessor(ScoringCo
 }
 
 void CtcPrefixLabelScorer::setupCTCScores() {
-    ctcScores_->resize(vocabSize_, 0);
     auto ctcScorerContext = ctcScorer_->getInitialScoringContext();
+
+    // Collect score accessors for all timesteps
+    std::vector<ScoreAccessorRef> scoreAccessors;
     while (true) {
         auto scoreAccessor = ctcScorer_->getScoreAccessor(ctcScorerContext);
-
         if (not scoreAccessor) {
             break;
         }
+        scoreAccessors.push_back(*scoreAccessor);
 
-        // Add column for next timestep to matrix and insert score values into it
-        ctcScores_->resizeColsAndKeepContent(ctcScores_->nColumns() + 1);
-        for (LabelIndex v = 0ul; v < vocabSize_; ++v) {
-            // Transition type can be anything as we assume that the score is independent of it
-            ctcScores_->at(v, ctcScores_->nColumns() - 1) = (*scoreAccessor)->getScore(Nn::TransitionType::LABEL_TO_BLANK, v);
-        }
         // Transition type and next token assumed to not influence the scoring context
         ctcScorerContext = ctcScorer_->extendedScoringContext(ctcScorerContext, invalidLabelIndex, LABEL_TO_BLANK);
+    }
+
+    // Write score values into matrix
+    ctcScores_->resize(vocabSize_, scoreAccessors.size());
+    for (size_t t = 0ul; t < scoreAccessors.size(); ++t) {
+        for (size_t v = 0ul; v < vocabSize_; ++v) {
+            // Transition type can be anything as we assume that the score is independent of it
+            ctcScores_->at(v, t) = scoreAccessors[t]->getScore(Nn::TransitionType::LABEL_TO_BLANK, v);
+        }
     }
 }
 

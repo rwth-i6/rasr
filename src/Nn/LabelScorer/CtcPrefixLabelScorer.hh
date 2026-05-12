@@ -39,6 +39,9 @@ private:
  * Compute prefix scores with a CTC model in order to decode label-synchronously.
  * Prefix scores are computed like in algorithm 2 of "Hybrid CTC/Attention Architecture
  * for End-to-End Speech Recognition" (Watanabe et al., 2017)
+ *
+ * A time-synchronous CTC scorer has to be configured via `ctc-scorer` sub-config
+ * in order to fetch a matrix of CTC scores for each label at each timestep.
  */
 class CtcPrefixLabelScorer : public LabelScorer {
     using Precursor = LabelScorer;

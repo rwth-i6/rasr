@@ -258,11 +258,20 @@ bool LexiconfreeTimesyncBeamSearch::setModelCombination(Speech::ModelCombination
         }
     }
 
-    reset();
     return true;
 }
 
-void LexiconfreeTimesyncBeamSearch::reset() {
+void LexiconfreeTimesyncBeamSearch::enterSegment(Bliss::SpeechSegment const* segment) {
+    initializationTime_.reset();
+    featureProcessingTime_.reset();
+    scoringTime_.reset();
+    for (auto& stat : numHypsAfterIntermediatePruning_) {
+        stat.clear();
+    }
+    numHypsAfterRecombination_.clear();
+    numHypsAfterPruning_.clear();
+    numActiveHyps_.clear();
+
     initializationTime_.start();
 
     for (auto& labelScorer : labelScorers_) {
@@ -281,11 +290,6 @@ void LexiconfreeTimesyncBeamSearch::reset() {
     finishedSegment_   = false;
 
     initializationTime_.stop();
-}
-
-void LexiconfreeTimesyncBeamSearch::enterSegment(Bliss::SpeechSegment const* segment) {
-    reset();
-    resetStatistics();
 }
 
 void LexiconfreeTimesyncBeamSearch::finishSegment() {
@@ -577,18 +581,6 @@ LexiconfreeTimesyncBeamSearch::LabelHypothesis const& LexiconfreeTimesyncBeamSea
     verify(not beam_.empty());
 
     return *std::max_element(beam_.begin(), beam_.end());
-}
-
-void LexiconfreeTimesyncBeamSearch::resetStatistics() {
-    initializationTime_.reset();
-    featureProcessingTime_.reset();
-    scoringTime_.reset();
-    for (auto& stat : numHypsAfterIntermediatePruning_) {
-        stat.clear();
-    }
-    numHypsAfterRecombination_.clear();
-    numHypsAfterPruning_.clear();
-    numActiveHyps_.clear();
 }
 
 void LexiconfreeTimesyncBeamSearch::logStatistics() const {

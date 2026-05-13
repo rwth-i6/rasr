@@ -343,6 +343,8 @@ bool LexiconfreeLabelsyncBeamSearch::decodeStep() {
         }
 
         auto const& scoreAccessor = *scoreAccessors[hypIndex];
+        auto        denseScores   = scoreAccessor->getDenseScores();
+        auto        scoreTime     = scoreAccessor->getTime();
 
         // Iterate over possible successors (all lemmas)
         for (auto lemmaIt = lemmas.first; lemmaIt != lemmas.second; ++lemmaIt) {
@@ -356,7 +358,14 @@ bool LexiconfreeLabelsyncBeamSearch::decodeStep() {
             if (tokenIdx == sentenceEndLabelIndex_) {
                 transitionType = Nn::TransitionType::SENTENCE_END;
             }
-            auto extScore = hyp.score + scoreAccessor->getScore(transitionType, tokenIdx);
+            auto extScore = hyp.score;
+
+            if (denseScores and tokenIdx < denseScores->size()) {
+                extScore += (*denseScores)[tokenIdx];
+            }
+            else {
+                extScore += scoreAccessor->getScore(transitionType, tokenIdx);
+            }
 
             // Pre-prune based on score before creating extension instance and appending to list
             if (useScorePruning_ and extScore > currentBestScore + scoreThreshold_) {
@@ -368,7 +377,7 @@ bool LexiconfreeLabelsyncBeamSearch::decodeStep() {
                     {tokenIdx,
                      lemma->pronunciations().first,
                      extScore,
-                     scoreAccessor->getTime(),
+                     scoreTime,
                      transitionType,
                      hypIndex});
         }

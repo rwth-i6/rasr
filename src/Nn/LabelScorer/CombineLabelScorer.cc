@@ -40,6 +40,30 @@ public:
         });
     }
 
+    std::optional<DenseScoreSpan> getDenseScores() const override {
+        if (subAccessors_.empty()) {
+            return std::nullopt;
+        }
+
+        std::vector<DenseScoreTerm> denseScoreTerms;
+        size_t                      denseSize = 0ul;
+        for (auto const& subAccessor : subAccessors_) {
+            auto denseScores = subAccessor->getDenseScores();
+            if (not denseScores) {
+                return std::nullopt;
+            }
+            if (denseScoreTerms.empty()) {
+                denseSize = denseScores->size();
+            }
+            else if (denseScores->size() != denseSize) {
+                return std::nullopt;
+            }
+            denseScoreTerms.insert(denseScoreTerms.end(), denseScores->terms.begin(), denseScores->terms.end());
+        }
+
+        return DenseScoreSpan(std::move(denseScoreTerms));
+    }
+
     // Max of timeframes from sub-scorers
     TimeframeIndex getTime() const override {
         return std::accumulate(subAccessors_.begin(), subAccessors_.end(), 0, [](TimeframeIndex max, ScoreAccessorRef subAccessor) {

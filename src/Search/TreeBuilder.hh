@@ -101,7 +101,7 @@ protected:
         }
 
         void reverse() {
-            for (u32 i = 0; i < length / 2; ++i) {
+            for (u32 i = 0; i < static_cast<u32>(length / 2); ++i) {
                 Search::StateTree::StateDesc temp(hmm[i]);
                 hmm[i]              = hmm[length - 1 - i];
                 hmm[length - 1 - i] = temp;

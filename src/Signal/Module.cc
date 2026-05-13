@@ -14,7 +14,6 @@
  */
 #include "Module.hh"
 #include <Flow/Registry.hh>
-#include <Modules.hh>
 #include "ComplexVectorFunction.hh"
 #include "CosineTransform.hh"
 #include "DcDetection.hh"

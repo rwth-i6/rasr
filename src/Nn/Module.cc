@@ -16,8 +16,6 @@
 
 #include <Core/FormatSet.hh>
 #include <Flow/Registry.hh>
-#include <Modules.hh>
-
 #include "LabelScorer/CombineLabelScorer.hh"
 #include "LabelScorer/CtcPrefixLabelScorer.hh"
 #include "LabelScorer/EncoderDecoderLabelScorer.hh"

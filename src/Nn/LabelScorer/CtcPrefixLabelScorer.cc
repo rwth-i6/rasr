@@ -98,6 +98,12 @@ Score CtcPrefixScoreAccessor::getScore(TransitionType transitionType, LabelIndex
     // Since this function should return the score-delta for the new label, subtract the total score of the base prefix
     // before returning.
     verify(scoringContext_->prefixScore);
+    verify(scoringContext_->timePrefixScores);
+
+    // Degenerate case such as empty segment
+    if (ctcScores_->nColumns() == 0 or scoringContext_->timePrefixScores->empty()) {
+        return Core::Type<Score>::max;
+    }
 
     if (transitionType == SENTENCE_END) {
         // Score of the exact prefix at the last timestep
@@ -208,9 +214,9 @@ void CtcPrefixLabelScorer::finalizeScoringContext(CtcPrefixScoringContextRef con
     if (scoringContext->labelSeq.empty()) {
         scoringContext->prefixScore = 0.0;
 
-        // In the beginning the prefix is empty, which can only be achieved by emitting pure blanks.
-        // So PrefixScore_0([], blank) = 0 and PrefixScore_t([], blank) = sum_{t'=1}^t -log p_{t'}(<blank>) for t >= 1
-        // PrefixScore_t([], nonblank) = -inf for t >= 0
+        // `timePrefixScores` stores one entry per real CTC frame; there is no separate virtual predecessor entry.
+        // For the empty prefix, the score after frame t is the cumulative blank score over frames 0, ..., t.
+        // The non-blank ending score stays at infinity because the empty prefix cannot end in a non-blank label.
 
         auto timePrefixScores = std::make_shared<std::vector<CtcPrefixScoringContext::PrefixScore>>();
         timePrefixScores->resize(ctcScores_->nColumns());
@@ -230,11 +236,9 @@ void CtcPrefixLabelScorer::finalizeScoringContext(CtcPrefixScoringContextRef con
         finalizeScoringContext(parent);
         scoringContext->prefixScore = extendedPrefixScore(parent, scoringContext->labelSeq.back(), ctcScores_);
 
-        // We are given PrefixScore_t([..., a], blank) and PrefixScore_t([..., a], nonblank) for t >= 0
-        // as well as CTCScore_t(v) for t >= 1 for any blank or non-blank label v.
-        // We want PrefixScore_t([..., a, b], blank) and PrefixScore_t([..., a, b], nonblank).
-        // To do this we use the following recursive equations:
-        // PrefixScore_0([..., a, b], blank) = PrefixScore_0([..., a, b], nonblank) = -inf
+        // We are given stored scores for the parent prefix [..., a] after each real CTC frame t = 0, ..., T - 1,
+        // and compute stored scores for the extended prefix [..., a, b] over the same frame indices.
+        // Frame 0 is handled explicitly below. For frames t >= 1, the recurrence is:
         // PrefixScore_t([..., a, b], blank) = LogSumExp(
         //                                          PrefixScore_{t-1}([..., a, b], blank) + CTCScore_t(blank),
         //                                          PrefixScore_{t-1}([..., a, b], nonblank) + CTCScore_t(blank)
@@ -245,14 +249,13 @@ void CtcPrefixLabelScorer::finalizeScoringContext(CtcPrefixScoringContextRef con
         //                                            PrefixScore_{t-1}([..., a, b], nonblank) + CTCScore_t(b),
         //                                           [PrefixScore_{t-1}([..., a], nonblank) + CTCScore_t(b) only if a != b]
         //                                        )
-        // for t >= 1
         auto const& timePrefixScores    = parent->timePrefixScores;
         auto        extTimePrefixScores = std::make_shared<std::vector<CtcPrefixScoringContext::PrefixScore>>();
         auto        nextToken           = scoringContext->labelSeq.back();
         verify(timePrefixScores);
 
         extTimePrefixScores->resize(timePrefixScores->size());
-        if (scoringContext->labelSeq.size() == 1) {
+        if (not extTimePrefixScores->empty() and scoringContext->labelSeq.size() == 1) {
             extTimePrefixScores->at(0).nonBlankEndingScore = ctcScores_->at(nextToken, 0);
         }
 

@@ -169,7 +169,7 @@ struct CtcPrefixScoringContext : public ScoringContext {
 
     std::vector<LabelIndex>                           labelSeq;
     ScoringContextRef                                 parent;            // Parent prefix without the last label, used to finalize lazily
-    mutable std::shared_ptr<std::vector<PrefixScore>> timePrefixScores;  // Represents neg-log-probabilities of emitting `labelSeq` ending in blank or nonblank up to time t for each t = 0, ..., T
+    mutable std::shared_ptr<std::vector<PrefixScore>> timePrefixScores;  // Represents neg-log-probabilities of emitting `labelSeq` ending in blank or nonblank after each real CTC frame t = 0, ..., T - 1
     mutable std::optional<Score>                      prefixScore;       // Cached score of the prefix -log P(prefix), computed on demand from the parent; needed to compute score-delta for next token
     mutable std::unordered_map<LabelIndex, Score>     extScores;         // Cache for -log P(prefix + token, ...) to avoid repeated computation
     mutable bool                                      requiresFinalize;  // Check whether the mutable members have been set

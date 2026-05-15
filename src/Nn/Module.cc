@@ -86,8 +86,8 @@ Module_::Module_()
     // A label scorer that wraps a time-synchronous CTC scorer and computes label-synchronous prefix scores
     labelScorerFactory_.registerLabelScorer(
             "ctc-prefix",
-            [](Core::Configuration const& config) {
-                return Core::ref(new CtcPrefixLabelScorer(config));
+            [](Core::Configuration const& config, ModelCache& modelCache) {
+                return Core::ref(new CtcPrefixLabelScorer(config, modelCache));
             });
 
     // Assumes inputs are already finished scores and just passes on the score at the current step

@@ -17,6 +17,7 @@
 #include <Core/FormatSet.hh>
 #include <Flow/Registry.hh>
 #include "LabelScorer/CombineLabelScorer.hh"
+#include "LabelScorer/CtcPrefixLabelScorer.hh"
 #include "LabelScorer/EncoderDecoderLabelScorer.hh"
 #include "LabelScorer/EncoderFactory.hh"
 #include "LabelScorer/FixedContextOnnxLabelScorer.hh"
@@ -80,6 +81,13 @@ Module_::Module_()
             "combine",
             [](Core::Configuration const& config, ModelCache& modelCache) {
                 return Core::ref(new CombineLabelScorer(config, modelCache));
+            });
+
+    // A label scorer that wraps a time-synchronous CTC scorer and computes label-synchronous prefix scores
+    labelScorerFactory_.registerLabelScorer(
+            "ctc-prefix",
+            [](Core::Configuration const& config) {
+                return Core::ref(new CtcPrefixLabelScorer(config));
             });
 
     // Assumes inputs are already finished scores and just passes on the score at the current step

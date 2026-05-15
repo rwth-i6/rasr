@@ -29,6 +29,7 @@
 #include <Speech/Feature.hh>
 
 #include "BufferedLabelScorer.hh"
+#include "LabelScorerFactory.hh"
 #include "ScoringContext.hh"
 
 namespace Nn {
@@ -66,7 +67,7 @@ class StatefulOnnxLabelScorer : public BufferedLabelScorer {
     static const Core::ParameterInt  paramMaxCachedScores;
 
 public:
-    StatefulOnnxLabelScorer(Core::Configuration const& config);
+    StatefulOnnxLabelScorer(Core::Configuration const& config, LabelScorerModelCache& modelCache);
     virtual ~StatefulOnnxLabelScorer() = default;
 
     void reset() override;
@@ -111,9 +112,9 @@ private:
     bool   loopUpdatesHistory_;
     size_t maxBatchSize_;
 
-    Onnx::Model scorerOnnxModel_;
-    Onnx::Model stateInitializerOnnxModel_;
-    Onnx::Model stateUpdaterOnnxModel_;
+    std::shared_ptr<Onnx::Model> scorerOnnxModel_;
+    std::shared_ptr<Onnx::Model> stateInitializerOnnxModel_;
+    std::shared_ptr<Onnx::Model> stateUpdaterOnnxModel_;
 
     OnnxHiddenStateRef initialHiddenState_;
 

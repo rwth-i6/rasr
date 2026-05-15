@@ -19,6 +19,7 @@
 #include <Onnx/Model.hh>
 
 #include "BufferedLabelScorer.hh"
+#include "LabelScorerFactory.hh"
 
 namespace Nn {
 
@@ -38,7 +39,7 @@ class FixedContextOnnxLabelScorer : public BufferedLabelScorer {
     static const Core::ParameterInt  paramMaxBatchSize;
 
 public:
-    FixedContextOnnxLabelScorer(Core::Configuration const& config);
+    FixedContextOnnxLabelScorer(Core::Configuration const& config, LabelScorerModelCache& modelCache);
     virtual ~FixedContextOnnxLabelScorer() = default;
 
     // Clear feature buffer and cached scores
@@ -77,7 +78,7 @@ private:
     bool   verticalLabelTransition_;
     size_t maxBatchSize_;
 
-    Onnx::Model onnxModel_;
+    std::shared_ptr<Onnx::Model> onnxModel_;
 
     std::string inputFeatureName_;
     std::string historyName_;

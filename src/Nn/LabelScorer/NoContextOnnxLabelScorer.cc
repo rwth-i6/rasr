@@ -36,13 +36,18 @@ static const std::vector<Onnx::IOSpecification> ioSpec = {
                 {Onnx::ValueDataType::FLOAT},
                 {{-1, -2}, {1, -2}}}};
 
-NoContextOnnxLabelScorer::NoContextOnnxLabelScorer(Core::Configuration const& config)
+NoContextOnnxLabelScorer::NoContextOnnxLabelScorer(Core::Configuration const& config, LabelScorerModelCache& modelCache)
         : Core::Component(config),
           Precursor(config, TransitionPresetType::CTC),
-          onnxModel_(select("onnx-model"), ioSpec),
-          inputFeatureName_(onnxModel_.mapping.getOnnxName("input-feature")),
-          scoresName_(onnxModel_.mapping.getOnnxName("scores")),
           scoreCache_() {
+    Core::Configuration modelConfig(config, "onnx-model");
+    auto                key = modelConfig.getSelection();
+    if (modelCache.empty(key)) {
+        modelCache.put(key, std::make_shared<Onnx::Model>(modelConfig, ioSpec));
+    }
+    onnxModel_        = modelCache.get<Onnx::Model>(key);
+    inputFeatureName_ = onnxModel_->mapping.getOnnxName("input-feature");
+    scoresName_       = onnxModel_->mapping.getOnnxName("scores");
 }
 
 void NoContextOnnxLabelScorer::reset() {
@@ -124,7 +129,7 @@ void NoContextOnnxLabelScorer::forwardContext(StepScoringContextRef const& scori
      * Run session
      */
     std::vector<Onnx::Value> sessionOutputs;
-    onnxModel_.session.run(std::move(sessionInputs), {scoresName_}, sessionOutputs);
+    onnxModel_->session.run(std::move(sessionInputs), {scoresName_}, sessionOutputs);
 
     /*
      * Put resulting scores into cache map

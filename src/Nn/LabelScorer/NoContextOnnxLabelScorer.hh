@@ -19,6 +19,7 @@
 #include <Onnx/Model.hh>
 
 #include "BufferedLabelScorer.hh"
+#include "LabelScorerFactory.hh"
 
 namespace Nn {
 
@@ -35,7 +36,7 @@ class NoContextOnnxLabelScorer : public BufferedLabelScorer {
     using Precursor = BufferedLabelScorer;
 
 public:
-    NoContextOnnxLabelScorer(Core::Configuration const& config);
+    NoContextOnnxLabelScorer(Core::Configuration const& config, LabelScorerModelCache& modelCache);
     virtual ~NoContextOnnxLabelScorer() = default;
 
     // Clear feature buffer and cached scores
@@ -61,7 +62,7 @@ protected:
     size_t getMinActiveInputIndex(Core::CollapsedVector<ScoringContextRef> const& activeContexts) const override;
 
 private:
-    Onnx::Model onnxModel_;
+    std::shared_ptr<Onnx::Model> onnxModel_;
 
     std::string inputFeatureName_;
     std::string scoresName_;

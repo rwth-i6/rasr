@@ -17,6 +17,7 @@
 #define COMBINE_LABEL_SCORER_HH
 
 #include "LabelScorer.hh"
+#include "LabelScorerFactory.hh"
 
 namespace Nn {
 
@@ -33,7 +34,7 @@ class CombineLabelScorer : public LabelScorer {
 public:
     static Core::ParameterInt paramNumLabelScorers;
 
-    CombineLabelScorer(Core::Configuration const& config);
+    CombineLabelScorer(Core::Configuration const& config, EncoderModelCache& encoderModelCache, LabelScorerModelCache& labelScorerModelCache);
     virtual ~CombineLabelScorer() = default;
 
     // Reset all sub-scorers

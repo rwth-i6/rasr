@@ -10,12 +10,12 @@ class PriorScoreAccessor : public Nn::ScoreAccessor {
 public:
     using Score = Nn::Score;
 
-    PriorScoreAccessor(Core::Ref<ScoreAccessor> scoreAccessor, bool negateOutput, std::shared_ptr<Nn::Prior<Score>> prior)
-            : scoreAccessor_(scoreAccessor), negateOutput_(negateOutput), prior_(prior) {}
+    PriorScoreAccessor(Core::Ref<ScoreAccessor> scoreAccessor, bool negateInput, std::shared_ptr<Nn::Prior<Score>> prior)
+            : scoreAccessor_(scoreAccessor), negateInput_(negateInput), prior_(prior) {}
 
     virtual Score getScore(Nn::TransitionType transitionType, Nn::LabelIndex labelIndex = Nn::invalidLabelIndex) const {
         Score score = scoreAccessor_->getScore(transitionType, labelIndex);
-        if (negateOutput_) {
+        if (negateInput_) {
             score = -score;
         }
         if (prior_->scale() != 0.0) {
@@ -32,7 +32,7 @@ public:
 
 private:
     Core::Ref<ScoreAccessor>          scoreAccessor_;
-    const bool                        negateOutput_;
+    const bool                        negateInput_;
     std::shared_ptr<Nn::Prior<Score>> prior_;
 };
 
@@ -42,12 +42,12 @@ using PriorScoreAccessorRef = Core::Ref<PriorScoreAccessor>;
 
 namespace Nn {
 
-const Core::ParameterBool PriorLabelScorer::paramNegateOutput("negate-output", "whether to negate the scores obtained from Score/DataViewMessages", false);
+const Core::ParameterBool PriorLabelScorer::paramNegateInput("negate-input", "whether to negate the scores obtained from Score/DataViewMessages", false);
 
 PriorLabelScorer::PriorLabelScorer(Core::Configuration const& config)
         : Core::Component(config),
           Precursor(config),
-          negateOutput_(paramNegateOutput(config)),
+          negateInput_(paramNegateInput(config)),
           prior_(new Nn::Prior<Score>(config)) {
     if (prior_->scale() != 0.0) {
         prior_->read();
@@ -57,7 +57,7 @@ PriorLabelScorer::PriorLabelScorer(Core::Configuration const& config)
 std::optional<ScoreAccessorRef> PriorLabelScorer::getScoreAccessor(ScoringContextRef scoringContext) {
     auto res = StepwiseNoOpLabelScorer::getScoreAccessor(scoringContext);
     if (res) {
-        return Core::ref(new PriorScoreAccessor(*res, negateOutput_, prior_));
+        return Core::ref(new PriorScoreAccessor(*res, negateInput_, prior_));
     }
     return res;
 }

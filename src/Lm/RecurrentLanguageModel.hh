@@ -1,6 +1,7 @@
 #ifndef _LM_RECURRENT_LANGUAGE_MODEL_HH
 #define _LM_RECURRENT_LANGUAGE_MODEL_HH
 
+#include <functional>
 #include <future>
 #include <thread>
 #include <vector>
@@ -312,6 +313,9 @@ RecurrentLanguageModel<value_t, state_variable_t>::RecurrentLanguageModel(Core::
         output_transform_function_ = [](Score v) {
             return -v;
         };
+    }
+    else {
+        output_transform_function_ = std::identity();
     }
 
     if (async_) {

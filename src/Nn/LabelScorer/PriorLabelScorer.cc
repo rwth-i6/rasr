@@ -10,12 +10,12 @@ class PriorScoreAccessor : public Nn::ScoreAccessor {
 public:
     using Score = Nn::Score;
 
-    PriorScoreAccessor(Core::Ref<ScoreAccessor> scoreAccessor, bool negateOutput, std::shared_ptr<Nn::Prior<Score>> prior)
-            : scoreAccessor_(scoreAccessor), negateOutput_(negateOutput), prior_(prior) {}
+    PriorScoreAccessor(Core::Ref<ScoreAccessor> scoreAccessor, bool negateInput, std::shared_ptr<Nn::Prior<Score>> prior)
+            : scoreAccessor_(scoreAccessor), negateInput_(negateInput), prior_(prior) {}
 
     virtual Score getScore(Nn::TransitionType transitionType, Nn::LabelIndex labelIndex = Nn::invalidLabelIndex) const override {
         Score score = scoreAccessor_->getScore(transitionType, labelIndex);
-        if (negateOutput_) {
+        if (negateInput_) {
             score = -score;
         }
         if (prior_->scale() != 0.0) {
@@ -32,20 +32,20 @@ public:
             return std::nullopt;
         }
 
-        denseScoreTerms_.assign(denseScores->terms.begin(), denseScores->terms.end());
+	std::vector<Nn::DenseScoreTerm> denseScoreTerms(denseScores->terms.begin(), denseScores->terms.end());
 
-        if (negateOutput_) {
-            for (auto& term : denseScoreTerms_) {
+        if (negateInput_) {
+            for (auto& term : denseScoreTerms) {
                 term.scale *= -1.0;
             }
         }
 
         if (prior_->scale() != 0.0) {
             require(denseScores->size() == prior_->size());  // Prior size must match base scorer vocab size
-            denseScoreTerms_.push_back(Nn::DenseScoreTerm{denseScores->size() > 0ul ? std::span<Score const>(&prior_->at(0), prior_->size()) : std::span<Score const>(), prior_->scale()});
+            denseScoreTerms.push_back(Nn::DenseScoreTerm{denseScores->size() > 0ul ? std::span<Score const>(&prior_->at(0), prior_->size()) : std::span<Score const>(), prior_->scale()});
         }
 
-        return Nn::DenseScoreSpan(std::move(denseScoreTerms_));
+        return Nn::DenseScoreSpan(std::move(denseScoreTerms));
     }
 
     virtual Nn::TimeframeIndex getTime() const override {
@@ -54,9 +54,8 @@ public:
 
 private:
     Core::Ref<ScoreAccessor>                scoreAccessor_;
-    const bool                              negateOutput_;
+    const bool                              negateInput_;
     std::shared_ptr<Nn::Prior<Score>>       prior_;
-    mutable std::vector<Nn::DenseScoreTerm> denseScoreTerms_;
 };
 
 using PriorScoreAccessorRef = Core::Ref<PriorScoreAccessor>;
@@ -65,12 +64,12 @@ using PriorScoreAccessorRef = Core::Ref<PriorScoreAccessor>;
 
 namespace Nn {
 
-const Core::ParameterBool PriorLabelScorer::paramNegateOutput("negate-output", "whether to negate the scores obtained from Score/DataViewMessages", false);
+const Core::ParameterBool PriorLabelScorer::paramNegateInput("negate-input", "whether to negate the scores obtained from Score/DataViewMessages", false);
 
 PriorLabelScorer::PriorLabelScorer(Core::Configuration const& config)
         : Core::Component(config),
           Precursor(config),
-          negateOutput_(paramNegateOutput(config)),
+          negateInput_(paramNegateInput(config)),
           prior_(new Nn::Prior<Score>(config)) {
     if (prior_->scale() != 0.0) {
         prior_->read();
@@ -80,7 +79,7 @@ PriorLabelScorer::PriorLabelScorer(Core::Configuration const& config)
 std::optional<ScoreAccessorRef> PriorLabelScorer::getScoreAccessor(ScoringContextRef scoringContext) {
     auto res = StepwiseNoOpLabelScorer::getScoreAccessor(scoringContext);
     if (res) {
-        return Core::ref(new PriorScoreAccessor(*res, negateOutput_, prior_));
+        return Core::ref(new PriorScoreAccessor(*res, negateInput_, prior_));
     }
     return res;
 }

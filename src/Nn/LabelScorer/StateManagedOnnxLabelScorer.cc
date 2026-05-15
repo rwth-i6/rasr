@@ -97,7 +97,7 @@ const Core::ParameterInt StateManagedOnnxLabelScorer::paramMaxBatchSize(
 const Core::ParameterInt StateManagedOnnxLabelScorer::paramMaxCachedScores(
         "max-cached-score-vectors",
         "Maximum size of cache that maps scoring contexts to scores and state slices. This prevents memory overflow in case of very long audio segments.",
-        1000);
+        10000);
 
 StateManagedOnnxLabelScorer::StateManagedOnnxLabelScorer(Core::Configuration const& config)
         : Core::Component(config),

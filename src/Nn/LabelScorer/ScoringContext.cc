@@ -189,7 +189,11 @@ size_t StateManagedOnnxScoringContext::hash() const {
 bool StateManagedOnnxScoringContext::isEqual(ScoringContextRef const& other) const {
     auto* otherPtr = dynamic_cast<StateManagedOnnxScoringContext const*>(other.get());
 
-    if (otherPtr == nullptr or labelSeq.size() != otherPtr->labelSeq.size()) {
+    if (otherPtr == nullptr) {
+        return false;
+    }
+
+    if (labelSeq.size() != otherPtr->labelSeq.size()) {
         return false;
     }
 

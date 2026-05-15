@@ -48,7 +48,6 @@ void RecognizerNodeV2::recognizeSegment(const Bliss::SpeechSegment* segment) {
     }
 
     // Initialize recognizer and feature extractor
-    searchAlgorithm_->reset();
     searchAlgorithm_->enterSegment();
 
     featureExtractor_->enterSegment(segment);
@@ -230,7 +229,6 @@ void RecognizerNodeV2::sync() {
 }
 
 void RecognizerNodeV2::finalize() {
-    searchAlgorithm_->reset();
 }
 
 ConstSegmentRef RecognizerNodeV2::sendSegment(RecognizerNodeV2::Port to) {

@@ -45,9 +45,7 @@ namespace Search {
  *  (6. Optionally retrieve intermediate results via `getCurrentBestTraceback` or `getCurrentBestWordLattice`.)
  *  7. Call `finishSegment` to signal that all features have been passed and finalize the search with all the segment features.
  *  8. Retrieve the final result via `getCurrentBestTraceback` or `getCurrentBestWordLattice`.
- *  9. Call `reset` to clean up any buffered features, hypotheses, flags etc. from the previous segment and prepare the algorithm for the next one.
- *  (10. Optionally also reset search statistics via `resetStatistics`).
- *  11. Continue again at step 3.
+ *  9. Continue again at step 3.
  */
 class SearchAlgorithmV2 : public virtual Core::Component {
 public:
@@ -66,10 +64,8 @@ public:
     // Pass a `Speech::ModelCombination` that matches the requirements set by `requiredModelCombination` (and `requiredAcousticModel`) to the search.
     virtual bool setModelCombination(Speech::ModelCombination const& modelCombination) = 0;
 
-    // Cleans up buffers, hypotheses, flags etc. from the previous segment recognition.
-    virtual void reset() = 0;
-
     // Signal the beginning of a new audio segment.
+    // Cleans up buffers, hypotheses, flags etc. from the previous segment recognition.
     virtual void enterSegment(Bliss::SpeechSegment const* = nullptr) = 0;
 
     // Signal that all features of the current segment have been passed.

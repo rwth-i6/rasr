@@ -34,22 +34,22 @@ namespace Search {
  * Uses a sentence-end symbol to terminate hypotheses.
  * Main purpose is open vocabulary search with AED (or similar) models.
  * Supports global pruning by max beam-size and by score difference to the best hypothesis.
- * Uses a LabelScorer to context initialization/extension and scoring.
+ * Uses one or more LabelScorers for context initialization/extension and scoring.
+ * The LabelScorers are applied one after another with intermediate pruning in-between.
  *
  * The search requires a lexicon that represents the vocabulary. Each lemma is viewed as a token with its index
  * in the lexicon corresponding to the associated output index of the label scorer.
  */
 class LexiconfreeLabelsyncBeamSearch : public SearchAlgorithmV2 {
 public:
-    static const Core::ParameterInt   paramMaxBeamSize;
-    static const Core::ParameterFloat paramScoreThreshold;
-    static const Core::ParameterInt   paramNumHistogramBins;
-
-    static const Core::ParameterInt   paramSentenceEndLabelIndex;
-    static const Core::ParameterBool  paramCacheCleanupInterval;
-    static const Core::ParameterFloat paramLengthNormScale;
-    static const Core::ParameterFloat paramMaxLabelsPerTimestep;
-    static const Core::ParameterBool  paramLogStepwiseStatistics;
+    static const Core::ParameterIntVector   paramMaxBeamSizes;
+    static const Core::ParameterFloatVector paramScoreThresholds;
+    static const Core::ParameterInt         paramNumHistogramBins;
+    static const Core::ParameterInt         paramSentenceEndLabelIndex;
+    static const Core::ParameterBool        paramCacheCleanupInterval;
+    static const Core::ParameterFloat       paramLengthNormScale;
+    static const Core::ParameterFloat       paramMaxLabelsPerTimestep;
+    static const Core::ParameterBool        paramLogStepwiseStatistics;
 
     LexiconfreeLabelsyncBeamSearch(Core::Configuration const&);
 
@@ -93,16 +93,16 @@ protected:
      * Struct containing all information about a single hypothesis in the beam
      */
     struct LabelHypothesis {
-        Nn::ScoringContextRef   scoringContext;  // Context to compute scores based on this hypothesis
-        Nn::LabelIndex          currentToken;    // Most recent token in associated label sequence (useful to infer transition type)
-        size_t                  length;          // Number of tokens in hypothesis for length normalization
-        Score                   score;           // Full score of hypothesis
-        Score                   scaledScore;     // Length-normalized score of hypothesis
-        Core::Ref<LatticeTrace> trace;           // Associated trace for traceback or lattice building off of hypothesis
-        bool                    isActive;        // Indicates whether the hypothesis has not produced a sentence-end label yet
+        std::vector<Nn::ScoringContextRef> scoringContexts;  // Contexts to compute scores based on this hypothesis
+        Nn::LabelIndex                     currentToken;     // Most recent token in associated label sequence (useful to infer transition type)
+        size_t                             length;           // Number of tokens in hypothesis for length normalization
+        Score                              score;            // Full score of hypothesis
+        Score                              scaledScore;      // Length-normalized score of hypothesis
+        Core::Ref<LatticeTrace>            trace;            // Associated trace for traceback or lattice building off of hypothesis
+        bool                               isActive;         // Indicates whether the hypothesis has not produced a sentence-end label yet
 
         LabelHypothesis();
-        LabelHypothesis(LabelHypothesis const& base, ExtensionCandidate const& extension, Nn::ScoringContextRef const& newScoringContext, float lengthNormScale);
+        LabelHypothesis(LabelHypothesis const& base, ExtensionCandidate const& extension, std::vector<Nn::ScoringContextRef> const& newScoringContexts, float lengthNormScale);
 
         inline Score pruningScore() const {
             return scaledScore;
@@ -123,39 +123,41 @@ protected:
     };
 
 private:
-    size_t         maxBeamSize_;
-    bool           useScorePruning_;
-    Score          scoreThreshold_;
-    Histogram      scoreHistogram_;
-    float          lengthNormScale_;
-    float          maxLabelsPerTimestep_;
-    Nn::LabelIndex sentenceEndLabelIndex_;
-    bool           logStepwiseStatistics_;
-    size_t         cacheCleanupInterval_;
+    std::vector<size_t> maxBeamSizes_;
+    std::vector<bool>   useScorePruning_;
+    std::vector<Score>  scoreThresholds_;
+    Histogram           scoreHistogram_;
+    float               lengthNormScale_;
+    float               maxLabelsPerTimestep_;
+    Nn::LabelIndex      sentenceEndLabelIndex_;
+    bool                logStepwiseStatistics_;
+    size_t              cacheCleanupInterval_;
 
     Core::Channel debugChannel_;
 
-    Core::Ref<Nn::LabelScorer>   labelScorer_;
-    Bliss::LexiconRef            lexicon_;
-    std::vector<LabelHypothesis> beam_;
+    std::vector<Core::Ref<Nn::LabelScorer>> labelScorers_;
+    Bliss::LexiconRef                       lexicon_;
+    std::vector<LabelHypothesis>            beam_;
 
     // Pre-allocated intermediate vectors
+    std::vector<int>                   hypIndexToContextIndexMap_;
     std::vector<ExtensionCandidate>    extensions_;
     std::vector<LabelHypothesis>       newBeam_;
     std::vector<Nn::ScoringContextRef> scoringContexts_;
-    std::vector<LabelHypothesis>       recombinedHypotheses_;
+    std::vector<LabelHypothesis>       tempHypotheses_;
 
     Core::StopWatch initializationTime_;
     Core::StopWatch featureProcessingTime_;
     Core::StopWatch scoringTime_;
     Core::StopWatch contextExtensionTime_;
 
-    Core::Statistics<u32> numTerminatedHypsAfterScorePruning_;
-    Core::Statistics<u32> numTerminatedHypsAfterRecombination_;
-    Core::Statistics<u32> numTerminatedHypsAfterBeamPruning_;
-    Core::Statistics<u32> numActiveHypsAfterScorePruning_;
-    Core::Statistics<u32> numActiveHypsAfterRecombination_;
-    Core::Statistics<u32> numActiveHypsAfterBeamPruning_;
+    std::vector<Core::Statistics<u32>> numHypsAfterIntermediatePruning_;
+    Core::Statistics<u32>              numTerminatedHypsAfterScorePruning_;
+    Core::Statistics<u32>              numTerminatedHypsAfterRecombination_;
+    Core::Statistics<u32>              numTerminatedHypsAfterBeamPruning_;
+    Core::Statistics<u32>              numActiveHypsAfterScorePruning_;
+    Core::Statistics<u32>              numActiveHypsAfterRecombination_;
+    Core::Statistics<u32>              numActiveHypsAfterBeamPruning_;
 
     size_t currentSearchStep_;
     size_t totalTimesteps_;

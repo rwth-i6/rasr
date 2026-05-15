@@ -78,69 +78,69 @@ Module_::Module_()
     // Performs log-linear combination of multiple sub-label-scorers
     labelScorerFactory_.registerLabelScorer(
             "combine",
-            [](Core::Configuration const& config, EncoderModelCache& encoderModelCache, LabelScorerModelCache& labelScorerModelCache) {
-                return Core::ref(new CombineLabelScorer(config, encoderModelCache, labelScorerModelCache));
+            [](Core::Configuration const& config, ModelCache& modelCache) {
+                return Core::ref(new CombineLabelScorer(config, modelCache));
             });
 
     // Assumes inputs are already finished scores and just passes on the score at the current step
     labelScorerFactory_.registerLabelScorer(
             "no-op",
-            [](Core::Configuration const& config, EncoderModelCache& encoderModelCache, LabelScorerModelCache& labelScorerModelCache) {
+            [](Core::Configuration const& config, ModelCache&) {
                 return Core::ref(new StepwiseNoOpLabelScorer(config));
             });
 
     // Same as no-op, but can also negate output and subtract prior
     labelScorerFactory_.registerLabelScorer(
             "prior",
-            [](Core::Configuration const& config, EncoderModelCache& encoderModelCache, LabelScorerModelCache& labelScorerModelCache) {
+            [](Core::Configuration const& config, ModelCache&) {
                 return Core::ref(new PriorLabelScorer(config));
             });
 
     // A label scorer consisting of an encoder that pre-processes the features and another label scorer acting as decoder
     labelScorerFactory_.registerLabelScorer(
             "encoder-decoder",
-            [this](Core::Configuration const& config, EncoderModelCache& encoderModelCache, LabelScorerModelCache& labelScorerModelCache) {
+            [this](Core::Configuration const& config, ModelCache& modelCache) {
                 return Core::ref(new EncoderDecoderLabelScorer(
                         config,
-                        encoderFactory_.createEncoder(Core::Configuration(config, "encoder"), encoderModelCache),
-                        labelScorerFactory_.createLabelScorer(Core::Configuration(config, "decoder"), encoderModelCache, labelScorerModelCache)));
+                        encoderFactory_.createEncoder(Core::Configuration(config, "encoder"), modelCache),
+                        labelScorerFactory_.createLabelScorer(Core::Configuration(config, "decoder"), modelCache)));
             });
 
     // A label scorer consisting of an encoder that produces scores based on the features
     labelScorerFactory_.registerLabelScorer(
             "encoder-only",
-            [this](Core::Configuration const& config, EncoderModelCache& encoderModelCache, LabelScorerModelCache& labelScorerModelCache) {
+            [this](Core::Configuration const& config, ModelCache& modelCache) {
                 return Core::ref(new EncoderDecoderLabelScorer(
                         config,
-                        encoderFactory_.createEncoder(Core::Configuration(config, "encoder"), encoderModelCache),
+                        encoderFactory_.createEncoder(Core::Configuration(config, "encoder"), modelCache),
                         Core::ref(new StepwiseNoOpLabelScorer(config))));
             });
 
     // Compute scores by forwarding a single input feature vector without history through an ONNX model
     labelScorerFactory_.registerLabelScorer(
             "no-context-onnx",
-            [](Core::Configuration const& config, EncoderModelCache& encoderModelCache, LabelScorerModelCache& labelScorerModelCache) {
-                return Core::ref(new NoContextOnnxLabelScorer(config, labelScorerModelCache));
+            [](Core::Configuration const& config, ModelCache& modelCache) {
+                return Core::ref(new NoContextOnnxLabelScorer(config, modelCache));
             });
 
     // Compute scores by forwarding a single input feature vector together with a fixed-size history through an ONNX model
     labelScorerFactory_.registerLabelScorer(
             "fixed-context-onnx",
-            [](Core::Configuration const& config, EncoderModelCache& encoderModelCache, LabelScorerModelCache& labelScorerModelCache) {
-                return Core::ref(new FixedContextOnnxLabelScorer(config, labelScorerModelCache));
+            [](Core::Configuration const& config, ModelCache& modelCache) {
+                return Core::ref(new FixedContextOnnxLabelScorer(config, modelCache));
             });
 
     // Compute scores based on hidden state tensors.
     labelScorerFactory_.registerLabelScorer(
             "stateful-onnx",
-            [](Core::Configuration const& config, EncoderModelCache& encoderModelCache, LabelScorerModelCache& labelScorerModelCache) {
-                return Core::ref(new StatefulOnnxLabelScorer(config, labelScorerModelCache));
+            [](Core::Configuration const& config, ModelCache& modelCache) {
+                return Core::ref(new StatefulOnnxLabelScorer(config, modelCache));
             });
 
     // Returns predefined scores based on the transition type of each score request
     labelScorerFactory_.registerLabelScorer(
             "transition",
-            [](Core::Configuration const& config, EncoderModelCache& encoderModelCache, LabelScorerModelCache& labelScorerModelCache) {
+            [](Core::Configuration const& config, ModelCache&) {
                 return Core::ref(new TransitionLabelScorer(config));
             });
 };

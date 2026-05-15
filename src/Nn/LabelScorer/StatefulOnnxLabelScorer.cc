@@ -106,7 +106,7 @@ const std::vector<Onnx::IOSpecification> stateUpdaterModelIoSpec = {
                 {Onnx::ValueDataType::INT32},
                 {{1}, {-1}}}};  // [1] or [B]
 
-StatefulOnnxLabelScorer::StatefulOnnxLabelScorer(Core::Configuration const& config, LabelScorerModelCache& modelCache)
+StatefulOnnxLabelScorer::StatefulOnnxLabelScorer(Core::Configuration const& config, ModelCache& modelCache)
         : Core::Component(config),
           Precursor(config, TransitionPresetType::LM),
           blankUpdatesHistory_(paramBlankUpdatesHistory(config)),
@@ -129,20 +129,9 @@ StatefulOnnxLabelScorer::StatefulOnnxLabelScorer(Core::Configuration const& conf
     auto updaterKey     = updaterModelConfig.getSelection();
     auto scorerKey      = scorerModelConfig.getSelection();
 
-    if (modelCache.empty(initializerKey)) {
-        verify(modelCache.empty(updaterKey));
-        verify(modelCache.empty(scorerKey));
-        modelCache.put(initializerKey, std::make_shared<Onnx::Model>(initializerModelConfig, stateInitializerModelIoSpec));
-        modelCache.put(updaterKey, std::make_shared<Onnx::Model>(updaterModelConfig, stateUpdaterModelIoSpec));
-        modelCache.put(scorerKey, std::make_shared<Onnx::Model>(scorerModelConfig, scorerModelIoSpec));
-    }
-    else {
-        verify(not modelCache.empty(updaterKey));
-        verify(not modelCache.empty(scorerKey));
-    }
-    stateInitializerOnnxModel_ = modelCache.get<Onnx::Model>(initializerKey);
-    stateUpdaterOnnxModel_     = modelCache.get<Onnx::Model>(updaterKey);
-    scorerOnnxModel_           = modelCache.get<Onnx::Model>(scorerKey);
+    stateInitializerOnnxModel_ = modelCache.getOrCreate<Onnx::Model>(initializerKey, initializerModelConfig, stateInitializerModelIoSpec);
+    stateUpdaterOnnxModel_     = modelCache.getOrCreate<Onnx::Model>(updaterKey, updaterModelConfig, stateUpdaterModelIoSpec);
+    scorerOnnxModel_           = modelCache.getOrCreate<Onnx::Model>(scorerKey, scorerModelConfig, scorerModelIoSpec);
 
     scorerScoresName_                 = scorerOnnxModel_->mapping.getOnnxName("scores");
     initializerEncoderStatesName_     = stateInitializerOnnxModel_->mapping.getOnnxName("encoder-states");

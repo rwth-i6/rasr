@@ -36,18 +36,15 @@ static const std::vector<Onnx::IOSpecification> ioSpec = {
                 {Onnx::ValueDataType::FLOAT},
                 {{-1, -2}, {1, -2}}}};
 
-NoContextOnnxLabelScorer::NoContextOnnxLabelScorer(Core::Configuration const& config, LabelScorerModelCache& modelCache)
+NoContextOnnxLabelScorer::NoContextOnnxLabelScorer(Core::Configuration const& config, ModelCache& modelCache)
         : Core::Component(config),
           Precursor(config, TransitionPresetType::CTC),
           scoreCache_() {
     Core::Configuration modelConfig(config, "onnx-model");
     auto                key = modelConfig.getSelection();
-    if (modelCache.empty(key)) {
-        modelCache.put(key, std::make_shared<Onnx::Model>(modelConfig, ioSpec));
-    }
-    onnxModel_        = modelCache.get<Onnx::Model>(key);
-    inputFeatureName_ = onnxModel_->mapping.getOnnxName("input-feature");
-    scoresName_       = onnxModel_->mapping.getOnnxName("scores");
+    onnxModel_              = modelCache.getOrCreate<Onnx::Model>(key, modelConfig, ioSpec);
+    inputFeatureName_       = onnxModel_->mapping.getOnnxName("input-feature");
+    scoresName_             = onnxModel_->mapping.getOnnxName("scores");
 }
 
 void NoContextOnnxLabelScorer::reset() {

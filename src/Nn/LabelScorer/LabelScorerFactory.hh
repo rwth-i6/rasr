@@ -22,45 +22,11 @@
 #include <Core/Parameter.hh>
 #include <Core/ReferenceCounting.hh>
 
-#include "EncoderFactory.hh"
 #include "LabelScorer.hh"
+#include "ModelCache.hh"
 #include "ScaledLabelScorer.hh"
 
 namespace Nn {
-
-/*
- * Class that contains cached model objects to re-use when creating multiple LabelScorer instances.
- * The model cache is keyed because a LabelScorer may use multiple models.
- */
-class LabelScorerModelCache {
-public:
-    template<typename T>
-    std::shared_ptr<T> get(std::string const& key) const {
-        auto modelIt = models_.find(key);
-        if (modelIt == models_.end()) {
-            return {};
-        }
-
-        auto typeIt = types_.find(key);
-        verify(typeIt != types_.end());
-        verify(typeIt->second == std::type_index(typeid(T)));
-        return std::static_pointer_cast<T>(modelIt->second);
-    }
-
-    template<typename T>
-    void put(std::string const& key, std::shared_ptr<T> model) {
-        models_.insert_or_assign(key, std::static_pointer_cast<void>(model));
-        types_.insert_or_assign(key, std::type_index(typeid(T)));
-    }
-
-    bool empty(std::string const& key) const {
-        return models_.find(key) == models_.end();
-    }
-
-private:
-    std::unordered_map<std::string, std::shared_ptr<void>> models_;
-    std::unordered_map<std::string, std::type_index>       types_;
-};
 
 /*
  * Factory class to register types of LabelScorers and create them.
@@ -73,7 +39,7 @@ private:
     Core::Choice choices_;
 
 public:
-    typedef std::function<Core::Ref<LabelScorer>(Core::Configuration const&, EncoderModelCache&, LabelScorerModelCache&)> CreationFunction;
+    typedef std::function<Core::Ref<LabelScorer>(Core::Configuration const&, ModelCache&)> CreationFunction;
 
     Core::ParameterChoice paramLabelScorerType;
 
@@ -86,11 +52,11 @@ public:
 
     /*
      * Create a ScaledLabelScorer instance of the type given by `paramLabelScorerType` using the config object.
-     * Optionally supply a cache for encoder models and label scorer models. If cache entries are present,
-     * they are reused by the LabelScorer constructors.
+     * Optionally supply a cache for encoder and label scorer models. If cache entries are present, they are reused by
+     * the LabelScorer constructors.
      */
     Core::Ref<ScaledLabelScorer> createLabelScorer(Core::Configuration const& config) const;
-    Core::Ref<ScaledLabelScorer> createLabelScorer(Core::Configuration const& config, EncoderModelCache& encoderModelCache, LabelScorerModelCache& labelScorerModelCache) const;
+    Core::Ref<ScaledLabelScorer> createLabelScorer(Core::Configuration const& config, ModelCache& modelCache) const;
 
 private:
     typedef std::vector<CreationFunction> Registry;

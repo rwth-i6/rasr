@@ -19,7 +19,7 @@
 #include <Onnx/Model.hh>
 
 #include "BufferedLabelScorer.hh"
-#include "LabelScorerFactory.hh"
+#include "ModelCache.hh"
 
 namespace Nn {
 
@@ -39,7 +39,7 @@ class FixedContextOnnxLabelScorer : public BufferedLabelScorer {
     static const Core::ParameterInt  paramMaxBatchSize;
 
 public:
-    FixedContextOnnxLabelScorer(Core::Configuration const& config, LabelScorerModelCache& modelCache);
+    FixedContextOnnxLabelScorer(Core::Configuration const& config, ModelCache& modelCache);
     virtual ~FixedContextOnnxLabelScorer() = default;
 
     // Clear feature buffer and cached scores

@@ -19,7 +19,7 @@
 #include <Onnx/Model.hh>
 
 #include "BufferedLabelScorer.hh"
-#include "LabelScorerFactory.hh"
+#include "ModelCache.hh"
 
 namespace Nn {
 
@@ -36,7 +36,7 @@ class NoContextOnnxLabelScorer : public BufferedLabelScorer {
     using Precursor = BufferedLabelScorer;
 
 public:
-    NoContextOnnxLabelScorer(Core::Configuration const& config, LabelScorerModelCache& modelCache);
+    NoContextOnnxLabelScorer(Core::Configuration const& config, ModelCache& modelCache);
     virtual ~NoContextOnnxLabelScorer() = default;
 
     // Clear feature buffer and cached scores

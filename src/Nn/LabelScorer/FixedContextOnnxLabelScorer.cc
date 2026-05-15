@@ -71,7 +71,7 @@ static const std::vector<Onnx::IOSpecification> ioSpec = {
                 {Onnx::ValueDataType::FLOAT},
                 {{-1, -2}}}};
 
-FixedContextOnnxLabelScorer::FixedContextOnnxLabelScorer(Core::Configuration const& config, LabelScorerModelCache& modelCache)
+FixedContextOnnxLabelScorer::FixedContextOnnxLabelScorer(Core::Configuration const& config, ModelCache& modelCache)
         : Core::Component(config),
           Precursor(config, TransitionPresetType::TRANSDUCER),
           startLabelIndex_(paramStartLabelIndex(config)),
@@ -83,13 +83,10 @@ FixedContextOnnxLabelScorer::FixedContextOnnxLabelScorer(Core::Configuration con
           scoreCache_() {
     Core::Configuration modelConfig(config, "onnx-model");
     auto                key = modelConfig.getSelection();
-    if (modelCache.empty(key)) {
-        modelCache.put(key, std::make_shared<Onnx::Model>(modelConfig, ioSpec));
-    }
-    onnxModel_        = modelCache.get<Onnx::Model>(key);
-    inputFeatureName_ = onnxModel_->mapping.getOnnxName("input-feature");
-    historyName_      = onnxModel_->mapping.getOnnxName("history");
-    scoresName_       = onnxModel_->mapping.getOnnxName("scores");
+    onnxModel_              = modelCache.getOrCreate<Onnx::Model>(key, modelConfig, ioSpec);
+    inputFeatureName_       = onnxModel_->mapping.getOnnxName("input-feature");
+    historyName_            = onnxModel_->mapping.getOnnxName("history");
+    scoresName_             = onnxModel_->mapping.getOnnxName("scores");
 }
 
 void FixedContextOnnxLabelScorer::reset() {

@@ -58,13 +58,13 @@ namespace Nn {
 Core::ParameterInt CombineLabelScorer::paramNumLabelScorers(
         "num-scorers", "Number of label scorers to combine", 1, 1);
 
-CombineLabelScorer::CombineLabelScorer(Core::Configuration const& config, EncoderModelCache& encoderModelCache, LabelScorerModelCache& labelScorerModelCache)
+CombineLabelScorer::CombineLabelScorer(Core::Configuration const& config, ModelCache& modelCache)
         : Core::Component(config),
           Precursor(config, TransitionPresetType::ALL) {
     size_t numLabelScorers = paramNumLabelScorers(config);
     for (size_t i = 0ul; i < numLabelScorers; ++i) {
         Core::Configuration subConfig = select(std::string("scorer-") + std::to_string(i + 1));
-        scorers_.push_back(Nn::Module::instance().labelScorerFactory().createLabelScorer(subConfig, encoderModelCache, labelScorerModelCache));
+        scorers_.push_back(Nn::Module::instance().labelScorerFactory().createLabelScorer(subConfig, modelCache));
         enabledTransitions_.enableIntersection(scorers_.back()->enabledTransitions());
     }
 }

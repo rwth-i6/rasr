@@ -29,7 +29,7 @@
 #include <Speech/Feature.hh>
 
 #include "BufferedLabelScorer.hh"
-#include "LabelScorerFactory.hh"
+#include "ModelCache.hh"
 #include "ScoringContext.hh"
 
 namespace Nn {
@@ -67,7 +67,7 @@ class StatefulOnnxLabelScorer : public BufferedLabelScorer {
     static const Core::ParameterInt  paramMaxCachedScores;
 
 public:
-    StatefulOnnxLabelScorer(Core::Configuration const& config, LabelScorerModelCache& modelCache);
+    StatefulOnnxLabelScorer(Core::Configuration const& config, ModelCache& modelCache);
     virtual ~StatefulOnnxLabelScorer() = default;
 
     void reset() override;

@@ -146,7 +146,7 @@ class BinaryDistribution(dist.Distribution):
 
 # get README content for long description
 this_directory = Path(__file__).parent.resolve()
-with open(this_directory / "README") as f:
+with open(this_directory / "README.md") as f:
     long_description = f.read()
 
 setup(

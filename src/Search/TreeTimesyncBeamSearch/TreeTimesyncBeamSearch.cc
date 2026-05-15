@@ -316,12 +316,24 @@ bool TreeTimesyncBeamSearch::setModelCombination(Speech::ModelCombination const&
     // Create look-ups for state successors and exits of each state
     createSuccessorLookups();
 
-    reset();
-
     return true;
 }
 
-void TreeTimesyncBeamSearch::reset() {
+void TreeTimesyncBeamSearch::enterSegment(Bliss::SpeechSegment const* segment) {
+    initializationTime_.reset();
+    featureProcessingTime_.reset();
+    scoringTime_.reset();
+    for (auto& stat : numHypsAfterIntermediatePruning_) {
+        stat.clear();
+    }
+    numHypsAfterRecombination_.clear();
+    numHypsAfterPruning_.clear();
+    numWordEndHypsAfterScorePruning_.clear();
+    numWordEndHypsAfterRecombination_.clear();
+    numWordEndHypsAfterBeamPruning_.clear();
+    numActiveHyps_.clear();
+    numActiveTrees_.clear();
+
     initializationTime_.start();
 
     for (auto& labelScorer : labelScorers_) {
@@ -342,22 +354,12 @@ void TreeTimesyncBeamSearch::reset() {
     finishedSegment_   = false;
 
     initializationTime_.stop();
-}
-
-void TreeTimesyncBeamSearch::enterSegment(Bliss::SpeechSegment const* segment) {
-    initializationTime_.start();
-    for (auto& labelScorer : labelScorers_) {
-        labelScorer->reset();
-    }
     if (segment != nullptr) {
         languageModel_->setSegment(segment);
         for (auto& hyp : beam_) {
             hyp.lmHistory = languageModel_->startHistory();
         }
     }
-    resetStatistics();
-    initializationTime_.stop();
-    finishedSegment_ = false;
 }
 
 void TreeTimesyncBeamSearch::finishSegment() {
@@ -751,22 +753,6 @@ TreeTimesyncBeamSearch::LabelHypothesis const& TreeTimesyncBeamSearch::getWorstH
     verify(not beam_.empty());
 
     return *std::max_element(beam_.begin(), beam_.end());
-}
-
-void TreeTimesyncBeamSearch::resetStatistics() {
-    initializationTime_.reset();
-    featureProcessingTime_.reset();
-    scoringTime_.reset();
-    for (auto& stat : numHypsAfterIntermediatePruning_) {
-        stat.clear();
-    }
-    numHypsAfterRecombination_.clear();
-    numHypsAfterPruning_.clear();
-    numWordEndHypsAfterScorePruning_.clear();
-    numWordEndHypsAfterRecombination_.clear();
-    numWordEndHypsAfterBeamPruning_.clear();
-    numActiveHyps_.clear();
-    numActiveTrees_.clear();
 }
 
 void TreeTimesyncBeamSearch::logStatistics() const {

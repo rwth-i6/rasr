@@ -42,10 +42,6 @@ class SearchAlgorithm : public Core::Component {
 public:
     SearchAlgorithm(const Core::Configuration& c);
 
-    // Call before starting a new recognition. Clean up existing data structures
-    // from the previous run.
-    void reset();
-
     // Call at the beginning of a new segment.
     void enterSegment();
 

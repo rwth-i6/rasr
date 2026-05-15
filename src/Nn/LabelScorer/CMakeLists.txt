@@ -2,6 +2,7 @@ target_sources(
     RasrNn
     PRIVATE BufferedLabelScorer.cc
             CombineLabelScorer.cc
+            CtcPrefixLabelScorer.cc
             DataView.cc
             Encoder.cc
             EncoderDecoderLabelScorer.cc

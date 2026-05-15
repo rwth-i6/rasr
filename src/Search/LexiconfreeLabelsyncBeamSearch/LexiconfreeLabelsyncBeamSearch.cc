@@ -205,11 +205,19 @@ bool LexiconfreeLabelsyncBeamSearch::setModelCombination(Speech::ModelCombinatio
         }
     }
 
-    reset();
     return true;
 }
 
-void LexiconfreeLabelsyncBeamSearch::reset() {
+void LexiconfreeLabelsyncBeamSearch::enterSegment(Bliss::SpeechSegment const* segment) {
+    initializationTime_.reset();
+    featureProcessingTime_.reset();
+    scoringTime_.reset();
+    contextExtensionTime_.reset();
+    numTerminatedHypsAfterScorePruning_.clear();
+    numTerminatedHypsAfterBeamPruning_.clear();
+    numActiveHypsAfterScorePruning_.clear();
+    numActiveHypsAfterBeamPruning_.clear();
+
     initializationTime_.start();
 
     labelScorer_->reset();
@@ -224,16 +232,6 @@ void LexiconfreeLabelsyncBeamSearch::reset() {
     currentSearchStep_ = 0ul;
 
     initializationTime_.stop();
-}
-
-void LexiconfreeLabelsyncBeamSearch::enterSegment(Bliss::SpeechSegment const* segment) {
-    initializationTime_.start();
-    labelScorer_->reset();
-    resetStatistics();
-    initializationTime_.stop();
-    finishedSegment_   = false;
-    totalTimesteps_    = 0ul;
-    currentSearchStep_ = 0ul;
 }
 
 void LexiconfreeLabelsyncBeamSearch::finishSegment() {
@@ -598,17 +596,6 @@ LexiconfreeLabelsyncBeamSearch::LabelHypothesis const& LexiconfreeLabelsyncBeamS
     result = getWorstActiveHypothesis();
     verify(result != nullptr);
     return *result;
-}
-
-void LexiconfreeLabelsyncBeamSearch::resetStatistics() {
-    initializationTime_.reset();
-    featureProcessingTime_.reset();
-    scoringTime_.reset();
-    contextExtensionTime_.reset();
-    numTerminatedHypsAfterScorePruning_.clear();
-    numTerminatedHypsAfterBeamPruning_.clear();
-    numActiveHypsAfterScorePruning_.clear();
-    numActiveHypsAfterBeamPruning_.clear();
 }
 
 void LexiconfreeLabelsyncBeamSearch::logStatistics() const {

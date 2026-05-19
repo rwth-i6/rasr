@@ -208,6 +208,31 @@ struct StateManagedOnnxScoringContext : public ScoringContext {
 
 typedef Core::Ref<StateManagedOnnxScoringContext const> StateManagedOnnxScoringContextRef;
 
+/*
+ * Scoring context for prefix speech LMs.
+ * `labelSeq` contains only labels emitted by search, not from the prompt and speech-embeddings.
+ * `historyLength` contains the total LM cache length, including prompt and speech-embedding positions.
+ * Hashing and equality operators are based only on the `labelSeq`.
+ */
+struct PrefixSpeechLmScoringContext : public ScoringContext {
+    using StateManager = AbstractStateManager<Onnx::Value, Onnx::OnnxStateVariable>;
+    using HistoryState = StateManager::HistoryState;
+
+    std::vector<LabelIndex>                               labelSeq;
+    mutable size_t                                        historyLength;
+    mutable Core::Ref<PrefixSpeechLmScoringContext const> parent;
+
+    mutable std::shared_ptr<HistoryState> state;
+
+    PrefixSpeechLmScoringContext();
+    PrefixSpeechLmScoringContext(std::vector<LabelIndex>&& labelSeq, size_t historyLength, Core::Ref<PrefixSpeechLmScoringContext const> parent, std::shared_ptr<HistoryState> state = {});
+
+    bool   isEqual(ScoringContextRef const& other) const override;
+    size_t hash() const override;
+};
+
+typedef Core::Ref<PrefixSpeechLmScoringContext const> PrefixSpeechLmScoringContextRef;
+
 }  // namespace Nn
 
 #endif  // SCORING_CONTEXT_HH

@@ -373,16 +373,28 @@ void PrefixSpeechLmOnnxLabelScorer::setupInitialStates() {
     std::vector<Onnx::Value> outputs;
     initializerOnnxModel_.session.run(std::move(inputs), targets, outputs);
 
+    verify(not stateVariables_.empty());
+    verify_ge(outputs.size(), 2ul);
+    size_t stateLength = 0ul;
+    // Find time dim and take its size as prompt length
+    for (size_t d = 1ul; d < stateVariables_.front().shape.size(); ++d) {
+        if (stateVariables_.front().shape[d] < 0l) {
+            stateLength = outputs[1].dimSize(d);
+            break;
+        }
+    }
+    verify_gt(stateLength, 0ul);
+
     auto scores = std::make_shared<std::vector<Score>>();
     outputs.front().get(0, *scores);
 
     std::vector<Onnx::Value> stateOutputs(std::make_move_iterator(outputs.begin() + 1), std::make_move_iterator(outputs.end()));
-    std::vector<size_t>      suffixLengths{promptLength};
+    std::vector<size_t>      suffixLengths{stateLength};
     auto                     promptStates = stateManager_->splitStates(stateVariables_, suffixLengths, stateOutputs, *stateVectorFactory_);
 
     PrefixSpeechLmScoringContextRef parent;
     if (stateManager_->requiresAllParentStates()) {
-        verify_eq(promptStates.size(), promptLength);
+        verify_eq(promptStates.size(), stateLength);
         for (size_t i = 0ul; i + 1ul < promptStates.size(); ++i) {
             auto state = std::make_shared<HistoryState>(std::move(promptStates[i]));
             parent     = Core::ref(new PrefixSpeechLmScoringContext(std::vector<LabelIndex>(), i + 1ul, parent, state));
@@ -392,7 +404,7 @@ void PrefixSpeechLmOnnxLabelScorer::setupInitialStates() {
         verify_eq(promptStates.size(), 1ul);
     }
 
-    initialContext_->historyLength = promptLength;
+    initialContext_->historyLength = stateLength;
     initialContext_->parent        = parent;
     initialContext_->state         = std::make_shared<HistoryState>(std::move(promptStates.back()));
 

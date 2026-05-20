@@ -31,8 +31,8 @@
 namespace {
 
 enum RecombinationMode {
-    recombinationModeOff,
-    recombinationModeOn,
+    RecombinationModeOff,
+    RecombinationModeOn,
 };
 
 }  // namespace
@@ -177,15 +177,15 @@ const Core::ParameterInt TreeTimesyncBeamSearch::paramMaximumStableDelayPruningI
         1);
 
 const Core::Choice TreeTimesyncBeamSearch::choiceRecombinationMode(
-        "off", recombinationModeOff,
-        "on", recombinationModeOn,
+        "off", RecombinationModeOff,
+        "on", RecombinationModeOn,
         Core::Choice::endMark());
 
 const Core::ParameterChoice TreeTimesyncBeamSearch::paramRecombinationMode(
         "recombination-mode",
         &choiceRecombinationMode,
         "Whether hypotheses with identical recombination state should be recombined.",
-        recombinationModeOn);
+        RecombinationModeOn);
 
 TreeTimesyncBeamSearch::TreeTimesyncBeamSearch(Core::Configuration const& config)
         : Core::Component(config),
@@ -202,7 +202,7 @@ TreeTimesyncBeamSearch::TreeTimesyncBeamSearch(Core::Configuration const& config
           useBlank_(),
           collapseRepeatedLabels_(paramCollapseRepeatedLabels(config)),
           sentenceEndFallback_(paramSentenceEndFallBack(config)),
-          recombinationEnabled_(paramRecombinationMode(config) == recombinationModeOn),
+          recombinationEnabled_(paramRecombinationMode(config) == RecombinationModeOn),
           logStepwiseStatistics_(paramLogStepwiseStatistics(config)),
           labelScorers_(),
           nonWordLemmas_(),

@@ -28,6 +28,15 @@
 #include <Search/Traceback.hh>
 #include <Search/TracebackHelper.hh>
 
+namespace {
+
+enum RecombinationMode {
+    recombinationOff,
+    recombinationOn,
+};
+
+}  // namespace
+
 namespace Search {
 
 /*
@@ -167,6 +176,17 @@ const Core::ParameterInt TreeTimesyncBeamSearch::paramMaximumStableDelayPruningI
         10,
         1);
 
+const Core::Choice TreeTimesyncBeamSearch::choiceRecombination(
+        "off", recombinationOff,
+        "on", recombinationOn,
+        Core::Choice::endMark());
+
+const Core::ParameterChoice TreeTimesyncBeamSearch::paramRecombination(
+        "recombination",
+        &choiceRecombination,
+        "Whether hypotheses with identical recombination state should be recombined.",
+        recombinationOn);
+
 TreeTimesyncBeamSearch::TreeTimesyncBeamSearch(Core::Configuration const& config)
         : Core::Component(config),
           SearchAlgorithmV2(config),
@@ -182,6 +202,7 @@ TreeTimesyncBeamSearch::TreeTimesyncBeamSearch(Core::Configuration const& config
           useBlank_(),
           collapseRepeatedLabels_(paramCollapseRepeatedLabels(config)),
           sentenceEndFallback_(paramSentenceEndFallBack(config)),
+          recombinationEnabled_(paramRecombination(config) == recombinationOn),
           logStepwiseStatistics_(paramLogStepwiseStatistics(config)),
           labelScorers_(),
           nonWordLemmas_(),
@@ -889,6 +910,10 @@ template void TreeTimesyncBeamSearch::scorePruning<TreeTimesyncBeamSearch::Withi
 template void TreeTimesyncBeamSearch::scorePruning<TreeTimesyncBeamSearch::WordEndExtensionCandidate>(std::vector<TreeTimesyncBeamSearch::WordEndExtensionCandidate>&, Score, size_t);
 
 void TreeTimesyncBeamSearch::recombination(std::vector<TreeTimesyncBeamSearch::LabelHypothesis>& hypotheses, bool createTraceSiblings) {
+    if (not recombinationEnabled_) {
+        return;
+    }
+
     // Represents a unique combination of StateId, ScoringContext and LmHistory
     struct RecombinationContext {
         StateId                            state;

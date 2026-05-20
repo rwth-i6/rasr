@@ -49,6 +49,8 @@ public:
     static const Core::ParameterBool        paramCacheCleanupInterval;
     static const Core::ParameterFloat       paramLengthNormScale;
     static const Core::ParameterFloat       paramMaxLabelsPerTimestep;
+    static const Core::Choice               choiceRecombination;
+    static const Core::ParameterChoice      paramRecombination;
     static const Core::ParameterBool        paramLogStepwiseStatistics;
 
     LexiconfreeLabelsyncBeamSearch(Core::Configuration const&);
@@ -129,6 +131,7 @@ private:
     float               lengthNormScale_;
     float               maxLabelsPerTimestep_;
     Nn::LabelIndex      sentenceEndLabelIndex_;
+    bool                recombinationEnabled_;
     bool                logStepwiseStatistics_;
     size_t              cacheCleanupInterval_;
 

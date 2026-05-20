@@ -56,8 +56,8 @@ public:
     static const Core::ParameterBool        paramCacheCleanupInterval;
     static const Core::ParameterInt         paramMaximumStableDelay;
     static const Core::ParameterInt         paramMaximumStableDelayPruningInterval;
-    static const Core::Choice               choiceRecombination;
-    static const Core::ParameterChoice      paramRecombination;
+    static const Core::Choice               choiceRecombinationMode;
+    static const Core::ParameterChoice      paramRecombinationMode;
 
     TreeTimesyncBeamSearch(Core::Configuration const&);
 

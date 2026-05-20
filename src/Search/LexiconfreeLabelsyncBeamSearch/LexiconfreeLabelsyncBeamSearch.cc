@@ -27,6 +27,15 @@
 
 namespace Search {
 
+namespace {
+
+enum RecombinationMode {
+    recombinationOff,
+    recombinationOn,
+};
+
+}  // namespace
+
 /*
  * =======================
  * === LabelHypothesis ===
@@ -135,6 +144,17 @@ const Core::ParameterFloat LexiconfreeLabelsyncBeamSearch::paramMaxLabelsPerTime
         "Maximum number of emitted labels per input timestep counted via `addInput`/`addInputs`.",
         1.0);
 
+const Core::Choice LexiconfreeLabelsyncBeamSearch::choiceRecombination(
+        "off", recombinationOff,
+        "on", recombinationOn,
+        Core::Choice::endMark());
+
+const Core::ParameterChoice LexiconfreeLabelsyncBeamSearch::paramRecombination(
+        "recombination",
+        &choiceRecombination,
+        "Whether hypotheses with identical recombination state should be recombined.",
+        recombinationOn);
+
 const Core::ParameterBool LexiconfreeLabelsyncBeamSearch::paramLogStepwiseStatistics(
         "log-stepwise-statistics",
         "Log statistics about the beam at every search step.",
@@ -154,6 +174,7 @@ LexiconfreeLabelsyncBeamSearch::LexiconfreeLabelsyncBeamSearch(Core::Configurati
           lengthNormScale_(paramLengthNormScale(config)),
           maxLabelsPerTimestep_(paramMaxLabelsPerTimestep(config)),
           sentenceEndLabelIndex_(paramSentenceEndLabelIndex(config)),
+          recombinationEnabled_(paramRecombination(config) == recombinationOn),
           logStepwiseStatistics_(paramLogStepwiseStatistics(config)),
           cacheCleanupInterval_(paramCacheCleanupInterval(config)),
           debugChannel_(config, "debug"),
@@ -669,6 +690,10 @@ void LexiconfreeLabelsyncBeamSearch::scorePruning(std::vector<Element>& hypothes
 }
 
 void LexiconfreeLabelsyncBeamSearch::recombination() {
+    if (not recombinationEnabled_) {
+        return;
+    }
+
     // Represents a unique combination of currentToken and scoringContext
     struct RecombinationContext {
         Nn::LabelIndex        currentToken;

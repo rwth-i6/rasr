@@ -51,6 +51,8 @@ public:
     static const Core::ParameterBool        paramCacheCleanupInterval;
     static const Core::ParameterInt         paramMaximumStableDelay;
     static const Core::ParameterInt         paramMaximumStableDelayPruningInterval;
+    static const Core::Choice               choiceRecombination;
+    static const Core::ParameterChoice      paramRecombination;
     static const Core::ParameterBool        paramLogStepwiseStatistics;
 
     LexiconfreeTimesyncBeamSearch(Core::Configuration const&);
@@ -124,6 +126,7 @@ private:
     size_t              cacheCleanupInterval_;
     size_t              maximumStableDelay_;
     size_t              maximumStableDelayPruningInterval_;
+    bool                recombinationEnabled_;
     bool                logStepwiseStatistics_;
 
     Core::Channel debugChannel_;

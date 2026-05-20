@@ -232,11 +232,19 @@ bool LexiconfreeLabelsyncBeamSearch::setModelCombination(Speech::ModelCombinatio
         }
     }
 
-    reset();
     return true;
 }
 
-void LexiconfreeLabelsyncBeamSearch::reset() {
+void LexiconfreeLabelsyncBeamSearch::enterSegment(Bliss::SpeechSegment const* segment) {
+    initializationTime_.reset();
+    featureProcessingTime_.reset();
+    scoringTime_.reset();
+    contextExtensionTime_.reset();
+    numTerminatedHypsAfterScorePruning_.clear();
+    numTerminatedHypsAfterBeamPruning_.clear();
+    numActiveHypsAfterScorePruning_.clear();
+    numActiveHypsAfterBeamPruning_.clear();
+
     initializationTime_.start();
 
     for (auto& labelScorer : labelScorers_) {
@@ -256,11 +264,6 @@ void LexiconfreeLabelsyncBeamSearch::reset() {
     currentSearchStep_ = 0ul;
 
     initializationTime_.stop();
-}
-
-void LexiconfreeLabelsyncBeamSearch::enterSegment(Bliss::SpeechSegment const* segment) {
-    reset();
-    resetStatistics();
 }
 
 void LexiconfreeLabelsyncBeamSearch::finishSegment() {
@@ -380,6 +383,14 @@ bool LexiconfreeLabelsyncBeamSearch::decodeStep() {
         scoringTime_.start();
         auto scoreAccessors = labelScorer->getScoreAccessors(scoringContexts_);
         scoringTime_.stop();
+        std::vector<std::optional<Nn::DenseScoreSpan>> denseScoreSpans(scoreAccessors.size(), std::nullopt);
+        std::vector<Nn::TimeframeIndex>                scoreTimes(scoreAccessors.size(), 0);
+        for (size_t accessorIdx = 0ul; accessorIdx < scoreAccessors.size(); ++accessorIdx) {
+            if (scoreAccessors[accessorIdx]) {
+                denseScoreSpans[accessorIdx] = (*scoreAccessors[accessorIdx])->getDenseScores();
+                scoreTimes[accessorIdx]      = (*scoreAccessors[accessorIdx])->getTime();
+            }
+        }
 
         if (scorerIdx == 0ul) {
             // In the first iteration, create extensions while pre-pruning
@@ -393,6 +404,8 @@ bool LexiconfreeLabelsyncBeamSearch::decodeStep() {
                 }
 
                 auto const& scoreAccessor = scoreAccessors[hypIndexToContextIndexMap_[hypIndex]];
+                auto const& denseScores   = denseScoreSpans[hypIndexToContextIndexMap_[hypIndex]];
+                auto        scoreTime     = scoreTimes[hypIndexToContextIndexMap_[hypIndex]];
 
                 if (not scoreAccessor) {
                     // No extensions for hyps that couldn't be scored
@@ -414,8 +427,13 @@ bool LexiconfreeLabelsyncBeamSearch::decodeStep() {
                     auto extScore = hyp.score;
                     auto extTime  = hyp.trace->time;
                     if (labelScorer->scoresTransition(transitionType)) {
-                        extScore += (*scoreAccessor)->getScore(transitionType, tokenIdx);
-                        extTime = std::max(extTime, (*scoreAccessor)->getTime());
+                        if (denseScores and tokenIdx < denseScores->size()) {
+                            extScore += (*denseScores)[tokenIdx];
+                        }
+                        else {
+                            extScore += (*scoreAccessor)->getScore(transitionType, tokenIdx);
+                        }
+                        extTime = std::max(extTime, scoreTime);
                     }
 
                     // Pre-prune based on score before creating extension instance and appending to list
@@ -697,22 +715,6 @@ LexiconfreeLabelsyncBeamSearch::LabelHypothesis const& LexiconfreeLabelsyncBeamS
     result = getWorstActiveHypothesis();
     verify(result != nullptr);
     return *result;
-}
-
-void LexiconfreeLabelsyncBeamSearch::resetStatistics() {
-    initializationTime_.reset();
-    featureProcessingTime_.reset();
-    scoringTime_.reset();
-    contextExtensionTime_.reset();
-    for (auto& stat : numHypsAfterIntermediatePruning_) {
-        stat.clear();
-    }
-    numTerminatedHypsAfterScorePruning_.clear();
-    numTerminatedHypsAfterRecombination_.clear();
-    numTerminatedHypsAfterBeamPruning_.clear();
-    numActiveHypsAfterScorePruning_.clear();
-    numActiveHypsAfterRecombination_.clear();
-    numActiveHypsAfterBeamPruning_.clear();
 }
 
 void LexiconfreeLabelsyncBeamSearch::logStatistics() const {

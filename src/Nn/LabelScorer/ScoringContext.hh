@@ -21,7 +21,12 @@
 #include <Nn/AbstractStateManager.hh>
 #include <Onnx/OnnxStateVariable.hh>
 #include <Onnx/Value.hh>
-
+#include <limits>
+#include <memory>
+#include <optional>
+#include <unordered_map>
+#include <utility>
+#include <vector>
 #include "Types.hh"
 
 namespace Nn {
@@ -149,6 +154,41 @@ struct OnnxHiddenStateScoringContext : public ScoringContext {
 typedef Core::Ref<OnnxHiddenStateScoringContext const> OnnxHiddenStateScoringContextRef;
 
 /*
+ * Scoring context for computation of CTC prefix scores.
+ * Contains the label sequence, a parent pointer for lazy computation of the prefix score,
+ * time-wise prefix scores and a cache for the score of extended prefixes.
+ * Hash and equality operators are based on the label sequence.
+ */
+struct CtcPrefixScoringContext : public ScoringContext {
+    struct PrefixScore {
+        Score blankEndingScore    = std::numeric_limits<Score>::infinity();
+        Score nonBlankEndingScore = std::numeric_limits<Score>::infinity();
+
+        Score totalScore() const {
+            return Math::scoreSum(blankEndingScore, nonBlankEndingScore);
+        }
+    };
+
+    std::vector<LabelIndex>                           labelSeq;
+    ScoringContextRef                                 parent;            // Parent prefix without the last label, used to finalize lazily
+    mutable std::shared_ptr<std::vector<PrefixScore>> timePrefixScores;  // Represents neg-log-probabilities of emitting `labelSeq` ending in blank or nonblank after each real CTC frame t = 0, ..., T - 1
+    mutable std::optional<Score>                      prefixScore;       // Cached score of the prefix -log P(prefix), computed on demand from the parent; needed to compute score-delta for next token
+    mutable std::unordered_map<LabelIndex, Score>     extScores;         // Cache for -log P(prefix + token, ...) to avoid repeated computation
+    mutable bool                                      requiresFinalize;  // Check whether the mutable members have been set
+
+    CtcPrefixScoringContext()
+            : labelSeq(), parent(), timePrefixScores(), prefixScore(), extScores(), requiresFinalize(true) {}
+
+    CtcPrefixScoringContext(std::vector<LabelIndex>&& seq, ScoringContextRef const& parent)
+            : labelSeq(std::move(seq)), parent(parent), timePrefixScores(), prefixScore(), extScores(), requiresFinalize(true) {}
+
+    bool   isEqual(ScoringContextRef const& other) const;
+    size_t hash() const;
+};
+
+typedef Core::Ref<const CtcPrefixScoringContext> CtcPrefixScoringContextRef;
+
+/*
  * Scoring context consisting of a hidden state and a step.
  * Assumes that two hidden states are equal if and only if they were created
  * from the same label history.
@@ -218,40 +258,6 @@ struct PrefixSpeechLmScoringContext : public ScoringContext {
 };
 
 typedef Core::Ref<PrefixSpeechLmScoringContext const> PrefixSpeechLmScoringContextRef;
-
-/*
- * Scoring context for computation of CTC prefix scores.
- * Contains time-wise and overall score for prefix as well as a cache for the score of
- * extended prefixes.
- * Hash and equality operators are based on the label sequence.
- */
-struct CtcPrefixScoringContext : public ScoringContext {
-    struct PrefixScore {
-        Score blankEndingScore    = std::numeric_limits<Score>::infinity();
-        Score nonBlankEndingScore = std::numeric_limits<Score>::infinity();
-
-        Score totalScore() const {
-            return Math::scoreSum(blankEndingScore, nonBlankEndingScore);
-        }
-    };
-
-    std::vector<LabelIndex>                           labelSeq;
-    mutable std::shared_ptr<std::vector<PrefixScore>> timePrefixScores;  // Represents neg-log-probabilities of emitting `labelSeq` ending in blank or nonblank up to time t for each t = 0, ..., T
-    mutable Score                                     prefixScore;       // -log P(prefix, ...)
-    mutable std::unordered_map<LabelIndex, Score>     extScores;         // Cache for -log P(prefix + token, ...) to avoid repeated computation
-    mutable bool                                      requiresFinalize;
-
-    CtcPrefixScoringContext()
-            : labelSeq(), timePrefixScores(), prefixScore(0.0), extScores(), requiresFinalize(true) {}
-
-    CtcPrefixScoringContext(std::vector<LabelIndex> const& seq, std::shared_ptr<std::vector<PrefixScore>> const& timePrefixScores, Score prefixScore, bool requiresFinalize)
-            : labelSeq(seq), timePrefixScores(timePrefixScores), prefixScore(prefixScore), extScores(), requiresFinalize(requiresFinalize) {}
-
-    bool   isEqual(ScoringContextRef const& other) const;
-    size_t hash() const;
-};
-
-typedef Core::Ref<const CtcPrefixScoringContext> CtcPrefixScoringContextRef;
 
 }  // namespace Nn
 

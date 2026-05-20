@@ -17,7 +17,7 @@ class PriorLabelScorer : public StepwiseNoOpLabelScorer {
 public:
     using Precursor = StepwiseNoOpLabelScorer;
 
-    static const Core::ParameterBool paramNegateOutput;
+    static const Core::ParameterBool paramNegateInput;
 
     PriorLabelScorer(const Core::Configuration& config);
 
@@ -25,7 +25,7 @@ public:
     std::optional<ScoreAccessorRef> getScoreAccessor(ScoringContextRef scoringContext) override;
 
 private:
-    const bool negateOutput_;
+    const bool negateInput_;
 
     std::shared_ptr<Nn::Prior<Score>> prior_;
 };

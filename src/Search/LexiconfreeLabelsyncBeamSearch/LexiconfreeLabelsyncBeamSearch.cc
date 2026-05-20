@@ -30,8 +30,8 @@ namespace Search {
 namespace {
 
 enum RecombinationMode {
-    recombinationOff,
-    recombinationOn,
+    recombinationModeOff,
+    recombinationModeOn,
 };
 
 }  // namespace
@@ -148,16 +148,16 @@ const Core::ParameterFloat LexiconfreeLabelsyncBeamSearch::paramMaxLabelsPerTime
         "Maximum number of emitted labels per input timestep counted via `addInput`/`addInputs`.",
         1.0);
 
-const Core::Choice LexiconfreeLabelsyncBeamSearch::choiceRecombination(
-        "off", recombinationOff,
-        "on", recombinationOn,
+const Core::Choice LexiconfreeLabelsyncBeamSearch::choiceRecombinationMode(
+        "off", recombinationModeOff,
+        "on", recombinationModeOn,
         Core::Choice::endMark());
 
-const Core::ParameterChoice LexiconfreeLabelsyncBeamSearch::paramRecombination(
-        "recombination",
-        &choiceRecombination,
+const Core::ParameterChoice LexiconfreeLabelsyncBeamSearch::paramRecombinationMode(
+        "recombination-mode",
+        &choiceRecombinationMode,
         "Whether hypotheses with identical recombination state should be recombined.",
-        recombinationOn);
+        recombinationModeOn);
 
 const Core::ParameterBool LexiconfreeLabelsyncBeamSearch::paramLogStepwiseStatistics(
         "log-stepwise-statistics",
@@ -176,7 +176,7 @@ LexiconfreeLabelsyncBeamSearch::LexiconfreeLabelsyncBeamSearch(Core::Configurati
           lengthNormScale_(paramLengthNormScale(config)),
           maxLabelsPerTimestep_(paramMaxLabelsPerTimestep(config)),
           sentenceEndLabelIndex_(paramSentenceEndLabelIndex(config)),
-          recombinationEnabled_(paramRecombination(config) == recombinationOn),
+          recombinationEnabled_(paramRecombinationMode(config) == recombinationModeOn),
           logStepwiseStatistics_(paramLogStepwiseStatistics(config)),
           cacheCleanupInterval_(paramCacheCleanupInterval(config)),
           debugChannel_(config, "debug"),

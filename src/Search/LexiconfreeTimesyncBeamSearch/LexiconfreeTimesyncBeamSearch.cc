@@ -33,8 +33,8 @@ namespace Search {
 namespace {
 
 enum RecombinationMode {
-    recombinationOff,
-    recombinationOn,
+    recombinationModeOff,
+    recombinationModeOn,
 };
 
 }  // namespace
@@ -157,16 +157,16 @@ const Core::ParameterInt LexiconfreeTimesyncBeamSearch::paramMaximumStableDelayP
         10,
         1);
 
-const Core::Choice LexiconfreeTimesyncBeamSearch::choiceRecombination(
-        "off", recombinationOff,
-        "on", recombinationOn,
+const Core::Choice LexiconfreeTimesyncBeamSearch::choiceRecombinationMode(
+        "off", recombinationModeOff,
+        "on", recombinationModeOn,
         Core::Choice::endMark());
 
-const Core::ParameterChoice LexiconfreeTimesyncBeamSearch::paramRecombination(
-        "recombination",
-        &choiceRecombination,
+const Core::ParameterChoice LexiconfreeTimesyncBeamSearch::paramRecombinationMode(
+        "recombination-mode",
+        &choiceRecombinationMode,
         "Whether hypotheses with identical recombination state should be recombined.",
-        recombinationOn);
+        recombinationModeOn);
 
 LexiconfreeTimesyncBeamSearch::LexiconfreeTimesyncBeamSearch(Core::Configuration const& config)
         : Core::Component(config),
@@ -179,7 +179,7 @@ LexiconfreeTimesyncBeamSearch::LexiconfreeTimesyncBeamSearch(Core::Configuration
           cacheCleanupInterval_(paramCacheCleanupInterval(config)),
           maximumStableDelay_(paramMaximumStableDelay(config)),
           maximumStableDelayPruningInterval_(paramMaximumStableDelayPruningInterval(config)),
-          recombinationEnabled_(paramRecombination(config) == recombinationOn),
+          recombinationEnabled_(paramRecombinationMode(config) == recombinationModeOn),
           logStepwiseStatistics_(paramLogStepwiseStatistics(config)),
           debugChannel_(config, "debug"),
           labelScorers_(),

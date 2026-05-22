@@ -56,6 +56,8 @@ public:
     static const Core::ParameterBool        paramCacheCleanupInterval;
     static const Core::ParameterInt         paramMaximumStableDelay;
     static const Core::ParameterInt         paramMaximumStableDelayPruningInterval;
+    static const Core::Choice               choiceRecombinationMode;
+    static const Core::ParameterChoice      paramRecombinationMode;
 
     TreeTimesyncBeamSearch(Core::Configuration const&);
 
@@ -151,6 +153,7 @@ private:
     bool useBlank_;
     bool collapseRepeatedLabels_;
     bool sentenceEndFallback_;
+    bool recombinationEnabled_;
     bool logStepwiseStatistics_;
 
     std::vector<Core::Ref<Nn::LabelScorer>>        labelScorers_;

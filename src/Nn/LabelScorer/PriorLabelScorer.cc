@@ -13,7 +13,7 @@ public:
     PriorScoreAccessor(Core::Ref<ScoreAccessor> scoreAccessor, bool negateInput, std::shared_ptr<Nn::Prior<Score>> prior)
             : scoreAccessor_(scoreAccessor), negateInput_(negateInput), prior_(prior) {}
 
-    virtual Score getScore(Nn::TransitionType transitionType, Nn::LabelIndex labelIndex = Nn::invalidLabelIndex) const {
+    virtual Score getScore(Nn::TransitionType transitionType, Nn::LabelIndex labelIndex = Nn::invalidLabelIndex) const override {
         Score score = scoreAccessor_->getScore(transitionType, labelIndex);
         if (negateInput_) {
             score = -score;
@@ -26,14 +26,36 @@ public:
         return score;
     }
 
-    virtual Nn::TimeframeIndex getTime() const {
+    std::optional<Nn::DenseScoreSpan> getDenseScores() const override {
+        auto denseScores = scoreAccessor_->getDenseScores();
+        if (not denseScores) {
+            return std::nullopt;
+        }
+
+	std::vector<Nn::DenseScoreTerm> denseScoreTerms(denseScores->terms.begin(), denseScores->terms.end());
+
+        if (negateInput_) {
+            for (auto& term : denseScoreTerms) {
+                term.scale *= -1.0;
+            }
+        }
+
+        if (prior_->scale() != 0.0) {
+            require(denseScores->size() == prior_->size());  // Prior size must match base scorer vocab size
+            denseScoreTerms.push_back(Nn::DenseScoreTerm{denseScores->size() > 0ul ? std::span<Score const>(&prior_->at(0), prior_->size()) : std::span<Score const>(), prior_->scale()});
+        }
+
+        return Nn::DenseScoreSpan(std::move(denseScoreTerms));
+    }
+
+    virtual Nn::TimeframeIndex getTime() const override {
         return scoreAccessor_->getTime();
     }
 
 private:
-    Core::Ref<ScoreAccessor>          scoreAccessor_;
-    const bool                        negateInput_;
-    std::shared_ptr<Nn::Prior<Score>> prior_;
+    Core::Ref<ScoreAccessor>                scoreAccessor_;
+    const bool                              negateInput_;
+    std::shared_ptr<Nn::Prior<Score>>       prior_;
 };
 
 using PriorScoreAccessorRef = Core::Ref<PriorScoreAccessor>;

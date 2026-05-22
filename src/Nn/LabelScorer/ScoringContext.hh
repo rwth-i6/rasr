@@ -16,13 +16,13 @@
 #ifndef SCORING_CONTEXT_HH
 #define SCORING_CONTEXT_HH
 
+#include <optional>
+
 #include <Core/ReferenceCounting.hh>
 #include <Mm/Types.hh>
 #include <Nn/AbstractStateManager.hh>
 #include <Onnx/OnnxStateVariable.hh>
 #include <Onnx/Value.hh>
-
-#include <optional>
 
 #include "Types.hh"
 

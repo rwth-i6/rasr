@@ -19,7 +19,7 @@ namespace Lm {
 void TFPassthroughSoftmaxAdapter::init(Tensorflow::Session& session, Tensorflow::TensorInputMap const& input_map, Tensorflow::TensorOutputMap const& output_map) {
 }
 
-Score TFPassthroughSoftmaxAdapter::get_score(Lm::CompressedVectorPtr<float> const& nn_out, size_t output_idx) {
+Score TFPassthroughSoftmaxAdapter::get_score(Nn::CompressedVectorPtr<float> const& nn_out, size_t output_idx) {
     return nn_out->get(output_idx);
 }
 

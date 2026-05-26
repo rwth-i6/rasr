@@ -14,7 +14,6 @@
  */
 #include <Core/Application.hh>
 #include <Core/Debug.hh>
-#include <Modules.hh>
 #include <OpenFst/Count.hh>
 #include <OpenFst/Types.hh>
 #include <Search/Wfst/DynamicLmFst.hh>

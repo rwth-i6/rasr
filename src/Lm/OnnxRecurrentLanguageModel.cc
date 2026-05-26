@@ -1,8 +1,6 @@
 #include "OnnxRecurrentLanguageModel.hh"
 
-#include "AbstractStateManager.hh"
-#include "OnnxLstmStateManager.hh"
-#include "OnnxTransformerStateManager.hh"
+#include <Nn/Module.hh>
 
 #include "OnnxNceSoftmaxAdapter.hh"
 #include "OnnxPassthroughSoftmaxAdapter.hh"
@@ -42,44 +40,6 @@ std::vector<Onnx::IOSpecification> getIOSpec(int64_t num_classes) {
 
 namespace Lm {
 
-enum OnnxStateManagerType {
-    OnnxLstmStateManagerType,
-    OnnxTransformerStateManagerType,
-    OnnxTransformerStateManager16BitType,
-    OnnxTransformerStateManager8BitType,
-};
-
-const Core::Choice stateManagerTypeChoice(
-        "lstm", OnnxLstmStateManagerType,
-        "transformer", OnnxTransformerStateManagerType,
-        "transformer-16bit", OnnxTransformerStateManager16BitType,
-        "transformer-8bit", OnnxTransformerStateManager8BitType,
-        Core::Choice::endMark());
-
-const Core::ParameterChoice stateManagerTypeParam("type",
-                                                  &stateManagerTypeChoice,
-                                                  "type of the state manager",
-                                                  OnnxLstmStateManagerType);
-
-std::unique_ptr<OnnxStateManager> createOnnxStateManager(Core::Configuration const& config) {
-    switch (stateManagerTypeParam(config)) {
-        case OnnxLstmStateManagerType:
-            return std::unique_ptr<OnnxStateManager>(
-                    new Lm::OnnxLstmStateManager(config));
-        case OnnxTransformerStateManagerType:
-            return std::unique_ptr<OnnxStateManager>(
-                    new Lm::OnnxTransformerStateManager<float>(config));
-        case OnnxTransformerStateManager16BitType:
-            return std::unique_ptr<OnnxStateManager>(
-                    new Lm::OnnxTransformerStateManager<int16_t>(config));
-        case OnnxTransformerStateManager8BitType:
-            return std::unique_ptr<OnnxStateManager>(
-                    new Lm::OnnxTransformerStateManager<int8_t>(config));
-        default:
-            defect();
-    }
-}
-
 enum OnnxSoftmaxAdapterType {
     OnnxPassthroughSoftmaxAdapterType,
     OnnxNceSoftmaxAdapterType,
@@ -108,7 +68,7 @@ std::unique_ptr<OnnxSoftmaxAdapter> createOnnxSoftmaxAdapter(Core::Configuration
 
 OnnxRecurrentLanguageModel::OnnxRecurrentLanguageModel(Core::Configuration const& c, Bliss::LexiconRef l)
         : Core::Component(c),
-          Precursor(c, l, createOnnxStateManager(select("state-manager"))),
+          Precursor(c, l, Nn::Module::instance().createStateManager(select("state-manager"))),
           session_(select("session")),
           ioSpec_(getIOSpec(-2)),
           mapping_(select("io-map"), ioSpec_),
@@ -154,7 +114,7 @@ std::vector<Onnx::Value> OnnxRecurrentLanguageModel::fetchStates(std::vector<Onn
     return state_vars;
 }
 
-Score OnnxRecurrentLanguageModel::transformOutput(Lm::CompressedVectorPtr<float> const& nn_output, size_t index) const {
+Score OnnxRecurrentLanguageModel::transformOutput(Nn::CompressedVectorPtr<float> const& nn_output, size_t index) const {
     return softmax_adapter_->get_score(nn_output, index);
 }
 

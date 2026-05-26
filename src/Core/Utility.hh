@@ -15,7 +15,6 @@
 #ifndef _CORE_UTILITY_HH
 #define _CORE_UTILITY_HH
 
-#include <Modules.hh>
 #include <cmath>
 #include <complex>
 #include <cstdlib>

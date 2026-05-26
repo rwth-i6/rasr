@@ -15,7 +15,6 @@
 #include "Module.hh"
 
 #include <Core/Application.hh>
-#include <Modules.hh>
 
 #include "ClassicAcousticModel.hh"
 #ifdef MODULE_CART

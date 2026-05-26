@@ -205,11 +205,19 @@ bool LexiconfreeLabelsyncBeamSearch::setModelCombination(Speech::ModelCombinatio
         }
     }
 
-    reset();
     return true;
 }
 
-void LexiconfreeLabelsyncBeamSearch::reset() {
+void LexiconfreeLabelsyncBeamSearch::enterSegment(Bliss::SpeechSegment const* segment) {
+    initializationTime_.reset();
+    featureProcessingTime_.reset();
+    scoringTime_.reset();
+    contextExtensionTime_.reset();
+    numTerminatedHypsAfterScorePruning_.clear();
+    numTerminatedHypsAfterBeamPruning_.clear();
+    numActiveHypsAfterScorePruning_.clear();
+    numActiveHypsAfterBeamPruning_.clear();
+
     initializationTime_.start();
 
     labelScorer_->reset();
@@ -224,16 +232,6 @@ void LexiconfreeLabelsyncBeamSearch::reset() {
     currentSearchStep_ = 0ul;
 
     initializationTime_.stop();
-}
-
-void LexiconfreeLabelsyncBeamSearch::enterSegment(Bliss::SpeechSegment const* segment) {
-    initializationTime_.start();
-    labelScorer_->reset();
-    resetStatistics();
-    initializationTime_.stop();
-    finishedSegment_   = false;
-    totalTimesteps_    = 0ul;
-    currentSearchStep_ = 0ul;
 }
 
 void LexiconfreeLabelsyncBeamSearch::finishSegment() {
@@ -312,7 +310,9 @@ bool LexiconfreeLabelsyncBeamSearch::decodeStep() {
 
     scoringContexts_.clear();
     for (auto const& hyp : beam_) {
-        scoringContexts_.push_back(hyp.scoringContext);
+        if (hyp.isActive) {
+            scoringContexts_.push_back(hyp.scoringContext);
+        }
     }
 
     /*
@@ -326,6 +326,8 @@ bool LexiconfreeLabelsyncBeamSearch::decodeStep() {
      * Collect all possible extensions for all hypotheses in the beam.
      */
     extensions_.clear();
+
+    Score currentBestScore = Core::Type<Score>::max;
 
     for (size_t hypIndex = 0ul; hypIndex < beam_.size(); ++hypIndex) {
         auto& hyp = beam_[hypIndex];
@@ -352,11 +354,18 @@ bool LexiconfreeLabelsyncBeamSearch::decodeStep() {
             if (tokenIdx == sentenceEndLabelIndex_) {
                 transitionType = Nn::TransitionType::SENTENCE_END;
             }
+            auto extScore = hyp.score + scoreAccessor->getScore(transitionType, tokenIdx);
+
+            // Pre-prune based on score before creating extension instance and appending to list
+            if (useScorePruning_ and extScore > currentBestScore + scoreThreshold_) {
+                continue;
+            }
+            currentBestScore = std::min(currentBestScore, extScore);
 
             extensions_.push_back(
                     {tokenIdx,
                      lemma->pronunciations().first,
-                     hyp.score + scoreAccessor->getScore(transitionType, tokenIdx),
+                     extScore,
                      scoreAccessor->getTime(),
                      transitionType,
                      hypIndex});
@@ -587,17 +596,6 @@ LexiconfreeLabelsyncBeamSearch::LabelHypothesis const& LexiconfreeLabelsyncBeamS
     result = getWorstActiveHypothesis();
     verify(result != nullptr);
     return *result;
-}
-
-void LexiconfreeLabelsyncBeamSearch::resetStatistics() {
-    initializationTime_.reset();
-    featureProcessingTime_.reset();
-    scoringTime_.reset();
-    contextExtensionTime_.reset();
-    numTerminatedHypsAfterScorePruning_.clear();
-    numTerminatedHypsAfterBeamPruning_.clear();
-    numActiveHypsAfterScorePruning_.clear();
-    numActiveHypsAfterBeamPruning_.clear();
 }
 
 void LexiconfreeLabelsyncBeamSearch::logStatistics() const {

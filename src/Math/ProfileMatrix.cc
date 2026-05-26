@@ -21,7 +21,6 @@
 #include <Math/CudaMatrix.hh>
 #include <Math/CudaWrapper.hh>
 #include <Math/Random.hh>
-#include <Modules.hh>
 #include "ProfileMatrix.hh"
 
 const Core::ParameterInt MatrixProfiler::paramNumberOfRepetitions("number-of-repetitions", "number of repetitions", 5);

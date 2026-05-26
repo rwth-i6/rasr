@@ -68,7 +68,6 @@ void bindSearchAlgorithm(py::module_& module) {
             "It works by calling `enter_segment()`, passing segment features\n"
             "via `put_feature` or `put_features` and finally calling `finish_segment()`.\n"
             "Intermediate and final results can be retrieved via `get_current_best_traceback()`.\n"
-            "Before recognizing the next segment, `reset` should be called.\n"
             "There is also a convenience function `recognize_segment` that performs all\n"
             "these steps in one go given an array of segment features.");
 
@@ -76,11 +75,6 @@ void bindSearchAlgorithm(py::module_& module) {
             py::init<const Core::Configuration&>(),
             py::arg("config"),
             "Initialize search algorithm using a RASR config.");
-
-    pySearchAlgorithm.def(
-            "reset",
-            &SearchAlgorithm::reset,
-            "Call before starting a new recognition. Cleans up existing data structures from the previous run.");
 
     pySearchAlgorithm.def(
             "enter_segment",
@@ -110,8 +104,26 @@ void bindSearchAlgorithm(py::module_& module) {
             "Get the best traceback given all features that have been passed thus far.");
 
     pySearchAlgorithm.def(
+            "get_common_prefix",
+            &SearchAlgorithm::getCommonPrefix,
+            "Get the stable traceback given all features that have been passed thus far.");
+
+    pySearchAlgorithm.def(
+            "get_current_n_best_list",
+            &SearchAlgorithm::getCurrentNBestList,
+            py::arg("n"),
+            "Get a n-best list of tracebacks given all features that have been passed thus far.");
+
+    pySearchAlgorithm.def(
             "recognize_segment",
             &SearchAlgorithm::recognizeSegment,
             py::arg("features"),
-            "Convenience function to reset the search algorithm, start a segment, pass all the features as a numpy array of shape [T, F] or [1, T, F], finish the segment, and return the recognition result.");
+            "Convenience function to start a segment, pass all the features as a numpy array of shape [T, F] or [1, T, F], finish the segment, and return the recognition result.");
+
+    pySearchAlgorithm.def(
+            "recognize_segment_n_best",
+            &SearchAlgorithm::recognizeSegmentNBest,
+            py::arg("features"),
+            py::arg("n"),
+            "Convenience function to start a segment, pass all the features as a numpy array of shape [T, F] or [1, T, F], finish the segment, and return a n-best list of results.");
 }

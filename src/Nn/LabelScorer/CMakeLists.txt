@@ -25,6 +25,7 @@ if(${MODULE_ONNX})
                 NoContextOnnxLabelScorer.cc
                 PrefixSpeechLmOnnxLabelScorer.cc
                 StatefulOnnxLabelScorer.cc
+                StatefulTransducerOnnxLabelScorer.cc
                 StateManagedOnnxLabelScorer.cc
                 StatefulTransducerOnnxLabelScorer.cc
     )

@@ -400,6 +400,7 @@ void StatefulTransducerOnnxLabelScorer::cacheStates(std::vector<StepOnnxHiddenSt
     std::vector<s32>                                  nextTokens;
     for (auto const& scoringContext : scoringContextBatch) {
         if (not scoringContext->requiresFinalize) {
+            stateCache_.put(scoringContext, scoringContext->hiddenState);
             continue;
         }
         nonFinalizedContexts.push_back(scoringContext);

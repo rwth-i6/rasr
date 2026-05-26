@@ -7,10 +7,10 @@
 #include <vector>
 
 #include <Math/FastMatrix.hh>
-#include <Core/readerwriterqueue.h>
-
 #include <Nn/AbstractStateManager.hh>
 #include <Nn/Module.hh>
+#include <Core/readerwriterqueue.h>
+
 #include "AbstractNNLanguageModel.hh"
 #include "Module.hh"
 #include "SearchSpaceAwareLanguageModel.hh"

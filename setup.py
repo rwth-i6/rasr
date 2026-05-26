@@ -112,6 +112,8 @@ class CMakeBuild(build_ext):
 
         subprocess.check_call(["cmake", *cmake_args])
 
+        num_procs = os.environ.get("CMAKE_BUILD_PROCS", str(os.cpu_count() or 1))
+
         # CMake build
         build_args = [
             "--build",
@@ -119,7 +121,7 @@ class CMakeBuild(build_ext):
             "--target",
             "librasr",
             "--parallel",
-            str(os.cpu_count() or 1),
+            num_procs,
         ]
         build_args.extend(shlex.split(os.environ.get("CMAKE_BUILD_ARGS", "")))
         subprocess.check_call(["cmake", *build_args])

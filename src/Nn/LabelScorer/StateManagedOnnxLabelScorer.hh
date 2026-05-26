@@ -25,7 +25,7 @@
 namespace Nn {
 
 /*
- * LabelScorer for ONNX models whose hidden-state management done by a Rasr StateManager.
+ * LabelScorer for ONNX models whose hidden-state management is done by a RASR StateManager.
  * Each scoring context stores only the state slice produced
  * for its most recent token plus a parent pointer, which allows transformer KV caches to
  * be represented as a tree instead of duplicating the full prefix state per context.

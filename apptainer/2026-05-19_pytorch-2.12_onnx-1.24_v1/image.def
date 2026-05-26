@@ -1,0 +1,31 @@
+Bootstrap: docker
+From: nvcr.io/nvidia/pytorch:26.04-py3
+Stage: build
+
+%post
+    apt update -y
+
+    # fundamental basics to compile RASR, zsh is needed because calling the cache manager might launch the user shell
+    DEBIAN_FRONTEND=noninteractive apt install -y \
+        zsh bison libopenblas-dev libsndfile1-dev cmake
+
+    pip3 install "pybind11[global]"
+
+    # download the cache manager and place in /usr/local
+    cd /usr/local
+    git clone https://github.com/rwth-i6/cache-manager.git
+    cd bin
+    ln -s ../cache-manager/cf cf
+
+    cd /usr/local
+    wget -q https://github.com/microsoft/onnxruntime/releases/download/v1.24.4/onnxruntime-linux-x64-gpu_cuda13-1.24.4.tgz
+    tar xzvf onnxruntime-linux-x64-*.tgz
+    mkdir -p /usr/local/{include,lib}
+    mv onnxruntime-linux-x64-*/include/* /usr/local/include/
+    mv onnxruntime-linux-x64-*/lib/cmake/* /usr/local/lib/cmake
+    mv onnxruntime-linux-x64-*/lib/pkgconfig/* /usr/local/lib/pkgconfig
+    rmdir onnxruntime-linux-x64-*/lib/cmake
+    rmdir onnxruntime-linux-x64-*/lib/pkgconfig
+    mv onnxruntime-linux-x64-*/lib/* /usr/local/lib/
+    rm -r onnxruntime-linux-x64-*
+    ldconfig

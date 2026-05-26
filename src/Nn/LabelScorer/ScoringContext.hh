@@ -16,15 +16,14 @@
 #ifndef SCORING_CONTEXT_HH
 #define SCORING_CONTEXT_HH
 
+#include <optional>
+
 #include <Core/ReferenceCounting.hh>
 #include <Mm/Types.hh>
+#include <Nn/AbstractStateManager.hh>
+#include <Onnx/OnnxStateVariable.hh>
 #include <Onnx/Value.hh>
-#include <limits>
-#include <memory>
-#include <optional>
-#include <unordered_map>
-#include <utility>
-#include <vector>
+
 #include "Types.hh"
 
 namespace Nn {
@@ -185,6 +184,29 @@ struct CtcPrefixScoringContext : public ScoringContext {
 };
 
 typedef Core::Ref<const CtcPrefixScoringContext> CtcPrefixScoringContextRef;
+
+/*
+ * Scoring context for ONNX models with state managed by a StateManager.
+ * The state stores only the slice produced for the most recent token.
+ */
+struct StateManagedOnnxScoringContext : public ScoringContext {
+    using StateManager = AbstractStateManager<Onnx::Value, Onnx::OnnxStateVariable>;
+    using HistoryState = StateManager::HistoryState;
+
+    std::vector<LabelIndex>                                 labelSeq;
+    mutable Core::Ref<StateManagedOnnxScoringContext const> parent;
+
+    mutable std::shared_ptr<HistoryState> state;
+
+    StateManagedOnnxScoringContext(HistoryState&& initialState);
+    StateManagedOnnxScoringContext(std::vector<LabelIndex>&&                       labelSeq,
+                                   Core::Ref<StateManagedOnnxScoringContext const> parent);
+
+    bool   isEqual(ScoringContextRef const& other) const override;
+    size_t hash() const override;
+};
+
+typedef Core::Ref<StateManagedOnnxScoringContext const> StateManagedOnnxScoringContextRef;
 
 }  // namespace Nn
 

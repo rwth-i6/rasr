@@ -129,9 +129,9 @@ StatefulOnnxLabelScorer::StatefulOnnxLabelScorer(Core::Configuration const& conf
     auto updaterKey     = updaterModelConfig.getSelection();
     auto scorerKey      = scorerModelConfig.getSelection();
 
+    scorerOnnxModel_           = modelCache.getOrCreate<Onnx::Model>(scorerKey, scorerModelConfig, scorerModelIoSpec);
     stateInitializerOnnxModel_ = modelCache.getOrCreate<Onnx::Model>(initializerKey, initializerModelConfig, stateInitializerModelIoSpec);
     stateUpdaterOnnxModel_     = modelCache.getOrCreate<Onnx::Model>(updaterKey, updaterModelConfig, stateUpdaterModelIoSpec);
-    scorerOnnxModel_           = modelCache.getOrCreate<Onnx::Model>(scorerKey, scorerModelConfig, scorerModelIoSpec);
 
     scorerScoresName_                 = scorerOnnxModel_->mapping.getOnnxName("scores");
     initializerEncoderStatesName_     = stateInitializerOnnxModel_->mapping.getOnnxName("encoder-states");

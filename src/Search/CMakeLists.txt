@@ -34,6 +34,7 @@ endif()
 add_subdirectory(LexiconfreeLabelsyncBeamSearch)
 add_subdirectory(LexiconfreeTimesyncBeamSearch)
 add_subdirectory(TreeTimesyncBeamSearch)
+add_subdirectory(BigramLinearSearch)
 
 target_link_libraries(
     RasrSearch

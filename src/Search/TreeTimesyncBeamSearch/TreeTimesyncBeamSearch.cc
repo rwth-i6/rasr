@@ -563,8 +563,12 @@ bool TreeTimesyncBeamSearch::decodeStep() {
 
     // Create new label hypotheses from extension candidates
     newBeam_.clear();
+    //log() << "currentSearchStep_ " << currentSearchStep_;
+    //log() << "withinWordExtensions";
     for (auto const& extension : withinWordExtensions_) {
         auto const& baseHyp = beam_[extension.baseHypIndex];
+
+        //log() << "next token " << extension.nextToken << "amScore " << extension.score << "history " << languageModel_->formatHistory(baseHyp.lmHistory);
 
         std::vector<Nn::ScoringContextRef> newScoringContexts;
         for (size_t scorerIdx = 0ul; scorerIdx < labelScorers_.size(); ++scorerIdx) {
@@ -652,8 +656,10 @@ bool TreeTimesyncBeamSearch::decodeStep() {
 
     // Create new word-end label hypotheses from word-end extension candidates and update the LM history
     wordEndHypotheses_.clear();
+    //log() << "wordEndExtensions";
     for (auto& extension : wordEndExtensions_) {
         auto const& baseHyp = newBeam_[extension.baseHypIndex];
+        //log() << "next token " << extension.pron->id() << "lmScore " << extension.score - baseHyp.score << "history " << languageModel_->formatHistory(baseHyp.lmHistory);
 
         auto        newLmHistory = baseHyp.lmHistory;
         auto const& sts          = extension.pron->lemma()->syntacticTokenSequence();

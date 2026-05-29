@@ -18,6 +18,7 @@
 #include "LexiconfreeTimesyncBeamSearch/LexiconfreeTimesyncBeamSearch.hh"
 #include "TreeBuilder.hh"
 #include "TreeTimesyncBeamSearch/TreeTimesyncBeamSearch.hh"
+#include "BigramLinearSearch/BigramLinearSearch.hh"
 #ifdef MODULE_SEARCH_WFST
 #include <Search/Wfst/ExpandingFsaSearch.hh>
 #include <Search/Wfst/LatticeHandler.hh>
@@ -38,6 +39,7 @@ const Core::Choice Module_::searchTypeV2Choice(
         "lexiconfree-labelsync-beam-search", SearchTypeV2::LexiconfreeLabelsyncBeamSearchType,
         "lexiconfree-timesync-beam-search", SearchTypeV2::LexiconfreeTimesyncBeamSearchType,
         "tree-timesync-beam-search", SearchTypeV2::TreeTimesyncBeamSearchType,
+        "bigram-linear-search", SearchTypeV2::BigramLinearSearchType,
         Core::Choice::endMark());
 
 const Core::ParameterChoice Module_::searchTypeV2Param(
@@ -123,6 +125,9 @@ SearchAlgorithmV2* Module_::createSearchAlgorithmV2(const Core::Configuration& c
         case TreeTimesyncBeamSearchType:
             searchAlgorithm = new Search::TreeTimesyncBeamSearch(config);
             break;
+        case BigramLinearSearchType:
+            searchAlgorithm = new Search::BigramLinearSearch(config);
+        break;
         default:
             Core::Application::us()->criticalError("Unknown search algorithm type: %d", searchTypeV2Param(config));
             break;

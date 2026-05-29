@@ -1617,6 +1617,7 @@ HmmTreeBuilder::HmmTreeBuilder(Core::Configuration config, const Bliss::Lexicon&
     const auto iters = lexicon.phonemeInventory()->phonemes();
 
     if (initialize) {
+        warning() << "The HmmTreeBuilder is currently experimental and has not been fully tested. Some edge cases or input configurations may not be handled correctly yet.";
         verify(lexicon.specialLemma("silence") != nullptr);
         verify(!network_.rootState);
         network_.ciRootState = network_.rootState = createRoot();  // context-independent root

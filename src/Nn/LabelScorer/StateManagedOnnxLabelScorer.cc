@@ -99,26 +99,30 @@ const Core::ParameterInt StateManagedOnnxLabelScorer::paramMaxCachedScores(
         "Maximum size of cache that maps scoring contexts to scores and state slices. This prevents memory overflow in case of very long audio segments.",
         10000);
 
-StateManagedOnnxLabelScorer::StateManagedOnnxLabelScorer(Core::Configuration const& config)
+StateManagedOnnxLabelScorer::StateManagedOnnxLabelScorer(Core::Configuration const& config, ModelCache& modelCache)
         : Core::Component(config),
           Precursor(config, TransitionPresetType::LM),
           blankUpdatesHistory_(paramBlankUpdatesHistory(config)),
           loopUpdatesHistory_(paramLoopUpdatesHistory(config)),
           maxBatchSize_(paramMaxBatchSize(config)),
-          onnxModel_(select("onnx-model"), ioSpec),
           stateManager_(Module::instance().createStateManager(select("state-manager"))),
-          stateVariables_(onnxModel_.session.getStateVariablesMetadata()),
           stateVectorFactory_(Module::instance().createCompressedVectorFactory(select("state-compression"))),
-          tokenName_(onnxModel_.mapping.getOnnxName("token")),
-          tokenLengthName_(onnxModel_.mapping.getOnnxName("token-length")),
-          prefixLengthName_(onnxModel_.mapping.getOnnxName("prefix-length")),
-          scoresName_(onnxModel_.mapping.getOnnxName("scores")),
-          encoderStatesName_(onnxModel_.mapping.getOnnxName("encoder-states")),
-          encoderStatesSizeName_(onnxModel_.mapping.getOnnxName("encoder-states-size")),
           encoderStatesValue_(),
           encoderStatesSizeValue_(),
           scoreCache_(paramMaxCachedScores(config)),
           stateCache_(scoreCache_.maxSize()) {
+    Core::Configuration modelConfig(config, "onnx-model");
+    auto                key = modelConfig.getSelection();
+    onnxModel_              = modelCache.getOrCreate<Onnx::Model>(key, modelConfig, ioSpec);
+    tokenName_              = onnxModel_->mapping.getOnnxName("token");
+    tokenLengthName_        = onnxModel_->mapping.getOnnxName("token-length");
+    prefixLengthName_       = onnxModel_->mapping.getOnnxName("prefix-length");
+    scoresName_             = onnxModel_->mapping.getOnnxName("scores");
+    encoderStatesName_      = onnxModel_->mapping.getOnnxName("encoder-states");
+    encoderStatesSizeName_  = onnxModel_->mapping.getOnnxName("encoder-states-size");
+
+    stateVariables_ = onnxModel_->session.getStateVariablesMetadata();
+
     auto startLabels = paramStartLabels(config);
     startLabels_.insert(startLabels_.begin(), startLabels.begin(), startLabels.end());
 }
@@ -330,7 +334,7 @@ void StateManagedOnnxLabelScorer::cacheStatesAndScores(std::vector<StateManagedO
     targets.emplace(targets.begin(), scoresName_);
 
     std::vector<Onnx::Value> outputs;
-    onnxModel_.session.run(std::move(inputs), targets, outputs);
+    onnxModel_->session.run(std::move(inputs), targets, outputs);
 
     for (size_t b = 0ul; b < scoringContextBatch.size(); ++b) {
         auto scores = std::make_shared<std::vector<Score>>();

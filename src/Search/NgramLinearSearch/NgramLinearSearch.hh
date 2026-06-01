@@ -66,6 +66,7 @@ public:
     static const Core::ParameterFloat paramScoreThreshold;
     static const Core::ParameterInt         paramNumHistogramBins;
     static const Core::ParameterInt         paramBlankLabelIndex;
+    static const Core::ParameterBool        paramLogStatistics;
     static const Core::ParameterBool        paramLogStepwiseStatistics;
 
     NgramLinearSearch(Core::Configuration const&);
@@ -98,7 +99,8 @@ protected:
 
         Pronunciation()
                 : lemmaPronunciation(nullptr),
-                  label(Nn::invalidLabelIndex) {}
+                  label(Nn::invalidLabelIndex),
+        		  st(nullptr) {}
 
         bool empty() const {
             return label == Nn::invalidLabelIndex;
@@ -130,6 +132,7 @@ private:
 
     Nn::LabelIndex      blankLabelIndex_;
 
+    bool logStatistics_;
     bool logStepwiseStatistics_;
 
     Bliss::LexiconRef                       lexicon_;

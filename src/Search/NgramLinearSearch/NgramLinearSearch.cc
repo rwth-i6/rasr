@@ -78,6 +78,11 @@ const Core::ParameterInt NgramLinearSearch::paramBlankLabelIndex(
         "Index of the blank label in the lexicon. Can also be inferred from lexicon if it has a lemma with `special='blank'`. If not set, the search will not use blank.",
         Nn::invalidLabelIndex);
 
+const Core::ParameterBool NgramLinearSearch::paramLogStatistics(
+        "log-statistics",
+        "Log statistics about the beam and the timing at the end of every search step.",
+        false);
+
 const Core::ParameterBool NgramLinearSearch::paramLogStepwiseStatistics(
         "log-stepwise-statistics",
         "Log statistics about the beam at every search step.",
@@ -90,6 +95,7 @@ NgramLinearSearch::NgramLinearSearch(Core::Configuration const& config)
           scoreThreshold_(paramScoreThreshold(config)),
           scoreHistogram_(paramNumHistogramBins(config)),
           blankLabelIndex_(paramBlankLabelIndex(config)),
+          logStatistics_(paramLogStatistics(config)),
           logStepwiseStatistics_(paramLogStepwiseStatistics(config)),
           lexicon_(),
           acousticModel_(),
@@ -141,12 +147,14 @@ bool NgramLinearSearch::setModelCombination(Speech::ModelCombination const& mode
 }
 
 void NgramLinearSearch::enterSegment(Bliss::SpeechSegment const* segment) {
-    initializationTime_.reset();
-    featureProcessingTime_.reset();
-    scoringTime_.reset();
-    numHypsBeforeRecombination_.clear();
-    numHypsAfterRecombination_.clear();
-    numHypsAfterPruning_.clear();
+    if (logStatistics_) {
+    	initializationTime_.reset();
+    	featureProcessingTime_.reset();
+    	scoringTime_.reset();
+    	numHypsBeforeRecombination_.clear();
+    	numHypsAfterRecombination_.clear();
+    	numHypsAfterPruning_.clear();
+    }
 
     initializationTime_.start();
 
@@ -176,8 +184,9 @@ void NgramLinearSearch::finishSegment() {
     featureProcessingTime_.stop();
     decodeManySteps();
     finishedSegment_ = true;
-    // TODO maybe turn off the logging for larger experiments (to save writing time and memory)
-    logStatistics();
+    if (logStatistics_) {
+    	logStatistics();
+    }
 }
 
 void NgramLinearSearch::putFeature(Nn::DataView const& feature) {
@@ -352,25 +361,28 @@ bool NgramLinearSearch::decodeStep() {
         return false;
     }
 
-    numHypsBeforeRecombination_ += numHypsBeforeRecombination;
+    if (logStatistics_) {
+    	numHypsBeforeRecombination_ += numHypsBeforeRecombination;
 
-    if (logStepwiseStatistics_) {
-        clog() << Core::XmlFull("num-hyps-before-recombination", numHypsBeforeRecombination);
-    }
+    	if (logStepwiseStatistics_) {
+        	clog() << Core::XmlFull("num-hyps-before-recombination", numHypsBeforeRecombination);
+    	}
 
-    // Recombination was already done online while creating newBeam_
-    numHypsAfterRecombination_ += newBeam_.size();
+    	// Recombination was already done online while creating newBeam_
+    	numHypsAfterRecombination_ += newBeam_.size();
 
-    if (logStepwiseStatistics_) {
-        clog() << Core::XmlFull("num-hyps-after-recombination", newBeam_.size());
-    }
+    	if (logStepwiseStatistics_) {
+        	clog() << Core::XmlFull("num-hyps-after-recombination", newBeam_.size());
+    	}
 
-   // scorePruning(newBeam_, Core::Type<Score>::max, maxBeamSize_);
+   		// scorePruning(newBeam_, Core::Type<Score>::max, maxBeamSize_);
 
-    numHypsAfterPruning_ += newBeam_.size();
+   		 numHypsAfterPruning_ += newBeam_.size();
 
-    if (logStepwiseStatistics_) {
-        clog() << Core::XmlFull("num-hyps-after-pruning", newBeam_.size());
+    	if (logStepwiseStatistics_) {
+        	clog() << Core::XmlFull("num-hyps-after-pruning", newBeam_.size());
+    	}
+
     }
 
     beam_.swap(newBeam_);

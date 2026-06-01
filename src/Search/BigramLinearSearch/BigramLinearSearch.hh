@@ -94,6 +94,7 @@ protected:
     struct Pronunciation {
         Bliss::LemmaPronunciation const* lemmaPronunciation;
         Nn::LabelIndex     label;
+        const Bliss::SyntacticToken* st;
 
         Pronunciation()
                 : lemmaPronunciation(nullptr),
@@ -104,38 +105,16 @@ protected:
         }
     };
 
-    struct ExtensionCandidate {
-        size_t                 pronunciation;
-        Nn::LabelIndex         nextToken;
-        Nn::TransitionType     transitionType;
-        Lm::History            lmHistory;
-        Speech::TimeframeIndex timeframe;
-        Score                  score;
-        Score                  acousticScore;
-        Score                  lmScore;
-        size_t                 baseHypIndex;
-
-        bool operator<(ExtensionCandidate const& other) const {
-            return score < other.score;
-        }
-    };
-
     struct LabelHypothesis {
         Nn::ScoringContextRef scoringContext;
         Nn::LabelIndex                     currentToken;
-        size_t                             pronunciation;
         Lm::History                        lmHistory;
         Speech::TimeframeIndex             timeframe;
         Score                              score;
         Score                              acousticScore;
-        Score                              lmScore;
         Core::Ref<LatticeTrace>            trace;
 
         LabelHypothesis();
-
-        bool isBoundary() const {
-            return pronunciation == invalidPronunciation;
-        }
 
         bool operator<(LabelHypothesis const& other) const {
             return score < other.score;
@@ -164,9 +143,8 @@ private:
 
     std::vector<LabelHypothesis> beam_;
     std::vector<LabelHypothesis> newBeam_;
-    std::vector<LabelHypothesis> tempHypotheses_;
+    std::unordered_map<Lm::History, size_t, Lm::History::Hash> seenHistories_;
 
-    std::vector<ExtensionCandidate>    extensions_;
     std::vector<Nn::ScoringContextRef> scoringContexts_;
 
     size_t currentSearchStep_;
@@ -189,8 +167,6 @@ private:
 
     template<class Element>
     void scorePruning(std::vector<Element>& hypotheses, Score relativeThreshold, size_t maxBeamSize);
-
-    void recombination(std::vector<LabelHypothesis>& hypotheses, bool createTraceSiblings);
 
     void          initializePronunciations();
     Pronunciation createPronunciation(Bliss::LemmaPronunciation const* lemmaPronunciation) const;

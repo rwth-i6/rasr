@@ -26,12 +26,10 @@ namespace Search {
 BigramLinearSearch::LabelHypothesis::LabelHypothesis()
         : scoringContext(),
           currentToken(Nn::invalidLabelIndex),
-          pronunciation(invalidPronunciation),
           lmHistory(),
           timeframe(0),
           score(0.0),
           acousticScore(0.0),
-          lmScore(0.0),
           trace(Core::ref(new LatticeTrace(0, {0.0, 0.0}, {}))) {
 }
 
@@ -39,9 +37,8 @@ std::string BigramLinearSearch::LabelHypothesis::toString() const {
     std::stringstream ss;
 
     ss << "Score: " << score
-       << ", AM: " << acousticScore
-       << ", LM: " << lmScore
-       << ", pronunciation: " << pronunciation
+       << ", AM score: " << acousticScore
+       << ", total score: " << score
        << ", timeframe: " << timeframe
        << ", traceback: ";
 
@@ -102,8 +99,7 @@ BigramLinearSearch::BigramLinearSearch(Core::Configuration const& config)
           pronunciations_(),
           beam_(),
           newBeam_(),
-          tempHypotheses_(),
-          extensions_(),
+          seenHistories_(),
           scoringContexts_(),
           currentSearchStep_(0ul),
           finishedSegment_(false),
@@ -249,10 +245,10 @@ bool BigramLinearSearch::decodeStep() {
     auto scoreAccessors = labelScorer_->getScoreAccessors(scoringContexts_);
     scoringTime_.stop();
 
-    extensions_.clear();
     newBeam_.clear();
+    seenHistories_.clear();
 
-   // Score currentBestScore = Core::Type<Score>::max;
+    size_t numHypsBeforeRecombination = 0ul;
 
     //log() << "timestep " << currentSearchStep_;
     for (size_t hypIndex = 0ul; hypIndex < beam_.size(); ++hypIndex) {
@@ -275,10 +271,6 @@ bool BigramLinearSearch::decodeStep() {
 
             Nn::TransitionType transitionType = inferTransitionType(hyp.currentToken, nextToken);
 
-            //bool isBlank = nextToken == blankLabelIndex_;
-            //bool isLoop  = nextToken == hyp.currentToken and not isBlank;
-            //bool isNewLabel = not isBlank and not isLoop;
-
             Lm::History newLmHistory = hyp.lmHistory;
             Score lmScore = 0.0;
 
@@ -287,15 +279,10 @@ bool BigramLinearSearch::decodeStep() {
                 Bliss::Lemma const* lemma = pron.lemmaPronunciation->lemma();
 
                 // get LM score
-                Bliss::SyntacticTokenSequence const sts = lemma->syntacticTokenSequence();
-                auto const* st = sts.front();
-                lmScore += languageModel_->score(newLmHistory, st);
+                lmScore += languageModel_->score(newLmHistory, pron.st);
 
                 // update the LM history: new history is the new token
-                newLmHistory = languageModel_->extendedHistory(newLmHistory, st);
-                //lmScore += pronunciationScale_ * pron.lemmaPronunciation->pronunciationScore();
-                // reduceHistory ist wahrscheinlich gar nicht nötig weil beim extended doch schon das alte label rausgeworfen wird
-                //newLmHistory = languageModel_->reducedHistory(newLmHistory, 1);
+                newLmHistory = languageModel_->extendedHistory(newLmHistory, pron.st);
             }
 
             Score amScore = 0.0;
@@ -306,46 +293,55 @@ bool BigramLinearSearch::decodeStep() {
                 timeframe = std::max(timeframe, (*scoreAccessor)->getTime());
             }
 
-           // log() << "next token " << nextToken << " amScore " << amScore << " lmScore " << lmScore << "prev token " << hyp.currentToken << " extScore " << extScore;
+            Score newScore = hyp.score + amScore + lmScore;
 
-           // if (scoreThreshold_ != Core::Type<Score>::max and extScore > currentBestScore + scoreThreshold_) {
-           //     continue;
-           // }
+            //log() << "next token " << nextToken << " amScore " << amScore << " lmScore " << lmScore << "prev token " << hyp.currentToken << " extScore " << newScore;
 
-           // currentBestScore = std::min(currentBestScore, extScore);
+            ++numHypsBeforeRecombination;
 
+            auto [it, inserted] = seenHistories_.try_emplace(newLmHistory, newBeam_.size());
+
+            if (not inserted) {
+                LabelHypothesis const& existingHyp = newBeam_[it->second];
+
+                if (newScore >= existingHyp.score) {
+                    continue;
+                }
+            }
 
             LabelHypothesis newHyp;
-        	newHyp.scoringContext = labelScorer_->extendedScoringContext(
+            newHyp.scoringContext = labelScorer_->extendedScoringContext(
                                                 hyp.scoringContext,
                                                 nextToken,
                                                 transitionType);
 
-        	newHyp.currentToken    = nextToken;
-        	newHyp.pronunciation   = pronIndex;
-        	newHyp.timeframe       = timeframe;
-        	newHyp.score           = hyp.score + amScore + lmScore;
-        	newHyp.acousticScore   = hyp.acousticScore + amScore;
-        	newHyp.lmScore         = hyp.lmScore + lmScore;
-        	newHyp.lmHistory       = newLmHistory;
+            newHyp.currentToken    = nextToken;
+            newHyp.timeframe       = timeframe;
+            newHyp.score           = newScore;
+            newHyp.acousticScore   = hyp.acousticScore + amScore;
+            newHyp.lmHistory       = newLmHistory;
 
-            // vermutlich wird die allererste Trace nicht richtig erstellt
             Core::Ref<LatticeTrace> predecessor;
             if (transitionType == Nn::TransitionType::LABEL_LOOP or transitionType == Nn::TransitionType::BLANK_LOOP) {
-				predecessor = hyp.trace->predecessor;
+                predecessor = hyp.trace->predecessor;
             }
             else {
-            	predecessor = hyp.trace;
-        	}
+                predecessor = hyp.trace;
+            }
 
             newHyp.trace = Core::ref(new LatticeTrace(
                 predecessor,
                 pron.lemmaPronunciation,
                 newHyp.timeframe + 1,
-                {newHyp.acousticScore, newHyp.lmScore},
+                {newHyp.acousticScore, newHyp.score - newHyp.acousticScore},
                 {}));
 
-            newBeam_.push_back(newHyp);
+            if (inserted) {
+                newBeam_.push_back(std::move(newHyp));
+            }
+            else {
+                newBeam_[it->second] = std::move(newHyp);
+            }
         }
     }
 
@@ -356,24 +352,13 @@ bool BigramLinearSearch::decodeStep() {
         return false;
     }
 
-    /*
-     * Single pruning step over all extension candidates.
-     */
-    //scorePruning(extensions_, scoreThreshold_, maxBeamSize_);
- //   scorePruning(newBeam_, scoreThreshold_, maxBeamSize_);
+    numHypsBeforeRecombination_ += numHypsBeforeRecombination;
 
     if (logStepwiseStatistics_) {
-        clog() << Core::XmlFull("num-extensions-after-pruning", newBeam_.size());
+        clog() << Core::XmlFull("num-hyps-before-recombination", numHypsBeforeRecombination);
     }
 
-    numHypsBeforeRecombination_ += newBeam_.size();
-
-    if (logStepwiseStatistics_) {
-        clog() << Core::XmlFull("num-hyps-before-recombination", newBeam_.size());
-    }
-
-    recombination(newBeam_, true);
-
+    // Recombination was already done online while creating newBeam_
     numHypsAfterRecombination_ += newBeam_.size();
 
     if (logStepwiseStatistics_) {
@@ -448,6 +433,11 @@ BigramLinearSearch::Pronunciation BigramLinearSearch::createPronunciation(Bliss:
     if (!blissPron or blissPron->length() == 0) {
         return result;
     }
+
+    Bliss::Lemma const* lemma = lemmaPronunciation->lemma();
+    Bliss::SyntacticTokenSequence const sts = lemma->syntacticTokenSequence();
+    result.st = sts.front();
+
 
     Am::Phonology const& phonology = *(acousticModel_->phonology());
 
@@ -603,45 +593,7 @@ void BigramLinearSearch::scorePruning(std::vector<Element>& hypotheses, Score re
             hypotheses.end());
 }
 
-template void BigramLinearSearch::scorePruning(std::vector<BigramLinearSearch::ExtensionCandidate>&, Score, size_t);
 template void BigramLinearSearch::scorePruning(std::vector<BigramLinearSearch::LabelHypothesis>&, Score, size_t);
 
-
-void BigramLinearSearch::recombination(std::vector<LabelHypothesis>& hypotheses, bool createTraceSiblings) {
-    // only recombine according to LM history
-    // scoringContext is the same anyways (could be added though)
-    // current token is the same as LM history
-
-    tempHypotheses_.clear();
-    tempHypotheses_.reserve(hypotheses.size());
-
-    std::unordered_map<Lm::History, size_t, Lm::History::Hash> seenHistories;
-
-    for (auto& hyp : hypotheses) {
-        auto [it, inserted] = seenHistories.try_emplace(hyp.lmHistory, tempHypotheses_.size());
-
-        if (inserted) {
-            tempHypotheses_.push_back(std::move(hyp));
-        }
-        else {
-
-        	LabelHypothesis& existingHyp = tempHypotheses_[it->second];
-
-        	if (hyp.score < existingHyp.score) {
-            	if (createTraceSiblings) {
-                	hyp.trace->sibling = existingHyp.trace;
-            	}
-
-            	existingHyp = std::move(hyp);
-        	}
-        	else if (createTraceSiblings) {
-            	hyp.trace->sibling          = existingHyp.trace->sibling;
-            	existingHyp.trace->sibling = hyp.trace;
-       		}
-        }
-    }
-
-    hypotheses.swap(tempHypotheses_);
-}
 
 }  // namespace Search

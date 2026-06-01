@@ -13,8 +13,8 @@
  *  limitations under the License.
  */
 
-#ifndef BIGRAM_LINEAR_SEARCH_HH
-#define BIGRAM_LINEAR_SEARCH_HH
+#ifndef NGRAM_LINEAR_SEARCH_HH
+#define NGRAM_LINEAR_SEARCH_HH
 
 #include <cstddef>
 #include <string>
@@ -50,7 +50,7 @@ namespace Search {
  *     - LM score is applied at word end
  *     - active recombination key includes LM history
  *
- *   BigramLinearSearch:
+ *   NgramLinearSearch:
  *     - search state is pronunciation + position
  *     - LM score is applied at word start
  *     - within-word recombination key does not need previous LM history
@@ -60,7 +60,7 @@ namespace Search {
  * different predecessors but the same current pronunciation/state/scoring
  * context are equivalent.
  */
-class BigramLinearSearch : public SearchAlgorithmV2 {
+class NgramLinearSearch : public SearchAlgorithmV2 {
 public:
     static const Core::ParameterInt   paramMaxBeamSize;
     static const Core::ParameterFloat paramScoreThreshold;
@@ -68,7 +68,7 @@ public:
     static const Core::ParameterInt         paramBlankLabelIndex;
     static const Core::ParameterBool        paramLogStepwiseStatistics;
 
-    BigramLinearSearch(Core::Configuration const&);
+    NgramLinearSearch(Core::Configuration const&);
 
     // Inherited methods from `SearchAlgorithmV2`
 
@@ -174,4 +174,4 @@ private:
 
 }  // namespace Search
 
-#endif  // BIGRAM_LINEAR_SEARCH_HH
+#endif  // NGRAM_LINEAR_SEARCH_HH

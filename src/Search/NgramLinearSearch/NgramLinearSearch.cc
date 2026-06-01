@@ -3,7 +3,7 @@
  * Licensed under the RWTH ASR License.
  */
 
-#include "BigramLinearSearch.hh"
+#include "NgramLinearSearch.hh"
 
 #include <algorithm>
 #include <limits>
@@ -23,7 +23,7 @@ namespace Search {
  * =======================
  */
 
-BigramLinearSearch::LabelHypothesis::LabelHypothesis()
+NgramLinearSearch::LabelHypothesis::LabelHypothesis()
         : scoringContext(),
           currentToken(Nn::invalidLabelIndex),
           lmHistory(),
@@ -33,7 +33,7 @@ BigramLinearSearch::LabelHypothesis::LabelHypothesis()
           trace(Core::ref(new LatticeTrace(0, {0.0, 0.0}, {}))) {
 }
 
-std::string BigramLinearSearch::LabelHypothesis::toString() const {
+std::string NgramLinearSearch::LabelHypothesis::toString() const {
     std::stringstream ss;
 
     ss << "Score: " << score
@@ -54,36 +54,36 @@ std::string BigramLinearSearch::LabelHypothesis::toString() const {
 
 /*
  * ==========================
- * === BigramLinearSearch ===
+ * === NgramLinearSearch ===
  * ==========================
  */
 
-const Core::ParameterInt BigramLinearSearch::paramMaxBeamSize(
+const Core::ParameterInt NgramLinearSearch::paramMaxBeamSize(
         "max-beam-size",
         "Maximum number of hypotheses in the search beam.",
         1);
 
-const Core::ParameterFloat BigramLinearSearch::paramScoreThreshold(
+const Core::ParameterFloat NgramLinearSearch::paramScoreThreshold(
         "score-threshold",
         "Prune hypotheses whose score is at least this much worse than the best hypothesis.",
         Core::Type<Score>::max);
 
-const Core::ParameterInt BigramLinearSearch::paramNumHistogramBins(
+const Core::ParameterInt NgramLinearSearch::paramNumHistogramBins(
         "num-histogram-bins",
         "Number of bins for histogram pruning of hypotheses.",
         2);
 
-const Core::ParameterInt BigramLinearSearch::paramBlankLabelIndex(
+const Core::ParameterInt NgramLinearSearch::paramBlankLabelIndex(
         "blank-label-index",
         "Index of the blank label in the lexicon. Can also be inferred from lexicon if it has a lemma with `special='blank'`. If not set, the search will not use blank.",
         Nn::invalidLabelIndex);
 
-const Core::ParameterBool BigramLinearSearch::paramLogStepwiseStatistics(
+const Core::ParameterBool NgramLinearSearch::paramLogStepwiseStatistics(
         "log-stepwise-statistics",
         "Log statistics about the beam at every search step.",
         false);
 
-BigramLinearSearch::BigramLinearSearch(Core::Configuration const& config)
+NgramLinearSearch::NgramLinearSearch(Core::Configuration const& config)
         : Core::Component(config),
           SearchAlgorithmV2(config),
           maxBeamSize_(paramMaxBeamSize(config)),
@@ -110,15 +110,15 @@ BigramLinearSearch::BigramLinearSearch(Core::Configuration const& config)
           numHypsAfterRecombination_("num-hyps-after-recombination"),
           numHypsAfterPruning_("num-hyps-after-pruning") {}
 
-Speech::ModelCombination::Mode BigramLinearSearch::requiredModelCombination() const {
+Speech::ModelCombination::Mode NgramLinearSearch::requiredModelCombination() const {
     return Speech::ModelCombination::useLabelScorer | Speech::ModelCombination::useLexicon | Speech::ModelCombination::useAcousticModel | Speech::ModelCombination::useLanguageModel;
 }
 
-Am::AcousticModel::Mode BigramLinearSearch::requiredAcousticModel() const {
+Am::AcousticModel::Mode NgramLinearSearch::requiredAcousticModel() const {
     return Am::AcousticModel::noEmissions;
 }
 
-bool BigramLinearSearch::setModelCombination(Speech::ModelCombination const& modelCombination) {
+bool NgramLinearSearch::setModelCombination(Speech::ModelCombination const& modelCombination) {
     lexicon_            = modelCombination.lexicon();
     labelScorer_       = modelCombination.labelScorers()[0];
     acousticModel_      = modelCombination.acousticModel();
@@ -140,7 +140,7 @@ bool BigramLinearSearch::setModelCombination(Speech::ModelCombination const& mod
     return true;
 }
 
-void BigramLinearSearch::enterSegment(Bliss::SpeechSegment const* segment) {
+void NgramLinearSearch::enterSegment(Bliss::SpeechSegment const* segment) {
     initializationTime_.reset();
     featureProcessingTime_.reset();
     scoringTime_.reset();
@@ -170,7 +170,7 @@ void BigramLinearSearch::enterSegment(Bliss::SpeechSegment const* segment) {
     }
 }
 
-void BigramLinearSearch::finishSegment() {
+void NgramLinearSearch::finishSegment() {
     featureProcessingTime_.start();
     labelScorer_->signalNoMoreFeatures();
     featureProcessingTime_.stop();
@@ -180,23 +180,23 @@ void BigramLinearSearch::finishSegment() {
     logStatistics();
 }
 
-void BigramLinearSearch::putFeature(Nn::DataView const& feature) {
+void NgramLinearSearch::putFeature(Nn::DataView const& feature) {
     featureProcessingTime_.start();
     labelScorer_->addInput(feature);
     featureProcessingTime_.stop();
 }
 
-void BigramLinearSearch::putFeatures(Nn::DataView const& features, size_t nTimesteps) {
+void NgramLinearSearch::putFeatures(Nn::DataView const& features, size_t nTimesteps) {
     featureProcessingTime_.start();
     labelScorer_->addInputs(features, nTimesteps);
     featureProcessingTime_.stop();
 }
 
-Core::Ref<const Traceback> BigramLinearSearch::getCurrentBestTraceback() const {
+Core::Ref<const Traceback> NgramLinearSearch::getCurrentBestTraceback() const {
     return getBestHypothesis().trace->performTraceback();
 }
 
-Core::Ref<const LatticeAdaptor> BigramLinearSearch::getCurrentBestWordLattice() const {
+Core::Ref<const LatticeAdaptor> NgramLinearSearch::getCurrentBestWordLattice() const {
     auto& bestHypothesis = getBestHypothesis();
     LatticeTrace endTrace(bestHypothesis.trace, 0, bestHypothesis.trace->time + 1, bestHypothesis.trace->score, {});
 
@@ -209,16 +209,16 @@ Core::Ref<const LatticeAdaptor> BigramLinearSearch::getCurrentBestWordLattice() 
     return endTrace.buildWordLattice(lexicon_);
 }
 
-Core::Ref<const LatticeTrace> BigramLinearSearch::getCurrentBestLatticeTrace() const {
+Core::Ref<const LatticeTrace> NgramLinearSearch::getCurrentBestLatticeTrace() const {
     return getBestHypothesis().trace;
 }
 
 // no-op
-Core::Ref<const LatticeTrace> BigramLinearSearch::getCommonPrefix() const {
+Core::Ref<const LatticeTrace> NgramLinearSearch::getCommonPrefix() const {
     return Core::ref(new LatticeTrace(0, {0.0, 0.0}, {}));
 }
 
-bool BigramLinearSearch::decodeStep() {
+bool NgramLinearSearch::decodeStep() {
     if (finishedSegment_) {
         return false;
     }
@@ -406,7 +406,7 @@ bool BigramLinearSearch::decodeStep() {
  * ============================================================================
  */
 
-void BigramLinearSearch::initializePronunciations() {
+void NgramLinearSearch::initializePronunciations() {
     pronunciations_.clear();
 
     auto lemmas = lexicon_->lemmaPronunciations();
@@ -424,7 +424,7 @@ void BigramLinearSearch::initializePronunciations() {
     log() << "Initialized " << pronunciations_.size() << " linear pronunciations.";
 }
 
-BigramLinearSearch::Pronunciation BigramLinearSearch::createPronunciation(Bliss::LemmaPronunciation const* lemmaPronunciation) const {
+NgramLinearSearch::Pronunciation NgramLinearSearch::createPronunciation(Bliss::LemmaPronunciation const* lemmaPronunciation) const {
     Pronunciation result;
     result.lemmaPronunciation = lemmaPronunciation;
 
@@ -479,19 +479,19 @@ BigramLinearSearch::Pronunciation BigramLinearSearch::createPronunciation(Bliss:
 
 
 
-BigramLinearSearch::LabelHypothesis const& BigramLinearSearch::getBestHypothesis() const {
+NgramLinearSearch::LabelHypothesis const& NgramLinearSearch::getBestHypothesis() const {
     verify(!beam_.empty());
 
     return *std::min_element(beam_.begin(), beam_.end());
 }
 
-BigramLinearSearch::LabelHypothesis const& BigramLinearSearch::getWorstHypothesis() const {
+NgramLinearSearch::LabelHypothesis const& NgramLinearSearch::getWorstHypothesis() const {
     verify(!beam_.empty());
 
     return *std::max_element(beam_.begin(), beam_.end());
 }
 
-void BigramLinearSearch::logStatistics() const {
+void NgramLinearSearch::logStatistics() const {
     clog() << Core::XmlOpen("timing-statistics") + Core::XmlAttribute("unit", "milliseconds");
     clog() << Core::XmlOpen("initialization-time") << initializationTime_.elapsedMilliseconds() << Core::XmlClose("initialization-time");
     clog() << Core::XmlOpen("feature-processing-time") << featureProcessingTime_.elapsedMilliseconds() << Core::XmlClose("feature-processing-time");
@@ -502,7 +502,7 @@ void BigramLinearSearch::logStatistics() const {
     numHypsAfterPruning_.write(clog());
 }
 
-Nn::TransitionType BigramLinearSearch::inferTransitionType(Nn::LabelIndex prevLabel, Nn::LabelIndex nextLabel) const {
+Nn::TransitionType NgramLinearSearch::inferTransitionType(Nn::LabelIndex prevLabel, Nn::LabelIndex nextLabel) const {
     bool prevIsBlank = prevLabel == blankLabelIndex_;
     bool nextIsBlank = nextLabel == blankLabelIndex_;
 
@@ -537,7 +537,7 @@ Nn::TransitionType BigramLinearSearch::inferTransitionType(Nn::LabelIndex prevLa
 }
 
 template<class Element>
-void BigramLinearSearch::scorePruning(std::vector<Element>& hypotheses, Score relativeThreshold, size_t maxBeamSize) {
+void NgramLinearSearch::scorePruning(std::vector<Element>& hypotheses, Score relativeThreshold, size_t maxBeamSize) {
     if (hypotheses.size() <= maxBeamSize && relativeThreshold == Core::Type<Score>::max) {
         // Neither relative score pruning nor max beam size pruning triggers
         return;
@@ -593,7 +593,7 @@ void BigramLinearSearch::scorePruning(std::vector<Element>& hypotheses, Score re
             hypotheses.end());
 }
 
-template void BigramLinearSearch::scorePruning(std::vector<BigramLinearSearch::LabelHypothesis>&, Score, size_t);
+template void NgramLinearSearch::scorePruning(std::vector<NgramLinearSearch::LabelHypothesis>&, Score, size_t);
 
 
 }  // namespace Search

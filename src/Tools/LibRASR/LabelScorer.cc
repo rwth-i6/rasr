@@ -61,6 +61,7 @@ void bindLabelScorer(py::module_& module) {
             .value("SILENCE_LOOP", Nn::TransitionType::SILENCE_LOOP)
             .value("INITIAL_LABEL", Nn::TransitionType::INITIAL_LABEL)
             .value("INITIAL_BLANK", Nn::TransitionType::INITIAL_BLANK)
+            .value("INITIAL_SILENCE", Nn::TransitionType::INITIAL_SILENCE)
             .value("WORD_EXIT", Nn::TransitionType::WORD_EXIT)
             .value("NONWORD_EXIT", Nn::TransitionType::NONWORD_EXIT)
             .value("SILENCE_EXIT", Nn::TransitionType::SILENCE_EXIT)

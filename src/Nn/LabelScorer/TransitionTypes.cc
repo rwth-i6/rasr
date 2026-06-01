@@ -104,7 +104,7 @@ void TransitionSet::enablePreset(TransitionPresetType preset) {
             enable(SILENCE_TO_LABEL);
             enable(SILENCE_LOOP);
             enable(INITIAL_LABEL);
-            enable(INITIAL_BLANK);
+            enable(INITIAL_SILENCE);
             break;
     }
 }

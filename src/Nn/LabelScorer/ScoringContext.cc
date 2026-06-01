@@ -47,7 +47,7 @@ size_t CombineScoringContext::hash() const {
 }
 
 bool CombineScoringContext::isEqual(ScoringContextRef const& other) const {
-    auto* otherPtr = dynamic_cast<const CombineScoringContext*>(other.get());
+    auto* otherPtr = dynamic_cast<CombineScoringContext const*>(other.get());
 
     if (otherPtr == nullptr or scoringContexts.size() != otherPtr->scoringContexts.size()) {
         return false;
@@ -86,7 +86,7 @@ size_t SeqStepScoringContext::hash() const {
 }
 
 bool SeqStepScoringContext::isEqual(ScoringContextRef const& other) const {
-    auto* otherPtr = dynamic_cast<const SeqStepScoringContext*>(other.get());
+    auto* otherPtr = dynamic_cast<SeqStepScoringContext const*>(other.get());
     if (otherPtr == nullptr) {
         return false;
     }
@@ -118,7 +118,7 @@ size_t OnnxHiddenStateScoringContext::hash() const {
 }
 
 bool OnnxHiddenStateScoringContext::isEqual(ScoringContextRef const& other) const {
-    auto* otherPtr = dynamic_cast<const OnnxHiddenStateScoringContext*>(other.get());
+    auto* otherPtr = dynamic_cast<OnnxHiddenStateScoringContext const*>(other.get());
     if (otherPtr == nullptr) {
         return false;
     }
@@ -133,6 +133,75 @@ bool OnnxHiddenStateScoringContext::isEqual(ScoringContextRef const& other) cons
         }
     }
 
+    return true;
+}
+
+/*
+ * =============================
+ * == CtcPrefixScoringContext ==
+ * =============================
+ */
+
+size_t CtcPrefixScoringContext::hash() const {
+    return Core::MurmurHash3_x64_64(reinterpret_cast<void const*>(labelSeq.data()), labelSeq.size() * sizeof(LabelIndex), 0x78b174eb);
+}
+
+bool CtcPrefixScoringContext::isEqual(ScoringContextRef const& other) const {
+    auto* otherPtr = dynamic_cast<const CtcPrefixScoringContext*>(other.get());
+    if (otherPtr == nullptr) {
+        return false;
+    }
+
+    if (labelSeq.size() != otherPtr->labelSeq.size()) {
+        return false;
+    }
+
+    for (auto it_l = labelSeq.begin(), it_r = otherPtr->labelSeq.begin(); it_l != labelSeq.end(); ++it_l, ++it_r) {
+        if (*it_l != *it_r) {
+            return false;
+        }
+    }
+    return true;
+}
+
+/*
+ * ====================================
+ * = StateManagedOnnxScoringContext ===
+ * ====================================
+ */
+StateManagedOnnxScoringContext::StateManagedOnnxScoringContext(HistoryState&& initialState)
+        : labelSeq(),
+          parent(),
+          state(std::make_shared<HistoryState>(std::move(initialState))) {
+}
+
+StateManagedOnnxScoringContext::StateManagedOnnxScoringContext(std::vector<LabelIndex>&&                       labelSeq,
+                                                               Core::Ref<StateManagedOnnxScoringContext const> parent)
+        : labelSeq(std::move(labelSeq)),
+          parent(parent),
+          state() {
+}
+
+size_t StateManagedOnnxScoringContext::hash() const {
+    return Core::MurmurHash3_x64_64(reinterpret_cast<void const*>(labelSeq.data()), labelSeq.size() * sizeof(LabelIndex), 0x78b174eb);
+}
+
+bool StateManagedOnnxScoringContext::isEqual(ScoringContextRef const& other) const {
+    auto* otherPtr = dynamic_cast<StateManagedOnnxScoringContext const*>(other.get());
+
+    if (otherPtr == nullptr) {
+        return false;
+    }
+
+    if (labelSeq.size() != otherPtr->labelSeq.size()) {
+        return false;
+    }
+
+    for (auto it_l = labelSeq.begin(), it_r = otherPtr->labelSeq.begin(); it_l != labelSeq.end(); ++it_l, ++it_r) {
+        if (*it_l != *it_r) {
+            return false;
+        }
+    }
     return true;
 }
 

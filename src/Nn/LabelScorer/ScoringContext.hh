@@ -16,15 +16,17 @@
 #ifndef SCORING_CONTEXT_HH
 #define SCORING_CONTEXT_HH
 
+#include <optional>
+
 #include <Core/ReferenceCounting.hh>
 #include <Mm/Types.hh>
+#include <Nn/AbstractStateManager.hh>
+#include <Onnx/OnnxStateVariable.hh>
 #include <Onnx/Value.hh>
-#include <Speech/Types.hh>
+
+#include "Types.hh"
 
 namespace Nn {
-
-typedef Mm::EmissionIndex   LabelIndex;
-static constexpr LabelIndex invalidLabelIndex = Core::Type<LabelIndex>::max;
 
 /*
  * Empty scoring context base class
@@ -32,11 +34,11 @@ static constexpr LabelIndex invalidLabelIndex = Core::Type<LabelIndex>::max;
 struct ScoringContext : public Core::ReferenceCounted {
     virtual ~ScoringContext() = default;
 
-    virtual bool   isEqual(Core::Ref<const ScoringContext> const& other) const;
+    virtual bool   isEqual(Core::Ref<ScoringContext const> const& other) const;
     virtual size_t hash() const;
 };
 
-typedef Core::Ref<const ScoringContext> ScoringContextRef;
+typedef Core::Ref<ScoringContext const> ScoringContextRef;
 
 struct ScoringContextHash {
     size_t operator()(ScoringContextRef const& scoringContext) const {
@@ -66,7 +68,7 @@ struct CombineScoringContext : public ScoringContext {
     size_t hash() const;
 };
 
-typedef Core::Ref<const CombineScoringContext> CombineScoringContextRef;
+typedef Core::Ref<CombineScoringContext const> CombineScoringContextRef;
 
 /*
  * Scoring context that only describes the current decoding step
@@ -84,7 +86,7 @@ struct StepScoringContext : public ScoringContext {
     size_t hash() const;
 };
 
-typedef Core::Ref<const StepScoringContext> StepScoringContextRef;
+typedef Core::Ref<StepScoringContext const> StepScoringContextRef;
 
 /*
  * Scoring context that describes a sequence of previously observed labels as well as the current decoding step
@@ -104,7 +106,7 @@ struct SeqStepScoringContext : public ScoringContext {
     size_t hash() const;
 };
 
-typedef Core::Ref<const SeqStepScoringContext> SeqStepScoringContextRef;
+typedef Core::Ref<SeqStepScoringContext const> SeqStepScoringContextRef;
 
 /*
  * Hidden state represented by a dictionary of named ONNX values
@@ -124,7 +126,7 @@ struct OnnxHiddenState : public Core::ReferenceCounted {
     }
 };
 
-typedef Core::Ref<const OnnxHiddenState> OnnxHiddenStateRef;
+typedef Core::Ref<OnnxHiddenState const> OnnxHiddenStateRef;
 
 /*
  * Scoring context consisting of a hidden state.
@@ -146,7 +148,65 @@ struct OnnxHiddenStateScoringContext : public ScoringContext {
     size_t hash() const;
 };
 
-typedef Core::Ref<const OnnxHiddenStateScoringContext> OnnxHiddenStateScoringContextRef;
+typedef Core::Ref<OnnxHiddenStateScoringContext const> OnnxHiddenStateScoringContextRef;
+
+/*
+ * Scoring context for computation of CTC prefix scores.
+ * Contains the label sequence, a parent pointer for lazy computation of the prefix score,
+ * time-wise prefix scores and a cache for the score of extended prefixes.
+ * Hash and equality operators are based on the label sequence.
+ */
+struct CtcPrefixScoringContext : public ScoringContext {
+    struct PrefixScore {
+        Score blankEndingScore    = std::numeric_limits<Score>::infinity();
+        Score nonBlankEndingScore = std::numeric_limits<Score>::infinity();
+
+        Score totalScore() const {
+            return Math::scoreSum(blankEndingScore, nonBlankEndingScore);
+        }
+    };
+
+    std::vector<LabelIndex>                           labelSeq;
+    ScoringContextRef                                 parent;            // Parent prefix without the last label, used to finalize lazily
+    mutable std::shared_ptr<std::vector<PrefixScore>> timePrefixScores;  // Represents neg-log-probabilities of emitting `labelSeq` ending in blank or nonblank after each real CTC frame t = 0, ..., T - 1
+    mutable std::optional<Score>                      prefixScore;       // Cached score of the prefix -log P(prefix), computed on demand from the parent; needed to compute score-delta for next token
+    mutable std::unordered_map<LabelIndex, Score>     extScores;         // Cache for -log P(prefix + token, ...) to avoid repeated computation
+    mutable bool                                      requiresFinalize;  // Check whether the mutable members have been set
+
+    CtcPrefixScoringContext()
+            : labelSeq(), parent(), timePrefixScores(), prefixScore(), extScores(), requiresFinalize(true) {}
+
+    CtcPrefixScoringContext(std::vector<LabelIndex>&& seq, ScoringContextRef const& parent)
+            : labelSeq(std::move(seq)), parent(parent), timePrefixScores(), prefixScore(), extScores(), requiresFinalize(true) {}
+
+    bool   isEqual(ScoringContextRef const& other) const;
+    size_t hash() const;
+};
+
+typedef Core::Ref<const CtcPrefixScoringContext> CtcPrefixScoringContextRef;
+
+/*
+ * Scoring context for ONNX models with state managed by a StateManager.
+ * The state stores only the slice produced for the most recent token.
+ */
+struct StateManagedOnnxScoringContext : public ScoringContext {
+    using StateManager = AbstractStateManager<Onnx::Value, Onnx::OnnxStateVariable>;
+    using HistoryState = StateManager::HistoryState;
+
+    std::vector<LabelIndex>                                 labelSeq;
+    mutable Core::Ref<StateManagedOnnxScoringContext const> parent;
+
+    mutable std::shared_ptr<HistoryState> state;
+
+    StateManagedOnnxScoringContext(HistoryState&& initialState);
+    StateManagedOnnxScoringContext(std::vector<LabelIndex>&&                       labelSeq,
+                                   Core::Ref<StateManagedOnnxScoringContext const> parent);
+
+    bool   isEqual(ScoringContextRef const& other) const override;
+    size_t hash() const override;
+};
+
+typedef Core::Ref<StateManagedOnnxScoringContext const> StateManagedOnnxScoringContextRef;
 
 }  // namespace Nn
 

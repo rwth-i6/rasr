@@ -268,7 +268,7 @@ public:
 
     template<class T>
     void readValue(T& value) {
-        verify(std::is_pod<T>::value && "must be a pod type");
+        verify(std::is_standard_layout<T>::value && std::is_trivial<T>::value && "must be a pod type");
         if (!good() || get()->offset_ + sizeof(T) > get()->initialOffset_ + get()->size_) {
             invalidate();
             return;
@@ -424,7 +424,7 @@ public:
 
     template<class Type>
     inline void writeValue(const Type& value) {
-        verify(std::is_pod<Type>::value && "must be a pod type");
+        verify(std::is_standard_layout<Type>::value && std::is_trivial<Type>::value && "must be a pod type");
         get()->out_->write((const char*)&value, sizeof(Type));
     }
 

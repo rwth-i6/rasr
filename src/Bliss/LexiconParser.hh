@@ -136,7 +136,7 @@ public:
 
 struct XmlLexiconFormat : public Core::FormatSet::Format<Lexicon> {
     bool read(const std::string& filename, Lexicon& lexicon) const override {
-        XmlLexiconParser parser(Core::Application::us()->getConfiguration(), &lexicon);
+        XmlLexiconParser parser(lexicon.getConfiguration(), &lexicon);
         return parser.parseFile(filename);
     }
 

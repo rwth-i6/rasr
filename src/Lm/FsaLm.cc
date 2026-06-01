@@ -58,9 +58,9 @@ protected:
 FsaLm::FsaLm(const Core::Configuration& c, Bliss::LexiconRef lexicon)
         : Core::Component(c),
           LanguageModel(c, lexicon),
-          syntacticTokens_(lexicon->syntacticTokenAlphabet()),
           infinityScore_(1e9),
-          garbageLoopMode_(paramGarbageLoopMode(c)) {
+          garbageLoopMode_(paramGarbageLoopMode(c)),
+          syntacticTokens_(lexicon->syntacticTokenAlphabet()) {
     historyManager_      = new HistoryManager;
     acceptPartialRepeat_ = garbageLoopMode_ && paramAcceptPartialRepeat(c);
     if (garbageLoopMode_) {

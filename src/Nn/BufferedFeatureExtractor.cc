@@ -12,7 +12,7 @@
  *  See the License for the specific language governing permissions and
  *  limitations under the License.
  */
-#include <BufferedFeatureExtractor.hh>
+#include "BufferedFeatureExtractor.hh"
 #include <Math/Random.hh>
 #include <Speech/DataSource.hh>
 

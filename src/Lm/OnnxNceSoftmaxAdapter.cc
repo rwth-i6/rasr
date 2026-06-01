@@ -2,7 +2,7 @@
 
 #include <Math/Blas.hh>
 
-#include "DummyCompressedVectorFactory.hh"
+#include <Nn/DummyCompressedVectorFactory.hh>
 
 namespace Lm {
 
@@ -28,10 +28,10 @@ void OnnxNceSoftmaxAdapter::init(Onnx::Session& session, Onnx::IOMapping& mappin
     }
 }
 
-Score OnnxNceSoftmaxAdapter::get_score(Lm::CompressedVectorPtr<float> const& nn_out, size_t output_idx) {
+Score OnnxNceSoftmaxAdapter::get_score(Nn::CompressedVectorPtr<float> const& nn_out, size_t output_idx) {
     std::vector<float>                   nn_output;
     float const*                         data;
-    Lm::UncompressedVector<float> const* vec = dynamic_cast<Lm::UncompressedVector<float> const*>(nn_out.get());
+    Nn::UncompressedVector<float> const* vec = dynamic_cast<Nn::UncompressedVector<float> const*>(nn_out.get());
 
     if (vec != nullptr) {
         data = vec->data();
@@ -48,7 +48,7 @@ Score OnnxNceSoftmaxAdapter::get_score(Lm::CompressedVectorPtr<float> const& nn_
     return result;
 }
 
-std::vector<Score> OnnxNceSoftmaxAdapter::get_scores(Lm::CompressedVectorPtr<float> const& nn_out, std::vector<size_t> const& output_idxs) {
+std::vector<Score> OnnxNceSoftmaxAdapter::get_scores(Nn::CompressedVectorPtr<float> const& nn_out, std::vector<size_t> const& output_idxs) {
     std::vector<float> nn_output(nn_out->size());
     nn_out->uncompress(nn_output.data(), nn_output.size());
 

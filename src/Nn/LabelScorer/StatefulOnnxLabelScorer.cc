@@ -24,12 +24,46 @@
 #include <Flow/Timestamp.hh>
 #include <Math/FastMatrix.hh>
 #include <Mm/Module.hh>
+#include <Onnx/OnnxStateVariable.hh>
+#include <Onnx/Value.hh>
 #include <Speech/Types.hh>
 
 #include "ScoreAccessor.hh"
 #include "ScoringContext.hh"
 
 namespace Nn {
+
+OnnxHiddenState::OnnxHiddenState()
+        : stateValueMap() {}
+
+OnnxHiddenState::OnnxHiddenState(std::vector<std::string>&& names, std::vector<Onnx::Value>&& values) {
+    verify(names.size() == values.size());
+    stateValueMap.reserve(names.size());
+    for (size_t i = 0ul; i < names.size(); ++i) {
+        stateValueMap.emplace(std::move(names[i]), std::move(values[i]));
+    }
+}
+
+OnnxHiddenStateScoringContext::OnnxHiddenStateScoringContext()
+        : labelSeq(), hiddenState(), requiresFinalize(false) {}
+
+OnnxHiddenStateScoringContext::OnnxHiddenStateScoringContext(std::vector<LabelIndex> const& labelSeq, OnnxHiddenStateRef state, bool requiresFinalize)
+        : labelSeq(labelSeq), hiddenState(state), requiresFinalize(requiresFinalize) {}
+
+bool OnnxHiddenStateScoringContext::isEqual(ScoringContextRef const& other) const {
+    auto* otherPtr = dynamic_cast<OnnxHiddenStateScoringContext const*>(other.get());
+    if (otherPtr == nullptr) {
+        return false;
+    }
+
+    return labelSeqEqual(labelSeq, otherPtr->labelSeq);
+}
+
+size_t OnnxHiddenStateScoringContext::hash() const {
+    return labelSeqHash(labelSeq);
+}
+
+typedef Core::Ref<OnnxHiddenStateScoringContext const> OnnxHiddenStateScoringContextRef;
 
 /*
  * =============================

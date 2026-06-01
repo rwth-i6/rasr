@@ -25,6 +25,29 @@
 namespace Nn {
 
 /*
+ * Scoring context for ONNX models with state managed by a StateManager.
+ * The state stores only the slice produced for the most recent token.
+ */
+struct StateManagedOnnxScoringContext : public ScoringContext {
+    using StateManager = AbstractStateManager<Onnx::Value, Onnx::OnnxStateVariable>;
+    using HistoryState = StateManager::HistoryState;
+
+    std::vector<LabelIndex>                                 labelSeq;
+    mutable Core::Ref<StateManagedOnnxScoringContext const> parent;
+
+    mutable std::shared_ptr<HistoryState> state;
+
+    StateManagedOnnxScoringContext(HistoryState&& initialState);
+    StateManagedOnnxScoringContext(std::vector<LabelIndex>&&                       labelSeq,
+                                   Core::Ref<StateManagedOnnxScoringContext const> parent);
+
+    bool   isEqual(ScoringContextRef const& other) const override;
+    size_t hash() const override;
+};
+
+typedef Core::Ref<StateManagedOnnxScoringContext const> StateManagedOnnxScoringContextRef;
+
+/*
  * LabelScorer for ONNX models whose hidden-state management is done by a RASR StateManager.
  * Each scoring context stores only the state slice produced
  * for its most recent token plus a parent pointer, which allows transformer KV caches to

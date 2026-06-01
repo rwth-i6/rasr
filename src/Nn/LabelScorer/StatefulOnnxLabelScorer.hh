@@ -34,6 +34,37 @@
 namespace Nn {
 
 /*
+ * Hidden state represented by a dictionary of named ONNX values
+ */
+struct OnnxHiddenState : public Core::ReferenceCounted {
+    std::unordered_map<std::string, Onnx::Value> stateValueMap;
+
+    OnnxHiddenState();
+    OnnxHiddenState(std::vector<std::string>&& names, std::vector<Onnx::Value>&& values);
+};
+
+typedef Core::Ref<OnnxHiddenState const> OnnxHiddenStateRef;
+
+/*
+ * Scoring context consisting of a hidden state.
+ * Assumes that two hidden states are equal if and only if they were created
+ * from the same label history.
+ */
+struct OnnxHiddenStateScoringContext : public ScoringContext {
+    std::vector<LabelIndex>    labelSeq;  // Used for hashing
+    mutable OnnxHiddenStateRef hiddenState;
+    mutable bool               requiresFinalize;
+
+    OnnxHiddenStateScoringContext();
+    OnnxHiddenStateScoringContext(std::vector<LabelIndex> const& labelSeq, OnnxHiddenStateRef state, bool requiresFinalize);
+
+    bool   isEqual(ScoringContextRef const& other) const override;
+    size_t hash() const override;
+};
+
+typedef Core::Ref<OnnxHiddenStateScoringContext const> OnnxHiddenStateScoringContextRef;
+
+/*
  * Label Scorer that performs scoring by forwarding hidden states through an ONNX model.
  * This Label Scorer requires three ONNX models:
  *  - A State Initializer which produces the hidden states for the first step (optionally based on the input sequence)

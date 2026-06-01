@@ -19,7 +19,38 @@
 
 #include "ScoreAccessor.hh"
 
+/*
+ * Scoring context for ONNX models with state managed by a StateManager.
+ * The state stores only the slice produced for the most recent token.
+ */
 namespace Nn {
+
+StateManagedOnnxScoringContext::StateManagedOnnxScoringContext(HistoryState&& initialState)
+        : labelSeq(),
+          parent(),
+          state(std::make_shared<HistoryState>(std::move(initialState))) {
+}
+
+StateManagedOnnxScoringContext::StateManagedOnnxScoringContext(std::vector<LabelIndex>&&                       labelSeq,
+                                                               Core::Ref<StateManagedOnnxScoringContext const> parent)
+        : labelSeq(std::move(labelSeq)),
+          parent(parent),
+          state() {
+}
+
+bool StateManagedOnnxScoringContext::isEqual(ScoringContextRef const& other) const {
+    auto* otherPtr = dynamic_cast<StateManagedOnnxScoringContext const*>(other.get());
+
+    if (otherPtr == nullptr) {
+        return false;
+    }
+
+    return labelSeqEqual(labelSeq, otherPtr->labelSeq);
+}
+
+size_t StateManagedOnnxScoringContext::hash() const {
+    return labelSeqHash(labelSeq);
+}
 
 static const std::vector<Onnx::IOSpecification> ioSpec = {
         Onnx::IOSpecification{

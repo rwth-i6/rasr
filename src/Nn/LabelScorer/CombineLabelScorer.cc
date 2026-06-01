@@ -22,6 +22,44 @@ namespace {
 using namespace Nn;
 
 /*
+ * Combines multiple scoring contexts at once
+ */
+struct CombineScoringContext : public ScoringContext {
+    std::vector<ScoringContextRef> scoringContexts;
+
+    CombineScoringContext()
+            : scoringContexts() {}
+
+    CombineScoringContext(std::vector<ScoringContextRef>&& scoringContexts)
+            : scoringContexts(scoringContexts) {}
+
+    bool isEqual(ScoringContextRef const& other) const {
+        auto* otherPtr = dynamic_cast<CombineScoringContext const*>(other.get());
+
+        if (otherPtr == nullptr) {
+            return false;
+        }
+
+        return std::equal(
+                scoringContexts.begin(),
+                scoringContexts.end(),
+                otherPtr->scoringContexts.begin(),
+                otherPtr->scoringContexts.end(),
+                [](auto const& sc1, auto const& sc2) {
+                    return sc1->isEqual(sc2);
+                });
+    }
+
+    size_t hash() const {
+        size_t value = 0ul;
+        for (auto const& scoringContext : scoringContexts) {
+            value = Core::combineHashes(value, scoringContext->hash());
+        }
+        return value;
+    }
+};
+
+/*
  * Score accessor that contains a list of sub-accessors and adds up the scores they return
  */
 class CombinedScoreAccessor : public ScoreAccessor {

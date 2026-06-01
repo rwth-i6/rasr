@@ -102,6 +102,7 @@ protected:
     struct WordEndExtensionCandidate {
         Bliss::LemmaPronunciation const* pron;            // Proposed lemma pronunciation
         StateId                          rootState;       // Proposed root-state to transition to
+        Nn::LabelIndex                   exitLabel;       // LabelScorer token associated with this exit
         Score                            score;           // Would-be total score of the full hypothesis after LM score contribution
         Nn::TransitionType               transitionType;  // Type of transition towward `rootState`
         size_t                           baseHypIndex;    // Index of base hypothesis in beam
@@ -133,7 +134,7 @@ protected:
         LabelHypothesis(LabelHypothesis const& base, WithinWordExtensionCandidate const& extension, std::vector<Nn::ScoringContextRef> const& newScoringContexts);
 
         // Word-end constructor from base and word-end extension
-        LabelHypothesis(LabelHypothesis const& base, WordEndExtensionCandidate const& extension, Lm::History const& newLmHistory, LanguageModelLookahead::ContextLookaheadReference const newLookahead, Lm::History const& newLookaheadHistory);
+        LabelHypothesis(LabelHypothesis const& base, WordEndExtensionCandidate const& extension, Lm::History const& newLmHistory, LanguageModelLookahead::ContextLookaheadReference const newLookahead, Lm::History const& newLookaheadHistory, std::vector<Nn::ScoringContextRef> const& newScoringContexts);
 
         bool operator<(LabelHypothesis const& other) const {
             return score < other.score;

@@ -73,8 +73,9 @@ TreeTimesyncBeamSearch::LabelHypothesis::LabelHypothesis(
         TreeTimesyncBeamSearch::WordEndExtensionCandidate const& extension,
         Lm::History const&                                       newLmHistory,
         LanguageModelLookahead::ContextLookaheadReference const  newLookahead,
-        Lm::History const&                                       newLookaheadHistory)
-        : scoringContexts(base.scoringContexts),
+        Lm::History const&                                       newLookaheadHistory,
+        std::vector<Nn::ScoringContextRef> const&                newScoringContexts)
+        : scoringContexts(newScoringContexts),
           currentToken(base.currentToken),
           currentState(extension.rootState),
           lookahead(newLookahead),
@@ -693,12 +694,14 @@ bool TreeTimesyncBeamSearch::decodeStep() {
             auto const*                     lemmaPron = lexicon_->lemmaPronunciation(exit.pronunciation);
             auto const*                     lemma     = lemmaPron->lemma();
 
-            Score                               lmScore = 0;
-            const Bliss::SyntacticTokenSequence sts     = lemma->syntacticTokenSequence();
+            Score                               lmScore   = 0;
+            const Bliss::SyntacticTokenSequence sts       = lemma->syntacticTokenSequence();
+            Nn::LabelIndex                      exitLabel = Nn::invalidLabelIndex;
             if (sts.size() != 0) {
                 require(sts.size() == 1);
                 auto const* st = sts.front();
                 lmScore        = languageModel_->score(hyp.lmHistory, st);
+                exitLabel      = static_cast<Nn::LabelIndex>(st->id());
             }
 
             Score              penalty               = 0.0;
@@ -717,12 +720,13 @@ bool TreeTimesyncBeamSearch::decodeStep() {
                 if (not scoreAccessor) {
                     continue;
                 }
-                penalty += (*scoreAccessor)->getScore(wordEndtransitionType);
+                penalty += (*scoreAccessor)->getScore(wordEndtransitionType, exitLabel);
             }
 
             wordEndExtensions_.push_back({
                     .pron           = lemmaPron,
                     .rootState      = exit.transitState,
+                    .exitLabel      = exitLabel,
                     .score          = hyp.score + lmScore + penalty,
                     .transitionType = wordEndtransitionType,
                     .baseHypIndex   = hypIndex,
@@ -764,7 +768,22 @@ bool TreeTimesyncBeamSearch::decodeStep() {
             }
         }
 
-        wordEndHypotheses_.push_back({baseHyp, extension, newLmHistory, newLookahead, newLookaheadHistory});
+        std::vector<Nn::ScoringContextRef> newScoringContexts;
+        newScoringContexts.reserve(labelScorers_.size());
+        for (size_t scorerIdx = 0ul; scorerIdx < labelScorers_.size(); ++scorerIdx) {
+            if (labelScorers_[scorerIdx]->scoresTransition(extension.transitionType) and
+                extension.exitLabel != Nn::invalidLabelIndex) {
+                newScoringContexts.push_back(labelScorers_[scorerIdx]->extendedScoringContext(
+                        baseHyp.scoringContexts[scorerIdx],
+                        extension.exitLabel,
+                        extension.transitionType));
+            }
+            else {
+                newScoringContexts.push_back(baseHyp.scoringContexts[scorerIdx]);
+            }
+        }
+
+        wordEndHypotheses_.push_back({baseHyp, extension, newLmHistory, newLookahead, newLookaheadHistory, newScoringContexts});
     }
 
     recombination(wordEndHypotheses_, true);
@@ -1144,6 +1163,7 @@ void TreeTimesyncBeamSearch::finalizeHypotheses() {
             wordEndExtensions_.push_back({
                     .pron           = sentenceEndLemma_->pronunciations().first,
                     .rootState      = hyp.currentState,
+                    .exitLabel      = sentenceEndLabelIndex_,
                     .score          = hyp.score + sentenceEndScore,
                     .transitionType = Nn::TransitionType::SENTENCE_END,
                     .baseHypIndex   = hypIndex,
@@ -1154,7 +1174,7 @@ void TreeTimesyncBeamSearch::finalizeHypotheses() {
         for (size_t extensionIdx = 0ul; extensionIdx < wordEndExtensions_.size(); ++extensionIdx) {
             auto&       ext     = wordEndExtensions_[extensionIdx];
             auto const& baseHyp = newBeam_[ext.baseHypIndex];
-            tempHypotheses_.push_back({baseHyp, ext, baseHyp.lmHistory, baseHyp.lookahead, baseHyp.lookaheadHistory});
+            tempHypotheses_.push_back({baseHyp, ext, baseHyp.lmHistory, baseHyp.lookahead, baseHyp.lookaheadHistory, baseHyp.scoringContexts});
         }
     }
     else {  // No valid final hypotheses and no sentence-end fallback

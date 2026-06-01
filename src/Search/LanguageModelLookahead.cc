@@ -651,6 +651,8 @@ void LanguageModelLookahead::ConstructionTree::build(HMMStateNetwork const&     
 
             for (HMMStateNetwork::SuccessorIterator target = tree_.successors(node); target; ++target) {
                 if (not target.isLabel()) {
+                    if (*target == node)
+                        continue;
                     build(*target, depth + 1);
                     successors.push_back(*target);
                 }
@@ -745,7 +747,7 @@ void LanguageModelLookahead::ConstructionTree::build(HMMStateNetwork const&     
             collected[node] = -2;
 
             for (HMMStateNetwork::SuccessorIterator edges = tree_.successors(node); edges; ++edges) {
-                if (not edges.isLabel()) {
+                if (not edges.isLabel() and *edges != node) {
                     int depth2 = collectTopologicalStates(*edges, depth + 1, topologicalStates, collected);
                     if (depth2 - 1 < depth) {
                         depth = depth2 - 1;

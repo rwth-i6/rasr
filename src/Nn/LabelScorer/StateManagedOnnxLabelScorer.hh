@@ -37,6 +37,7 @@ class StateManagedOnnxLabelScorer : public BufferedLabelScorer {
 
     static const Core::ParameterIntVector paramStartLabels;
     static const Core::ParameterBool      paramBlankUpdatesHistory;
+    static const Core::ParameterBool      paramSilenceUpdatesHistory;
     static const Core::ParameterBool      paramLoopUpdatesHistory;
     static const Core::ParameterInt       paramMaxBatchSize;
     static const Core::ParameterInt       paramMaxCachedScores;
@@ -66,6 +67,7 @@ private:
 
     std::vector<size_t> startLabels_;
     bool                blankUpdatesHistory_;
+    bool                silenceUpdatesHistory_;
     bool                loopUpdatesHistory_;
     size_t              maxBatchSize_;
 

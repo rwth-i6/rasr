@@ -42,6 +42,11 @@ const Core::ParameterBool StatefulOnnxLabelScorer::paramBlankUpdatesHistory(
         "Whether previously emitted blank labels should be used to update the history.",
         false);
 
+const Core::ParameterBool StatefulOnnxLabelScorer::paramSilenceUpdatesHistory(
+        "silence-updates-history",
+        "Whether previously emitted silence labels should be used to update the history.",
+        false);
+
 const Core::ParameterBool StatefulOnnxLabelScorer::paramLoopUpdatesHistory(
         "loop-updates-history",
         "Whether in the case of loop transitions every repeated emission should be used to update the history.",
@@ -110,6 +115,7 @@ StatefulOnnxLabelScorer::StatefulOnnxLabelScorer(Core::Configuration const& conf
         : Core::Component(config),
           Precursor(config, TransitionPresetType::LM),
           blankUpdatesHistory_(paramBlankUpdatesHistory(config)),
+          silenceUpdatesHistory_(paramSilenceUpdatesHistory(config)),
           loopUpdatesHistory_(paramLoopUpdatesHistory(config)),
           maxBatchSize_(paramMaxBatchSize(config)),
           scorerOnnxModel_(select("scorer-model"), scorerModelIoSpec),
@@ -223,14 +229,22 @@ ScoringContextRef StatefulOnnxLabelScorer::extendedScoringContext(ScoringContext
         case TransitionType::BLANK_LOOP:
             updateState = blankUpdatesHistory_ and loopUpdatesHistory_;
             break;
+        case TransitionType::SILENCE_LOOP:
+            updateState = silenceUpdatesHistory_ and loopUpdatesHistory_;
+            break;
         case TransitionType::LABEL_TO_BLANK:
         case TransitionType::INITIAL_BLANK:
             updateState = blankUpdatesHistory_;
+            break;
+        case TransitionType::LABEL_TO_SILENCE:
+        case TransitionType::INITIAL_SILENCE:
+            updateState = silenceUpdatesHistory_;
             break;
         case TransitionType::LABEL_LOOP:
             updateState = loopUpdatesHistory_;
             break;
         case TransitionType::BLANK_TO_LABEL:
+        case TransitionType::SILENCE_TO_LABEL:
         case TransitionType::LABEL_TO_LABEL:
         case TransitionType::INITIAL_LABEL:
         case TransitionType::SENTENCE_END:

@@ -33,6 +33,11 @@ const Core::ParameterBool FixedContextOnnxLabelScorer::paramBlankUpdatesHistory(
         "Whether previously emitted blank labels should be included in the history.",
         false);
 
+const Core::ParameterBool FixedContextOnnxLabelScorer::paramSilenceUpdatesHistory(
+        "silence-updates-history",
+        "Whether previously emitted silence labels should be included in the history.",
+        false);
+
 const Core::ParameterBool FixedContextOnnxLabelScorer::paramLoopUpdatesHistory(
         "loop-updates-history",
         "Whether in the case of loop transitions every repeated emission should be separately included in the history.",
@@ -77,6 +82,7 @@ FixedContextOnnxLabelScorer::FixedContextOnnxLabelScorer(Core::Configuration con
           startLabelIndex_(paramStartLabelIndex(config)),
           historyLength_(paramHistoryLength(config)),
           blankUpdatesHistory_(paramBlankUpdatesHistory(config)),
+          silenceUpdatesHistory_(paramSilenceUpdatesHistory(config)),
           loopUpdatesHistory_(paramLoopUpdatesHistory(config)),
           verticalLabelTransition_(paramVerticalLabelTransition(config)),
           maxBatchSize_(paramMaxBatchSize(config)),
@@ -131,9 +137,18 @@ ScoringContextRef FixedContextOnnxLabelScorer::extendedScoringContext(ScoringCon
             pushToken     = blankUpdatesHistory_ and loopUpdatesHistory_;
             timeIncrement = 1ul;
             break;
+        case TransitionType::SILENCE_LOOP:
+            pushToken     = silenceUpdatesHistory_ and loopUpdatesHistory_;
+            timeIncrement = 1ul;
+            break;
         case TransitionType::LABEL_TO_BLANK:
         case TransitionType::INITIAL_BLANK:
             pushToken     = blankUpdatesHistory_;
+            timeIncrement = 1ul;
+            break;
+        case TransitionType::LABEL_TO_SILENCE:
+        case TransitionType::INITIAL_SILENCE:
+            pushToken     = silenceUpdatesHistory_;
             timeIncrement = 1ul;
             break;
         case TransitionType::LABEL_LOOP:
@@ -141,6 +156,7 @@ ScoringContextRef FixedContextOnnxLabelScorer::extendedScoringContext(ScoringCon
             timeIncrement = not verticalLabelTransition_;
             break;
         case TransitionType::BLANK_TO_LABEL:
+        case TransitionType::SILENCE_TO_LABEL:
         case TransitionType::LABEL_TO_LABEL:
         case TransitionType::INITIAL_LABEL:
         case TransitionType::SENTENCE_END:

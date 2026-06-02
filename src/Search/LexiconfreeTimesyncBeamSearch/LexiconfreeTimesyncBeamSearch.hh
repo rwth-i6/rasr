@@ -48,7 +48,7 @@ public:
     static const Core::ParameterInt         paramBlankLabelIndex;
     static const Core::ParameterInt         paramSentenceEndLabelIndex;
     static const Core::ParameterBool        paramCollapseRepeatedLabels;
-    static const Core::ParameterBool        paramCacheCleanupInterval;
+    static const Core::ParameterInt         paramCacheCleanupInterval;
     static const Core::ParameterInt         paramMaximumStableDelay;
     static const Core::ParameterInt         paramMaximumStableDelayPruningInterval;
     static const Core::ParameterBool        paramLogStepwiseStatistics;

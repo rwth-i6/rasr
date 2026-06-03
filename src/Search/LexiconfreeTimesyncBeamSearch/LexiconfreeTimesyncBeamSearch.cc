@@ -130,10 +130,11 @@ const Core::ParameterBool LexiconfreeTimesyncBeamSearch::paramLogStepwiseStatist
         "Log statistics about the beam at every search step.",
         false);
 
-const Core::ParameterBool LexiconfreeTimesyncBeamSearch::paramCacheCleanupInterval(
+const Core::ParameterInt LexiconfreeTimesyncBeamSearch::paramCacheCleanupInterval(
         "cache-cleanup-interval",
         "Interval of search steps after which buffered inputs that are not needed anymore get cleaned up.",
-        10);
+        10,
+        1);
 
 const Core::ParameterInt LexiconfreeTimesyncBeamSearch::paramMaximumStableDelay(
         "maximum-stable-delay",

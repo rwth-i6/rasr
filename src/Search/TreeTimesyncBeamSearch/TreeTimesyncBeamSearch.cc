@@ -149,10 +149,11 @@ const Core::ParameterBool TreeTimesyncBeamSearch::paramLogStepwiseStatistics(
         "Log statistics about the beam at every search step.",
         false);
 
-const Core::ParameterBool TreeTimesyncBeamSearch::paramCacheCleanupInterval(
+const Core::ParameterInt TreeTimesyncBeamSearch::paramCacheCleanupInterval(
         "cache-cleanup-interval",
         "Interval of search steps after which buffered inputs that are not needed anymore get cleaned up.",
-        10);
+        10,
+        1);
 
 const Core::ParameterInt TreeTimesyncBeamSearch::paramMaximumStableDelay(
         "maximum-stable-delay",

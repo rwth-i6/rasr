@@ -193,3 +193,65 @@ std::vector<Traceback> SearchAlgorithm::recognizeSegmentNBest(py::array_t<f32> c
     finishSegment();
     return getCurrentNBestList(nBestSize);
 }
+
+
+
+// Foward-Backward Search
+
+Search::ForwardBackwardSearch const* SearchAlgorithm::requireForwardBackwardSearch(Search::SearchAlgorithmV2 const* searchAlgorithm) {
+    auto const* fbSearch = dynamic_cast<Search::ForwardBackwardSearch const*>(searchAlgorithm);
+
+    if (!fbSearch) {
+        throw std::runtime_error(
+                "The configured search algorithm is not ForwardBackwardSearch. "
+                "Use a search-algorithm type that creates Search::ForwardBackwardSearch "
+                "before calling forward-backward Python methods.");
+    }
+
+    return fbSearch;
+}
+
+py::array_t<double> SearchAlgorithm::gammasToNumpy(std::vector<std::vector<double>> const& gammas) {
+    size_t numFrames = gammas.size();
+    size_t numLabels = 0ul;
+
+    for (auto const& frameGammas : gammas) {
+        numLabels = std::max(numLabels, frameGammas.size());
+    }
+
+    py::array_t<double> result({numFrames, numLabels});
+    auto resultMutable = result.mutable_unchecked<2>();
+
+    for (size_t t = 0ul; t < numFrames; ++t) {
+        for (size_t label = 0ul; label < numLabels; ++label) {
+            resultMutable(t, label) = 0.0;
+        }
+    }
+
+    for (size_t t = 0ul; t < numFrames; ++t) {
+        for (size_t label = 0ul; label < gammas[t].size(); ++label) {
+            resultMutable(t, label) = gammas[t][label];
+        }
+    }
+
+    return result;
+}
+
+py::dict SearchAlgorithm::getForwardBackwardResult() {
+
+    auto const* fbSearch = requireForwardBackwardSearch(searchAlgorithm_.get());
+
+    py::dict result;
+    result["partition_cost"] = static_cast<double>(fbSearch->partitionCost());
+    result["log_likelihood"] = static_cast<double>(fbSearch->logLikelihood());
+    result["label_gammas"] = gammasToNumpy(fbSearch->labelGammas());
+
+    return result;
+}
+
+py::dict SearchAlgorithm::recognizeSegmentForwardBackward(py::array_t<> const& features) {
+    enterSegment();
+    putFeatures(features);
+    finishSegment();
+    return getForwardBackwardResult();
+}

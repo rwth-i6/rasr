@@ -126,4 +126,12 @@ void bindSearchAlgorithm(py::module_& module) {
             py::arg("features"),
             py::arg("n"),
             "Convenience function to start a segment, pass all the features as a numpy array of shape [T, F] or [1, T, F], finish the segment, and return a n-best list of results.");
+
+
+    pySearchAlgorithm.def(
+            "recognize_segment_forward_backward",
+            &SearchAlgorithm::recognizeSegmentForwardBackward,
+            py::arg("features"),
+            "");
+
 }

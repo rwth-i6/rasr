@@ -249,7 +249,7 @@ py::dict SearchAlgorithm::getForwardBackwardResult() {
     return result;
 }
 
-py::dict SearchAlgorithm::recognizeSegmentForwardBackward(py::array_t<> const& features) {
+py::dict SearchAlgorithm::recognizeSegmentForwardBackward(py::array_t<f32> const& features) {
     enterSegment();
     putFeatures(features);
     finishSegment();

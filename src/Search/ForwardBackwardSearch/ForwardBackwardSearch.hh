@@ -11,7 +11,7 @@
 #include <Nn/LabelScorer/ScoreAccessor.hh>
 #include <Nn/LabelScorer/TransitionTypes.hh>
 #include <Nn/LabelScorer/Types.hh>
-#include <Nn/DataView.hh>
+#include <Nn/LabelScorer/DataView.hh>
 
 #include <Speech/ModelCombination.hh>
 

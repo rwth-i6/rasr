@@ -19,7 +19,7 @@
 #include <Flf/LatticeHandler.hh>
 #include <Flf/Lexicon.hh>
 #include <Search/SearchV2.hh>
-#include <Search/ForwardBackwardSearch.hh>
+#include <Search/ForwardBackwardSearch/ForwardBackwardSearch.hh>
 
 #pragma push_macro("ensure")  // Macro duplication in numpy.h
 #undef ensure
@@ -72,8 +72,8 @@ public:
     // Returns a n-best list of recognition results
     std::vector<Traceback> recognizeSegmentNBest(py::array_t<f32> const& features, size_t nBestSize);
 
-    Search::ForwardBackwardSearch const* requireForwardBackwardSearch(Search::SearchAlgorithmV2 const* searchAlgorithm)
-    py::array_t<double> gammasToNumpy(std::vector<std::vector<double>> const& gammas)
+    Search::ForwardBackwardSearch const* requireForwardBackwardSearch(Search::SearchAlgorithmV2 const* searchAlgorithm);
+    py::array_t<double> gammasToNumpy(std::vector<std::vector<double>> const& gammas);
     py::dict getForwardBackwardResult();
     py::dict recognizeSegmentForwardBackward(py::array_t<f32> const& features);
 

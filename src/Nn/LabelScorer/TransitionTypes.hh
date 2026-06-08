@@ -52,6 +52,15 @@ inline constexpr auto TransitionTypeArray = std::to_array<std::pair<std::string_
 });
 static_assert(TransitionTypeArray.size() == TransitionType::numTypes, "TransitionTypeArray size must match number of TransitionType values");
 
+inline constexpr std::string_view toString(TransitionType type) noexcept {
+    for (const auto& [name, value] : TransitionTypeArray) {
+        if (value == type) {
+            return name;
+        }
+    }
+    return "<unknown-transition-type>";
+}
+
 enum TransitionPresetType {
     NONE,
     ALL,

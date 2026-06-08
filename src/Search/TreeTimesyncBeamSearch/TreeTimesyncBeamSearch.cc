@@ -490,11 +490,12 @@ bool TreeTimesyncBeamSearch::decodeStep() {
                 for (size_t i = stateSuccessorsOffset_[hyp.currentState]; i < stateSuccessorsOffset_[hyp.currentState + 1]; ++i) {
                     const StateId  successorState = stateSuccessors_[i];
                     Nn::LabelIndex tokenIdx       = network_->structure.state(successorState).stateDesc.acousticModel;
-                    // If we collapse repeated labels, a new word should not start with the same token as the previous word ended (except for blank itself)
+                    // If we collapse repeated labels, a new word should not start with the same token as the previous word ended (except for blank or silence)
                     if (collapseRepeatedLabels_ and
                         hyp.currentState == network_->rootState and
                         tokenIdx == hyp.currentToken and
-                        (not useBlank_ or tokenIdx != blankLabelIndex_)) {
+                        (not useBlank_ or tokenIdx != blankLabelIndex_) and
+                        (not useSilence_ or tokenIdx != silenceLabelIndex_)) {
                         continue;
                     }
                     auto transitionType = inferTransitionType(hyp.currentToken, tokenIdx, hyp.currentState != successorState);

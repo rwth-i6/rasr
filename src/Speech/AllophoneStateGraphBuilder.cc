@@ -15,7 +15,7 @@
 #define FAST_MODEL
 
 #include <Bliss/Fsa.hh>
-#include <Bliss/Orthography.hh>
+#include <Bliss/OrthographicParser.hh>
 #include <Fsa/Basic.hh>
 #include <Fsa/Best.hh>
 #include <Fsa/Cache.hh>

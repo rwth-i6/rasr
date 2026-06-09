@@ -15,7 +15,7 @@
 #ifndef _LM_CHEATING_SEGMENT_LM_HH
 #define _LM_CHEATING_SEGMENT_LM_HH
 
-#include <Bliss/Orthography.hh>
+#include <Bliss/OrthographicParser.hh>
 
 #include "FsaLm.hh"
 

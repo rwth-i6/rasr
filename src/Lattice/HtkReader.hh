@@ -16,7 +16,7 @@
 #define _LATTICE_HTK_READER_HH
 
 #include <Bliss/Lexicon.hh>
-#include <Bliss/Orthography.hh>
+#include <Bliss/OrthographicParser.hh>
 #include <Core/Component.hh>
 #include <Core/Version.hh>
 #include <Fsa/Alphabet.hh>

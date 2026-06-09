@@ -34,6 +34,7 @@ class FixedContextOnnxLabelScorer : public BufferedLabelScorer {
     static const Core::ParameterInt  paramStartLabelIndex;
     static const Core::ParameterInt  paramHistoryLength;
     static const Core::ParameterBool paramBlankUpdatesHistory;
+    static const Core::ParameterBool paramSilenceUpdatesHistory;
     static const Core::ParameterBool paramLoopUpdatesHistory;
     static const Core::ParameterBool paramVerticalLabelTransition;
     static const Core::ParameterInt  paramMaxBatchSize;
@@ -74,6 +75,7 @@ private:
     size_t startLabelIndex_;
     size_t historyLength_;
     bool   blankUpdatesHistory_;
+    bool   silenceUpdatesHistory_;
     bool   loopUpdatesHistory_;
     bool   verticalLabelTransition_;
     size_t maxBatchSize_;

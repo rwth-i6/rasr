@@ -126,4 +126,15 @@ void bindSearchAlgorithm(py::module_& module) {
             py::arg("features"),
             py::arg("n"),
             "Convenience function to start a segment, pass all the features as a numpy array of shape [T, F] or [1, T, F], finish the segment, and return a n-best list of results.");
+
+    pySearchAlgorithm.def(
+            "set_lm_scale",
+            &SearchAlgorithm::setLanguageModelScale,
+            py::arg("lm_scale"),
+            "Set the LM scale, overriding the value from the config.");
+
+    pySearchAlgorithm.def(
+            "lm_scale",
+            &SearchAlgorithm::languageModelScale,
+            "Return the current effective LM scale.");
 }

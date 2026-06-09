@@ -71,6 +71,12 @@ public:
     // Returns a n-best list of recognition results
     std::vector<Traceback> recognizeSegmentNBest(py::array_t<f32> const& features, size_t nBestSize);
 
+    // Set the LM scale, overriding the value from the config.
+    void setLanguageModelScale(Mc::Scale scale);
+
+    // Return the current effective LM scale.
+    Mc::Scale languageModelScale() const;
+
 private:
     Traceback searchTracebackToPythonTraceback(Core::Ref<Search::Traceback const> traceback);
 

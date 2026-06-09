@@ -193,3 +193,27 @@ std::vector<Traceback> SearchAlgorithm::recognizeSegmentNBest(py::array_t<f32> c
     finishSegment();
     return getCurrentNBestList(nBestSize);
 }
+
+void SearchAlgorithm::setLanguageModelScale(Mc::Scale scale) {
+    Core::Ref<Lm::ScaledLanguageModel> lm = modelCombination_.languageModel();
+
+    if (!lm) {
+        error() << "Cannot set LM scale, model combination has no language model";
+        return;
+    }
+
+    log() << "Setting LM scale to " << scale;
+
+    lm->setOwnScale(scale);
+}
+
+Mc::Scale SearchAlgorithm::languageModelScale() const {
+    Core::Ref<Lm::ScaledLanguageModel> lm = modelCombination_.languageModel();
+
+    if (!lm) {
+        error() << "Cannot set LM scale, model combination has no language model";
+        return 0.0;
+    }
+
+    return lm->scale();
+}

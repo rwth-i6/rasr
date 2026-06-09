@@ -16,11 +16,47 @@
 
 namespace Bliss {
 
-Orthography Orthography::fromRaw(const std::string& text) {
+Orthography::Span::Span(std::string const& text)
+        : type_(Type::text),
+          text_(text) {
+    require(Orthography::isValidSpan(text_));
+}
+
+Orthography::Span::Span(std::vector<Orthography> const& alternatives)
+        : type_(Type::alternatives),
+          alternatives_(alternatives) {
+    require(!alternatives_.empty());
+}
+
+Orthography Orthography::fromNormalized(std::string const& text) {
+    return Orthography(text);
+}
+
+Orthography Orthography::fromRaw(std::string const& text) {
     std::string normalized(text);
     Core::normalizeWhitespace(normalized);
     Core::enforceTrailingBlank(normalized);
     return Orthography(normalized);
+}
+
+Orthography::Orthography(std::string const& text) {
+    setNormalized(text);
+}
+
+std::string Orthography::str() const {
+    std::string result;
+    for (auto const& span : spans_) {
+        switch (span.type()) {
+            case Span::Type::text:
+                result += span.text();
+                break;
+            case Span::Type::alternatives:
+                result += span.alternatives().front().str();
+                break;
+        }
+    }
+    ensure(isValid(result));
+    return result;
 }
 
 }  // namespace Bliss

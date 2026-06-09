@@ -62,6 +62,7 @@ class StatefulOnnxLabelScorer : public BufferedLabelScorer {
     using Precursor = BufferedLabelScorer;
 
     static const Core::ParameterBool paramBlankUpdatesHistory;
+    static const Core::ParameterBool paramSilenceUpdatesHistory;
     static const Core::ParameterBool paramLoopUpdatesHistory;
     static const Core::ParameterInt  paramMaxBatchSize;
     static const Core::ParameterInt  paramMaxCachedScores;
@@ -109,6 +110,7 @@ private:
     void setupEncoderStatesSizeValue();
 
     bool   blankUpdatesHistory_;
+    bool   silenceUpdatesHistory_;
     bool   loopUpdatesHistory_;
     size_t maxBatchSize_;
 

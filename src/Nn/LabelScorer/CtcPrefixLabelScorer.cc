@@ -127,12 +127,12 @@ TimeframeIndex CtcPrefixScoreAccessor::getTime() const {
 const Core::ParameterInt CtcPrefixLabelScorer::paramBlankIndex("blank-label-index", "Index of blank symbol in vocabulary.");
 const Core::ParameterInt CtcPrefixLabelScorer::paramVocabSize("vocab-size", "Number of labels in CTC scorer vocabulary.");
 
-CtcPrefixLabelScorer::CtcPrefixLabelScorer(Core::Configuration const& config)
+CtcPrefixLabelScorer::CtcPrefixLabelScorer(Core::Configuration const& config, ModelCache& modelCache)
         : Core::Component(config),
           Precursor(config, TransitionPresetType::LM),
           blankIndex_(paramBlankIndex(config)),
           vocabSize_(paramVocabSize(config)),
-          ctcScorer_(Module::instance().labelScorerFactory().createLabelScorer(select("ctc-scorer"))),
+          ctcScorer_(Module::instance().labelScorerFactory().createLabelScorer(select("ctc-scorer"), modelCache)),
           expectMoreFeatures_(true),
           ctcScores_(std::make_shared<Math::FastMatrix<Score>>(vocabSize_, 0)) {
 }

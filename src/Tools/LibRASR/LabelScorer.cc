@@ -29,7 +29,7 @@ PYBIND11_DECLARE_HOLDER_TYPE(T, Core::Ref<T>, true);
 void registerPythonLabelScorer(std::string const& name, py::object const& pyLabelScorerClass) {
     Nn::Module::instance().labelScorerFactory().registerLabelScorer(
             name.c_str(),
-            [pyLabelScorerClass](Core::Configuration const& config) {
+            [pyLabelScorerClass](Core::Configuration const& config, Nn::ModelCache& modelCache) {
                 py::gil_scoped_acquire gil;
                 // Call constructor of `pyLabelScorerClass`
                 py::object inst = pyLabelScorerClass(config);

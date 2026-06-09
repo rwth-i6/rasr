@@ -17,6 +17,7 @@
 #define CTC_PREFIX_LABEL_SCORER_HH
 
 #include "LabelScorer.hh"
+#include "ModelCache.hh"
 
 namespace Nn {
 
@@ -50,7 +51,7 @@ class CtcPrefixLabelScorer : public LabelScorer {
     static const Core::ParameterInt paramVocabSize;
 
 public:
-    CtcPrefixLabelScorer(Core::Configuration const& config);
+    CtcPrefixLabelScorer(Core::Configuration const& config, ModelCache& modelCache);
     virtual ~CtcPrefixLabelScorer() = default;
 
     void reset() override;

@@ -20,6 +20,7 @@
 #include <Onnx/Model.hh>
 
 #include "BufferedLabelScorer.hh"
+#include "ModelCache.hh"
 #include "ScoringContext.hh"
 
 namespace Nn {
@@ -42,7 +43,7 @@ class StateManagedOnnxLabelScorer : public BufferedLabelScorer {
     static const Core::ParameterInt       paramMaxCachedScores;
 
 public:
-    StateManagedOnnxLabelScorer(Core::Configuration const& config);
+    StateManagedOnnxLabelScorer(Core::Configuration const& config, ModelCache& modelCache);
     virtual ~StateManagedOnnxLabelScorer() = default;
 
     void reset() override;
@@ -69,7 +70,7 @@ private:
     bool                loopUpdatesHistory_;
     size_t              maxBatchSize_;
 
-    Onnx::Model onnxModel_;
+    std::shared_ptr<Onnx::Model> onnxModel_;
 
     std::unique_ptr<StateManager>        stateManager_;
     std::vector<Onnx::OnnxStateVariable> stateVariables_;

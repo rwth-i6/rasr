@@ -295,6 +295,11 @@ void StateManagedOnnxLabelScorer::cacheStatesAndScores(std::vector<StateManagedO
         return;
     }
 
+    // Can't score before any encoder features are buffered; defer (mirrors the guard in getScoreAccessors()).
+    if ((not encoderStatesName_.empty() or not encoderStatesSizeName_.empty()) and bufferSize() == 0ul) {
+        return;
+    }
+
     std::vector<size_t>              prefixLengths;
     std::vector<HistoryState const*> prefixStates;
     prefixLengths.reserve(scoringContextBatch.size());

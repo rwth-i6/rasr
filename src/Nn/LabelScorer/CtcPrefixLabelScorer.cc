@@ -18,10 +18,11 @@
 #include <Nn/Module.hh>
 #include <cmath>
 #include <limits>
-
-namespace Nn {
+#include "ScoringContext.hh"
 
 namespace {
+
+using namespace Nn;
 
 // Compute score difference while accounting for inf values
 Score scoreDelta(Score extScore, Score prefixScore) {
@@ -82,6 +83,37 @@ Score extendedPrefixScore(
 }
 
 }  // namespace
+
+namespace Nn {
+
+/*
+ * ==============================
+ * == CtcPrefixScoringContext ===
+ * ==============================
+ */
+
+Score CtcPrefixScoringContext::PrefixScore::totalScore() const {
+    return Math::scoreSum(blankEndingScore, nonBlankEndingScore);
+}
+
+CtcPrefixScoringContext::CtcPrefixScoringContext()
+        : labelSeq(), parent(), timePrefixScores(), prefixScore(), extScores(), requiresFinalize(true) {}
+
+CtcPrefixScoringContext::CtcPrefixScoringContext(std::vector<LabelIndex>&& seq, ScoringContextRef const& parent)
+        : labelSeq(std::move(seq)), parent(parent), timePrefixScores(), prefixScore(), extScores(), requiresFinalize(true) {}
+
+bool CtcPrefixScoringContext::isEqual(ScoringContextRef const& other) const {
+    auto* otherPtr = dynamic_cast<const CtcPrefixScoringContext*>(other.get());
+    if (otherPtr == nullptr) {
+        return false;
+    }
+
+    return labelSeqEqual(labelSeq, otherPtr->labelSeq);
+}
+
+size_t CtcPrefixScoringContext::hash() const {
+    return labelSeqHash(labelSeq);
+}
 
 /*
  * =============================

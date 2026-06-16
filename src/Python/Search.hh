@@ -18,6 +18,8 @@
 
 #include <Flf/LatticeHandler.hh>
 #include <Flf/Lexicon.hh>
+#include <Nn/LabelScorer/CombineLabelScorer.hh>
+#include <Nn/LabelScorer/ScaledLabelScorer.hh>
 #include <Search/SearchV2.hh>
 
 #pragma push_macro("ensure")  // Macro duplication in numpy.h
@@ -38,9 +40,47 @@ struct TracebackItem {
 
 typedef std::vector<TracebackItem> Traceback;
 
+// Return the lanuage model
+static Lm::ScaledLanguageModel* getLanguageModel(Speech::ModelCombination& modelCombination) {
+    return modelCombination.languageModel().get();
+}
+
+// Return the label scorer as ScaledLabelScorer
+static Nn::ScaledLabelScorer* getScaledLabelScorer(Speech::ModelCombination& modelCombination, size_t index) {
+    Core::Ref<Nn::LabelScorer> labelScorer = modelCombination.labelScorer(index);
+
+    auto* scaledLabelScorer = dynamic_cast<Nn::ScaledLabelScorer*>(labelScorer.get());
+    if (!scaledLabelScorer) {
+        throw py::value_error("Label scorer is not a ScaledLabelScorer.");
+    }
+
+    return scaledLabelScorer;
+}
+
+// Return the CombineLabelScorer
+static Nn::CombineLabelScorer* getCombineLabelScorer(Speech::ModelCombination& modelCombination, size_t index) {
+    Core::Ref<Nn::LabelScorer> labelScorer = modelCombination.labelScorer(index);
+
+    auto* scaledLabelScorer = dynamic_cast<Nn::ScaledLabelScorer*>(labelScorer.get());
+    if (!scaledLabelScorer) {
+        throw py::value_error("Top-level label scorer is not a ScaledLabelScorer.");
+    }
+
+    Core::Ref<Nn::LabelScorer> wrappedLabelScorer = scaledLabelScorer->labelScorer();
+    auto*                      combineLabelScorer = dynamic_cast<Nn::CombineLabelScorer*>(wrappedLabelScorer.get());
+    if (!combineLabelScorer) {
+        throw py::value_error("Configured label scorer is not a CombineLabelScorer.");
+    }
+
+    return combineLabelScorer;
+}
+
 class SearchAlgorithm : public Core::Component {
 public:
     SearchAlgorithm(const Core::Configuration& c);
+
+    // Return the model combination used by the search.
+    Speech::ModelCombination& modelCombination();
 
     // Call at the beginning of a new segment.
     void enterSegment();
@@ -70,12 +110,6 @@ public:
     // Convenience function to recognize a full segment given all the features as a tensor of shape [T, F]
     // Returns a n-best list of recognition results
     std::vector<Traceback> recognizeSegmentNBest(py::array_t<f32> const& features, size_t nBestSize);
-
-    // Set the LM scale, overriding the value from the config.
-    void setLanguageModelScale(Mc::Scale scale);
-
-    // Return the current effective LM scale.
-    Mc::Scale languageModelScale() const;
 
 private:
     Traceback searchTracebackToPythonTraceback(Core::Ref<Search::Traceback const> traceback);

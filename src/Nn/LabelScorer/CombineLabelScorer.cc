@@ -69,6 +69,28 @@ CombineLabelScorer::CombineLabelScorer(Core::Configuration const& config, ModelC
     }
 }
 
+size_t CombineLabelScorer::numLabelScorers() const {
+    return scorers_.size();
+}
+
+Score CombineLabelScorer::scale(size_t index) const {
+    require(index < scorers_.size());
+
+    auto* scorer = dynamic_cast<ScaledLabelScorer*>(scorers_[index].get());
+    require(scorer);
+
+    return scorer->scale();
+}
+
+void CombineLabelScorer::setScale(size_t index, Score scale) {
+    require(index < scorers_.size());
+
+    auto* scorer = dynamic_cast<ScaledLabelScorer*>(scorers_[index].get());
+    require(scorer);
+
+    scorer->setScale(scale);
+}
+
 void CombineLabelScorer::reset() {
     for (auto& scorer : scorers_) {
         scorer->reset();

@@ -37,6 +37,15 @@ public:
     CombineLabelScorer(Core::Configuration const& config, ModelCache& modelCache);
     virtual ~CombineLabelScorer() = default;
 
+    // Return the number of sub-scorers
+    size_t numLabelScorers() const;
+
+    // Return the current scale of a sub-scorer
+    Score scale(size_t index) const;
+
+    // Set the scale of a sub-scorer, overriding the value from the config
+    void setScale(size_t index, Score scale);
+
     // Reset all sub-scorers
     void reset() override;
 

@@ -214,6 +214,7 @@ ScoringContextRef PrefixSpeechLmOnnxLabelScorer::extendedScoringContext(ScoringC
         case TransitionType::LABEL_TO_LABEL:
         case TransitionType::INITIAL_LABEL:
         case TransitionType::SENTENCE_END:
+        case TransitionType::WORD_EXIT:
             updateState = true;
             break;
         default:

@@ -46,6 +46,9 @@ struct DenseScoreSpan {
     }
 
     Score operator[](size_t idx) const {
+        if (idx == Nn::invalidLabelIndex) {
+            return 0.0;
+        }
         // Fast path without loop for common 1-element case
         if (terms.size() == 1ul) {
             return terms.front().scores[idx] * terms.front().scale;

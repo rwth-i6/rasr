@@ -4,6 +4,7 @@
 #include <Python/AllophoneStateFsaBuilder.hh>
 #include <Python/Configuration.hh>
 
+#include "Encoder.hh"
 #include "LabelScorer.hh"
 #include "Lexicon.hh"
 #include "LibRASR.hh"
@@ -45,6 +46,7 @@ PYBIND11_MODULE(librasr, m) {
     pyFsaBuilder.def("build_by_orthography", &AllophoneStateFsaBuilder::buildByOrthography);
     pyFsaBuilder.def("build_by_segment_name", &AllophoneStateFsaBuilder::buildBySegmentName);
 
+    bindEncoder(m);
     bindLabelScorer(m);
     bindLexicon(m);
     bindSearchAlgorithm(m);

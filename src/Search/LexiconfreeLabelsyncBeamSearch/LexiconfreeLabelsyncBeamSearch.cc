@@ -268,7 +268,7 @@ Core::Ref<const LatticeAdaptor> LexiconfreeLabelsyncBeamSearch::getCurrentBestWo
     LatticeTrace endTrace(bestHypothesis.trace, 0, bestHypothesis.trace->time + 1, bestHypothesis.trace->score, {});
 
     for (auto const& hyp : beam_) {
-        if (hyp.isActive != bestHypothesis.isActive) {
+        if (&hyp == &bestHypothesis or hyp.isActive != bestHypothesis.isActive) {
             continue;
         }
         auto siblingTrace = Core::ref(new LatticeTrace(hyp.trace, 0, hyp.trace->time, hyp.trace->score, {}));

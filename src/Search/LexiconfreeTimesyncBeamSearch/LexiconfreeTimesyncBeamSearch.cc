@@ -329,9 +329,12 @@ Core::Ref<const LatticeAdaptor> LexiconfreeTimesyncBeamSearch::getCurrentBestWor
     auto&        bestHypothesis = getBestHypothesis();
     LatticeTrace endTrace(bestHypothesis.trace, 0, bestHypothesis.trace->time + 1, bestHypothesis.trace->score, {});
 
-    for (size_t hypIdx = 1ul; hypIdx < beam_.size(); ++hypIdx) {
-        auto& hyp          = beam_[hypIdx];
-        auto  siblingTrace = Core::ref(new LatticeTrace(hyp.trace, 0, hyp.trace->time, hyp.trace->score, {}));
+    for (auto const& hyp : beam_) {
+        // The best hypothesis is already represented in endTrace
+        if (&hyp == &bestHypothesis) {
+            continue;
+        }
+        auto siblingTrace = Core::ref(new LatticeTrace(hyp.trace, 0, hyp.trace->time, hyp.trace->score, {}));
         endTrace.appendSiblingToChain(siblingTrace);
     }
 

@@ -17,12 +17,6 @@
 
 #include <Nn/Module.hh>
 
-namespace {
-
-using namespace Nn;
-
-}  // namespace
-
 namespace Nn {
 
 /*

@@ -31,6 +31,9 @@ VectorScoreAccessor::VectorScoreAccessor(std::shared_ptr<std::vector<Score>> sco
           time_(time) {}
 
 Score VectorScoreAccessor::getScore(TransitionType transitionType, LabelIndex labelIndex) const {
+    if (labelIndex == invalidLabelIndex) {
+        return 0.0;
+    }
     return scores_->at(labelIndex);
 }
 
@@ -49,6 +52,9 @@ DataViewScoreAccessor::DataViewScoreAccessor(DataView const& dataView, Timeframe
           time_(time) {}
 
 Score DataViewScoreAccessor::getScore(TransitionType transitionType, LabelIndex labelIndex) const {
+    if (labelIndex == invalidLabelIndex) {
+        return 0.0;
+    }
     return dataView_[labelIndex];
 }
 

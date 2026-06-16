@@ -23,6 +23,46 @@
 
 namespace Nn {
 
+/*
+ * ====================================
+ * === PrefixSpeechLmScoringContext ===
+ * ====================================
+ */
+PrefixSpeechLmScoringContext::PrefixSpeechLmScoringContext()
+        : labelSeq(),
+          historyLength(0ul),
+          parent(),
+          state() {
+}
+
+PrefixSpeechLmScoringContext::PrefixSpeechLmScoringContext(std::vector<LabelIndex>&&                     labelSeq,
+                                                           size_t                                        historyLength,
+                                                           Core::Ref<PrefixSpeechLmScoringContext const> parent,
+                                                           std::shared_ptr<HistoryState>                 state)
+        : labelSeq(std::move(labelSeq)),
+          historyLength(historyLength),
+          parent(parent),
+          state(std::move(state)) {
+}
+
+size_t PrefixSpeechLmScoringContext::hash() const {
+    return labelSeqHash(labelSeq);
+}
+
+bool PrefixSpeechLmScoringContext::isEqual(ScoringContextRef const& other) const {
+    auto* otherPtr = dynamic_cast<PrefixSpeechLmScoringContext const*>(other.get());
+    if (otherPtr == nullptr) {
+        return false;
+    }
+    return labelSeqEqual(labelSeq, otherPtr->labelSeq);
+}
+
+/*
+ * =====================================
+ * === PrefixSpeechLmOnnxLabelScorer ===
+ * =====================================
+ */
+
 static const std::vector<Onnx::IOSpecification> initializerIoSpec = {
         Onnx::IOSpecification{
                 "initial-prompt",
@@ -140,33 +180,42 @@ const Core::ParameterInt PrefixSpeechLmOnnxLabelScorer::paramMaxCachedScores(
         "Maximum size of cache that maps scoring contexts to scores and state slices.",
         10000);
 
-PrefixSpeechLmOnnxLabelScorer::PrefixSpeechLmOnnxLabelScorer(Core::Configuration const& config)
+PrefixSpeechLmOnnxLabelScorer::PrefixSpeechLmOnnxLabelScorer(Core::Configuration const& config, ModelCache& modelCache)
         : Core::Component(config),
           Precursor(config, TransitionPresetType::LM),
           blankUpdatesHistory_(paramBlankUpdatesHistory(config)),
           loopUpdatesHistory_(paramLoopUpdatesHistory(config)),
           maxBatchSize_(paramMaxBatchSize(config)),
-          initializerOnnxModel_(select("initializer-model"), initializerIoSpec),
-          stepOnnxModel_(select("step-model"), stepIoSpec),
           stateManager_(Module::instance().createStateManager(select("state-manager"))),
-          stateVariables_(stepOnnxModel_.session.getStateVariablesMetadata()),
           stateVectorFactory_(Module::instance().createCompressedVectorFactory(select("state-compression"))),
-          initializerInitialPromptName_(initializerOnnxModel_.mapping.getOnnxName("initial-prompt")),
-          initializerInitialPromptLengthName_(initializerOnnxModel_.mapping.getOnnxName("initial-prompt-length")),
-          initializerEncoderStatesName_(initializerOnnxModel_.mapping.getOnnxName("encoder-states")),
-          initializerEncoderStatesSizeName_(initializerOnnxModel_.mapping.getOnnxName("encoder-states-size")),
-          initializerSuffixPromptName_(initializerOnnxModel_.mapping.getOnnxName("suffix-prompt")),
-          initializerSuffixPromptLengthName_(initializerOnnxModel_.mapping.getOnnxName("suffix-prompt-length")),
-          initializerScoresName_(initializerOnnxModel_.mapping.getOnnxName("scores")),
-          stepTokenName_(stepOnnxModel_.mapping.getOnnxName("token")),
-          stepTokenLengthName_(stepOnnxModel_.mapping.getOnnxName("token-length")),
-          stepPrefixLengthName_(stepOnnxModel_.mapping.getOnnxName("prefix-length")),
-          stepScoresName_(stepOnnxModel_.mapping.getOnnxName("scores")),
           encoderStatesValue_(),
           encoderStatesSizeValue_(),
           initialContext_(),
           scoreCache_(paramMaxCachedScores(config)),
           stateCache_(scoreCache_.maxSize()) {
+    Core::Configuration initializerModelConfig(config, "initializer-model");
+    Core::Configuration stepModelConfig(config, "step-model");
+
+    auto initializerKey = initializerModelConfig.getSelection();
+    auto stepKey        = stepModelConfig.getSelection();
+
+    initializerOnnxModel_ = modelCache.getOrCreate<Onnx::Model>(initializerKey, initializerModelConfig, initializerIoSpec);
+    stepOnnxModel_        = modelCache.getOrCreate<Onnx::Model>(stepKey, stepModelConfig, stepIoSpec);
+
+    stateVariables_ = stepOnnxModel_->session.getStateVariablesMetadata();
+
+    initializerInitialPromptName_       = initializerOnnxModel_->mapping.getOnnxName("initial-prompt");
+    initializerInitialPromptLengthName_ = initializerOnnxModel_->mapping.getOnnxName("initial-prompt-length");
+    initializerEncoderStatesName_       = initializerOnnxModel_->mapping.getOnnxName("encoder-states");
+    initializerEncoderStatesSizeName_   = initializerOnnxModel_->mapping.getOnnxName("encoder-states-size");
+    initializerSuffixPromptName_        = initializerOnnxModel_->mapping.getOnnxName("suffix-prompt");
+    initializerSuffixPromptLengthName_  = initializerOnnxModel_->mapping.getOnnxName("suffix-prompt-length");
+    initializerScoresName_              = initializerOnnxModel_->mapping.getOnnxName("scores");
+    stepTokenName_                      = stepOnnxModel_->mapping.getOnnxName("token");
+    stepTokenLengthName_                = stepOnnxModel_->mapping.getOnnxName("token-length");
+    stepPrefixLengthName_               = stepOnnxModel_->mapping.getOnnxName("prefix-length");
+    stepScoresName_                     = stepOnnxModel_->mapping.getOnnxName("scores");
+
     auto initialPromptLabels = paramInitialPromptLabels(config);
     auto suffixPromptLabels  = paramSuffixPromptLabels(config);
     initialPromptLabels_.insert(initialPromptLabels_.begin(), initialPromptLabels.begin(), initialPromptLabels.end());
@@ -372,7 +421,7 @@ void PrefixSpeechLmOnnxLabelScorer::setupInitialStates() {
     }
 
     std::vector<Onnx::Value> outputs;
-    initializerOnnxModel_.session.run(std::move(inputs), targets, outputs);
+    initializerOnnxModel_->session.run(std::move(inputs), targets, outputs);
 
     verify(not stateVariables_.empty());
     verify_ge(outputs.size(), 2ul);
@@ -471,7 +520,7 @@ void PrefixSpeechLmOnnxLabelScorer::cacheStatesAndScores(std::vector<PrefixSpeec
     targets.emplace(targets.begin(), stepScoresName_);
 
     std::vector<Onnx::Value> outputs;
-    stepOnnxModel_.session.run(std::move(inputs), targets, outputs);
+    stepOnnxModel_->session.run(std::move(inputs), targets, outputs);
 
     for (size_t b = 0ul; b < scoringContextBatch.size(); ++b) {
         auto scores = std::make_shared<std::vector<Score>>();

@@ -29,9 +29,34 @@
 #include <Speech/Feature.hh>
 
 #include "BufferedLabelScorer.hh"
+#include "ModelCache.hh"
 #include "ScoringContext.hh"
+#include "StatefulOnnxLabelScorer.hh"
 
 namespace Nn {
+
+/*
+ * Scoring context consisting of a hidden state and a step.
+ * Assumes that two hidden states are equal if and only if they were created
+ * from the same label history.
+ */
+struct StepOnnxHiddenStateScoringContext : public ScoringContext {
+    Speech::TimeframeIndex     currentStep;
+    std::vector<LabelIndex>    labelSeq;  // Used for hashing
+    mutable OnnxHiddenStateRef hiddenState;
+    mutable bool               requiresFinalize;
+
+    StepOnnxHiddenStateScoringContext()
+            : currentStep(0u), labelSeq(), hiddenState(), requiresFinalize(false) {}
+
+    StepOnnxHiddenStateScoringContext(Speech::TimeframeIndex step, std::vector<LabelIndex> const& labelSeq, OnnxHiddenStateRef state)
+            : currentStep(step), labelSeq(labelSeq), hiddenState(state), requiresFinalize(false) {}
+
+    bool   isEqual(ScoringContextRef const& other) const;
+    size_t hash() const;
+};
+
+typedef Core::Ref<const StepOnnxHiddenStateScoringContext> StepOnnxHiddenStateScoringContextRef;
 
 /*
  * Label Scorer that performs scoring by forwarding hidden states through an ONNX model.
@@ -70,7 +95,7 @@ class StatefulTransducerOnnxLabelScorer : public BufferedLabelScorer {
     static const Core::ParameterInt  paramMaxCachedScores;
 
 public:
-    StatefulTransducerOnnxLabelScorer(Core::Configuration const& config);
+    StatefulTransducerOnnxLabelScorer(Core::Configuration const& config, ModelCache& modelCache);
     virtual ~StatefulTransducerOnnxLabelScorer() = default;
 
     void reset() override;
@@ -108,9 +133,9 @@ private:
     bool   verticalLabelTransition_;
     size_t maxBatchSize_;
 
-    Onnx::Model scorerOnnxModel_;
-    Onnx::Model stateInitializerOnnxModel_;
-    Onnx::Model stateUpdaterOnnxModel_;
+    std::shared_ptr<Onnx::Model> scorerOnnxModel_;
+    std::shared_ptr<Onnx::Model> stateInitializerOnnxModel_;
+    std::shared_ptr<Onnx::Model> stateUpdaterOnnxModel_;
 
     StepOnnxHiddenStateScoringContextRef initialScoringContext_;
 

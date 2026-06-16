@@ -20,9 +20,35 @@
 #include <Onnx/Model.hh>
 
 #include "BufferedLabelScorer.hh"
+#include "ModelCache.hh"
 #include "ScoringContext.hh"
 
 namespace Nn {
+
+/*
+ * Scoring context for prefix speech LMs.
+ * `labelSeq` contains only labels emitted by search, not from the prompt and speech-embeddings.
+ * `historyLength` contains the total LM cache length, including prompt and speech-embedding positions.
+ * Hashing and equality operators are based only on the `labelSeq`.
+ */
+struct PrefixSpeechLmScoringContext : public ScoringContext {
+    using StateManager = AbstractStateManager<Onnx::Value, Onnx::OnnxStateVariable>;
+    using HistoryState = StateManager::HistoryState;
+
+    std::vector<LabelIndex>                               labelSeq;
+    mutable size_t                                        historyLength;
+    mutable Core::Ref<PrefixSpeechLmScoringContext const> parent;
+
+    mutable std::shared_ptr<HistoryState> state;
+
+    PrefixSpeechLmScoringContext();
+    PrefixSpeechLmScoringContext(std::vector<LabelIndex>&& labelSeq, size_t historyLength, Core::Ref<PrefixSpeechLmScoringContext const> parent, std::shared_ptr<HistoryState> state = {});
+
+    bool   isEqual(ScoringContextRef const& other) const override;
+    size_t hash() const override;
+};
+
+typedef Core::Ref<PrefixSpeechLmScoringContext const> PrefixSpeechLmScoringContextRef;
 
 /*
  * LabelScorer for prefix speech LMs that first initialize with
@@ -47,7 +73,7 @@ class PrefixSpeechLmOnnxLabelScorer : public BufferedLabelScorer {
     static const Core::ParameterInt       paramMaxCachedScores;
 
 public:
-    PrefixSpeechLmOnnxLabelScorer(Core::Configuration const& config);
+    PrefixSpeechLmOnnxLabelScorer(Core::Configuration const& config, ModelCache& modelCache);
     virtual ~PrefixSpeechLmOnnxLabelScorer() = default;
 
     void reset() override;
@@ -75,8 +101,8 @@ private:
     bool             loopUpdatesHistory_;
     size_t           maxBatchSize_;
 
-    Onnx::Model initializerOnnxModel_;
-    Onnx::Model stepOnnxModel_;
+    std::shared_ptr<Onnx::Model> initializerOnnxModel_;
+    std::shared_ptr<Onnx::Model> stepOnnxModel_;
 
     std::unique_ptr<StateManager>        stateManager_;
     std::vector<Onnx::OnnxStateVariable> stateVariables_;

@@ -17,6 +17,7 @@
 #define CTC_PREFIX_LABEL_SCORER_HH
 
 #include "LabelScorer.hh"
+#include "Math/FastMatrix.hh"
 #include "ModelCache.hh"
 
 namespace Nn {

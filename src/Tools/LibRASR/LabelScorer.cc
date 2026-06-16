@@ -29,7 +29,7 @@ PYBIND11_DECLARE_HOLDER_TYPE(T, Core::Ref<T>, true);
 void registerPythonLabelScorer(std::string const& name, py::object const& pyLabelScorerClass) {
     Nn::Module::instance().labelScorerFactory().registerLabelScorer(
             name.c_str(),
-            [pyLabelScorerClass](Core::Configuration const& config) {
+            [pyLabelScorerClass](Core::Configuration const& config, Nn::ModelCache& modelCache) {
                 py::gil_scoped_acquire gil;
                 // Call constructor of `pyLabelScorerClass`
                 py::object inst = pyLabelScorerClass(config);
@@ -56,8 +56,12 @@ void bindLabelScorer(py::module_& module) {
             .value("LABEL_TO_BLANK", Nn::TransitionType::LABEL_TO_BLANK)
             .value("BLANK_TO_LABEL", Nn::TransitionType::BLANK_TO_LABEL)
             .value("BLANK_LOOP", Nn::TransitionType::BLANK_LOOP)
+            .value("LABEL_TO_SILENCE", Nn::TransitionType::LABEL_TO_SILENCE)
+            .value("SILENCE_TO_LABEL", Nn::TransitionType::SILENCE_TO_LABEL)
+            .value("SILENCE_LOOP", Nn::TransitionType::SILENCE_LOOP)
             .value("INITIAL_LABEL", Nn::TransitionType::INITIAL_LABEL)
             .value("INITIAL_BLANK", Nn::TransitionType::INITIAL_BLANK)
+            .value("INITIAL_SILENCE", Nn::TransitionType::INITIAL_SILENCE)
             .value("WORD_EXIT", Nn::TransitionType::WORD_EXIT)
             .value("NONWORD_EXIT", Nn::TransitionType::NONWORD_EXIT)
             .value("SILENCE_EXIT", Nn::TransitionType::SILENCE_EXIT)

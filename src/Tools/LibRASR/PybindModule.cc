@@ -4,6 +4,7 @@
 #include <Python/AllophoneStateFsaBuilder.hh>
 #include <Python/Configuration.hh>
 
+#include "Encoder.hh"
 #include "LabelScorer.hh"
 #include "Lexicon.hh"
 #include "LibRASR.hh"
@@ -18,11 +19,11 @@ PYBIND11_MODULE(librasr, m) {
 
     py::class_<Core::Configuration> baseConfigClass(m, "_BaseConfig");
     baseConfigClass.def("enable_logging", &Core::Configuration::enableLogging)
-            .def("set_from_file", static_cast<bool (Core::Configuration::*)(const std::string&)>(&Core::Configuration::setFromFile))
+            .def("set_from_file", static_cast<bool (Core::Configuration::*)(std::string const&)>(&Core::Configuration::setFromFile))
             .def("get_selection", &Core::Configuration::getSelection)
             .def("get_name", &Core::Configuration::getName)
             .def("set_selection", &Core::Configuration::setSelection)
-            .def("resolve", &Core::Configuration::resolve)
+            .def("resolve", static_cast<std::string (Core::Configuration::*)(std::string const& value) const>(&Core::Configuration::resolve))
             .def("__getitem__", [](Core::Configuration const& self, std::string const& parameter) {
                 std::string value;
                 if (self.get(parameter, value)) {
@@ -45,6 +46,7 @@ PYBIND11_MODULE(librasr, m) {
     pyFsaBuilder.def("build_by_orthography", &AllophoneStateFsaBuilder::buildByOrthography);
     pyFsaBuilder.def("build_by_segment_name", &AllophoneStateFsaBuilder::buildBySegmentName);
 
+    bindEncoder(m);
     bindLabelScorer(m);
     bindLexicon(m);
     bindSearchAlgorithm(m);

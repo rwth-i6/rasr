@@ -58,7 +58,7 @@ public:
     static const Core::ParameterBool        paramSparseLmLookAhead;
     static const Core::ParameterBool        paramSentenceEndFallBack;
     static const Core::ParameterBool        paramLogStepwiseStatistics;
-    static const Core::ParameterBool        paramCacheCleanupInterval;
+    static const Core::ParameterInt         paramCacheCleanupInterval;
     static const Core::ParameterInt         paramMaximumStableDelay;
     static const Core::ParameterInt         paramMaximumStableDelayPruningInterval;
     static const Core::Choice               choiceRecombinationMode;

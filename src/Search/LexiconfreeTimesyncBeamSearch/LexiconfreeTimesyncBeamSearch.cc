@@ -139,10 +139,11 @@ const Core::ParameterBool LexiconfreeTimesyncBeamSearch::paramLogStepwiseStatist
         "Log statistics about the beam at every search step.",
         false);
 
-const Core::ParameterBool LexiconfreeTimesyncBeamSearch::paramCacheCleanupInterval(
+const Core::ParameterInt LexiconfreeTimesyncBeamSearch::paramCacheCleanupInterval(
         "cache-cleanup-interval",
         "Interval of search steps after which buffered inputs that are not needed anymore get cleaned up.",
-        10);
+        10,
+        1);
 
 const Core::ParameterInt LexiconfreeTimesyncBeamSearch::paramMaximumStableDelay(
         "maximum-stable-delay",
@@ -349,9 +350,12 @@ Core::Ref<const LatticeAdaptor> LexiconfreeTimesyncBeamSearch::getCurrentBestWor
     auto&        bestHypothesis = getBestHypothesis();
     LatticeTrace endTrace(bestHypothesis.trace, 0, bestHypothesis.trace->time + 1, bestHypothesis.trace->score, {});
 
-    for (size_t hypIdx = 1ul; hypIdx < beam_.size(); ++hypIdx) {
-        auto& hyp          = beam_[hypIdx];
-        auto  siblingTrace = Core::ref(new LatticeTrace(hyp.trace, 0, hyp.trace->time, hyp.trace->score, {}));
+    for (auto const& hyp : beam_) {
+        // The best hypothesis is already represented in endTrace
+        if (&hyp == &bestHypothesis) {
+            continue;
+        }
+        auto siblingTrace = Core::ref(new LatticeTrace(hyp.trace, 0, hyp.trace->time, hyp.trace->score, {}));
         endTrace.appendSiblingToChain(siblingTrace);
     }
 
@@ -571,7 +575,7 @@ bool LexiconfreeTimesyncBeamSearch::decodeStep() {
     if (currentSearchStep_ % cacheCleanupInterval_ == 0) {
         for (size_t scorerIdx = 0ul; scorerIdx < labelScorers_.size(); ++scorerIdx) {
             Core::CollapsedVector<Nn::ScoringContextRef> activeContexts;
-            for (auto const& hyp : newBeam_) {
+            for (auto const& hyp : beam_) {
                 activeContexts.push_back(hyp.scoringContexts[scorerIdx]);
             }
             labelScorers_[scorerIdx]->cleanupCaches(activeContexts);
@@ -884,14 +888,12 @@ void LexiconfreeTimesyncBeamSearch::maximumStableDelayPruning() {
     auto cutoff = currentSearchStep_ + 1 - maximumStableDelay_;
 
     // Find trace of current best hypothesis that has a recent word-end within the limit
-    auto&                   bestHyp   = beam_.front();
     Score                   bestScore = Core::Type<Score>::max;
     Core::Ref<LatticeTrace> root;
 
     for (auto const& hyp : beam_) {
         if (hyp.score < bestScore and hyp.trace->time >= cutoff) {
             bestScore = hyp.score;
-            bestHyp   = hyp;
             root      = hyp.trace;
         }
     }

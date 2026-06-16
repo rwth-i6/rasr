@@ -2,6 +2,7 @@ add_library(
     RasrPython STATIC
     AllophoneStateFsaBuilder.cc
     Configuration.cc
+    Encoder.cc
     Init.cc
     LabelScorer.cc
     Numpy.cc

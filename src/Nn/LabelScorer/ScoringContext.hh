@@ -16,17 +16,16 @@
 #ifndef SCORING_CONTEXT_HH
 #define SCORING_CONTEXT_HH
 
-#include <optional>
-
 #include <Core/ReferenceCounting.hh>
 #include <Mm/Types.hh>
 #include <Nn/AbstractStateManager.hh>
-#include <Onnx/OnnxStateVariable.hh>
-#include <Onnx/Value.hh>
 
 #include "Types.hh"
 
 namespace Nn {
+
+size_t labelSeqHash(std::vector<LabelIndex> const& labelSeq);
+bool   labelSeqEqual(std::vector<LabelIndex> const& lhs, std::vector<LabelIndex> const& rhs);
 
 /*
  * Empty scoring context base class
@@ -51,24 +50,6 @@ struct ScoringContextEq {
         return lhs->isEqual(rhs);
     }
 };
-
-/*
- * Combines multiple scoring contexts at once
- */
-struct CombineScoringContext : public ScoringContext {
-    std::vector<ScoringContextRef> scoringContexts;
-
-    CombineScoringContext()
-            : scoringContexts() {}
-
-    CombineScoringContext(std::vector<ScoringContextRef>&& scoringContexts)
-            : scoringContexts(scoringContexts) {}
-
-    bool   isEqual(ScoringContextRef const& other) const;
-    size_t hash() const;
-};
-
-typedef Core::Ref<CombineScoringContext const> CombineScoringContextRef;
 
 /*
  * Scoring context that only describes the current decoding step

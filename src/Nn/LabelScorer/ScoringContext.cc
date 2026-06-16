@@ -20,6 +20,14 @@ namespace Nn {
 
 typedef Mm::EmissionIndex LabelIndex;
 
+size_t labelSeqHash(std::vector<LabelIndex> const& labelSeq) {
+    return Core::MurmurHash3_x64_64(reinterpret_cast<void const*>(labelSeq.data()), labelSeq.size() * sizeof(LabelIndex), 0x78b174eb);
+}
+
+bool labelSeqEqual(std::vector<LabelIndex> const& lhs, std::vector<LabelIndex> const& rhs) {
+    return std::equal(lhs.begin(), lhs.end(), rhs.begin(), rhs.end());
+}
+
 /*
  * =============================
  * ====== ScoringContext =======
@@ -30,35 +38,6 @@ size_t ScoringContext::hash() const {
 }
 
 bool ScoringContext::isEqual(ScoringContextRef const& other) const {
-    return true;
-}
-
-/*
- * =============================
- * === CombineScoringContext ===
- * =============================
- */
-size_t CombineScoringContext::hash() const {
-    size_t value = 0ul;
-    for (auto const& scoringContext : scoringContexts) {
-        value = Core::combineHashes(value, scoringContext->hash());
-    }
-    return value;
-}
-
-bool CombineScoringContext::isEqual(ScoringContextRef const& other) const {
-    auto* otherPtr = dynamic_cast<CombineScoringContext const*>(other.get());
-
-    if (otherPtr == nullptr or scoringContexts.size() != otherPtr->scoringContexts.size()) {
-        return false;
-    }
-
-    for (auto it_l = scoringContexts.begin(), it_r = otherPtr->scoringContexts.begin(); it_l != scoringContexts.end(); ++it_l, ++it_r) {
-        if (!(*it_l)->isEqual(*it_r)) {
-            return false;
-        }
-    }
-
     return true;
 }
 

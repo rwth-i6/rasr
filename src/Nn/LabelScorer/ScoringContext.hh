@@ -151,6 +151,29 @@ struct OnnxHiddenStateScoringContext : public ScoringContext {
 typedef Core::Ref<OnnxHiddenStateScoringContext const> OnnxHiddenStateScoringContextRef;
 
 /*
+ * Scoring context consisting of a hidden state and a step.
+ * Assumes that two hidden states are equal if and only if they were created
+ * from the same label history.
+ */
+struct StepOnnxHiddenStateScoringContext : public ScoringContext {
+    Speech::TimeframeIndex     currentStep;
+    std::vector<LabelIndex>    labelSeq;  // Used for hashing
+    mutable OnnxHiddenStateRef hiddenState;
+    mutable bool               requiresFinalize;
+
+    StepOnnxHiddenStateScoringContext()
+            : currentStep(0u), labelSeq(), hiddenState(), requiresFinalize(false) {}
+
+    StepOnnxHiddenStateScoringContext(Speech::TimeframeIndex step, std::vector<LabelIndex> const& labelSeq, OnnxHiddenStateRef state)
+            : currentStep(step), labelSeq(labelSeq), hiddenState(state), requiresFinalize(false) {}
+
+    bool   isEqual(ScoringContextRef const& other) const;
+    size_t hash() const;
+};
+
+typedef Core::Ref<const StepOnnxHiddenStateScoringContext> StepOnnxHiddenStateScoringContextRef;
+
+/*
  * Scoring context for computation of CTC prefix scores.
  * Contains the label sequence, a parent pointer for lazy computation of the prefix score,
  * time-wise prefix scores and a cache for the score of extended prefixes.

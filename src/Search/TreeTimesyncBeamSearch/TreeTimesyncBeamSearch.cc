@@ -492,13 +492,13 @@ bool TreeTimesyncBeamSearch::decodeStep() {
                     Nn::LabelIndex tokenIdx       = network_->structure.state(successorState).stateDesc.acousticModel;
                     // If we collapse repeated labels, a new word should not start with the same token as the previous word ended (except for blank or silence)
                     if (collapseRepeatedLabels_ and
-                        hyp.currentState == network_->rootState and
+                        network_->isRoot(hyp.currentState) and
                         tokenIdx == hyp.currentToken and
                         (not useBlank_ or tokenIdx != blankLabelIndex_) and
                         (not useSilence_ or tokenIdx != silenceLabelIndex_)) {
                         continue;
                     }
-                    auto transitionType = inferTransitionType(hyp.currentToken, tokenIdx, hyp.currentState != successorState);
+                    auto transitionType = inferTransitionType(hyp.currentToken, tokenIdx, hyp.currentState == successorState);
                     auto extScore       = hyp.score;
                     auto extTime        = hyp.timeframe;
                     if (labelScorers_[scorerIdx]->scoresTransition(transitionType)) {
@@ -786,14 +786,14 @@ void TreeTimesyncBeamSearch::logStatistics() const {
     numActiveTrees_.write(clog());
 }
 
-Nn::TransitionType TreeTimesyncBeamSearch::inferTransitionType(Nn::LabelIndex prevLabel, Nn::LabelIndex nextLabel, bool stateChanged) const {
+Nn::TransitionType TreeTimesyncBeamSearch::inferTransitionType(Nn::LabelIndex prevLabel, Nn::LabelIndex nextLabel, bool isSameState) const {
     bool prevIsBlank = (useBlank_ and prevLabel == blankLabelIndex_);
     bool nextIsBlank = (useBlank_ and nextLabel == blankLabelIndex_);
 
     bool prevIsSilence = (useSilence_ and prevLabel == silenceLabelIndex_);
     bool nextIsSilence = (useSilence_ and nextLabel == silenceLabelIndex_);
 
-    if (not stateChanged) {
+    if (isSameState) {
         if (prevIsBlank) {
             return Nn::TransitionType::BLANK_LOOP;
         }
@@ -960,7 +960,7 @@ void TreeTimesyncBeamSearch::recombination(std::vector<TreeTimesyncBeamSearch::L
             it->second = &tempHypotheses_.back();
         }
         else {
-            if (hyp.currentState == network_->rootState or network_->otherRootStates.find(hyp.currentState) != network_->otherRootStates.end()) {
+            if (network_->isRoot(hyp.currentState)) {
                 verify(not hyp.trace->sibling);
             }
 

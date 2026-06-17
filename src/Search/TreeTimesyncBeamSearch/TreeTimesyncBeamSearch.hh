@@ -204,7 +204,7 @@ private:
      * Infer type of transition between two tokens based on whether each of them is blank or silence,
      * and/or whether the state in the search tree changed
      */
-    Nn::TransitionType inferTransitionType(Nn::LabelIndex prevLabel, Nn::LabelIndex nextLabel, bool stateChanged) const;
+    Nn::TransitionType inferTransitionType(Nn::LabelIndex prevLabel, Nn::LabelIndex nextLabel, bool isSameState) const;
 
     /*
      * Helper function for pruning. Calculates an absolute threshold based on best score + relative threshold and

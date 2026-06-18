@@ -77,7 +77,7 @@ private:
     void defineSegmentCondition(std::unique_ptr<AcousticCondition>&);
     void selectSegmentCondition(const Core::XmlAttributes atts);
 
-    std::string processOrth(std::string const&);
+    Orthography processOrth(std::string const&);
     void        setOrth(std::string const&);
     void        setLeftContextOrth(std::string const&);
     void        setRightContextOrth(std::string const&);

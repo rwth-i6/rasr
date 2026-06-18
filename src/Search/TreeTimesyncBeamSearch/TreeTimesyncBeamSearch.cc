@@ -175,12 +175,14 @@ TreeTimesyncBeamSearch::TreeTimesyncBeamSearch(Core::Configuration const& config
           wordEndScoreThreshold_(paramWordEndScoreThreshold(config)),
           scoreHistogram_(paramNumHistogramBins(config)),
           blankLabelIndex_(Nn::invalidLabelIndex),
+          silenceLabelIndex_(Nn::invalidLabelIndex),
           sentenceEndLemma_(),
           sentenceEndLabelIndex_(Nn::invalidLabelIndex),
           cacheCleanupInterval_(paramCacheCleanupInterval(config)),
           maximumStableDelay_(paramMaximumStableDelay(config)),
           maximumStableDelayPruningInterval_(paramMaximumStableDelayPruningInterval(config)),
           useBlank_(),
+          useSilence_(),
           collapseRepeatedLabels_(paramCollapseRepeatedLabels(config)),
           sentenceEndFallback_(paramSentenceEndFallBack(config)),
           logStepwiseStatistics_(paramLogStepwiseStatistics(config)),
@@ -288,6 +290,16 @@ bool TreeTimesyncBeamSearch::setModelCombination(Speech::ModelCombination const&
     else {
         blankLabelIndex_ = Nn::invalidLabelIndex;
         useBlank_        = false;
+    }
+
+    if (lexicon_->specialLemma("silence")) {
+        silenceLabelIndex_ = acousticModel_->emissionIndex(acousticModel_->silenceAllophoneStateIndex());
+        useSilence_        = true;
+        log() << "Use silence label with index " << silenceLabelIndex_;
+    }
+    else {
+        silenceLabelIndex_ = Nn::invalidLabelIndex;
+        useSilence_        = false;
     }
 
     sentenceEndLemma_ = lexicon_->specialLemma("sentence-end");
@@ -482,14 +494,15 @@ bool TreeTimesyncBeamSearch::decodeStep() {
                 for (size_t i = stateSuccessorsOffset_[hyp.currentState]; i < stateSuccessorsOffset_[hyp.currentState + 1]; ++i) {
                     const StateId  successorState = stateSuccessors_[i];
                     Nn::LabelIndex tokenIdx       = network_->structure.state(successorState).stateDesc.acousticModel;
-                    // If we collapse repeated labels, a new word should not start with the same token as the previous word ended (except for blank itself)
+                    // If we collapse repeated labels, a new word should not start with the same token as the previous word ended (except for blank or silence)
                     if (collapseRepeatedLabels_ and
-                        hyp.currentState == network_->rootState and
+                        network_->isRoot(hyp.currentState) and
                         tokenIdx == hyp.currentToken and
-                        (not useBlank_ or tokenIdx != blankLabelIndex_)) {
+                        (not useBlank_ or tokenIdx != blankLabelIndex_) and
+                        (not useSilence_ or tokenIdx != silenceLabelIndex_)) {
                         continue;
                     }
-                    auto transitionType = inferTransitionType(hyp.currentToken, tokenIdx);
+                    auto transitionType = inferTransitionType(hyp.currentToken, tokenIdx, hyp.currentState == successorState);
                     auto extScore       = hyp.score;
                     auto extTime        = hyp.timeframe;
                     if (labelScorers_[scorerIdx]->scoresTransition(transitionType)) {
@@ -777,13 +790,31 @@ void TreeTimesyncBeamSearch::logStatistics() const {
     numActiveTrees_.write(clog());
 }
 
-Nn::TransitionType TreeTimesyncBeamSearch::inferTransitionType(Nn::LabelIndex prevLabel, Nn::LabelIndex nextLabel) const {
+Nn::TransitionType TreeTimesyncBeamSearch::inferTransitionType(Nn::LabelIndex prevLabel, Nn::LabelIndex nextLabel, bool isSameState) const {
     bool prevIsBlank = (useBlank_ and prevLabel == blankLabelIndex_);
     bool nextIsBlank = (useBlank_ and nextLabel == blankLabelIndex_);
+
+    bool prevIsSilence = (useSilence_ and prevLabel == silenceLabelIndex_);
+    bool nextIsSilence = (useSilence_ and nextLabel == silenceLabelIndex_);
+
+    if (isSameState) {
+        if (prevIsBlank) {
+            return Nn::TransitionType::BLANK_LOOP;
+        }
+        if (prevIsSilence) {
+            return Nn::TransitionType::SILENCE_LOOP;
+        }
+        else if (collapseRepeatedLabels_) {
+            return Nn::TransitionType::LABEL_LOOP;
+        }
+    }
 
     if (prevLabel == Nn::invalidLabelIndex) {
         if (nextIsBlank) {
             return Nn::TransitionType::INITIAL_BLANK;
+        }
+        else if (nextIsSilence) {
+            return Nn::TransitionType::INITIAL_SILENCE;
         }
         else {
             return Nn::TransitionType::INITIAL_LABEL;
@@ -798,14 +829,23 @@ Nn::TransitionType TreeTimesyncBeamSearch::inferTransitionType(Nn::LabelIndex pr
             return Nn::TransitionType::BLANK_TO_LABEL;
         }
     }
+    else if (prevIsSilence) {
+        if (nextIsSilence) {
+            return Nn::TransitionType::SILENCE_LOOP;
+        }
+        else {
+            return Nn::TransitionType::SILENCE_TO_LABEL;
+        }
+    }
     else {
         if (nextIsBlank) {
             return Nn::TransitionType::LABEL_TO_BLANK;
         }
-        else if (collapseRepeatedLabels_ and prevLabel == nextLabel) {
-            return Nn::TransitionType::LABEL_LOOP;
+        else if (nextIsSilence) {
+            return Nn::TransitionType::LABEL_TO_SILENCE;
         }
         else {
+            // Assume that we can only have a label-loop if the state in the search tree didn't change
             return Nn::TransitionType::LABEL_TO_LABEL;
         }
     }
@@ -924,7 +964,7 @@ void TreeTimesyncBeamSearch::recombination(std::vector<TreeTimesyncBeamSearch::L
             it->second = &tempHypotheses_.back();
         }
         else {
-            if (hyp.currentState == network_->rootState or network_->otherRootStates.find(hyp.currentState) != network_->otherRootStates.end()) {
+            if (network_->isRoot(hyp.currentState)) {
                 verify(not hyp.trace->sibling);
             }
 

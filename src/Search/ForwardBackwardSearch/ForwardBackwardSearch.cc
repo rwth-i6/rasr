@@ -17,7 +17,44 @@ namespace Search {
 
 namespace {
 
-std::string dotEscape(std::string const& input) {
+std::string dotEscapeLabel(std::string const& input) {
+    std::string output;
+    output.reserve(input.size() + 2);
+
+    for (char c : input) {
+        switch (c) {
+            case '\\':
+                output += "\\\\";
+                break;
+
+            case '"':
+                output += "\\\"";
+                break;
+
+            case '\n':
+                output += "\\l";
+                break;
+
+            case '\r':
+                break;
+
+            case '\t':
+                output += "    ";
+                break;
+
+            default:
+                output += c;
+                break;
+        }
+    }
+    if (output.size() < 2 || output.substr(output.size() - 2) != "\\l") {
+        output += "\\l";
+    }
+
+    return output;
+}
+
+std::string dotEscapeId(std::string const& input) {
     std::string output;
     output.reserve(input.size());
 
@@ -26,17 +63,22 @@ std::string dotEscape(std::string const& input) {
             case '\\':
                 output += "\\\\";
                 break;
+
             case '"':
                 output += "\\\"";
                 break;
+
             case '\n':
                 output += "\\n";
                 break;
+
             case '\r':
                 break;
+
             case '\t':
                 output += "    ";
                 break;
+
             default:
                 output += c;
                 break;
@@ -195,7 +237,7 @@ bool ForwardBackwardSearch::setModelCombination(Speech::ModelCombination const& 
     return true;
 }
 
-void ForwardBackwardSearch::enterSegment(Bliss::SpeechSegment const*) {
+void ForwardBackwardSearch::enterSegment(Bliss::SpeechSegment const* segment) {
     labelScorer_->reset();
 
     states_.clear();
@@ -243,6 +285,8 @@ void ForwardBackwardSearch::finishSegment() {
         clog() << Core::XmlFull("log-likelihood", -partitionCost_);
         clog() << Core::XmlClose("forward-backward-statistics");
     }
+
+   // dumpGraphToDot("/u/lkleppel/experiments/20260520_unsupervised_asr/output/toy_forward_backward/toy_graph.dot");
 }
 
 void ForwardBackwardSearch::putFeature(Nn::DataView const& feature) {
@@ -253,8 +297,6 @@ void ForwardBackwardSearch::putFeatures(Nn::DataView const& features, size_t nTi
     labelScorer_->addInputs(features, nTimesteps);
 }
 
-// TODO naja, das soll der Suchalgorithmus in den pybinds ja eigentlich ausgeben am Ende
-//  vielleicht muss ich in Python/Search.hh/.cc eine neue Funktion schreiben die was anderes returnt, nicht das traceback
 Core::Ref<const Traceback> ForwardBackwardSearch::getCurrentBestTraceback() const {
     /*
      * This search is not best-path oriented. Return an empty traceback so callers
@@ -361,16 +403,18 @@ bool ForwardBackwardSearch::buildForwardStep() {
 
     for (size_t statePos = 0ul; statePos < currentLayer.size(); ++statePos) {
         StateId srcStateId = currentLayer[statePos];
-        State const& srcState = states_[srcStateId];
+        Score srcAlpha = states_[srcStateId].alpha;
+        Nn::LabelIndex srcCurrentToken = states_[srcStateId].currentToken;
+        Nn::ScoringContextRef srcScoringContext = states_[srcStateId].scoringContext;
 
-        if (std::isinf(static_cast<double>(srcState.alpha))) {
+        if (std::isinf(static_cast<double>(srcAlpha))) {
             continue;
         }
 
         auto const& scoreAccessor = scoreAccessors[statePos];
 
         for (Nn::LabelIndex label : labels_) {
-            Nn::TransitionType transitionType = inferTransitionType(srcState.currentToken, label);
+            Nn::TransitionType transitionType = inferTransitionType(srcCurrentToken, label);
 
             if (!labelScorer_->scoresTransition(transitionType)) {
                 continue;
@@ -383,7 +427,7 @@ bool ForwardBackwardSearch::buildForwardStep() {
             }
 
             Nn::ScoringContextRef nextScoringContext = labelScorer_->extendedScoringContext(
-                                                            srcState.scoringContext,
+                                                            srcScoringContext,
                                                             label,
                                                             transitionType);
 
@@ -394,7 +438,7 @@ bool ForwardBackwardSearch::buildForwardStep() {
                     label,
                     nextScoringContext);
 
-            Score pathCost = srcState.alpha + arcScore;
+            Score pathCost = srcAlpha + arcScore;
             states_[dstStateId].alpha = scoreSum(states_[dstStateId].alpha, pathCost);
 
             Arc arc;
@@ -443,7 +487,7 @@ void ForwardBackwardSearch::computeBackwardAndGammas() {
 
     // Backward recursion: For every arc src -> dst: beta(src) += arc.score + beta(dst)
     if (!arcsByLayer_.empty()) {
-        for (size_t layerIdx = arcsByLayer_.size() - 1; layerIdx >= 0; --layerIdx) {
+        for (size_t layerIdx = arcsByLayer_.size(); layerIdx-- > 0;) {
             for (Arc const& arc : arcsByLayer_[layerIdx]) {
                 Score pathCost = arc.score + states_[arc.dst].beta;
                 states_[arc.src].beta = scoreSum(states_[arc.src].beta, pathCost);
@@ -578,14 +622,16 @@ void ForwardBackwardSearch::dumpGraphToDot(std::string const& filename) const {
     out << "  edge [fontsize=9];\n\n";
 
     out << "  labelloc=\"t\";\n";
-    out << "  label=\"ForwardBackwardSearch graph";
 
-    if (!std::isinf(static_cast<double>(partitionCost_))) {
-        out << "\\npartitionCost=" << dotEscape(scoreToString(partitionCost_));
-        out << "\\nlogLikelihood=" << dotEscape(scoreToString(-partitionCost_));
+    std::ostringstream graphLabel;
+    graphLabel << "ForwardBackwardSearch graph";
+
+    if (!std::isfinite(partitionCost_)) {
+        graphLabel << "\npartitionCost=" << scoreToString(partitionCost_);
+        graphLabel << "\nlogLikelihood=" << scoreToString(-partitionCost_);
     }
 
-    out << "\";\n\n";
+    out << "  label=\"" << dotEscapeLabel(graphLabel.str()) << "\";\n\n";
 
     // Write nodes grouped by layer
     for (size_t layer = 0ul; layer < layers_.size(); ++layer) {
@@ -600,37 +646,38 @@ void ForwardBackwardSearch::dumpGraphToDot(std::string const& filename) const {
 
             std::ostringstream label;
             label << "s" << stateId
-                  << "\\nlayer=" << state.layer
-                  << "\\ntoken=" << state.currentToken
-                  << "\\nctxHash=" << Nn::ScoringContextHash{}(state.scoringContext)
-                  << "\\nalpha=" << scoreToString(state.alpha)
-                  << "\\nbeta=" << scoreToString(state.beta);
+                  << "\nlayer=" << state.layer
+                  << "\ntoken=" << state.currentToken
+                  << "\nctxHash=" << Nn::ScoringContextHash{}(state.scoringContext)
+                  << "\nalpha=" << scoreToString(state.alpha)
+                  << "\nbeta=" << scoreToString(state.beta);
 
             out << "    s" << stateId
-                << " [label=\"" << dotEscape(label.str()) << "\"];\n";
+                << " [label=\"" << dotEscapeLabel(label.str()) << "\"];\n";
         }
 
         out << "  }\n\n";
     }
 
-    // Write edges
+    // Write arcs
     for (size_t layer = 0ul; layer < arcsByLayer_.size(); ++layer) {
         for (size_t arcIdx = 0ul; arcIdx < arcsByLayer_[layer].size(); ++arcIdx) {
             Arc const& arc = arcsByLayer_[layer][arcIdx];
 
             std::ostringstream label;
             label << "arc=" << layer << ":" << arcIdx
-                  << "\\ntime=" << arc.time
-                  << "\\nlabel=" << arc.label
-                  << "\\ntrans=" << toString(arc.transitionType)
-                  << "\\nscore=" << scoreToString(arc.score)
-                  << "\\ngamma=" << probabilityToString(arc.gamma);
+                  << "\ntime=" << arc.time
+                  << "\nlabel=" << arc.label
+                  << "\ntrans=" << toString(arc.transitionType)
+                  << "\nscore=" << scoreToString(arc.score)
+                  << "\ngamma=" << probabilityToString(arc.gamma);
 
             out << "  s" << arc.src
                 << " -> s" << arc.dst
-                << " [label=\"" << dotEscape(label.str()) << "\"];\n";
+                << " [label=\"" << dotEscapeLabel(label.str()) << "\"];\n";
         }
     }
+
 
     out << "}\n";
 }

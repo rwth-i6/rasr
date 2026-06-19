@@ -1,0 +1,61 @@
+/** Copyright 2026 RWTH Aachen University. All rights reserved.
+ *
+ *  Licensed under the RWTH ASR License (the "License");
+ *  you may not use this file except in compliance with the License.
+ *  You may obtain a copy of the License at
+ *
+ *      http://www.hltpr.rwth-aachen.de/rwth-asr/rwth-asr-license.html
+ *
+ *  Unless required by applicable law or agreed to in writing, software
+ *  distributed under the License is distributed on an "AS IS" BASIS,
+ *  WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ *  See the License for the specific language governing permissions and
+ *  limitations under the License.
+ */
+
+#ifndef TORCH_ENCODER_HH
+#define TORCH_ENCODER_HH
+
+#include <Nn/LabelScorer/Encoder.hh>
+#include <Nn/LabelScorer/EncoderFactory.hh>
+
+#include "Model.hh"
+#include "StateManager.hh"
+
+namespace Torch {
+
+/*
+ * Encoder that runs the input features through a Torch model
+ */
+class TorchEncoder : virtual public Nn::Encoder {
+public:
+    using Precursor = Nn::Encoder;
+
+    static const Core::ParameterInt paramInputsPerOutput;
+    static const Core::ParameterInt paramInputStepSize;
+
+    TorchEncoder(const Core::Configuration& config, Nn::EncoderModelCache& cachedModel);
+    virtual ~TorchEncoder() = default;
+
+    // Clear buffers and reset segment end flag
+    virtual void reset() override;
+
+protected:
+    // Encode features inside the input buffer and put the results into the output buffer
+    virtual void encode() override;
+
+private:
+    void initializeStatesFromModelSpec();
+
+    const size_t inputsPerOutput_;
+    const size_t inputStepSize_;
+
+    std::shared_ptr<Model> torchModel_;
+
+    std::unique_ptr<StateManager>   stateManager_;
+    std::vector<TorchStateVariable> stateVariables_;
+};
+
+}  // namespace Torch
+
+#endif  // TORCH_ENCODER_HH

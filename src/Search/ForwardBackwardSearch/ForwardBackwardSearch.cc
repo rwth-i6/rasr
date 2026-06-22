@@ -173,12 +173,13 @@ ForwardBackwardSearch::ForwardBackwardSearch(Core::Configuration const& config)
 }
 
 Speech::ModelCombination::Mode ForwardBackwardSearch::requiredModelCombination() const {
-    return Speech::ModelCombination::useLabelScorer | Speech::ModelCombination::useLexicon;
+    return Speech::ModelCombination::useLabelScorer | Speech::ModelCombination::useLexicon | Speech::ModelCombination::useLanguageModel;
 }
 
 bool ForwardBackwardSearch::setModelCombination(Speech::ModelCombination const& modelCombination) {
     lexicon_      = modelCombination.lexicon();
     labelScorer_ = modelCombination.labelScorer();
+    languageModel_ = modelCombination.languageModel();
 
     if (!lexicon_) {
         error() << "ForwardBackwardSearch requires a lexicon.";
@@ -254,11 +255,16 @@ void ForwardBackwardSearch::enterSegment(Bliss::SpeechSegment const* segment) {
             .layer           = 0u,
             .currentToken    = Nn::invalidLabelIndex,
             .scoringContext  = labelScorer_->getInitialScoringContext(),
+            .lmHistory       = languageModel_->startHistory(),
             .alpha           = 0.0,
             .beta            = std::numeric_limits<Score>::infinity(),
     };
     states_.push_back(initialState);
     layers_.push_back({0ul});
+
+    if (segment != nullptr) {
+        languageModel_->setSegment(segment);
+    }
 }
 
 void ForwardBackwardSearch::finishSegment() {
@@ -286,7 +292,7 @@ void ForwardBackwardSearch::finishSegment() {
         clog() << Core::XmlClose("forward-backward-statistics");
     }
 
-   // dumpGraphToDot("/u/lkleppel/experiments/20260520_unsupervised_asr/output/toy_forward_backward/toy_graph.dot");
+    //dumpGraphToDot("/u/lkleppel/experiments/20260520_unsupervised_asr/output/toy_forward_backward/toy_graph.dot");
 }
 
 void ForwardBackwardSearch::putFeature(Nn::DataView const& feature) {
@@ -353,7 +359,7 @@ void ForwardBackwardSearch::initializeLabelsFromLexicon() {
         Bliss::Lemma const* lemma = *lemmaIt;
         Nn::LabelIndex tokenIdx = lemma->id();
 
-        if (skipSentenceEndLabel_ && useSentenceEnd_ && tokenIdx == sentenceEndLabelIndex_) {
+        if ((skipSentenceEndLabel_ && useSentenceEnd_ && tokenIdx == sentenceEndLabelIndex_) || lemma->nPronunciations() == 0) {    // TODO
             continue;
         }
 
@@ -399,13 +405,14 @@ bool ForwardBackwardSearch::buildForwardStep() {
     std::vector<Arc> arcs;
     arcs.reserve(currentLayer.size() * labels_.size());
 
-    Speech::TimeframeIndex nextLayerIndex = static_cast<Speech::TimeframeIndex>(layers_.size());  // TODO
+    Speech::TimeframeIndex nextLayerIndex = static_cast<Speech::TimeframeIndex>(layers_.size());
 
     for (size_t statePos = 0ul; statePos < currentLayer.size(); ++statePos) {
         StateId srcStateId = currentLayer[statePos];
         Score srcAlpha = states_[srcStateId].alpha;
         Nn::LabelIndex srcCurrentToken = states_[srcStateId].currentToken;
         Nn::ScoringContextRef srcScoringContext = states_[srcStateId].scoringContext;
+        Lm::History srcLmHistory = states_[srcStateId].lmHistory;
 
         if (std::isinf(static_cast<double>(srcAlpha))) {
             continue;
@@ -420,7 +427,27 @@ bool ForwardBackwardSearch::buildForwardStep() {
                 continue;
             }
 
-            Score arcScore = (*scoreAccessor)->getScore(transitionType, label);
+            //Score arcScore = (*scoreAccessor)->getScore(transitionType, label);
+
+            Score acousticScore = (*scoreAccessor)->getScore(transitionType, label);
+
+            auto const* lemmaPron = lexicon_->lemmaPronunciation(label);    // TODO should work but actually not 100% correct
+            // TODO labels_ muss auf jeden Fall refactored werden (Problem sentence-begin)
+            // actually the ids stored in labels_ are the lemma IDs
+            auto const* lemma = lemmaPron->lemma();
+            const Bliss::SyntacticTokenSequence sts = lemma->syntacticTokenSequence();
+            auto const* st = sts.front();
+
+            Score lmScore = 0.0;
+            Lm::History newLmHistory = srcLmHistory;
+            if (not (transitionType == Nn::TransitionType::LABEL_LOOP or transitionType == Nn::TransitionType::BLANK_LOOP)) {
+                lmScore = languageModel_->score(srcLmHistory, st);
+                Lm::History newLmHistory = languageModel_->extendedHistory(srcLmHistory, st);
+            }
+
+            std::cout << "lm score: " << lmScore << std::endl;
+
+            Score arcScore = acousticScore + lmScore;
 
             if (std::isinf(static_cast<double>(arcScore))) {
                 continue;
@@ -436,7 +463,8 @@ bool ForwardBackwardSearch::buildForwardStep() {
                     nextLayerMap,
                     nextLayerIndex,
                     label,
-                    nextScoringContext);
+                    nextScoringContext,
+                    newLmHistory);
 
             Score pathCost = srcAlpha + arcScore;
             states_[dstStateId].alpha = scoreSum(states_[dstStateId].alpha, pathCost);
@@ -561,10 +589,11 @@ Nn::TransitionType ForwardBackwardSearch::inferTransitionType(Nn::LabelIndex pre
     }
 }
 
-ForwardBackwardSearch::StateId ForwardBackwardSearch::getOrCreateState(std::vector<StateId>& nextLayer, StateMap& nextLayerMap, Speech::TimeframeIndex layer, Nn::LabelIndex currentToken, Nn::ScoringContextRef scoringContext) {
+ForwardBackwardSearch::StateId ForwardBackwardSearch::getOrCreateState(std::vector<StateId>& nextLayer, StateMap& nextLayerMap, Speech::TimeframeIndex layer, Nn::LabelIndex currentToken, Nn::ScoringContextRef scoringContext, Lm::History lmHistory) {
     StateKey key = StateKey{
                     .currentToken   = currentToken,
-                    .scoringContext = scoringContext};
+                    .scoringContext = scoringContext,
+                    .lmHistory = lmHistory};
 
     auto [it, inserted] = nextLayerMap.emplace(key, invalidStateId);
 
@@ -578,6 +607,7 @@ ForwardBackwardSearch::StateId ForwardBackwardSearch::getOrCreateState(std::vect
     newState.layer           = layer;
     newState.currentToken    = currentToken;
     newState.scoringContext = scoringContext;
+    newState.lmHistory      = lmHistory;
     newState.alpha           = std::numeric_limits<Score>::infinity();
     newState.beta            = std::numeric_limits<Score>::infinity();
 

@@ -138,6 +138,7 @@ protected:
         Speech::TimeframeIndex layer;
         Nn::LabelIndex         currentToken;
         Nn::ScoringContextRef  scoringContext;
+        Lm::History            lmHistory;
         Score                  alpha;
         Score                  beta;
     };
@@ -156,6 +157,7 @@ protected:
     struct StateKey {
         Nn::LabelIndex        currentToken;
         Nn::ScoringContextRef scoringContext;
+        Lm::History           lmHistory;
 
         bool operator==(StateKey const& other) const {
             if (currentToken != other.currentToken) {
@@ -164,21 +166,25 @@ protected:
             if (!Nn::ScoringContextEq{}(scoringContext, other.scoringContext)) {
                 return false;
             }
+            if (lmHistory != other.lmHistory) {
+                return false;
+            }
             return true;
         }
     };
 
     struct StateKeyHash {
         size_t operator()(StateKey const& key) const {
-            return Core::combineHashes(key.currentToken, Nn::ScoringContextHash{}(key.scoringContext));
+            return Core::combineHashes(Core::combineHashes(key.currentToken, Nn::ScoringContextHash{}(key.scoringContext)), Lm::History::Hash{}(key.lmHistory));
         }
     };
 
     using StateMap = std::unordered_map<StateKey, StateId, StateKeyHash>;
 
 private:
-    Bliss::LexiconRef            lexicon_;
-    Core::Ref<Nn::LabelScorer>   labelScorer_;
+    Bliss::LexiconRef                  lexicon_;
+    Core::Ref<Nn::LabelScorer>         labelScorer_;
+    Core::Ref<Lm::ScaledLanguageModel> languageModel_;
 
     // Collection of all labels (IDs of the lemmas in the lexicon)
     std::vector<Nn::LabelIndex> labels_;
@@ -232,7 +238,7 @@ private:
 
     Nn::TransitionType inferTransitionType(Nn::LabelIndex prevLabel, Nn::LabelIndex nextLabel) const;
 
-    StateId getOrCreateState(std::vector<StateId>& nextLayer, StateMap& nextLayerMap, Speech::TimeframeIndex layer, Nn::LabelIndex currentToken, Nn::ScoringContextRef scoringContext);
+    StateId getOrCreateState(std::vector<StateId>& nextLayer, StateMap& nextLayerMap, Speech::TimeframeIndex layer, Nn::LabelIndex currentToken, Nn::ScoringContextRef scoringContext, Lm::History lmHistory);
 
     /**
      * Cost-domain log-add:

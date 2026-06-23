@@ -123,6 +123,14 @@ public:
         return labelGammas_;
     }
 
+    std::vector<Nn::LabelIndex> const& labels() const {
+        return labels_;
+    }
+
+    std::vector<std::string> const& labelNames() const {
+        return labelNames_;
+    }
+
     void dumpGraphToDot(std::string const& filename) const;
 
 protected:
@@ -188,6 +196,7 @@ private:
 
     // Collection of all labels (IDs of the lemmas in the lexicon)
     std::vector<Nn::LabelIndex> labels_;
+    std::vector<std::string> labelNames_;
 
     bool            useBlank_;
     Nn::LabelIndex  blankLabelIndex_;

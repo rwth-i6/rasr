@@ -246,6 +246,24 @@ py::dict SearchAlgorithm::getForwardBackwardResult() {
     result["log_likelihood"] = static_cast<double>(fbSearch->logLikelihood());
     result["label_gammas"] = gammasToNumpy(fbSearch->labelGammas());
 
+
+    auto const& labels = fbSearch->labels();
+    py::array_t<s32> pyLabels({labels.size()});
+    auto pyLabelsMutable = pyLabels.mutable_unchecked<1>();
+    for (size_t i = 0ul; i < labels.size(); ++i) {
+        pyLabelsMutable(i) = static_cast<s32>(labels[i]);
+    }
+    result["labels"] = pyLabels;
+
+    auto const& labelNames = fbSearch->labelNames();
+    verify_eq(labels.size(), labelNames.size());
+    py::list pyLabelNames;
+    for (std::string const& name : labelNames) {
+        pyLabelNames.append(py::str(name));
+    }
+    result["label_names"] = pyLabelNames;
+
+
     return result;
 }
 

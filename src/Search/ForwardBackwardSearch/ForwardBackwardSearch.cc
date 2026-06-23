@@ -136,7 +136,7 @@ const Core::ParameterBool ForwardBackwardSearch::paramSkipSentenceEndLabel(
 const Core::ParameterBool ForwardBackwardSearch::paramCollapseRepeatedLabels(
         "collapse-repeated-labels",
         "Use LABEL_LOOP transition type for repeated non-blank labels.",
-        false);
+        true);
 
 const Core::ParameterInt ForwardBackwardSearch::paramCacheCleanupInterval(
         "cache-cleanup-interval",
@@ -351,23 +351,65 @@ bool ForwardBackwardSearch::decodeStep() {
 }
 
 void ForwardBackwardSearch::initializeLabelsFromLexicon() {
+    // Limitation: lemmas have to be in the same order as phonemes
+    // and e.g. special lemmas which do not have pronunciation (and are therefore skipped and just exists for the LM)
+    // have to be at the end after the phoneme-lemmas
+
     labels_.clear();
+    labelNames_.clear();
+
+    std::vector<std::pair<Nn::LabelIndex, std::string>> labelEntries;
 
     auto lemmas = lexicon_->lemmas();
 
     for (auto lemmaIt = lemmas.first; lemmaIt != lemmas.second; ++lemmaIt) {
         Bliss::Lemma const* lemma = *lemmaIt;
         Nn::LabelIndex tokenIdx = lemma->id();
-
         if ((skipSentenceEndLabel_ && useSentenceEnd_ && tokenIdx == sentenceEndLabelIndex_) || lemma->nPronunciations() == 0) {    // TODO
             continue;
         }
 
-        labels_.push_back(tokenIdx);
+
+        std::string labelName;
+
+        if (lemma->nOrthographicForms() > 0) {
+            labelName = lemma->preferredOrthographicForm().str();
+        }
+        else if (lemma->hasName()) {
+            labelName = lemma->name().str();
+        }
+        else {
+            labelName = Core::form("<lemma-%d>", static_cast<int>(tokenIdx));
+        }
+
+        labelEntries.emplace_back(tokenIdx, labelName);
     }
 
-    std::sort(labels_.begin(), labels_.end());
-    labels_.erase(std::unique(labels_.begin(), labels_.end()), labels_.end());
+    std::sort(
+            labelEntries.begin(),
+            labelEntries.end(),
+            [](auto const& a, auto const& b) {
+                return a.first < b.first;
+            });
+
+    labelEntries.erase(
+            std::unique(
+                    labelEntries.begin(),
+                    labelEntries.end(),
+                    [](auto const& a, auto const& b) {
+                        return a.first == b.first;
+                    }),
+            labelEntries.end());
+
+    labels_.reserve(labelEntries.size());
+    labelNames_.reserve(labelEntries.size());
+
+    for (auto const& [label, name] : labelEntries) {
+        labels_.push_back(label);
+        labelNames_.push_back(name);
+    }
+
+    verify_eq(labels_.size(), labelNames_.size());
 }
 
 
@@ -442,10 +484,9 @@ bool ForwardBackwardSearch::buildForwardStep() {
             Lm::History newLmHistory = srcLmHistory;
             if (not (transitionType == Nn::TransitionType::LABEL_LOOP or transitionType == Nn::TransitionType::BLANK_LOOP)) {
                 lmScore = languageModel_->score(srcLmHistory, st);
-                Lm::History newLmHistory = languageModel_->extendedHistory(srcLmHistory, st);
+                newLmHistory = languageModel_->extendedHistory(srcLmHistory, st);
             }
 
-            std::cout << "lm score: " << lmScore << std::endl;
 
             Score arcScore = acousticScore + lmScore;
 
@@ -526,7 +567,6 @@ void ForwardBackwardSearch::computeBackwardAndGammas() {
     // Compute arc posteriors and accumulate them into frame/label gammas
     // posterior(arc) = exp(partitionCost - (alpha(src) + arcCost + beta(dst)))
     // labelGammas_[time][label] stores the posterior probability that `label` was emitted at scorer time `time`
-    // TODO sollen die gammas nicht auch im negative log-space sein?
     for (std::vector<Arc>& layerArcs : arcsByLayer_) {
         for (Arc& arc : layerArcs) {
             Score arcPathCost = states_[arc.src].alpha + arc.score + states_[arc.dst].beta;

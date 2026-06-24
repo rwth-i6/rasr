@@ -5,7 +5,7 @@ add_install_library(librasr)
 
 if(${MODULE_PYTHON})
     target_sources(
-        librasr PRIVATE Encoder.cc LabelScorer.cc Lexicon.cc PybindModule.cc Search.cc
+        librasr PRIVATE Align.cc Encoder.cc LabelScorer.cc Lexicon.cc PybindModule.cc Search.cc
     )
 endif()
 

@@ -4,6 +4,7 @@
 #include <Python/AllophoneStateFsaBuilder.hh>
 #include <Python/Configuration.hh>
 
+#include "Align.hh"
 #include "Encoder.hh"
 #include "LabelScorer.hh"
 #include "Lexicon.hh"
@@ -50,4 +51,5 @@ PYBIND11_MODULE(librasr, m) {
     bindLabelScorer(m);
     bindLexicon(m);
     bindSearchAlgorithm(m);
+    bindAligner(m);
 }

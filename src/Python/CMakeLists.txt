@@ -1,5 +1,6 @@
 add_library(
     RasrPython STATIC
+    Align.cc
     AllophoneStateFsaBuilder.cc
     Configuration.cc
     Encoder.cc

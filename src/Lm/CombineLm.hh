@@ -36,6 +36,8 @@ public:
     static Core::ParameterFloat paramSkipThreshold;
 
     CombineLanguageModel(Core::Configuration const& c, Bliss::LexiconRef l);
+    CombineLanguageModel(Core::Configuration const& c, Bliss::LexiconRef l, std::vector<Core::Ref<ScaledLanguageModel>> const& subLms);
+
     virtual ~CombineLanguageModel();
 
     virtual Lm::Score sentenceBeginScore() const;

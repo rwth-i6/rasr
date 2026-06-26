@@ -259,6 +259,8 @@ bool NgramLinearSearch::decodeStep() {
 
     size_t numHypsBeforeRecombination = 0ul;
 
+    Score bestNewScore = Core::Type<Score>::max;
+
     //log() << "timestep " << currentSearchStep_;
     for (size_t hypIndex = 0ul; hypIndex < beam_.size(); ++hypIndex) {
         LabelHypothesis const& hyp = beam_[hypIndex];
@@ -290,7 +292,7 @@ bool NgramLinearSearch::decodeStep() {
                 // get LM score
                 lmScore += languageModel_->score(newLmHistory, pron.st);
 
-                // update the LM history: new history is the new token
+                // update the LM history with the new token
                 newLmHistory = languageModel_->extendedHistory(newLmHistory, pron.st);
             }
 
@@ -303,6 +305,11 @@ bool NgramLinearSearch::decodeStep() {
             }
 
             Score newScore = hyp.score + amScore + lmScore;
+
+            if (scoreThreshold_ != Core::Type<Score>::max and newScore > bestNewScore + scoreThreshold_) {
+                continue;
+            }
+            bestNewScore = std::min(bestNewScore, newScore);
 
             //log() << "next token " << nextToken << " amScore " << amScore << " lmScore " << lmScore << "prev token " << hyp.currentToken << " extScore " << newScore;
 
@@ -375,9 +382,9 @@ bool NgramLinearSearch::decodeStep() {
         	clog() << Core::XmlFull("num-hyps-after-recombination", newBeam_.size());
     	}
 
-   		// scorePruning(newBeam_, Core::Type<Score>::max, maxBeamSize_);
+       scorePruning(newBeam_, scoreThreshold_, maxBeamSize_);
 
-   		 numHypsAfterPruning_ += newBeam_.size();
+       numHypsAfterPruning_ += newBeam_.size();
 
     	if (logStepwiseStatistics_) {
         	clog() << Core::XmlFull("num-hyps-after-pruning", newBeam_.size());

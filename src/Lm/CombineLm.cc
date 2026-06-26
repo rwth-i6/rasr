@@ -114,11 +114,12 @@ CombineLanguageModel::CombineLanguageModel(Core::Configuration const& c, Bliss::
 CombineLanguageModel::CombineLanguageModel(Core::Configuration const& c, Bliss::LexiconRef l, std::vector<Core::Ref<ScaledLanguageModel>> const& subLms)
         : Core::Component(c), CombineLanguageModel::Precursor(c, l), lms_(), unscaled_lms_(), linear_combination_(paramLinearCombination(c)), lookahead_lm_(paramLookaheadLM(config)), recombination_lm_(paramRecombinationLM(config)) {
     size_t num_lms = subLms.size();
-    for (auto const& subLm : subLms) {
-        lms_.push_back(subLm);
+    for (size_t i = 0ul; i < num_lms; i++) {
+        lms_.push_back(subLms[i]);
         unscaled_lms_.push_back(lms_.back()->unscaled());
         ssa_lms_.push_back(dynamic_cast<SearchSpaceAwareLanguageModel const*>(unscaled_lms_.back().get()));
-        skip_thresholds_.push_back(paramSkipThreshold(subLm->getConfiguration()));
+        skip_thresholds_.push_back(paramSkipThreshold(subLms[i]->getConfiguration()));
+        lmIds_.push_back(i);
     }
     historyManager_ = new CombineHistoryManager(num_lms);
 }

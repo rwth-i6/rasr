@@ -44,15 +44,18 @@ Aligner::Aligner(const Core::Configuration& c)
     Core::Configuration cheatingLmConfig;
     cheatingLmConfig.set("infinity-score", "1e9");
     cheatingLmConfig.set("skip-threshold", "$[1e9 - 1]");
+    cheatingLmConfig.set("scale", "1.0");
     auto cheatingLm = Core::ref(new Lm::CheatingSegmentLm(cheatingLmConfig, modelCombination.lexicon()));
     cheatingLm->load();
-    Core::Ref<Lm::ScaledLanguageModel> scaledCheatingLm = Core::ref(new Lm::LanguageModelScaling(config, cheatingLm));
+    Core::Ref<Lm::ScaledLanguageModel> scaledCheatingLm = Core::ref(new Lm::LanguageModelScaling(cheatingLmConfig, cheatingLm));
 
     Core::Configuration combineLmConfig;
     combineLmConfig.set("lookahead-lm", "1");
     combineLmConfig.set("recombination-lm", "2");
     auto                               combineLm       = Core::ref(new Lm::CombineLanguageModel(combineLmConfig, modelCombination.lexicon(), {scaledCheatingLm, modelCombination.languageModel()}));
-    Core::Ref<Lm::ScaledLanguageModel> scaledCombineLm = Core::ref(new Lm::LanguageModelScaling(config, combineLm));
+    Core::Configuration scaledCombineLmConfig;
+    scaledCombineLmConfig.set("scale", "1.0");
+    Core::Ref<Lm::ScaledLanguageModel> scaledCombineLm = Core::ref(new Lm::LanguageModelScaling(scaledCombineLmConfig, combineLm));
 
     modelCombination.setLanguageModel(scaledCombineLm);
     searchAlgorithm_->setModelCombination(modelCombination);

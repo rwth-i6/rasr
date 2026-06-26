@@ -93,11 +93,12 @@ Traceback Aligner::getBestTraceback() {
             continue;
         }
         result.push_back({
-                it->pronunciation->lemma()->symbol(),
-                it->score.acoustic,
-                it->score.lm,
-                prevTime,
-                it->time,
+                .lemma           = it->pronunciation->lemma()->symbol(),
+                .amScore         = it->score.acoustic,
+                .lmScore         = it->score.lm,
+                .confidenceScore = std::nullopt,
+                .startTime       = prevTime,
+                .endTime         = it->time,
         });
         prevTime = it->time;
     }

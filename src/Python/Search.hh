@@ -18,7 +18,6 @@
 
 #include <Flf/LatticeHandler.hh>
 #include <Flf/Lexicon.hh>
-#include <Nn/LabelScorer/CombineLabelScorer.hh>
 #include <Nn/LabelScorer/ScaledLabelScorer.hh>
 #include <Search/SearchV2.hh>
 
@@ -45,34 +44,9 @@ static Lm::ScaledLanguageModel* getLanguageModel(Speech::ModelCombination& model
     return modelCombination.languageModel().get();
 }
 
-// Return the label scorer as ScaledLabelScorer
-static Nn::ScaledLabelScorer* getScaledLabelScorer(Speech::ModelCombination& modelCombination, size_t index) {
-    Core::Ref<Nn::LabelScorer> labelScorer = modelCombination.labelScorer(index);
-
-    auto* scaledLabelScorer = dynamic_cast<Nn::ScaledLabelScorer*>(labelScorer.get());
-    if (!scaledLabelScorer) {
-        throw py::value_error("Label scorer is not a ScaledLabelScorer.");
-    }
-
-    return scaledLabelScorer;
-}
-
-// Return the CombineLabelScorer
-static Nn::CombineLabelScorer* getCombineLabelScorer(Speech::ModelCombination& modelCombination, size_t index) {
-    Core::Ref<Nn::LabelScorer> labelScorer = modelCombination.labelScorer(index);
-
-    auto* scaledLabelScorer = dynamic_cast<Nn::ScaledLabelScorer*>(labelScorer.get());
-    if (!scaledLabelScorer) {
-        throw py::value_error("Top-level label scorer is not a ScaledLabelScorer.");
-    }
-
-    Core::Ref<Nn::LabelScorer> wrappedLabelScorer = scaledLabelScorer->labelScorer();
-    auto*                      combineLabelScorer = dynamic_cast<Nn::CombineLabelScorer*>(wrappedLabelScorer.get());
-    if (!combineLabelScorer) {
-        throw py::value_error("Configured label scorer is not a CombineLabelScorer.");
-    }
-
-    return combineLabelScorer;
+// Return the label scorer
+static Nn::ScaledLabelScorer* getLabelScorer(Speech::ModelCombination& modelCombination, std::optional<size_t> index = 0) {
+    return dynamic_cast<Nn::ScaledLabelScorer*>(modelCombination.labelScorer(*index).get());
 }
 
 class SearchAlgorithm : public Core::Component {

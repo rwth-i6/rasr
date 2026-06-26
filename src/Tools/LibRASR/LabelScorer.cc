@@ -174,26 +174,10 @@ void bindLabelScorer(py::module_& module) {
             &Nn::ScaledLabelScorer::scale,
             "Return the current label scorer scale.");
 
-    py::class_<Nn::CombineLabelScorer, Nn::LabelScorer, Core::Ref<Nn::CombineLabelScorer>> pyCombineLabelScorer(
-            module,
-            "CombineLabelScorer",
-            "Label scorer that combines multiple sub-scorers.");
-
-    pyCombineLabelScorer.def(
-            "num_label_scorers",
-            &Nn::CombineLabelScorer::numLabelScorers,
-            "Return the number of sub-scorers.");
-
-    pyCombineLabelScorer.def(
-            "set_label_scorer_scale",
-            &Nn::CombineLabelScorer::setScale,
-            py::arg("index"),
-            py::arg("scale"),
-            "Set the scale of a sub-scorer, overriding the value from the config.");
-
-    pyCombineLabelScorer.def(
-            "label_scorer_scale",
-            &Nn::CombineLabelScorer::scale,
-            py::arg("index"),
-            "Return the current scale of a sub-scorer.");
+    pyScaledLabelScorer.def(
+            "get_sub_scorer",
+            &getSubScorer,
+            py::arg("index") = 0ul,
+            py::return_value_policy::reference_internal,
+            "Return the wrapped sub-scorer.");
 }

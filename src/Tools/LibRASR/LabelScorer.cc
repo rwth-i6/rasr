@@ -19,6 +19,8 @@
 #include <pybind11/numpy.h>
 #include <pybind11/stl.h>
 
+#include <Nn/LabelScorer/CombineLabelScorer.hh>
+#include <Nn/LabelScorer/ScaledLabelScorer.hh>
 #include <Nn/Module.hh>
 #include <Python/LabelScorer.hh>
 
@@ -155,4 +157,27 @@ void bindLabelScorer(py::module_& module) {
             "    A vector of length `B` containing either `None` if the label scorer is not ready to process the requests (e.g. expects more features or segment end signal)\n"
             "    or a tuple of a score-list and a timestamp for each context. The returned timestamps will be used\n"
             "    to form word boundaries in the search traceback.");
+
+    py::class_<Nn::ScaledLabelScorer, Nn::LabelScorer, Core::Ref<Nn::ScaledLabelScorer>> pyScaledLabelScorer(
+            module,
+            "ScaledLabelScorer",
+            "Label scorer with configurable scale.");
+
+    pyScaledLabelScorer.def(
+            "set_scale",
+            &Nn::ScaledLabelScorer::setScale,
+            py::arg("scale"),
+            "Set the label scorer scale, overriding the value from the config.");
+
+    pyScaledLabelScorer.def(
+            "scale",
+            &Nn::ScaledLabelScorer::scale,
+            "Return the current label scorer scale.");
+
+    pyScaledLabelScorer.def(
+            "get_sub_scorer",
+            &getSubScorer,
+            py::arg("index") = 0ul,
+            py::return_value_policy::reference_internal,
+            "Return the wrapped sub-scorer.");
 }

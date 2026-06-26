@@ -17,7 +17,9 @@
 
 #include <sstream>
 
+#include <Lm/ScaledLanguageModel.hh>
 #include <Python/Search.hh>
+#include <Speech/ModelCombination.hh>
 
 void bindSearchAlgorithm(py::module_& module) {
     /*
@@ -54,6 +56,48 @@ void bindSearchAlgorithm(py::module_& module) {
             [](TracebackItem const& t) {
                 return t.lemma;
             });
+
+    /*
+     * =========================
+     * === Model Combination ===
+     * =========================
+     */
+
+    py::class_<Speech::ModelCombination> pyModelCombination(
+            module,
+            "ModelCombination",
+            "Combination of lexicon, acoustic model, label scorer and language model.");
+
+    pyModelCombination.def(
+            "label_scorer",
+            &getLabelScorer,
+            py::arg("index") = 0ul,
+            py::return_value_policy::reference_internal,
+            "Return the label scorer.");
+
+    pyModelCombination.def(
+            "language_model",
+            &getLanguageModel,
+            py::return_value_policy::reference_internal,
+            "Return the language model.");
+
+    py::class_<Lm::ScaledLanguageModel> pyScaledLanguageModel(
+            module,
+            "ScaledLanguageModel",
+            "Language model with configurable scale.");
+
+    pyScaledLanguageModel.def(
+            "set_scale",
+            [](Lm::ScaledLanguageModel& lm, Mc::Scale scale) {
+                lm.setOwnScale(scale / lm.parentScale());
+            },
+            py::arg("scale"),
+            "Set the effective LM scale, overriding the value from the config.");
+
+    pyScaledLanguageModel.def(
+            "scale",
+            &Lm::ScaledLanguageModel::scale,
+            "Return the current effective LM scale.");
 
     /*
      * ========================
@@ -126,4 +170,10 @@ void bindSearchAlgorithm(py::module_& module) {
             py::arg("features"),
             py::arg("n"),
             "Convenience function to start a segment, pass all the features as a numpy array of shape [T, F] or [1, T, F], finish the segment, and return a n-best list of results.");
+
+    pySearchAlgorithm.def(
+            "model_combination",
+            &SearchAlgorithm::modelCombination,
+            py::return_value_policy::reference_internal,
+            "Return the model combination used by the search.");
 }

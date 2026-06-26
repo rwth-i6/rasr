@@ -19,9 +19,36 @@
 #include <pybind11/pybind11.h>
 #include "Nn/LabelScorer/Types.hh"
 
+#include <Nn/LabelScorer/CombineLabelScorer.hh>
+#include <Nn/LabelScorer/CtcPrefixLabelScorer.hh>
+#include <Nn/LabelScorer/EncoderDecoderLabelScorer.hh>
 #include <Nn/LabelScorer/LabelScorer.hh>
+#include <Nn/LabelScorer/ScaledLabelScorer.hh>
 
 namespace py = pybind11;
+
+// Return the sub-scorer that is wrapped by the given label scorer
+// If the label scorer is a CombineLabelScorer, return the sub-scorer at the specified index
+static Nn::ScaledLabelScorer* getSubScorer(Nn::ScaledLabelScorer* labelScorer, std::optional<size_t> index = 0) {
+    Core::Ref<Nn::LabelScorer> wrappedLabelScorer = labelScorer->labelScorer();
+
+    auto* combineScorer = dynamic_cast<Nn::CombineLabelScorer*>(wrappedLabelScorer.get());
+    if (combineScorer) {
+        return combineScorer->getSubScorer(*index).get();
+    }
+
+    auto* encoderDecoderScorer = dynamic_cast<Nn::EncoderDecoderLabelScorer*>(wrappedLabelScorer.get());
+    if (encoderDecoderScorer) {
+        return encoderDecoderScorer->getDecoderLabelScorer().get();
+    }
+
+    auto* ctcPrefixScorer = dynamic_cast<Nn::CtcPrefixLabelScorer*>(wrappedLabelScorer.get());
+    if (ctcPrefixScorer) {
+        return ctcPrefixScorer->getCtcLabelScorer().get();
+    }
+
+    throw py::value_error("Label scorer does not a have a sub-scorer");
+}
 
 namespace Python {
 

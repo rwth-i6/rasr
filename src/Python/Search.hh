@@ -18,6 +18,7 @@
 
 #include <Flf/LatticeHandler.hh>
 #include <Flf/Lexicon.hh>
+#include <Nn/LabelScorer/ScaledLabelScorer.hh>
 #include <Search/SearchV2.hh>
 
 #pragma push_macro("ensure")  // Macro duplication in numpy.h
@@ -38,9 +39,22 @@ struct TracebackItem {
 
 typedef std::vector<TracebackItem> Traceback;
 
+// Return the lanuage model
+static Lm::ScaledLanguageModel* getLanguageModel(Speech::ModelCombination& modelCombination) {
+    return modelCombination.languageModel().get();
+}
+
+// Return the label scorer
+static Nn::ScaledLabelScorer* getLabelScorer(Speech::ModelCombination& modelCombination, std::optional<size_t> index = 0) {
+    return dynamic_cast<Nn::ScaledLabelScorer*>(modelCombination.labelScorer(*index).get());
+}
+
 class SearchAlgorithm : public Core::Component {
 public:
     SearchAlgorithm(const Core::Configuration& c);
+
+    // Return the model combination used by the search.
+    Speech::ModelCombination& modelCombination();
 
     // Call at the beginning of a new segment.
     void enterSegment();

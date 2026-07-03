@@ -19,7 +19,38 @@
 
 #include "ScoreAccessor.hh"
 
+/*
+ * Scoring context for ONNX models with state managed by a StateManager.
+ * The state stores only the slice produced for the most recent token.
+ */
 namespace Nn {
+
+StateManagedOnnxScoringContext::StateManagedOnnxScoringContext(HistoryState&& initialState)
+        : labelSeq(),
+          parent(),
+          state(std::make_shared<HistoryState>(std::move(initialState))) {
+}
+
+StateManagedOnnxScoringContext::StateManagedOnnxScoringContext(std::vector<LabelIndex>&&                       labelSeq,
+                                                               Core::Ref<StateManagedOnnxScoringContext const> parent)
+        : labelSeq(std::move(labelSeq)),
+          parent(parent),
+          state() {
+}
+
+bool StateManagedOnnxScoringContext::isEqual(ScoringContextRef const& other) const {
+    auto* otherPtr = dynamic_cast<StateManagedOnnxScoringContext const*>(other.get());
+
+    if (otherPtr == nullptr) {
+        return false;
+    }
+
+    return labelSeqEqual(labelSeq, otherPtr->labelSeq);
+}
+
+size_t StateManagedOnnxScoringContext::hash() const {
+    return labelSeqHash(labelSeq);
+}
 
 static const std::vector<Onnx::IOSpecification> ioSpec = {
         Onnx::IOSpecification{
@@ -84,6 +115,11 @@ const Core::ParameterBool StateManagedOnnxLabelScorer::paramBlankUpdatesHistory(
         "Whether previously emitted blank labels should be used to update the recurrent state.",
         false);
 
+const Core::ParameterBool StateManagedOnnxLabelScorer::paramSilenceUpdatesHistory(
+        "silence-updates-history",
+        "Whether previously emitted silence labels should be used to update the recurrent state.",
+        false);
+
 const Core::ParameterBool StateManagedOnnxLabelScorer::paramLoopUpdatesHistory(
         "loop-updates-history",
         "Whether loop transitions should update the recurrent state.",
@@ -97,28 +133,33 @@ const Core::ParameterInt StateManagedOnnxLabelScorer::paramMaxBatchSize(
 const Core::ParameterInt StateManagedOnnxLabelScorer::paramMaxCachedScores(
         "max-cached-score-vectors",
         "Maximum size of cache that maps scoring contexts to scores and state slices. This prevents memory overflow in case of very long audio segments.",
-        1000);
+        10000);
 
-StateManagedOnnxLabelScorer::StateManagedOnnxLabelScorer(Core::Configuration const& config)
+StateManagedOnnxLabelScorer::StateManagedOnnxLabelScorer(Core::Configuration const& config, ModelCache& modelCache)
         : Core::Component(config),
           Precursor(config, TransitionPresetType::LM),
           blankUpdatesHistory_(paramBlankUpdatesHistory(config)),
+          silenceUpdatesHistory_(paramSilenceUpdatesHistory(config)),
           loopUpdatesHistory_(paramLoopUpdatesHistory(config)),
           maxBatchSize_(paramMaxBatchSize(config)),
-          onnxModel_(select("onnx-model"), ioSpec),
           stateManager_(Module::instance().createStateManager(select("state-manager"))),
-          stateVariables_(onnxModel_.session.getStateVariablesMetadata()),
           stateVectorFactory_(Module::instance().createCompressedVectorFactory(select("state-compression"))),
-          tokenName_(onnxModel_.mapping.getOnnxName("token")),
-          tokenLengthName_(onnxModel_.mapping.getOnnxName("token-length")),
-          prefixLengthName_(onnxModel_.mapping.getOnnxName("prefix-length")),
-          scoresName_(onnxModel_.mapping.getOnnxName("scores")),
-          encoderStatesName_(onnxModel_.mapping.getOnnxName("encoder-states")),
-          encoderStatesSizeName_(onnxModel_.mapping.getOnnxName("encoder-states-size")),
           encoderStatesValue_(),
           encoderStatesSizeValue_(),
           scoreCache_(paramMaxCachedScores(config)),
           stateCache_(scoreCache_.maxSize()) {
+    Core::Configuration modelConfig(config, "onnx-model");
+    auto                key = modelConfig.getSelection();
+    onnxModel_              = modelCache.getOrCreate<Onnx::Model>(key, modelConfig, ioSpec);
+    tokenName_              = onnxModel_->mapping.getOnnxName("token");
+    tokenLengthName_        = onnxModel_->mapping.getOnnxName("token-length");
+    prefixLengthName_       = onnxModel_->mapping.getOnnxName("prefix-length");
+    scoresName_             = onnxModel_->mapping.getOnnxName("scores");
+    encoderStatesName_      = onnxModel_->mapping.getOnnxName("encoder-states");
+    encoderStatesSizeName_  = onnxModel_->mapping.getOnnxName("encoder-states-size");
+
+    stateVariables_ = onnxModel_->session.getStateVariablesMetadata();
+
     auto startLabels = paramStartLabels(config);
     startLabels_.insert(startLabels_.begin(), startLabels.begin(), startLabels.end());
 }
@@ -160,14 +201,22 @@ ScoringContextRef StateManagedOnnxLabelScorer::extendedScoringContext(ScoringCon
         case TransitionType::BLANK_LOOP:
             updateState = blankUpdatesHistory_ and loopUpdatesHistory_;
             break;
+        case TransitionType::SILENCE_LOOP:
+            updateState = silenceUpdatesHistory_ and loopUpdatesHistory_;
+            break;
         case TransitionType::LABEL_TO_BLANK:
         case TransitionType::INITIAL_BLANK:
             updateState = blankUpdatesHistory_;
+            break;
+        case TransitionType::LABEL_TO_SILENCE:
+        case TransitionType::INITIAL_SILENCE:
+            updateState = silenceUpdatesHistory_;
             break;
         case TransitionType::LABEL_LOOP:
             updateState = loopUpdatesHistory_;
             break;
         case TransitionType::BLANK_TO_LABEL:
+        case TransitionType::SILENCE_TO_LABEL:
         case TransitionType::LABEL_TO_LABEL:
         case TransitionType::INITIAL_LABEL:
         case TransitionType::SENTENCE_END:
@@ -277,6 +326,11 @@ void StateManagedOnnxLabelScorer::cacheStatesAndScores(std::vector<StateManagedO
         return;
     }
 
+    // Can't score before any encoder features are buffered; defer (mirrors the guard in getScoreAccessors()).
+    if ((not encoderStatesName_.empty() or not encoderStatesSizeName_.empty()) and bufferSize() == 0ul) {
+        return;
+    }
+
     std::vector<size_t>              prefixLengths;
     std::vector<HistoryState const*> prefixStates;
     prefixLengths.reserve(scoringContextBatch.size());
@@ -330,7 +384,7 @@ void StateManagedOnnxLabelScorer::cacheStatesAndScores(std::vector<StateManagedO
     targets.emplace(targets.begin(), scoresName_);
 
     std::vector<Onnx::Value> outputs;
-    onnxModel_.session.run(std::move(inputs), targets, outputs);
+    onnxModel_->session.run(std::move(inputs), targets, outputs);
 
     for (size_t b = 0ul; b < scoringContextBatch.size(); ++b) {
         auto scores = std::make_shared<std::vector<Score>>();

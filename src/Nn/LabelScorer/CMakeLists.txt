@@ -2,6 +2,7 @@ target_sources(
     RasrNn
     PRIVATE BufferedLabelScorer.cc
             CombineLabelScorer.cc
+            CtcPrefixLabelScorer.cc
             DataView.cc
             Encoder.cc
             EncoderDecoderLabelScorer.cc
@@ -22,7 +23,7 @@ if(${MODULE_ONNX})
         RasrNn
         PRIVATE FixedContextOnnxLabelScorer.cc NoContextOnnxLabelScorer.cc
                 PrefixSpeechLmOnnxLabelScorer.cc StatefulOnnxLabelScorer.cc
-                StateManagedOnnxLabelScorer.cc StatefulOnnxLabelScorer.cc
+                StateManagedOnnxLabelScorer.cc
     )
 endif()
 

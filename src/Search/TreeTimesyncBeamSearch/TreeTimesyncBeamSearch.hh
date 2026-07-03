@@ -53,7 +53,7 @@ public:
     static const Core::ParameterBool        paramCollapseRepeatedLabels;
     static const Core::ParameterBool        paramSentenceEndFallBack;
     static const Core::ParameterBool        paramLogStepwiseStatistics;
-    static const Core::ParameterBool        paramCacheCleanupInterval;
+    static const Core::ParameterInt         paramCacheCleanupInterval;
     static const Core::ParameterInt         paramMaximumStableDelay;
     static const Core::ParameterInt         paramMaximumStableDelayPruningInterval;
 
@@ -64,7 +64,6 @@ public:
     Speech::ModelCombination::Mode requiredModelCombination() const override;
     Am::AcousticModel::Mode        requiredAcousticModel() const override;
     bool                           setModelCombination(Speech::ModelCombination const& modelCombination) override;
-    void                           reset() override;
     void                           enterSegment(Bliss::SpeechSegment const* = nullptr) override;
     void                           finishSegment() override;
     void                           putFeature(Nn::DataView const& feature) override;
@@ -197,7 +196,6 @@ private:
     LabelHypothesis const& getBestHypothesis() const;
     LabelHypothesis const& getWorstHypothesis() const;
 
-    void resetStatistics();
     void logStatistics() const;
 
     /*

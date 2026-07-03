@@ -72,6 +72,7 @@ ModelCombination::ModelCombination(const Core::Configuration& c,
         }
     }
     if (mode & useLabelScorer) {
+        Nn::ModelCache modelCache;
         for (size_t i = 0; i < labelScorers_.size(); ++i) {
             std::string subConfigName;
             if (labelScorers_.size() == 1) {
@@ -80,7 +81,7 @@ ModelCombination::ModelCombination(const Core::Configuration& c,
             else {
                 subConfigName = std::string("label-scorer-") + std::to_string(i + 1);
             }
-            setLabelScorer(Nn::Module::instance().labelScorerFactory().createLabelScorer(select(subConfigName)), i);
+            setLabelScorer(Nn::Module::instance().labelScorerFactory().createLabelScorer(select(subConfigName), modelCache), i);
             if (!labelScorers_[i]) {
                 criticalError("Failed to initialize label scorer %zu", i + 1);
             }

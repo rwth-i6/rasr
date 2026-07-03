@@ -449,12 +449,9 @@ bool LexiconfreeLabelsyncBeamSearch::decodeStep() {
                     auto extScore = hyp.score;
                     auto extTime  = hyp.trace->time;
                     if (labelScorer->scoresTransition(transitionType)) {
-                        if (denseScores and tokenIdx < denseScores->size()) {
-                            extScore += (*denseScores)[tokenIdx];
-                        }
-                        else {
-                            extScore += (*scoreAccessor)->getScore(transitionType, tokenIdx);
-                        }
+                        extScore += (denseScores and tokenIdx < denseScores->size())
+                                            ? (*denseScores)[tokenIdx]
+                                            : (*scoreAccessor)->getScore(transitionType, tokenIdx);
                         extTime = std::max(extTime, scoreTime);
                     }
 
@@ -483,7 +480,10 @@ bool LexiconfreeLabelsyncBeamSearch::decodeStep() {
                 auto const& scoreAccessor = scoreAccessors[hypIndexToContextIndexMap_[ext.baseHypIndex]];
 
                 if (scoreAccessor) {
-                    ext.score += (*scoreAccessor)->getScore(ext.transitionType, ext.nextToken);
+                    auto const& denseScores = denseScoreSpans[hypIndexToContextIndexMap_[ext.baseHypIndex]];
+                    ext.score += (denseScores and ext.nextToken < denseScores->size())
+                                         ? (*denseScores)[ext.nextToken]
+                                         : (*scoreAccessor)->getScore(ext.transitionType, ext.nextToken);
                     ext.timeframe = std::max(ext.timeframe, (*scoreAccessor)->getTime());
                 }
                 else {

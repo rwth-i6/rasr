@@ -449,12 +449,9 @@ bool LexiconfreeTimesyncBeamSearch::decodeStep() {
                     auto extScore       = hyp.score;
                     auto extTime        = hyp.trace->time;
                     if (labelScorers_[scorerIdx]->scoresTransition(transitionType)) {
-                        if (denseScores and tokenIdx < denseScores->size()) {
-                            extScore += (*denseScores)[tokenIdx];
-                        }
-                        else {
-                            extScore += (*scoreAccessor)->getScore(transitionType, tokenIdx);
-                        }
+                        extScore += (denseScores and tokenIdx < denseScores->size())
+                                            ? (*denseScores)[tokenIdx]
+                                            : (*scoreAccessor)->getScore(transitionType, tokenIdx);
                         extTime = std::max(extTime, scoreTime);
                     }
 

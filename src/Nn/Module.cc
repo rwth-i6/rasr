@@ -194,8 +194,8 @@ Module_::Module_()
     // Feed speech-conditioned prompt into LM as prefix before decoding. Uses StateManager.
     labelScorerFactory_.registerLabelScorer(
             "prefix-speech-lm-onnx",
-            [](Core::Configuration const& config) {
-                return Core::ref(new PrefixSpeechLmOnnxLabelScorer(config));
+            [](Core::Configuration const& config, ModelCache& modelCache) {
+                return Core::ref(new PrefixSpeechLmOnnxLabelScorer(config, modelCache));
             });
 
     // Compute scores based on hidden state tensors.
@@ -215,8 +215,8 @@ Module_::Module_()
     // Compute scores with recurrent ONNX state packing delegated to a StateManager.
     labelScorerFactory_.registerLabelScorer(
             "state-managed-onnx",
-            [](Core::Configuration const& config) {
-                return Core::ref(new StateManagedOnnxLabelScorer(config));
+            [](Core::Configuration const& config, ModelCache& modelCache) {
+                return Core::ref(new StateManagedOnnxLabelScorer(config, modelCache));
             });
 
     // Returns predefined scores based on the transition type of each score request

@@ -28,6 +28,15 @@
 #include <Search/Traceback.hh>
 #include <Search/TracebackHelper.hh>
 
+namespace {
+
+enum RecombinationMode {
+    RecombinationModeOff,
+    RecombinationModeOn,
+};
+
+}  // namespace
+
 namespace Search {
 
 /*
@@ -149,10 +158,11 @@ const Core::ParameterBool TreeTimesyncBeamSearch::paramLogStepwiseStatistics(
         "Log statistics about the beam at every search step.",
         false);
 
-const Core::ParameterBool TreeTimesyncBeamSearch::paramCacheCleanupInterval(
+const Core::ParameterInt TreeTimesyncBeamSearch::paramCacheCleanupInterval(
         "cache-cleanup-interval",
         "Interval of search steps after which buffered inputs that are not needed anymore get cleaned up.",
-        10);
+        10,
+        1);
 
 const Core::ParameterInt TreeTimesyncBeamSearch::paramMaximumStableDelay(
         "maximum-stable-delay",
@@ -166,6 +176,17 @@ const Core::ParameterInt TreeTimesyncBeamSearch::paramMaximumStableDelayPruningI
         "Interval of search steps after which the maximum-stable-delay-pruning gets applied.",
         10,
         1);
+
+const Core::Choice TreeTimesyncBeamSearch::choiceRecombinationMode(
+        "off", RecombinationModeOff,
+        "on", RecombinationModeOn,
+        Core::Choice::endMark());
+
+const Core::ParameterChoice TreeTimesyncBeamSearch::paramRecombinationMode(
+        "recombination-mode",
+        &choiceRecombinationMode,
+        "Whether hypotheses with identical recombination state should be recombined.",
+        RecombinationModeOn);
 
 TreeTimesyncBeamSearch::TreeTimesyncBeamSearch(Core::Configuration const& config)
         : Core::Component(config),
@@ -182,6 +203,7 @@ TreeTimesyncBeamSearch::TreeTimesyncBeamSearch(Core::Configuration const& config
           useBlank_(),
           collapseRepeatedLabels_(paramCollapseRepeatedLabels(config)),
           sentenceEndFallback_(paramSentenceEndFallBack(config)),
+          recombinationEnabled_(paramRecombinationMode(config) == RecombinationModeOn),
           logStepwiseStatistics_(paramLogStepwiseStatistics(config)),
           labelScorers_(),
           nonWordLemmas_(),
@@ -398,9 +420,12 @@ Core::Ref<const LatticeAdaptor> TreeTimesyncBeamSearch::getCurrentBestWordLattic
     auto&        bestHypothesis = getBestHypothesis();
     LatticeTrace endTrace(bestHypothesis.trace, 0, bestHypothesis.trace->time + 1, bestHypothesis.trace->score, {});
 
-    for (size_t hypIdx = 1ul; hypIdx < beam_.size(); ++hypIdx) {
-        auto& hyp          = beam_[hypIdx];
-        auto  siblingTrace = Core::ref(new LatticeTrace(hyp.trace, 0, hyp.trace->time, hyp.trace->score, {}));
+    for (auto const& hyp : beam_) {
+        // The best hypothesis is already represented in endTrace
+        if (&hyp == &bestHypothesis) {
+            continue;
+        }
+        auto siblingTrace = Core::ref(new LatticeTrace(hyp.trace, 0, hyp.trace->time, hyp.trace->score, {}));
         endTrace.appendSiblingToChain(siblingTrace);
     }
 
@@ -889,6 +914,10 @@ template void TreeTimesyncBeamSearch::scorePruning<TreeTimesyncBeamSearch::Withi
 template void TreeTimesyncBeamSearch::scorePruning<TreeTimesyncBeamSearch::WordEndExtensionCandidate>(std::vector<TreeTimesyncBeamSearch::WordEndExtensionCandidate>&, Score, size_t);
 
 void TreeTimesyncBeamSearch::recombination(std::vector<TreeTimesyncBeamSearch::LabelHypothesis>& hypotheses, bool createTraceSiblings) {
+    if (not recombinationEnabled_) {
+        return;
+    }
+
     // Represents a unique combination of StateId, ScoringContext and LmHistory
     struct RecombinationContext {
         StateId                            state;
@@ -1124,14 +1153,12 @@ void TreeTimesyncBeamSearch::maximumStableDelayPruning() {
     auto cutoff = currentSearchStep_ + 1 - maximumStableDelay_;
 
     // Find trace of current best hypothesis that has a recent word-end within the limit
-    auto&                   bestHyp   = beam_.front();
     Score                   bestScore = Core::Type<Score>::max;
     Core::Ref<LatticeTrace> root;
 
     for (auto const& hyp : beam_) {
         if (hyp.score < bestScore and hyp.trace->time >= cutoff) {
             bestScore = hyp.score;
-            bestHyp   = hyp;
             root      = hyp.trace;
         }
     }

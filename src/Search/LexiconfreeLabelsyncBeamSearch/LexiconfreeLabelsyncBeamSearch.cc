@@ -27,6 +27,15 @@
 
 namespace Search {
 
+namespace {
+
+enum RecombinationMode {
+    RecombinationModeOff,
+    RecombinationModeOn,
+};
+
+}  // namespace
+
 /*
  * =======================
  * === LabelHypothesis ===
@@ -139,15 +148,27 @@ const Core::ParameterFloat LexiconfreeLabelsyncBeamSearch::paramMaxLabelsPerTime
         "Maximum number of emitted labels per input timestep counted via `addInput`/`addInputs`.",
         1.0);
 
+const Core::Choice LexiconfreeLabelsyncBeamSearch::choiceRecombinationMode(
+        "off", RecombinationModeOff,
+        "on", RecombinationModeOn,
+        Core::Choice::endMark());
+
+const Core::ParameterChoice LexiconfreeLabelsyncBeamSearch::paramRecombinationMode(
+        "recombination-mode",
+        &choiceRecombinationMode,
+        "Whether hypotheses with identical recombination state should be recombined.",
+        RecombinationModeOn);
+
 const Core::ParameterBool LexiconfreeLabelsyncBeamSearch::paramLogStepwiseStatistics(
         "log-stepwise-statistics",
         "Log statistics about the beam at every search step.",
         false);
 
-const Core::ParameterBool LexiconfreeLabelsyncBeamSearch::paramCacheCleanupInterval(
+const Core::ParameterInt LexiconfreeLabelsyncBeamSearch::paramCacheCleanupInterval(
         "cache-cleanup-interval",
         "Interval of search steps after which buffered inputs that are not needed anymore get cleaned up.",
-        10);
+        10,
+        1);
 
 LexiconfreeLabelsyncBeamSearch::LexiconfreeLabelsyncBeamSearch(Core::Configuration const& config)
         : Core::Component(config),
@@ -156,6 +177,7 @@ LexiconfreeLabelsyncBeamSearch::LexiconfreeLabelsyncBeamSearch(Core::Configurati
           lengthNormScale_(paramLengthNormScale(config)),
           maxLabelsPerTimestep_(paramMaxLabelsPerTimestep(config)),
           sentenceEndLabelIndex_(paramSentenceEndLabelIndex(config)),
+          recombinationEnabled_(paramRecombinationMode(config) == RecombinationModeOn),
           logStepwiseStatistics_(paramLogStepwiseStatistics(config)),
           cacheCleanupInterval_(paramCacheCleanupInterval(config)),
           debugChannel_(config, "debug"),
@@ -305,7 +327,7 @@ Core::Ref<const LatticeAdaptor> LexiconfreeLabelsyncBeamSearch::getCurrentBestWo
     LatticeTrace endTrace(bestHypothesis.trace, 0, bestHypothesis.trace->time + 1, bestHypothesis.trace->score, {});
 
     for (auto const& hyp : beam_) {
-        if (hyp.isActive != bestHypothesis.isActive) {
+        if (&hyp == &bestHypothesis or hyp.isActive != bestHypothesis.isActive) {
             continue;
         }
         auto siblingTrace = Core::ref(new LatticeTrace(hyp.trace, 0, hyp.trace->time, hyp.trace->score, {}));
@@ -793,6 +815,10 @@ void LexiconfreeLabelsyncBeamSearch::scorePruning(std::vector<Element>& hypothes
 }
 
 void LexiconfreeLabelsyncBeamSearch::recombination() {
+    if (not recombinationEnabled_) {
+        return;
+    }
+
     // Represents a unique combination of currentToken and scoringContext
     struct RecombinationContext {
         Nn::LabelIndex                     currentToken;

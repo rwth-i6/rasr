@@ -11,6 +11,11 @@ add_compile_options(
     -Wno-long-long
     -Wno-deprecated
     -fno-strict-aliasing
+    "$<$<COMPILE_LANGUAGE:CXX>:-Werror=format-security>"
+    "$<$<COMPILE_LANGUAGE:CXX>:-Werror=reorder>"
+    "$<$<COMPILE_LANGUAGE:CXX>:-Werror=return-type>"
+    "$<$<COMPILE_LANGUAGE:CXX>:-Werror=delete-non-virtual-dtor>"
+    "$<$<COMPILE_LANGUAGE:CXX>:-Werror=unused-but-set-variable>"
 )
 
 if(CMAKE_SYSTEM_PROCESSOR MATCHES "^(x86_64|AMD64|i[3-6]86)$")

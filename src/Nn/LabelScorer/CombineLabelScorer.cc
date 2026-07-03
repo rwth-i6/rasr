@@ -22,6 +22,44 @@ namespace {
 using namespace Nn;
 
 /*
+ * Combines multiple scoring contexts at once
+ */
+struct CombineScoringContext : public ScoringContext {
+    std::vector<ScoringContextRef> scoringContexts;
+
+    CombineScoringContext()
+            : scoringContexts() {}
+
+    CombineScoringContext(std::vector<ScoringContextRef>&& scoringContexts)
+            : scoringContexts(scoringContexts) {}
+
+    bool isEqual(ScoringContextRef const& other) const {
+        auto* otherPtr = dynamic_cast<CombineScoringContext const*>(other.get());
+
+        if (otherPtr == nullptr) {
+            return false;
+        }
+
+        return std::equal(
+                scoringContexts.begin(),
+                scoringContexts.end(),
+                otherPtr->scoringContexts.begin(),
+                otherPtr->scoringContexts.end(),
+                [](auto const& sc1, auto const& sc2) {
+                    return sc1->isEqual(sc2);
+                });
+    }
+
+    size_t hash() const {
+        size_t value = 0ul;
+        for (auto const& scoringContext : scoringContexts) {
+            value = Core::combineHashes(value, scoringContext->hash());
+        }
+        return value;
+    }
+};
+
+/*
  * Score accessor that contains a list of sub-accessors and adds up the scores they return
  */
 class CombinedScoreAccessor : public ScoreAccessor {
@@ -58,13 +96,13 @@ namespace Nn {
 Core::ParameterInt CombineLabelScorer::paramNumLabelScorers(
         "num-scorers", "Number of label scorers to combine", 1, 1);
 
-CombineLabelScorer::CombineLabelScorer(Core::Configuration const& config)
+CombineLabelScorer::CombineLabelScorer(Core::Configuration const& config, ModelCache& modelCache)
         : Core::Component(config),
           Precursor(config, TransitionPresetType::ALL) {
     size_t numLabelScorers = paramNumLabelScorers(config);
     for (size_t i = 0ul; i < numLabelScorers; ++i) {
         Core::Configuration subConfig = select(std::string("scorer-") + std::to_string(i + 1));
-        scorers_.push_back(Nn::Module::instance().labelScorerFactory().createLabelScorer(subConfig));
+        scorers_.push_back(Nn::Module::instance().labelScorerFactory().createLabelScorer(subConfig, modelCache));
         enabledTransitions_.enableIntersection(scorers_.back()->enabledTransitions());
     }
 }

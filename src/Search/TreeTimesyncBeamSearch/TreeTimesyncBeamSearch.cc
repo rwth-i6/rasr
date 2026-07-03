@@ -158,10 +158,11 @@ const Core::ParameterBool TreeTimesyncBeamSearch::paramLogStepwiseStatistics(
         "Log statistics about the beam at every search step.",
         false);
 
-const Core::ParameterBool TreeTimesyncBeamSearch::paramCacheCleanupInterval(
+const Core::ParameterInt TreeTimesyncBeamSearch::paramCacheCleanupInterval(
         "cache-cleanup-interval",
         "Interval of search steps after which buffered inputs that are not needed anymore get cleaned up.",
-        10);
+        10,
+        1);
 
 const Core::ParameterInt TreeTimesyncBeamSearch::paramMaximumStableDelay(
         "maximum-stable-delay",
@@ -419,9 +420,12 @@ Core::Ref<const LatticeAdaptor> TreeTimesyncBeamSearch::getCurrentBestWordLattic
     auto&        bestHypothesis = getBestHypothesis();
     LatticeTrace endTrace(bestHypothesis.trace, 0, bestHypothesis.trace->time + 1, bestHypothesis.trace->score, {});
 
-    for (size_t hypIdx = 1ul; hypIdx < beam_.size(); ++hypIdx) {
-        auto& hyp          = beam_[hypIdx];
-        auto  siblingTrace = Core::ref(new LatticeTrace(hyp.trace, 0, hyp.trace->time, hyp.trace->score, {}));
+    for (auto const& hyp : beam_) {
+        // The best hypothesis is already represented in endTrace
+        if (&hyp == &bestHypothesis) {
+            continue;
+        }
+        auto siblingTrace = Core::ref(new LatticeTrace(hyp.trace, 0, hyp.trace->time, hyp.trace->score, {}));
         endTrace.appendSiblingToChain(siblingTrace);
     }
 
@@ -1115,14 +1119,12 @@ void TreeTimesyncBeamSearch::maximumStableDelayPruning() {
     auto cutoff = currentSearchStep_ + 1 - maximumStableDelay_;
 
     // Find trace of current best hypothesis that has a recent word-end within the limit
-    auto&                   bestHyp   = beam_.front();
     Score                   bestScore = Core::Type<Score>::max;
     Core::Ref<LatticeTrace> root;
 
     for (auto const& hyp : beam_) {
         if (hyp.score < bestScore and hyp.trace->time >= cutoff) {
             bestScore = hyp.score;
-            bestHyp   = hyp;
             root      = hyp.trace;
         }
     }

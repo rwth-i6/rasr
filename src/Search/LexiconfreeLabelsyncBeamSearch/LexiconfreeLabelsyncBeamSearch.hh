@@ -49,7 +49,6 @@ public:
     static const Core::ParameterInt         paramCacheCleanupInterval;
     static const Core::ParameterFloat       paramLengthNormScale;
     static const Core::ParameterFloat       paramMaxLabelsPerTimestep;
-    static const Core::ParameterBool        paramLogStepwiseStatistics;
     static const Core::Choice               choiceRecombinationMode;
     static const Core::ParameterChoice      paramRecombinationMode;
     static const Core::ParameterBool        paramLogStepwiseStatistics;

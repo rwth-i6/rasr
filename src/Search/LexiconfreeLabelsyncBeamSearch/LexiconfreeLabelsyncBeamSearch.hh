@@ -165,14 +165,14 @@ private:
     size_t totalTimesteps_;
     bool   finishedSegment_;
 
-    LabelHypothesis const* getBestTerminatedHypothesis() const;
-    LabelHypothesis const* getWorstTerminatedHypothesis() const;
+    LabelHypothesis const* getBestTerminatedHypothesis(std::vector<LabelHypothesis> const& hypotheses) const;
+    LabelHypothesis const* getWorstTerminatedHypothesis(std::vector<LabelHypothesis> const& hypotheses) const;
 
-    LabelHypothesis const* getBestActiveHypothesis() const;
-    LabelHypothesis const* getWorstActiveHypothesis() const;
+    LabelHypothesis const* getBestActiveHypothesis(std::vector<LabelHypothesis> const& hypotheses) const;
+    LabelHypothesis const* getWorstActiveHypothesis(std::vector<LabelHypothesis> const& hypotheses) const;
 
-    LabelHypothesis const& getBestHypothesis() const;
-    LabelHypothesis const& getWorstHypothesis() const;
+    LabelHypothesis const& getBestHypothesis(std::vector<LabelHypothesis> const& hypotheses) const;
+    LabelHypothesis const& getWorstHypothesis(std::vector<LabelHypothesis> const& hypotheses) const;
 
     void logStatistics() const;
 

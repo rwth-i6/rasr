@@ -191,7 +191,6 @@ LexiconfreeLabelsyncBeamSearch::LexiconfreeLabelsyncBeamSearch(Core::Configurati
           initializationTime_(),
           featureProcessingTime_(),
           scoringTime_(),
-          contextExtensionTime_(),
           numHypsAfterIntermediatePruning_(),
           numTerminatedHypsAfterScorePruning_("num-termianted-hyps-after-score-pruning"),
           numTerminatedHypsAfterRecombination_("num-terminated-hyps-after-recombination"),
@@ -261,10 +260,14 @@ void LexiconfreeLabelsyncBeamSearch::enterSegment(Bliss::SpeechSegment const* se
     initializationTime_.reset();
     featureProcessingTime_.reset();
     scoringTime_.reset();
-    contextExtensionTime_.reset();
+    for (auto& stat : numHypsAfterIntermediatePruning_) {
+        stat.clear();
+    }
     numTerminatedHypsAfterScorePruning_.clear();
+    numTerminatedHypsAfterRecombination_.clear();
     numTerminatedHypsAfterBeamPruning_.clear();
     numActiveHypsAfterScorePruning_.clear();
+    numActiveHypsAfterRecombination_.clear();
     numActiveHypsAfterBeamPruning_.clear();
 
     initializationTime_.start();
@@ -402,6 +405,9 @@ bool LexiconfreeLabelsyncBeamSearch::decodeStep() {
 
     for (size_t scorerIdx = 0ul; scorerIdx < labelScorers_.size(); ++scorerIdx) {
         auto const& labelScorer = labelScorers_[scorerIdx];
+        /*
+         * Perform scoring of all the scoring contexts with the label scorer.
+         */
         scoringTime_.start();
         auto scoreAccessors = labelScorer->getScoreAccessors(scoringContexts_);
         scoringTime_.stop();
@@ -462,7 +468,7 @@ bool LexiconfreeLabelsyncBeamSearch::decodeStep() {
         else {
             // Update ext score and timestep
             for (auto& ext : extensions_) {
-                if (not labelScorers_[scorerIdx]->scoresTransition(ext.transitionType)) {
+                if (not labelScorer->scoresTransition(ext.transitionType)) {
                     continue;
                 }
                 auto const& scoreAccessor = scoreAccessors[hypIndexToContextIndexMap_[ext.baseHypIndex]];
@@ -485,6 +491,9 @@ bool LexiconfreeLabelsyncBeamSearch::decodeStep() {
             return false;
         }
 
+        /*
+         * Prune set of possible extensions by max beam size and possibly also by score.
+         */
         size_t maxBeamSize = extensions_.size();
         if (scorerIdx < labelScorers_.size() - 1) {
             maxBeamSize = maxBeamSizes_[scorerIdx];
@@ -627,7 +636,7 @@ bool LexiconfreeLabelsyncBeamSearch::decodeStep() {
 
     if (logStepwiseStatistics_) {
         auto const* bestTerminatedHyp  = getBestTerminatedHypothesis(beam_);
-        auto const* worstTerminatedHyp = getWorstActiveHypothesis(beam_);
+        auto const* worstTerminatedHyp = getWorstTerminatedHypothesis(beam_);
         auto const* bestActiveHyp      = getBestActiveHypothesis(beam_);
         auto const* worstActiveHyp     = getWorstActiveHypothesis(beam_);
         if (bestTerminatedHyp != nullptr) {
@@ -733,7 +742,6 @@ void LexiconfreeLabelsyncBeamSearch::logStatistics() const {
     clog() << Core::XmlOpen("initialization-time") << initializationTime_.elapsedMilliseconds() << Core::XmlClose("initialization-time");
     clog() << Core::XmlOpen("feature-processing-time") << featureProcessingTime_.elapsedMilliseconds() << Core::XmlClose("feature-processing-time");
     clog() << Core::XmlOpen("scoring-time") << scoringTime_.elapsedMilliseconds() << Core::XmlClose("scoring-time");
-    clog() << Core::XmlOpen("context-extension-time") << contextExtensionTime_.elapsedMilliseconds() << Core::XmlClose("context-extension-time");
     clog() << Core::XmlClose("timing-statistics");
     for (auto const& stat : numHypsAfterIntermediatePruning_) {
         stat.write(clog());

@@ -25,9 +25,6 @@
 #include "AlignmentNode.hh"
 #include "Module.hh"
 
-/*! @todo: remove Modules.hh dependency (see below) */
-#include <Modules.hh>
-
 using namespace Speech;
 
 /**

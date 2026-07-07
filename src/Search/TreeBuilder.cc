@@ -120,7 +120,7 @@ MinimizedTreeBuilder::MinimizedTreeBuilder(Core::Configuration config, const Bli
     if (allowCrossWordSkips_) {
         Score skipPenalty    = acousticModel_.stateTransition(0)->operator[](Am::StateTransitionModel::skip);
         Score forwardPenalty = acousticModel_.stateTransition(0)->operator[](Am::StateTransitionModel::forward);
-        for (u32 t = 0; t < acousticModel_.nStateTransitions(); ++t) {
+        for (u32 t = 0; t < static_cast<u32>(acousticModel_.nStateTransitions()); ++t) {
             Score modelPenalty        = acousticModel_.stateTransition(t)->operator[](Am::StateTransitionModel::skip);
             Score modelForwardPenalty = acousticModel_.stateTransition(t)->operator[](Am::StateTransitionModel::forward);
             if (modelPenalty != skipPenalty)
@@ -286,7 +286,7 @@ void MinimizedTreeBuilder::buildBody() {
 
         std::pair<Bliss::Pronunciation::LemmaIterator, Bliss::Pronunciation::LemmaIterator> lemmaProns = pron.lemmas();
 
-        if (pronLength - 1 < minPhones_ || !isContextDependent(phones[pronLength - 1])) {
+        if (pronLength - 1 < static_cast<u32>(minPhones_) || !isContextDependent(phones[pronLength - 1])) {
             // Statically expand the fan-out.
             for (std::set<Bliss::Phoneme::Id>::iterator initialIt = initialPhonemes_.begin(); initialIt != initialPhonemes_.end(); ++initialIt) {
                 std::pair<StateId, StateId> tail = extendPhone(currentState.second, pronLength - 1, phones, Bliss::Phoneme::term, *initialIt);
@@ -634,12 +634,12 @@ void MinimizedTreeBuilder::hmmFromAllophone(HMMSequence&       ret,
 
     const Am::ClassicHmmTopology* hmmTopology = acousticModel_.hmmTopology(central);
 
-    for (u32 phoneState = 0; phoneState < hmmTopology->nPhoneStates(); ++phoneState) {
+    for (u32 phoneState = 0; phoneState < static_cast<u32>(hmmTopology->nPhoneStates()); ++phoneState) {
         Am::AllophoneState   alloState = acousticModel_.allophoneStateAlphabet()->allophoneState(allophone, phoneState);
         StateTree::StateDesc desc;
         desc.acousticModel = acousticModel_.emissionIndex(alloState);  // Decision tree look-up for CART id.
 
-        for (u32 subState = 0; subState < hmmTopology->nSubStates(); ++subState) {
+        for (u32 subState = 0; subState < static_cast<u32>(hmmTopology->nSubStates()); ++subState) {
             desc.transitionModelIndex = acousticModel_.stateTransitionIndex(alloState, subState);
             verify(desc.transitionModelIndex < Core::Type<StateTree::StateDesc::TransitionModelIndex>::max);
 
@@ -702,7 +702,7 @@ std::pair<AbstractTreeBuilder::StateId, AbstractTreeBuilder::StateId> MinimizedT
         currentState = extendBodyState(currentState, left, phones[phoneIndex], hmm[hmmState++]);
     }
 
-    for (; hmmState < hmm.length; ++hmmState) {
+    for (; hmmState < static_cast<u32>(hmm.length); ++hmmState) {
         previousState = currentState;
         currentState  = extendState(currentState, hmm[hmmState]);
     }
@@ -1218,11 +1218,16 @@ StateId SharedBaseClassTreeBuilder::createRoot() {
     return createState(StateTree::StateDesc(Search::StateTree::invalidAcousticModel, Am::TransitionModel::entryM1));
 }
 
-StateId SharedBaseClassTreeBuilder::extendState(StateId predecessor, StateTree::StateDesc desc) {
+StateId SharedBaseClassTreeBuilder::extendState(StateId predecessor, StateTree::StateDesc desc, bool ignoreLoops) {
     // Check if the successor already exists
     for (HMMStateNetwork::SuccessorIterator target = network_.structure.successors(predecessor); target; ++target) {
         if (!target.isLabel() && network_.structure.state(*target).stateDesc == desc) {
-            return *target;
+            if (*target == predecessor && ignoreLoops) {
+                continue;
+            }
+            else {
+                return *target;
+            }
         }
     }
 
@@ -1284,17 +1289,11 @@ const Core::ParameterBool CtcTreeBuilder::paramForceBlank(
         "require a blank label between two identical labels (only works if label-loops are disabled)",
         true);
 
-const Core::ParameterBool CtcTreeBuilder::paramAllowBlankAfterSentenceEnd(
-        "allow-blank-after-sentence-end",
-        "blanks can still be produced after the sentence-end has been reached",
-        true);
-
 CtcTreeBuilder::CtcTreeBuilder(Core::Configuration config, const Bliss::Lexicon& lexicon, const Am::AcousticModel& acousticModel, Search::PersistentStateTree& network, bool initialize)
         : SharedBaseClassTreeBuilder(config, lexicon, acousticModel, network),
           labelLoop_(paramLabelLoop(config)),
           blankLoop_(paramBlankLoop(config)),
-          forceBlank_(paramForceBlank(config)),
-          allowBlankAfterSentenceEnd_(paramAllowBlankAfterSentenceEnd(config)) {
+          forceBlank_(paramForceBlank(config)) {
     auto iters = lexicon.phonemeInventory()->phonemes();
     for (auto it = iters.first; it != iters.second; ++it) {
         require(not(*it)->isContextDependent());  // Context dependent labels are not supported
@@ -1317,24 +1316,10 @@ CtcTreeBuilder::CtcTreeBuilder(Core::Configuration config, const Bliss::Lexicon&
             network_.otherRootStates.insert(wordBoundaryRoot_);
         }
 
-        // Create a special root for sentence-end
-        auto sentenceEndLemma = getSentenceEndLemma();
-        if (sentenceEndLemma == nullptr or sentenceEndLemma->nPronunciations() == 0) {
-            if (sentenceEndLemma != nullptr) {
-                warning() << "Building tree without sentence-end which means it may also not be scored by a LabelScorer or an LM in SearchAlgorithmV2 implementations";
-            }
-
-            // If no sentence-end is present, any root state is a valid final state
-            network_.finalStates.insert(network_.rootState);
-            for (auto const& otherRootState : network_.otherRootStates) {
-                network_.finalStates.insert(otherRootState);
-            }
-        }
-        else {
-            // If sentence-end is present, the sink state is the only valid final state
-            sentenceEndSink_ = createRoot();
-            network_.otherRootStates.insert(sentenceEndSink_);
-            network_.finalStates.insert(sentenceEndSink_);
+        // Any root state is a valid final state
+        network_.finalStates.insert(network_.rootState);
+        for (auto const& otherRootState : network_.otherRootStates) {
+            network_.finalStates.insert(otherRootState);
         }
     }
 }
@@ -1351,9 +1336,6 @@ void CtcTreeBuilder::build() {
 
     auto sentenceBeginLemma = lexicon_.specialLemma("sentence-begin");
     auto sentenceEndLemma   = getSentenceEndLemma();
-    if (sentenceEndLemma != nullptr and sentenceEndLemma->nPronunciations() > 0) {
-        addSentenceEndStates();
-    }
 
     auto blankLemma   = lexicon_.specialLemma("blank");
     auto silenceLemma = lexicon_.specialLemma("silence");
@@ -1362,10 +1344,12 @@ void CtcTreeBuilder::build() {
     // Iterate over the lemmata and add them to the tree
     for (auto it = iters.first; it != iters.second; ++it) {
         if ((*it)->lemma() == wordBoundaryLemma or (*it)->lemma() == sentenceEndLemma or (*it)->lemma() == sentenceBeginLemma) {
-            // Word-boundary and sentence-end lemmas are handled separately by `addWordBoundaryStates` and `addSentenceEndStates`
-            // Sentence-begin is not part of the tree
+            // The wordBoundaryLemma should be a successor of the wordBoundaryRoot_, this is handled separately in addWordBoundaryStates()
+            // Sentence-end and sentence-begin should not be part of the tree, they are handled in the search algorithms
             continue;
         }
+
+        require((*it)->pronunciation()->length() > 0);
 
         StateId lastState = extendPronunciation(network_.rootState, (*it)->pronunciation());
 
@@ -1401,12 +1385,12 @@ StateId CtcTreeBuilder::extendPronunciation(StateId startState, Bliss::Pronuncia
         const Am::ClassicHmmTopology*        hmmTopology      = acousticModel_.hmmTopology(phoneme);
         const bool                           allophoneIsBlank = acousticModel_.allophoneStateAlphabet()->index(allophone, 0, false) == blankAllophoneStateIndex_;
 
-        for (u32 phoneState = 0; phoneState < hmmTopology->nPhoneStates(); ++phoneState) {
+        for (u32 phoneState = 0; phoneState < static_cast<u32>(hmmTopology->nPhoneStates()); ++phoneState) {
             Am::AllophoneState   alloState = acousticModel_.allophoneStateAlphabet()->allophoneState(allophone, phoneState);
             StateTree::StateDesc desc;
             desc.acousticModel = acousticModel_.emissionIndex(alloState);  // state-tying look-up
 
-            for (u32 subState = 0; subState < hmmTopology->nSubStates(); ++subState) {
+            for (u32 subState = 0; subState < static_cast<u32>(hmmTopology->nSubStates()); ++subState) {
                 desc.transitionModelIndex = acousticModel_.stateTransitionIndex(alloState, subState);
                 verify(desc.transitionModelIndex < Core::Type<StateTree::StateDesc::TransitionModelIndex>::max);
 
@@ -1426,7 +1410,7 @@ StateId CtcTreeBuilder::extendPronunciation(StateId startState, Bliss::Pronuncia
                 }
                 prevNonBlankState = currentState;
 
-                bool isLastStateInLemma = ((phoneState + 1) == hmmTopology->nPhoneStates()) and ((subState + 1) == hmmTopology->nSubStates()) and (boundary & Am::Allophone::isFinalPhone);
+                bool isLastStateInLemma = ((phoneState + 1) == static_cast<u32>(hmmTopology->nPhoneStates())) and ((subState + 1) == static_cast<u32>(hmmTopology->nSubStates())) and (boundary & Am::Allophone::isFinalPhone);
                 if (not allophoneIsBlank and not isLastStateInLemma) {
                     // Add blank state after the newly created state
                     currentState = extendState(currentState, blankDesc_);
@@ -1477,29 +1461,6 @@ void CtcTreeBuilder::addWordBoundaryStates() {
     if (blankLoop_) {
         // Add loop for this blank state
         addTransition(blankBefore, blankBefore);
-    }
-}
-
-void CtcTreeBuilder::addSentenceEndStates() {
-    auto sentenceEndLemma = getSentenceEndLemma();
-    if (sentenceEndLemma == nullptr) {
-        return;
-    }
-
-    // Add the sentence-end to the tree, starting from the root.
-    require(sentenceEndLemma->nPronunciations() == 1);  // Sentence-end must have at least one pronunciation, even if it is empty.
-    auto const& sentenceEndPron = *sentenceEndLemma->pronunciations().first;
-    // It may be that sentenceEndLastState == root if the pronunciation has length 0.
-    StateId sentenceEndLastState = extendPronunciation(network_.rootState, sentenceEndPron.pronunciation());
-    verify(sentenceEndLastState != 0);
-
-    addExit(sentenceEndLastState, sentenceEndSink_, sentenceEndPron.id());
-
-    // Add optional blank after the sentence-end lemma
-    if (allowBlankAfterSentenceEnd_) {
-        StateId     blankAfter = extendState(sentenceEndSink_, blankDesc_);
-        auto const& blankPron  = lexicon_.specialLemma("blank")->pronunciations().first;
-        addExit(blankAfter, sentenceEndSink_, blankPron->id());
     }
 }
 
@@ -1605,12 +1566,12 @@ StateId AedTreeBuilder::extendPronunciation(StateId startState, Bliss::Pronuncia
         const Am::Allophone*                 allophone   = acousticModel_.allophoneAlphabet()->allophone(Am::Allophone(Bliss::ContextPhonology::PhonemeInContext(phoneme, history, future), boundary));
         const Am::ClassicHmmTopology*        hmmTopology = acousticModel_.hmmTopology(phoneme);
 
-        for (u32 phoneState = 0; phoneState < hmmTopology->nPhoneStates(); ++phoneState) {
+        for (u32 phoneState = 0; phoneState < static_cast<u32>(hmmTopology->nPhoneStates()); ++phoneState) {
             Am::AllophoneState   alloState = acousticModel_.allophoneStateAlphabet()->allophoneState(allophone, phoneState);
             StateTree::StateDesc desc;
             desc.acousticModel = acousticModel_.emissionIndex(alloState);  // state-tying look-up
 
-            for (u32 subState = 0; subState < hmmTopology->nSubStates(); ++subState) {
+            for (u32 subState = 0; subState < static_cast<u32>(hmmTopology->nSubStates()); ++subState) {
                 desc.transitionModelIndex = acousticModel_.stateTransitionIndex(alloState, subState);
                 verify(desc.transitionModelIndex < Core::Type<StateTree::StateDesc::TransitionModelIndex>::max);
 
@@ -1641,4 +1602,262 @@ void AedTreeBuilder::addWordBoundaryStates() {
 
     // The "normal" root is the transition state from the word-boundary token, such that a new word can be started afterwards
     addExit(wordBoundaryEnd, network_.rootState, wordBoundaryPronLemma->id());
+}
+
+// -------------------- HmmTreeBuilder --------------------
+
+const Core::ParameterBool HmmTreeBuilder::paramAddCiTransitions(
+        "add-ci-transitions",
+        "Whether context-independent acoustic transitions should be inserted between words. Useful for non-fluid speech, specifically when the training data consistent of fluid speech",
+        false);
+
+HmmTreeBuilder::HmmTreeBuilder(Core::Configuration config, const Bliss::Lexicon& lexicon, const Am::AcousticModel& acousticModel, Search::PersistentStateTree& network, bool initialize)
+        : SharedBaseClassTreeBuilder(config, lexicon, acousticModel, network),
+          addCiTransitions_(paramAddCiTransitions(config)) {
+    const auto iters = lexicon.phonemeInventory()->phonemes();
+
+    if (initialize) {
+        warning() << "The HmmTreeBuilder is currently experimental and has not been fully tested. Some edge cases or input configurations may not be handled correctly yet.";
+        verify(lexicon.specialLemma("silence") != nullptr);
+        verify(!network_.rootState);
+        network_.ciRootState = network_.rootState = createRoot();  // context-independent root
+
+        network_.finalStates.insert(network_.rootState);
+
+        for (auto it = iters.first; it != iters.second; ++it) {
+            const auto* phoneme = *it;
+
+            if (phoneme->isContextDependent()) {
+                // Create coarticulated root states for context dependent phonemes
+                const StateId root = createRoot();
+                network_.coarticulatedRootStates.insert(root);
+                network_.finalStates.insert(root);
+                rootPhonemeMap_.insert({phoneme->id(), root});  // Collect them in a map so we can later identify the root belonging to a phoneme
+            }
+            else {
+                rootPhonemeMap_.insert({phoneme->id(), network_.rootState});
+            }
+        }
+    }
+}
+
+std::unique_ptr<AbstractTreeBuilder> HmmTreeBuilder::newInstance(Core::Configuration config, const Bliss::Lexicon& lexicon, const Am::AcousticModel& acousticModel, Search::PersistentStateTree& network, bool initialize) {
+    return std::unique_ptr<AbstractTreeBuilder>(new HmmTreeBuilder(config, lexicon, acousticModel, network));
+}
+
+void HmmTreeBuilder::build() {
+    const auto iters = lexicon_.lemmaPronunciations();
+
+    // Pass 1: Iterate over lemmas and add them to the tree starting from the global root
+    for (auto it = iters.first; it != iters.second; ++it) {
+        const auto*   pron      = (*it)->pronunciation();
+        const StateId lastState = extendPronunciation(network_.rootState, Bliss::Phoneme::term, pron);
+
+        const Bliss::Phoneme::Id lastPhoneme = (*pron)[pron->length() - 1];
+        if (lastPhoneme == Bliss::Phoneme::term) {  // e.g., silence and unknown
+            addExit(lastState, network_.rootState, (*it)->id());
+        }
+        else {
+            // Transit to the correct context dependent root for the last phoneme
+            addExit(lastState, rootPhonemeMap_[lastPhoneme], (*it)->id());
+            if (addCiTransitions_) {
+                addExit(lastState, network_.rootState, (*it)->id());
+            }
+        }
+    }
+
+    // Pass 2: Append lemmas to context-dependent root states
+    // Only create the first phoneme generation, the second generation connects to the already existing states
+    for (auto it = iters.first; it != iters.second; ++it) {
+        const auto*              pron        = (*it)->pronunciation();
+        const Bliss::Phoneme::Id lastPhoneme = (*pron)[pron->length() - 1];
+
+        for (const auto& kv : rootPhonemeMap_) {
+            const Bliss::Phoneme::Id contextPhoneme = kv.first;
+            const StateId            contextRoot    = kv.second;
+
+            // Lemma consists of only one phoneme
+            if (pron->length() == 1) {
+                // For non-context dependent phonemes there is already a state reachable from the context-independent root state
+                // so just add a transtion from the context-dependent root to this state
+                if (not acousticModel_.phonemeInventory()->phoneme(lastPhoneme)->isContextDependent()) {
+                    if (contextRoot != network_.rootState) {
+                        const StateId firstState = extendPronunciation(network_.rootState, contextPhoneme, pron, true);  // the state already exists, use this to get its ID
+                        addTransition(contextRoot, firstState);
+                    }
+                }
+                // For context dependent phonemes, add this phoneme-state, make it reachable from context-dependent root and add exit to its context-dependent root
+                else {
+                    const StateId lastState = extendPronunciation(contextRoot, contextPhoneme, pron);
+                    addExit(lastState, rootPhonemeMap_[lastPhoneme], (*it)->id());
+                    if (addCiTransitions_) {
+                        addExit(lastState, network_.rootState, (*it)->id());
+                    }
+                }
+            }
+            // Special handling for lemmas with more than one phoneme
+            else {
+                if (acousticModel_.phonemeInventory()->phoneme(lastPhoneme)->isContextDependent() and lastPhoneme != Bliss::Phoneme::term) {
+                    connectRoot(contextRoot, contextPhoneme, pron);
+                }
+            }
+        }
+    }
+}
+
+StateId HmmTreeBuilder::extendPronunciation(StateId                     startState,
+                                            Bliss::Phoneme::Id          startContext,
+                                            const Bliss::Pronunciation* pron,
+                                            bool                        returnFirstState) {
+    require(pron != nullptr);
+
+    StateId currentState = startState;
+
+    Bliss::ContextPhonology::SemiContext history, future;
+    Bliss::Phoneme::Id                   left  = startContext;
+    Bliss::Phoneme::Id                   right = Bliss::Phoneme::term;  // only diphones are supported, a right context is not necessary
+
+    for (u32 i = 0u; i < pron->length(); ++i) {
+        const Bliss::Phoneme::Id phoneme = (*pron)[i];
+
+        u32 boundary = 0u;
+        if (i == 0) {
+            boundary |= Am::Allophone::isInitialPhone;
+        }
+        if ((i + 1) == pron->length()) {
+            boundary |= Am::Allophone::isFinalPhone;
+        }
+
+        HMMSequence hmm;
+        hmmFromAllophone(hmm, left, phoneme, right, &history, &future, boundary);
+
+        for (u32 j = 0u; j < hmm.length; ++j) {
+            currentState = extendState(currentState, hmm[j], true);  // add new state
+            addTransition(currentState, currentState);               // add self-loop
+
+            if (returnFirstState and j == 0) {
+                return currentState;
+            }
+
+            // Collect states of the second phoneme generation for later connections
+            if (i == 1u and j == 0u) {
+                if (secondGenPhonemes_.find(hmm[j]) == secondGenPhonemes_.end()) {
+                    secondGenPhonemes_.insert({hmm[j], currentState});
+                }
+            }
+        }
+        left = phoneme;  // new left context for the next state
+    }
+
+    return currentState;
+}
+
+void HmmTreeBuilder::hmmFromAllophone(HMMSequence&                          ret,
+                                      Bliss::Phoneme::Id                    left,
+                                      Bliss::Phoneme::Id                    central,
+                                      Bliss::Phoneme::Id                    right,
+                                      Bliss::ContextPhonology::SemiContext* history,
+                                      Bliss::ContextPhonology::SemiContext* future,
+                                      u32                                   boundary) {
+    verify(ret.length == 0);
+    verify(central != Bliss::Phoneme::term);
+    verify(acousticModel_.phonemeInventory()->isValidPhonemeId(central));
+    verify(right == Bliss::Phoneme::term);  // only diphones are supported
+
+    Bliss::ContextPhonology::PhonemeInContext contextPhoneme(central, *history, *future);
+
+    if (acousticModel_.phonemeInventory()->phoneme(central)->isContextDependent()) {
+        if (acousticModel_.phonemeInventory()->isValidPhonemeId(left) && acousticModel_.phonemeInventory()->phoneme(left)->isContextDependent()) {
+            acousticModel_.allophoneAlphabet()->phonology()->pushHistory(contextPhoneme, left);
+            *history = contextPhoneme.history();
+        }
+    }
+
+    const Am::Allophone*          allophone   = acousticModel_.allophoneAlphabet()->allophone(Am::Allophone(contextPhoneme, boundary));
+    const Am::ClassicHmmTopology* hmmTopology = acousticModel_.hmmTopology(central);
+
+    for (u32 phoneState = 0; phoneState < hmmTopology->nPhoneStates(); ++phoneState) {
+        const Am::AllophoneState alloState = acousticModel_.allophoneStateAlphabet()->allophoneState(allophone, phoneState);
+
+        StateTree::StateDesc desc;
+        desc.acousticModel = acousticModel_.emissionIndex(alloState);  // state-tying look-up
+
+        for (u32 subState = 0; subState < hmmTopology->nSubStates(); ++subState) {
+            desc.transitionModelIndex = acousticModel_.stateTransitionIndex(alloState, subState);
+            verify(desc.transitionModelIndex < Core::Type<StateTree::StateDesc::TransitionModelIndex>::max);
+
+            ret.hmm[ret.length] = desc;
+            ++ret.length;
+        }
+    }
+}
+
+StateId HmmTreeBuilder::connectRoot(StateId                     startState,
+                                    Bliss::Phoneme::Id          startContext,
+                                    const Bliss::Pronunciation* pron) {
+    require(pron != nullptr);
+
+    StateId currentState = startState;
+
+    Bliss::ContextPhonology::SemiContext history, future;
+    Bliss::Phoneme::Id                   left  = startContext;
+    Bliss::Phoneme::Id                   right = Bliss::Phoneme::term;
+
+    // Only first two phonemes are processed here.
+    // The first phoneme will be either newly created reachable from the context-dependent root,
+    // or a transition from the context-dependent root to the same successor-state of the context-independent root will be added if this state exists.
+    // If the first phoneme was newly created, a transition to the already existing state of the second phoneme will be added.
+    // In this way, we don't need to append the full phoneme-state sequence to each context-dependent root,
+    // but we make use of the already existing states and thereby keep the number of states low.
+    for (u32 i = 0u; i < 2u; ++i) {
+        const Bliss::Phoneme::Id phoneme = (*pron)[i];
+
+        u32 boundary = 0u;
+        if (i == 0) {
+            boundary |= Am::Allophone::isInitialPhone;
+        }
+        if ((i + 1) == pron->length()) {
+            boundary |= Am::Allophone::isFinalPhone;
+        }
+
+        HMMSequence hmm;
+        hmmFromAllophone(hmm, left, phoneme, right, &history, &future, boundary);
+
+        bool stateFound = false;
+        if (i == 0u) {
+            // First phoneme generation: create states with self-loops
+            for (u32 j = 0u; j < hmm.length; ++j) {
+                if (j == 0u) {
+                    // Check if context-independent root state already has this state as a successor
+                    // If yes, add a transition from context-dependent root to this state
+                    for (HMMStateNetwork::SuccessorIterator target = network_.structure.successors(network_.rootState); target; ++target) {
+                        if (!target.isLabel() && network_.structure.state(*target).stateDesc == hmm[j]) {
+                            addTransition(currentState, *target);
+                            stateFound = true;
+                            break;
+                        }
+                    }
+                }
+
+                if (stateFound) {
+                    break;
+                }
+
+                currentState = extendState(currentState, hmm[j]);
+                addTransition(currentState, currentState);
+            }
+            left = phoneme;
+            if (stateFound) {
+                break;
+            }
+        }
+        else {
+            // Second phoneme generation: connect to existing states (if not already connected to first phoneme generation of context-independent root)
+            const auto desc  = hmm[0];
+            const auto state = secondGenPhonemes_[desc];
+            addTransition(currentState, state);
+        }
+    }
+
+    return currentState;
 }

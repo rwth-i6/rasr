@@ -170,25 +170,26 @@ bool Node::putData(PortId out, Data* d) {
 
     if (dataChannel_.isOpen()) {
         dataChannel_ << Core::XmlOpen("dump-data") + Core::XmlAttribute("node", fullName());
-        if (nOutputLinks(out) > 0)
+        if (nOutputLinks(out) > 0) {
             d->dump(dataChannel_);
-        else
+        }
+        else {
             dataChannel_ << Core::XmlEmpty("dropped");
+        }
         dataChannel_ << Core::XmlClose("dump-data");
     }
 
     if (nOutputLinks(out) == 0) {
-        d->lock();
-        if (d->refCount() == 0)
+        if (d->refCount() == 0) {
             d->free();
-        else
-            d->release();
+        }
         return false;
     }
 
     for (size_t i = 0; i < nOutputLinks(out); i++) {
-        if (!outputs_[out][i]->putData(d))
+        if (!outputs_[out][i]->putData(d)) {
             return false;
+        }
     }
     return true;
 }

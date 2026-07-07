@@ -33,6 +33,46 @@ namespace Core {
 class Configuration;
 }
 
+struct HMMSequence {
+    HMMSequence()
+            : length(0) {}
+
+    enum {
+        MaxLength = 12
+    };
+
+    s32                          length;
+    Search::StateTree::StateDesc hmm[MaxLength];
+
+    inline const Search::StateTree::StateDesc& operator[](u32 index) const {
+        return hmm[index];
+    }
+
+    bool operator==(const HMMSequence& rhs) const {
+        verify(length < MaxLength);
+        return length == rhs.length && std::equal(hmm, hmm + length, rhs.hmm);
+    }
+
+    void reverse() {
+        for (u32 i = 0; i < static_cast<u32>(length / 2); ++i) {
+            Search::StateTree::StateDesc temp(hmm[i]);
+            hmm[i]              = hmm[length - 1 - i];
+            hmm[length - 1 - i] = temp;
+        }
+    }
+
+    struct Hash {
+        size_t operator()(const HMMSequence& seq) const {
+            size_t ret = seq.length;
+            for (s32 p = 0; p < seq.length; ++p)
+                ret = Core::StandardValueHash<size_t>()(ret + Search::StateTree::StateDesc::Hash()(seq[p]));
+            return ret;
+        }
+    };
+};
+
+typedef Core::HashMap<Search::PersistentStateTree::Exit, u32, Search::PersistentStateTree::Exit::Hash> ExitHash;
+
 class AbstractTreeBuilder : public Core::Component {
 public:
     typedef u32 StateId;
@@ -46,8 +86,6 @@ public:
     virtual void build() = 0;
 
 protected:
-    typedef Core::HashMap<Search::PersistentStateTree::Exit, u32, Search::PersistentStateTree::Exit::Hash> ExitHash;
-
     const Bliss::Lexicon&        lexicon_;
     const Am::AcousticModel&     acousticModel_;
     Search::PersistentStateTree& network_;
@@ -80,44 +118,6 @@ public:
     virtual void build();
 
 protected:
-    struct HMMSequence {
-        HMMSequence()
-                : length(0) {}
-
-        enum {
-            MaxLength = 12
-        };
-
-        s32                          length;
-        Search::StateTree::StateDesc hmm[MaxLength];
-
-        inline const Search::StateTree::StateDesc& operator[](u32 index) const {
-            return hmm[index];
-        }
-
-        bool operator==(const HMMSequence& rhs) const {
-            verify(length < MaxLength);
-            return length == rhs.length && std::equal(hmm, hmm + length, rhs.hmm);
-        }
-
-        void reverse() {
-            for (u32 i = 0; i < length / 2; ++i) {
-                Search::StateTree::StateDesc temp(hmm[i]);
-                hmm[i]              = hmm[length - 1 - i];
-                hmm[length - 1 - i] = temp;
-            }
-        }
-
-        struct Hash {
-            size_t operator()(const HMMSequence& seq) const {
-                size_t ret = seq.length;
-                for (s32 p = 0; p < seq.length; ++p)
-                    ret = Core::StandardValueHash<size_t>()(ret + Search::StateTree::StateDesc::Hash()(seq[p]));
-                return ret;
-            }
-        };
-    };
-
     struct RootKey {
     public:
         RootKey(Bliss::Phoneme::Id _left = Core::Type<Bliss::Phoneme::Id>::max, Bliss::Phoneme::Id _right = Core::Type<Bliss::Phoneme::Id>::max, int _depth = 0)
@@ -259,8 +259,9 @@ protected:
     // Create a node with invalid AM and TM indices which serves as a root
     StateId createRoot();
     // Check if a node with StateDesc `desc` is already a successor of the state with ID `predecessor` and add it if not.
+    // If `ignoreLoops` is true and the StateDesc of `predecessor` is the same as `desc`, a new successor state will be added despite a self-loop.
     // Returns the ID of the successor state.
-    StateId extendState(StateId predecessor, Search::StateTree::StateDesc desc);
+    StateId extendState(StateId predecessor, Search::StateTree::StateDesc desc, bool ignoreLoops = false);
     // Add a transition between two already existing states `predecessor` and `successor`, used to insert loops and skip-transitions
     void addTransition(StateId predecessor, StateId successor);
     // Add an exit from the last state `state` of a word with pronunciation `pron` leading to root node `transitState`.
@@ -274,7 +275,6 @@ public:
     static const Core::ParameterBool paramLabelLoop;
     static const Core::ParameterBool paramBlankLoop;
     static const Core::ParameterBool paramForceBlank;
-    static const Core::ParameterBool paramAllowBlankAfterSentenceEnd;
 
     CtcTreeBuilder(Core::Configuration config, const Bliss::Lexicon& lexicon, const Am::AcousticModel& acousticModel, Search::PersistentStateTree& network, bool initialize = true);
     virtual ~CtcTreeBuilder() = default;
@@ -291,7 +291,6 @@ protected:
     bool allowBlankAfterSentenceEnd_;
 
     StateId                      wordBoundaryRoot_;
-    StateId                      sentenceEndSink_;  // Reached after emitting sentence-end with no more outgoing transitions except for blank-looping if `allowBlankAfterSentenceEnd_` is enabled
     Search::StateTree::StateDesc blankDesc_;
     Am::AllophoneStateIndex      blankAllophoneStateIndex_;
 
@@ -301,9 +300,6 @@ protected:
 
     // Build the sub-tree with the word-boundary lemma plus optional blank starting from `wordBoundaryRoot_`.
     void addWordBoundaryStates();
-
-    // Build the sub-tree with the sentence-end lemma plus optional blank starting from `sentenceEndRoot_`.
-    void addSentenceEndStates();
 
     Bliss::Lemma const* getSentenceEndLemma() const;
 };
@@ -336,6 +332,43 @@ protected:
 
     // Build the sub-tree with the word-boundary lemma starting from `wordBoundaryRoot_`.
     void addWordBoundaryStates();
+};
+
+class HmmTreeBuilder : public SharedBaseClassTreeBuilder {
+    // Supports diphones with across-word modelling, but no triphones
+    // Does not support skip-transitions
+public:
+    static const Core::ParameterBool paramAddCiTransitions;
+
+    HmmTreeBuilder(Core::Configuration config, const Bliss::Lexicon& lexicon, const Am::AcousticModel& acousticModel, Search::PersistentStateTree& network, bool initialize = true);
+    virtual ~HmmTreeBuilder() = default;
+
+    virtual std::unique_ptr<AbstractTreeBuilder> newInstance(Core::Configuration config, const Bliss::Lexicon& lexicon, const Am::AcousticModel& acousticModel, Search::PersistentStateTree& network, bool initialize = true);
+
+    // Build a new persistent state network.
+    virtual void build();
+
+protected:
+    // Starting in `startState` (usually a root), include the lemma with pronunciation `pron` in the tree
+    // Returns the last state corresponding to `pron`.
+    StateId extendPronunciation(StateId startState, Bliss::Phoneme::Id startContext, Bliss::Pronunciation const* pron, bool returnFirstState = false);
+
+    void hmmFromAllophone(HMMSequence&                          ret,
+                          Bliss::Phoneme::Id                    left,
+                          Bliss::Phoneme::Id                    central,
+                          Bliss::Phoneme::Id                    right,
+                          Bliss::ContextPhonology::SemiContext* history,
+                          Bliss::ContextPhonology::SemiContext* future,
+                          u32                                   boundary = 0);
+
+    // Connect the first phoneme of `pron` to `startState` (the context-dependent root) and add a transition to the existing second phoneme
+    StateId connectRoot(StateId startState, Bliss::Phoneme::Id startContext, Bliss::Pronunciation const* pron);
+
+private:
+    bool addCiTransitions_;
+
+    std::map<Bliss::Phoneme::Id, StateId>           rootPhonemeMap_;
+    std::map<Search::StateTree::StateDesc, StateId> secondGenPhonemes_;
 };
 
 #endif

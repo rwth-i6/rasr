@@ -17,14 +17,15 @@
 #ifndef _CORE_CONFIGURATION_HH
 #define _CORE_CONFIGURATION_HH
 
-#include <Modules.hh>
-
 #include <iostream>
 #include <list>
 #include <set>
 #include <vector>
 #include <string.h>
 #include <sys/stat.h>
+
+#include <boost/thread/synchronized_value.hpp>
+
 #include "Assertions.hh"
 #include "ReferenceCounting.hh"
 #include "Types.hh"
@@ -275,6 +276,9 @@ private:
      * @return the most specific resource matching @c parameter
      */
     const Resource* find(const std::string& parameter) const;
+
+    std::string resolve(const std::string& value, std::unordered_set<Resource const*>& resolvingValues) const;
+
     /**
      * Substitute parameter references in a string.
      *
@@ -295,7 +299,7 @@ private:
      * @param value is a string which may contain configuration references.
      * @return @c value with all references substituted.
      **/
-    std::string resolveReferences(const std::string& value) const;
+    std::string resolveReferences(const std::string& value, std::unordered_set<Resource const*>& resolvingValues) const;
 
 #ifdef MODULE_CORE_CACHE_MANAGER
     /**
@@ -314,7 +318,7 @@ private:
     std::string resolveCacheManagerCommands(const std::string& value) const;
 #endif
 
-    std::string getResolvedValue(const Resource* resource) const;
+    std::string getResolvedValue(const Resource* resource, std::unordered_set<Resource const*>& resolvingValues) const;
 };
 
 /**
@@ -341,7 +345,6 @@ private:
     const SourceDescriptor* source_;
     std::string             name_;
     std::string             value_;
-    mutable bool            isBeingResolved_; /**< flag to trap circular reference */
 
     struct Usage {
         std::string              fullParameterName;
@@ -349,14 +352,13 @@ private:
         std::string              effectiveValue;
     };
 
-    mutable std::vector<Usage> usage;
+    mutable boost::synchronized_value<std::vector<Usage>> usage;
 
 public:
     Resource(const std::string& _name, const std::string& _value, const SourceDescriptor* _source)
             : source_(_source),
               name_(_name),
-              value_(_value),
-              isBeingResolved_(false) {}
+              value_(_value) {}
 
     inline const std::string& getName() const {
         return name_;
@@ -364,16 +366,6 @@ public:
     inline const std::string& getValue() const {
         return value_;
     };
-
-    bool isBeingResolved() const {
-        return isBeingResolved_;
-    }
-    void beginResolution() const {
-        isBeingResolved_ = true;
-    }
-    void endResolution() const {
-        isBeingResolved_ = false;
-    }
 
     inline bool operator<(const Resource& r) const {
         return name_ < r.name_;
@@ -399,7 +391,7 @@ public:
         u.fullParameterName = n;
         u.parameter         = p;
         u.effectiveValue    = v;
-        usage.push_back(u);
+        usage.synchronize()->push_back(u);
     }
 
     void writeUsage(XmlWriter&) const;

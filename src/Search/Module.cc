@@ -12,7 +12,6 @@
  *  See the License for the specific language governing permissions and
  *  limitations under the License.
  */
-#include <Modules.hh>
 #include <Search/LatticeHandler.hh>
 #include <Search/Module.hh>
 #include "LexiconfreeLabelsyncBeamSearch/LexiconfreeLabelsyncBeamSearch.hh"
@@ -52,6 +51,7 @@ const Core::Choice choiceTreeBuilderType(
         "ctc", static_cast<int>(TreeBuilderType::ctc),
         "rna", static_cast<int>(TreeBuilderType::rna),
         "aed", static_cast<int>(TreeBuilderType::aed),
+        "hmm", static_cast<int>(TreeBuilderType::hmm),
         Core::Choice::endMark());
 
 const Core::ParameterChoice paramTreeBuilderType(
@@ -77,6 +77,9 @@ std::unique_ptr<AbstractTreeBuilder> Module_::createTreeBuilder(Core::Configurat
         } break;
         case Search::TreeBuilderType::aed: {
             return std::unique_ptr<AbstractTreeBuilder>(new AedTreeBuilder(config, lexicon, acousticModel, network, initialize));
+        } break;
+        case Search::TreeBuilderType::hmm: {
+            return std::unique_ptr<AbstractTreeBuilder>(new HmmTreeBuilder(config, lexicon, acousticModel, network, initialize));
         } break;
         default: defect();
     }

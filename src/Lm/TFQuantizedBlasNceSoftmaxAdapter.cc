@@ -16,7 +16,7 @@
 
 #include <immintrin.h>
 
-#include "FixedQuantizationCompressedVectorFactory.hh"
+#include <Nn/FixedQuantizationCompressedVectorFactory.hh>
 
 float quantized_dot_16bit(size_t size, float scale, s16 const* a, s16 const* b) {
 #ifdef __AVX2__
@@ -62,11 +62,11 @@ const Core::ParameterFloat TFQuantizedBlasNceSoftmaxAdapter16Bit::paramWeightsBi
         0.001, 0.0);
 
 template<>
-Score TFQuantizedBlasNceSoftmaxAdapter16Bit::get_score(Lm::CompressedVectorPtr<float> const& nn_out, size_t output_idx) {
-    std::vector<s16>                  nn_output;
-    s16 const*                        data;
-    float                             scale;
-    QuantizedFloatVector16Bits const* vec = dynamic_cast<QuantizedFloatVector16Bits const*>(nn_out.get());
+Score TFQuantizedBlasNceSoftmaxAdapter16Bit::get_score(Nn::CompressedVectorPtr<float> const& nn_out, size_t output_idx) {
+    std::vector<s16>                      nn_output;
+    s16 const*                            data;
+    float                                 scale;
+    Nn::QuantizedFloatVector16Bits const* vec = dynamic_cast<Nn::QuantizedFloatVector16Bits const*>(nn_out.get());
 
     if (vec != nullptr) {
         data  = vec->data().data();

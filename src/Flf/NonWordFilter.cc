@@ -223,7 +223,7 @@ struct LatticeClosure {
                     bool shortenClosure = false;
                     if (arc->input() != Fsa::Epsilon) {
                         shortenClosure = shortenClosureStates_.count(arc->target());
-                        if (!shortenClosure && l_->boundary(arc->target()).time() - startTime > maxClosureLength_ && preBp != ArcTraceback::InvalidIndex) {
+                        if (!shortenClosure && l_->boundary(arc->target()).time() - startTime > static_cast<Speech::TimeframeIndex>(maxClosureLength_) && preBp != ArcTraceback::InvalidIndex) {
                             shortenClosure = true;
                             shortenClosureStates_.insert(arc->target());
                         }
@@ -501,13 +501,13 @@ StaticLatticeRef uniqueSentenceAlignmentFilter(ConstLatticeRef l, u32 maxWidth, 
                     verify(currentExtension != -1);
 
                     while (currentExtension != -1) {
-                        verify(currentExtension < wordExtensions.size());
+                        verify(static_cast<size_t>(currentExtension) < wordExtensions.size());
                         const std::pair<std::pair<Fsa::LabelId, s32>, std::pair<s32, s32>>& extension(wordExtensions[currentExtension]);
                         verify(extension.first.first == label);
 
                         std::pair<Fsa::StateId, Flf::WordTraceback::Index> oldHypothesis(*(hypBegin + extension.second.first));
                         s32                                                closureIndex = extension.second.second;
-                        verify(closureIndex < latticeClosure.closures_.size());
+                        verify(static_cast<size_t>(closureIndex) < latticeClosure.closures_.size());
                         const LatticeClosure::Closure& closure(latticeClosure.closures_[closureIndex]);
                         Score                          newScore = closure.score;
                         if (oldHypothesis.second != -1)
@@ -641,7 +641,7 @@ StaticLatticeRef uniqueSentenceAlignmentFilter(ConstLatticeRef l, u32 maxWidth, 
                             ConstStateRef state = l->getState(stateId);
                             if (!s->hasState(stateId))
                                 s->setState(new State(state->id(), state->tags(), state->weight()));
-                            verify(*arcIt < state->nArcs());
+                            verify(static_cast<u32>(*arcIt) < state->nArcs());
                             const Flf::Arc& a = *state->getArc(*arcIt);
 
                             State* sp = s->fastState(stateId);

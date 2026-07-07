@@ -17,6 +17,7 @@
 #define COMBINE_LABEL_SCORER_HH
 
 #include "LabelScorer.hh"
+#include "ModelCache.hh"
 
 namespace Nn {
 
@@ -33,7 +34,7 @@ class CombineLabelScorer : public LabelScorer {
 public:
     static Core::ParameterInt paramNumLabelScorers;
 
-    CombineLabelScorer(const Core::Configuration& config);
+    CombineLabelScorer(Core::Configuration const& config, ModelCache& modelCache);
     virtual ~CombineLabelScorer() = default;
 
     // Reset all sub-scorers
@@ -45,6 +46,9 @@ public:
     // Combine initial ScoringContexts from all sub-scorers
     ScoringContextRef getInitialScoringContext() override;
 
+    // Combine extended ScoringContexts from all sub-scorers
+    ScoringContextRef extendedScoringContext(ScoringContextRef scoringContext, LabelIndex nextToken, TransitionType transitionType) override;
+
     // Cleanup all sub-scorers
     void cleanupCaches(Core::CollapsedVector<ScoringContextRef> const& activeContexts) override;
 
@@ -54,17 +58,14 @@ public:
     // Add inputs to all sub-scorers
     virtual void addInputs(DataView const& input, size_t nTimesteps) override;
 
-protected:
+    // Get accessor that returns score-sum of all sub-scorers
+    std::optional<ScoreAccessorRef> getScoreAccessor(ScoringContextRef scoringContext) override;
+
+    // Get accessors that return score-sums of all sub-scorers
+    std::vector<std::optional<ScoreAccessorRef>> getScoreAccessors(std::vector<ScoringContextRef> const& scoringContexts) override;
+
+private:
     std::vector<Core::Ref<LabelScorer>> scorers_;
-
-    // Combine extended ScoringContexts from all sub-scorers
-    ScoringContextRef extendedScoringContextInternal(Request const& request) override;
-
-    // Compute weighted score of request with all sub-scorers
-    std::optional<ScoreWithTime> computeScoreWithTimeInternal(Request const& request) override;
-
-    // Compute weighted scores of requests with all sub-scorers
-    std::optional<ScoresWithTimes> computeScoresWithTimesInternal(std::vector<Request> const& requests) override;
 };
 
 }  // namespace Nn

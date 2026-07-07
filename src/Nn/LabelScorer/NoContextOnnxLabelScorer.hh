@@ -19,6 +19,7 @@
 #include <Onnx/Model.hh>
 
 #include "BufferedLabelScorer.hh"
+#include "ModelCache.hh"
 
 namespace Nn {
 
@@ -35,7 +36,7 @@ class NoContextOnnxLabelScorer : public BufferedLabelScorer {
     using Precursor = BufferedLabelScorer;
 
 public:
-    NoContextOnnxLabelScorer(Core::Configuration const& config);
+    NoContextOnnxLabelScorer(Core::Configuration const& config, ModelCache& modelCache);
     virtual ~NoContextOnnxLabelScorer() = default;
 
     // Clear feature buffer and cached scores
@@ -44,32 +45,31 @@ public:
     // Initial scoring context contains step 0
     ScoringContextRef getInitialScoringContext() override;
 
+    // Increment the step by 1
+    ScoringContextRef extendedScoringContext(ScoringContextRef scoringContext, LabelIndex nextToken, TransitionType transitionType) override;
+
     // Clean up input buffer as well as cached score vectors that are no longer needed
     void cleanupCaches(Core::CollapsedVector<ScoringContextRef> const& activeContexts) override;
+
+    // If scores for the given scoring contexts are not yet cached, prepare and run an ONNX session to
+    // compute the scores and cache them
+    std::vector<std::optional<ScoreAccessorRef>> getScoreAccessors(std::vector<ScoringContextRef> const& scoringContexts) override;
+
+    // Uses `getScoreAccessors` internally with some wrapping for vector packing/expansion
+    std::optional<ScoreAccessorRef> getScoreAccessor(ScoringContextRef scoringContext) override;
 
 protected:
     size_t getMinActiveInputIndex(Core::CollapsedVector<ScoringContextRef> const& activeContexts) const override;
 
-    // Increment the step by 1
-    ScoringContextRef extendedScoringContextInternal(LabelScorer::Request const& request) override;
-
-    // If scores for the given scoring contexts are not yet cached, prepare and run an ONNX session to
-    // compute the scores and cache them
-    // Then, retreive scores from cache
-    std::optional<LabelScorer::ScoresWithTimes> computeScoresWithTimesInternal(std::vector<LabelScorer::Request> const& requests) override;
-
-    // Uses `getScoresWithTimes` internally with some wrapping for vector packing/expansion
-    std::optional<LabelScorer::ScoreWithTime> computeScoreWithTimeInternal(LabelScorer::Request const& request) override;
-
 private:
-    Onnx::Model onnxModel_;
+    std::shared_ptr<Onnx::Model> onnxModel_;
 
     std::string inputFeatureName_;
     std::string scoresName_;
 
-    std::unordered_map<StepScoringContextRef, std::vector<Score>, ScoringContextHash, ScoringContextEq> scoreCache_;
+    std::unordered_map<StepScoringContextRef, std::shared_ptr<std::vector<Score>>, ScoringContextHash, ScoringContextEq> scoreCache_;
 
-    void forwardContext(StepScoringContextRef const& context);
+    void forwardContext(StepScoringContextRef const& scoringContext);
 };
 
 }  // namespace Nn

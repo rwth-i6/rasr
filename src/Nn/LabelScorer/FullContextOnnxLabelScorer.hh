@@ -39,13 +39,13 @@ namespace Nn {
 class FullContextOnnxLabelScorer : public BufferedLabelScorer {
     using Precursor = BufferedLabelScorer;
 
-    static const Core::ParameterInt paramStartLabelIndex;
-    static const Core::ParameterInt paramInitialHistoryLength;
+    static const Core::ParameterInt  paramStartLabelIndex;
+    static const Core::ParameterInt  paramInitialHistoryLength;
     static const Core::ParameterBool paramBlankUpdatesHistory;
     static const Core::ParameterBool paramSilenceUpdatesHistory;
     static const Core::ParameterBool paramLoopUpdatesHistory;
     static const Core::ParameterBool paramVerticalLabelTransition;
-    static const Core::ParameterInt paramMaxBatchSize;
+    static const Core::ParameterInt  paramMaxBatchSize;
 
 public:
     FullContextOnnxLabelScorer(Core::Configuration const& config, ModelCache& modelCache);
@@ -83,10 +83,10 @@ private:
 
     size_t startLabelIndex_;
     size_t initialHistoryLength_;
-    bool blankUpdatesHistory_;
-    bool silenceUpdatesHistory_;
-    bool loopUpdatesHistory_;
-    bool verticalLabelTransition_;
+    bool   blankUpdatesHistory_;
+    bool   silenceUpdatesHistory_;
+    bool   loopUpdatesHistory_;
+    bool   verticalLabelTransition_;
     size_t maxBatchSize_;
 
     std::shared_ptr<Onnx::Model> onnxModel_;
@@ -98,6 +98,6 @@ private:
     std::unordered_map<SeqStepScoringContextRef, std::shared_ptr<std::vector<Score>>, ScoringContextHash, ScoringContextEq> scoreCache_;
 };
 
-} // namespace Nn
+}  // namespace Nn
 
-#endif // FULL_CONTEXT_ONNX_LABEL_SCORER_HH
+#endif  // FULL_CONTEXT_ONNX_LABEL_SCORER_HH

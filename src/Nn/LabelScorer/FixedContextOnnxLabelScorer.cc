@@ -90,7 +90,6 @@ FixedContextOnnxLabelScorer::FixedContextOnnxLabelScorer(Core::Configuration con
     Core::Configuration modelConfig(config, "onnx-model");
     auto                key = modelConfig.getSelection();
     onnxModel_              = modelCache.getOrCreate<Onnx::Model>(key, modelConfig, ioSpec);
-
     inputFeatureName_       = onnxModel_->mapping.getOnnxName("input-feature");
     historyName_            = onnxModel_->mapping.getOnnxName("history");
     scoresName_             = onnxModel_->mapping.getOnnxName("scores");

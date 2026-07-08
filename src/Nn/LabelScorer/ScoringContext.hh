@@ -74,7 +74,7 @@ typedef Core::Ref<StepScoringContext const> StepScoringContextRef;
  */
 struct SeqStepScoringContext : public ScoringContext {
     std::vector<LabelIndex> labelSeq;
-    Speech::TimeframeIndex currentStep;
+    Speech::TimeframeIndex  currentStep;
 
     SeqStepScoringContext()
             : labelSeq(), currentStep(0ul) {}
@@ -84,7 +84,7 @@ struct SeqStepScoringContext : public ScoringContext {
             : labelSeq(std::move(seq)), currentStep(step) {}
 
     size_t hash() const override;
-    bool isEqual(ScoringContextRef const& other) const override;
+    bool   isEqual(ScoringContextRef const& other) const override;
 };
 
 typedef Core::Ref<SeqStepScoringContext const> SeqStepScoringContextRef;

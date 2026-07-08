@@ -90,12 +90,11 @@ FullContextOnnxLabelScorer::FullContextOnnxLabelScorer(Core::Configuration const
           maxBatchSize_(paramMaxBatchSize(config)),
           scoreCache_() {
     Core::Configuration modelConfig(config, "onnx-model");
-    auto key = modelConfig.getSelection();
-    onnxModel_ = modelCache.getOrCreate<Onnx::Model>(key, modelConfig, ioSpec);
-
-    inputFeatureName_ = onnxModel_->mapping.getOnnxName("input-feature");
-    historyName_ = onnxModel_->mapping.getOnnxName("history");
-    scoresName_ = onnxModel_->mapping.getOnnxName("scores");
+    auto                key = modelConfig.getSelection();
+    onnxModel_              = modelCache.getOrCreate<Onnx::Model>(key, modelConfig, ioSpec);
+    inputFeatureName_       = onnxModel_->mapping.getOnnxName("input-feature");
+    historyName_            = onnxModel_->mapping.getOnnxName("history");
+    scoresName_             = onnxModel_->mapping.getOnnxName("scores");
 }
 
 void FullContextOnnxLabelScorer::reset() {
@@ -135,29 +134,29 @@ void FullContextOnnxLabelScorer::cleanupCaches(Core::CollapsedVector<ScoringCont
 }
 
 ScoringContextRef FullContextOnnxLabelScorer::extendedScoringContext(ScoringContextRef scoringContext, LabelIndex nextToken, TransitionType transitionType) {
-    bool pushToken = false;
+    bool   pushToken     = false;
     size_t timeIncrement = 0ul;
     switch (transitionType) {
         case TransitionType::BLANK_LOOP:
-            pushToken = blankUpdatesHistory_ and loopUpdatesHistory_;
+            pushToken     = blankUpdatesHistory_ and loopUpdatesHistory_;
             timeIncrement = 1ul;
             break;
         case TransitionType::SILENCE_LOOP:
-            pushToken = silenceUpdatesHistory_ and loopUpdatesHistory_;
+            pushToken     = silenceUpdatesHistory_ and loopUpdatesHistory_;
             timeIncrement = 1ul;
             break;
         case TransitionType::LABEL_TO_BLANK:
         case TransitionType::INITIAL_BLANK:
-            pushToken = blankUpdatesHistory_;
+            pushToken     = blankUpdatesHistory_;
             timeIncrement = 1ul;
             break;
         case TransitionType::LABEL_TO_SILENCE:
         case TransitionType::INITIAL_SILENCE:
-            pushToken = silenceUpdatesHistory_;
+            pushToken     = silenceUpdatesHistory_;
             timeIncrement = 1ul;
             break;
         case TransitionType::LABEL_LOOP:
-            pushToken = loopUpdatesHistory_;
+            pushToken     = loopUpdatesHistory_;
             timeIncrement = not verticalLabelTransition_;
             break;
         case TransitionType::BLANK_TO_LABEL:
@@ -165,7 +164,7 @@ ScoringContextRef FullContextOnnxLabelScorer::extendedScoringContext(ScoringCont
         case TransitionType::LABEL_TO_LABEL:
         case TransitionType::INITIAL_LABEL:
         case TransitionType::SENTENCE_END:
-            pushToken = true;
+            pushToken     = true;
             timeIncrement = not verticalLabelTransition_;
             break;
         default:
@@ -221,9 +220,9 @@ std::vector<std::optional<ScoreAccessorRef>> FullContextOnnxLabelScorer::getScor
             continue;
         }
 
-        auto historyLength = seqStepScoringContexts[contextIndex]->labelSeq.size();
+        auto  historyLength             = seqStepScoringContexts[contextIndex]->labelSeq.size();
         auto& contextsWithHistoryLength = contextsWithTimestepAndHistoryLength[step];
-        auto [it, inserted] = contextsWithHistoryLength.emplace(historyLength, std::vector<size_t>());
+        auto [it, inserted]             = contextsWithHistoryLength.emplace(historyLength, std::vector<size_t>());
         it->second.push_back(contextIndex);
     }
 
@@ -263,7 +262,7 @@ std::vector<std::optional<ScoreAccessorRef>> FullContextOnnxLabelScorer::getScor
 
             // Create score accessors from cache
             for (auto const& contextIndex : contextIndices) {
-                auto const& scoreVec = scoreCache_.at(seqStepScoringContexts[contextIndex]);
+                auto const& scoreVec         = scoreCache_.at(seqStepScoringContexts[contextIndex]);
                 scoreAccessors[contextIndex] = Core::ref(new VectorScoreAccessor(scoreVec, timestep));
             }
         }
@@ -286,12 +285,12 @@ void FullContextOnnxLabelScorer::forwardBatch(std::vector<SeqStepScoringContextR
      */
 
     // All requests in this iteration share the same input feature which is set up here
-    auto inputFeatureDataView = getInput(scoringContextBatch.front()->currentStep);
-    f32 const* inputFeatureData = inputFeatureDataView->data();
-    std::vector<int64_t> inputFeatureShape = {1ul, static_cast<int64_t>(inputFeatureDataView->size())};
+    auto                 inputFeatureDataView = getInput(scoringContextBatch.front()->currentStep);
+    f32 const*           inputFeatureData     = inputFeatureDataView->data();
+    std::vector<int64_t> inputFeatureShape    = {1ul, static_cast<int64_t>(inputFeatureDataView->size())};
 
     // All requests in this batch share the same history length
-    size_t historyLength = scoringContextBatch.front()->labelSeq.size();
+    size_t                historyLength = scoringContextBatch.front()->labelSeq.size();
     Math::FastMatrix<s32> historyMat(historyLength, scoringContextBatch.size());
 
     // Create batched context input
@@ -325,4 +324,4 @@ void FullContextOnnxLabelScorer::forwardBatch(std::vector<SeqStepScoringContextR
     }
 }
 
-} // namespace Nn
+}  // namespace Nn

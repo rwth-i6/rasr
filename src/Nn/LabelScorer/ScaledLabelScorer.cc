@@ -58,6 +58,18 @@ ScaledLabelScorer::ScaledLabelScorer(Core::Configuration const& config, Core::Re
     enabledTransitions_ = scorer->enabledTransitions();
 }
 
+Core::Ref<LabelScorer> ScaledLabelScorer::labelScorer() const {
+    return scorer_;
+}
+
+Score ScaledLabelScorer::scale() const {
+    return scale_;
+}
+
+void ScaledLabelScorer::setScale(Score scale) {
+    scale_ = scale;
+}
+
 void ScaledLabelScorer::reset() {
     scorer_->reset();
 }

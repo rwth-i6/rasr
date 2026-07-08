@@ -321,11 +321,11 @@ void LexiconfreeLabelsyncBeamSearch::putFeatures(Nn::DataView const& features, s
 }
 
 Core::Ref<const Traceback> LexiconfreeLabelsyncBeamSearch::getCurrentBestTraceback() const {
-    return getBestHypothesis(beam_).trace->performTraceback();
+    return getOutputHypothesis(beam_).trace->performTraceback();
 }
 
 Core::Ref<const LatticeAdaptor> LexiconfreeLabelsyncBeamSearch::getCurrentBestWordLattice() const {
-    auto& bestHypothesis = getBestHypothesis(beam_);
+    auto& bestHypothesis = getOutputHypothesis(beam_);
 
     LatticeTrace endTrace(bestHypothesis.trace, 0, bestHypothesis.trace->time + 1, bestHypothesis.trace->score, {});
 
@@ -341,7 +341,7 @@ Core::Ref<const LatticeAdaptor> LexiconfreeLabelsyncBeamSearch::getCurrentBestWo
 }
 
 Core::Ref<const LatticeTrace> LexiconfreeLabelsyncBeamSearch::getCurrentBestLatticeTrace() const {
-    return getBestHypothesis(beam_).trace;
+    return getOutputHypothesis(beam_).trace;
 }
 
 Core::Ref<const LatticeTrace> LexiconfreeLabelsyncBeamSearch::getCommonPrefix() const {
@@ -550,7 +550,9 @@ bool LexiconfreeLabelsyncBeamSearch::decodeStep() {
     if (not useScorePruning_.empty() and useScorePruning_.back()) {
         auto relativeThreshold = scoreThresholds_.back();
         if (lengthNormScale_ != 0) {
-            relativeThreshold /= std::pow(getBestHypothesis(newBeam_).length, lengthNormScale_);
+            auto const* bestHypothesis = getBestHypothesis(newBeam_, HypothesisFilter::Any);
+            verify(bestHypothesis != nullptr);
+            relativeThreshold /= std::pow(bestHypothesis->length, lengthNormScale_);
         }
         scorePruning(newBeam_, relativeThreshold, newBeam_.size());
 
@@ -635,10 +637,10 @@ bool LexiconfreeLabelsyncBeamSearch::decodeStep() {
     }
 
     if (logStepwiseStatistics_) {
-        auto const* bestTerminatedHyp  = getBestTerminatedHypothesis(beam_);
-        auto const* worstTerminatedHyp = getWorstTerminatedHypothesis(beam_);
-        auto const* bestActiveHyp      = getBestActiveHypothesis(beam_);
-        auto const* worstActiveHyp     = getWorstActiveHypothesis(beam_);
+        auto const* bestTerminatedHyp  = getBestHypothesis(beam_, HypothesisFilter::Terminated);
+        auto const* worstTerminatedHyp = getWorstHypothesis(beam_, HypothesisFilter::Terminated);
+        auto const* bestActiveHyp      = getBestHypothesis(beam_, HypothesisFilter::Active);
+        auto const* worstActiveHyp     = getWorstHypothesis(beam_, HypothesisFilter::Active);
         if (bestTerminatedHyp != nullptr) {
             clog() << Core::XmlFull("best-terminated-hyp-score", bestTerminatedHyp->score);
             clog() << Core::XmlFull("best-terminated-hyp-normalized-score", bestTerminatedHyp->scaledScore);
@@ -661,78 +663,60 @@ bool LexiconfreeLabelsyncBeamSearch::decodeStep() {
     return true;
 }
 
-LexiconfreeLabelsyncBeamSearch::LabelHypothesis const* LexiconfreeLabelsyncBeamSearch::getBestTerminatedHypothesis(std::vector<LabelHypothesis> const& hypotheses) const {
+bool LexiconfreeLabelsyncBeamSearch::matchesHypothesisFilter(LabelHypothesis const& hypothesis, HypothesisFilter filter) const {
+    switch (filter) {
+        case HypothesisFilter::Any:
+            return true;
+        case HypothesisFilter::Active:
+            return hypothesis.isActive;
+        case HypothesisFilter::Terminated:
+            return not hypothesis.isActive;
+    }
+    return false;
+}
+
+LexiconfreeLabelsyncBeamSearch::LabelHypothesis const* LexiconfreeLabelsyncBeamSearch::getBestHypothesis(
+        std::vector<LabelHypothesis> const& hypotheses,
+        HypothesisFilter                    filter) const {
     LabelHypothesis const* best = nullptr;
 
     for (auto const& hyp : hypotheses) {
-        if (not hyp.isActive) {
-            if (best == nullptr or hyp < *best) {
-                best = &hyp;
-            }
+        if (not matchesHypothesisFilter(hyp, filter)) {
+            continue;
+        }
+
+        if (best == nullptr or hyp < *best) {
+            best = &hyp;
         }
     }
 
     return best;
 }
 
-LexiconfreeLabelsyncBeamSearch::LabelHypothesis const* LexiconfreeLabelsyncBeamSearch::getWorstTerminatedHypothesis(std::vector<LabelHypothesis> const& hypotheses) const {
+LexiconfreeLabelsyncBeamSearch::LabelHypothesis const* LexiconfreeLabelsyncBeamSearch::getWorstHypothesis(
+        std::vector<LabelHypothesis> const& hypotheses,
+        HypothesisFilter                    filter) const {
     LabelHypothesis const* worst = nullptr;
 
     for (auto const& hyp : hypotheses) {
-        if (not hyp.isActive) {
-            if (worst == nullptr or hyp > *worst) {
-                worst = &hyp;
-            }
+        if (not matchesHypothesisFilter(hyp, filter)) {
+            continue;
+        }
+
+        if (worst == nullptr or hyp > *worst) {
+            worst = &hyp;
         }
     }
 
     return worst;
 }
 
-LexiconfreeLabelsyncBeamSearch::LabelHypothesis const* LexiconfreeLabelsyncBeamSearch::getBestActiveHypothesis(std::vector<LabelHypothesis> const& hypotheses) const {
-    LabelHypothesis const* best = nullptr;
-
-    for (auto const& hyp : hypotheses) {
-        if (hyp.isActive) {
-            if (best == nullptr or hyp < *best) {
-                best = &hyp;
-            }
-        }
-    }
-
-    return best;
-}
-
-LexiconfreeLabelsyncBeamSearch::LabelHypothesis const* LexiconfreeLabelsyncBeamSearch::getWorstActiveHypothesis(std::vector<LabelHypothesis> const& hypotheses) const {
-    LabelHypothesis const* worst = nullptr;
-
-    for (auto const& hyp : hypotheses) {
-        if (hyp.isActive) {
-            if (worst == nullptr or hyp > *worst) {
-                worst = &hyp;
-            }
-        }
-    }
-
-    return worst;
-}
-
-LexiconfreeLabelsyncBeamSearch::LabelHypothesis const& LexiconfreeLabelsyncBeamSearch::getBestHypothesis(std::vector<LabelHypothesis> const& hypotheses) const {
-    auto const* result = getBestTerminatedHypothesis(hypotheses);
+LexiconfreeLabelsyncBeamSearch::LabelHypothesis const& LexiconfreeLabelsyncBeamSearch::getOutputHypothesis(std::vector<LabelHypothesis> const& hypotheses) const {
+    auto const* result = getBestHypothesis(hypotheses, HypothesisFilter::Terminated);
     if (result != nullptr) {
         return *result;
     }
-    result = getBestActiveHypothesis(hypotheses);
-    verify(result != nullptr);
-    return *result;
-}
-
-LexiconfreeLabelsyncBeamSearch::LabelHypothesis const& LexiconfreeLabelsyncBeamSearch::getWorstHypothesis(std::vector<LabelHypothesis> const& hypotheses) const {
-    auto const* result = getWorstTerminatedHypothesis(hypotheses);
-    if (result != nullptr) {
-        return *result;
-    }
-    result = getWorstActiveHypothesis(hypotheses);
+    result = getBestHypothesis(hypotheses, HypothesisFilter::Active);
     verify(result != nullptr);
     return *result;
 }

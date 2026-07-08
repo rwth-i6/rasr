@@ -124,6 +124,12 @@ protected:
     };
 
 private:
+    enum class HypothesisFilter {
+        Active,
+        Terminated,
+        Any,
+    };
+
     std::vector<size_t> maxBeamSizes_;
     std::vector<bool>   useScorePruning_;
     std::vector<Score>  scoreThresholds_;
@@ -164,14 +170,12 @@ private:
     size_t totalTimesteps_;
     bool   finishedSegment_;
 
-    LabelHypothesis const* getBestTerminatedHypothesis(std::vector<LabelHypothesis> const& hypotheses) const;
-    LabelHypothesis const* getWorstTerminatedHypothesis(std::vector<LabelHypothesis> const& hypotheses) const;
+    bool                   matchesHypothesisFilter(LabelHypothesis const& hypothesis, HypothesisFilter filter) const;
+    LabelHypothesis const* getBestHypothesis(std::vector<LabelHypothesis> const& hypotheses, HypothesisFilter filter) const;
+    LabelHypothesis const* getWorstHypothesis(std::vector<LabelHypothesis> const& hypotheses, HypothesisFilter filter) const;
 
-    LabelHypothesis const* getBestActiveHypothesis(std::vector<LabelHypothesis> const& hypotheses) const;
-    LabelHypothesis const* getWorstActiveHypothesis(std::vector<LabelHypothesis> const& hypotheses) const;
-
-    LabelHypothesis const& getBestHypothesis(std::vector<LabelHypothesis> const& hypotheses) const;
-    LabelHypothesis const& getWorstHypothesis(std::vector<LabelHypothesis> const& hypotheses) const;
+    // Overall best while preferring terminated over active hypotheses if any terminated ones exist
+    LabelHypothesis const& getOutputHypothesis(std::vector<LabelHypothesis> const& hypotheses) const;
 
     void logStatistics() const;
 

@@ -21,6 +21,16 @@
 #include <Python/Search.hh>
 #include <Speech/ModelCombination.hh>
 
+// Return the lanuage model
+Lm::ScaledLanguageModel* getLanguageModel(Speech::ModelCombination& modelCombination) {
+    return modelCombination.languageModel().get();
+}
+
+// Return the label scorer
+Nn::ScaledLabelScorer* getLabelScorer(Speech::ModelCombination& modelCombination, size_t index = 0) {
+    return dynamic_cast<Nn::ScaledLabelScorer*>(modelCombination.labelScorer(index).get());
+}
+
 void bindSearchAlgorithm(py::module_& module) {
     /*
      * ========================

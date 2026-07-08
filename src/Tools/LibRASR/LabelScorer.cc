@@ -40,6 +40,31 @@ void registerPythonLabelScorer(std::string const& name, py::object const& pyLabe
             });
 }
 
+// Return the sub-scorer that is wrapped by the given label scorer
+// If the label scorer is a CombineLabelScorer, return the sub-scorer at the specified index
+Nn::ScaledLabelScorer* getSubScorer(Nn::ScaledLabelScorer& labelScorer, size_t index = 0) {
+    auto wrappedLabelScorer = labelScorer.labelScorer();
+
+    auto* combineScorer = dynamic_cast<Nn::CombineLabelScorer*>(wrappedLabelScorer.get());
+    if (combineScorer) {
+        return combineScorer->getSubScorer(index).get();
+    }
+
+    auto* encoderDecoderScorer = dynamic_cast<Nn::EncoderDecoderLabelScorer*>(wrappedLabelScorer.get());
+    if (encoderDecoderScorer) {
+        require(index == 0);
+        return encoderDecoderScorer->getDecoderLabelScorer().get();
+    }
+
+    auto* ctcPrefixScorer = dynamic_cast<Nn::CtcPrefixLabelScorer*>(wrappedLabelScorer.get());
+    if (ctcPrefixScorer) {
+        require(index == 0);
+        return ctcPrefixScorer->getCtcLabelScorer().get();
+    }
+
+    throw py::value_error("Label scorer does not a have a sub-scorer");
+}
+
 void bindLabelScorer(py::module_& module) {
     module.def(
             "register_label_scorer_type",

@@ -7,7 +7,7 @@ Stage: build
 
     # fundamental basics to compile RASR, zsh is needed because calling the cache manager might launch the user shell
     DEBIAN_FRONTEND=noninteractive apt install -y \
-        zsh bison libopenblas-dev libsndfile1-dev cmake libboost-thread-dev
+        zsh bison libopenblas-dev libsndfile1-dev cmake libboost-thread-dev libcppunit-dev
 
     pip3 install "pybind11[global]"
 

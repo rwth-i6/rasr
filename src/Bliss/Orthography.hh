@@ -16,6 +16,7 @@
 #define _BLISS_ORTHOGRAPHY_HH
 
 #include <string>
+#include <variant>
 #include <vector>
 
 #include <Core/Assertions.hh>
@@ -36,27 +37,24 @@ public:
         Span(std::vector<Orthography> const& alternatives);
 
         Type type() const {
-            return type_;
+            return std::holds_alternative<std::string>(content_) ? Type::text : Type::alternatives;
         }
 
         std::string const& text() const {
-            require(type_ == Type::text);
-            return text_;
+            require(type() == Type::text);
+            return std::get<std::string>(content_);
         }
 
         std::vector<Orthography> const& alternatives() const {
-            require(type_ == Type::alternatives);
-            return alternatives_;
+            require(type() == Type::alternatives);
+            return std::get<std::vector<Orthography>>(content_);
         }
 
     private:
-        Type type_;
-
-        std::string              text_;
-        std::vector<Orthography> alternatives_;
+        std::variant<std::string, std::vector<Orthography>> content_;
     };
 
-    typedef std::vector<Span> SpanList;
+    using SpanList = std::vector<Span>;
 
     static Orthography fromNormalized(std::string const& text);
     static Orthography fromRaw(std::string const& text);

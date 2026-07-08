@@ -268,7 +268,7 @@ Core::Ref<const LatticeAdaptor> LexiconfreeLabelsyncBeamSearch::getCurrentBestWo
     LatticeTrace endTrace(bestHypothesis.trace, 0, bestHypothesis.trace->time + 1, bestHypothesis.trace->score, {});
 
     for (auto const& hyp : beam_) {
-        if (hyp.isActive != bestHypothesis.isActive) {
+        if (&hyp == &bestHypothesis or hyp.isActive != bestHypothesis.isActive) {
             continue;
         }
         auto siblingTrace = Core::ref(new LatticeTrace(hyp.trace, 0, hyp.trace->time, hyp.trace->score, {}));
@@ -330,6 +330,9 @@ bool LexiconfreeLabelsyncBeamSearch::decodeStep() {
 
     Score currentBestScore = Core::Type<Score>::max;
 
+    // `scoreAccessors` only covers the active hypotheses (in beam order), so index it by a running
+    // active-hypothesis counter rather than the beam position.
+    size_t activeIndex = 0ul;
     for (size_t hypIndex = 0ul; hypIndex < beam_.size(); ++hypIndex) {
         auto& hyp = beam_[hypIndex];
 
@@ -337,11 +340,13 @@ bool LexiconfreeLabelsyncBeamSearch::decodeStep() {
             continue;
         }
 
-        if (not scoreAccessors[hypIndex]) {
+        size_t const scoreIndex = activeIndex++;
+
+        if (not scoreAccessors[scoreIndex]) {
             continue;
         }
 
-        auto const& scoreAccessor = *scoreAccessors[hypIndex];
+        auto const& scoreAccessor = *scoreAccessors[scoreIndex];
 
         // Iterate over possible successors (all lemmas)
         for (auto lemmaIt = lemmas.first; lemmaIt != lemmas.second; ++lemmaIt) {

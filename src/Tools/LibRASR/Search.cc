@@ -18,6 +18,7 @@
 #include <sstream>
 
 #include <Lm/ScaledLanguageModel.hh>
+#include <Nn/LabelScorer/ScaledLabelScorer.hh>
 #include <Python/Search.hh>
 #include <Speech/ModelCombination.hh>
 

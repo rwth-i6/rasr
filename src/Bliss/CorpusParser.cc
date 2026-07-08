@@ -140,7 +140,7 @@ void PlainOrthographyElement::characters(const char* ch, int len) {
 class Bliss::OrthographyElement : public Core::XmlParentElement {
 public:
     using HandlerArgument = Orthography const&;
-    using Handler = void (XmlContext::*)(HandlerArgument);
+    using Handler         = void (XmlContext::*)(HandlerArgument);
 
     template<class T>
     static Handler handler(void (T::*h)(HandlerArgument)) {
@@ -157,7 +157,7 @@ public:
 private:
     class AlternativesElement;
 
-    Handler     handler_;
+    Handler handler_;
 
     Orthography product_;
     std::string pendingText_;
@@ -169,7 +169,7 @@ private:
 class Bliss::OrthographyElement::AlternativesElement : public Core::XmlParentElement {
 public:
     using HandlerArgument = std::vector<Orthography> const&;
-    using Handler = void (XmlContext::*)(HandlerArgument);
+    using Handler         = void (XmlContext::*)(HandlerArgument);
 
     template<class T>
     static Handler handler(void (T::*h)(HandlerArgument)) {

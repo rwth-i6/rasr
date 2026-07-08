@@ -21,8 +21,6 @@
 #include <sstream>
 #include <string>
 
-#include <memory>
-
 #include <Core/Types.hh>
 #include <Core/Utility.hh>
 #include <Core/XmlBuilder.hh>

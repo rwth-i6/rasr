@@ -74,8 +74,8 @@ typedef Core::Ref<SegmentwiseModelAdaptor> SegmentwiseModelAdaptorRef;
  * Feature extraction
  **/
 using DataSourceRef = std::shared_ptr<Speech::DataSource>;
-typedef Core::Ref<Speech::Feature> FeatureRef;
-typedef std::vector<FeatureRef>    FeatureList;
+using FeatureRef    = Core::Ref<Speech::Feature>;
+using FeatureList   = std::vector<FeatureRef>;
 
 /**
  * Adpat feature extraction on segment

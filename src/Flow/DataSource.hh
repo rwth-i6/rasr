@@ -15,8 +15,6 @@
 #ifndef _FLOW_DATA_SOURCE_HH
 #define _FLOW_DATA_SOURCE_HH
 
-#include <memory>
-
 #include <Flow/Network.hh>
 
 namespace Flow {

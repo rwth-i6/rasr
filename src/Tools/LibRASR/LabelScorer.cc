@@ -19,9 +19,9 @@
 #include <pybind11/numpy.h>
 #include <pybind11/stl.h>
 
-#include <Nn/LabelScorer/EncoderDecoderLabelScorer.hh>
 #include <Nn/LabelScorer/CombineLabelScorer.hh>
 #include <Nn/LabelScorer/CtcPrefixLabelScorer.hh>
+#include <Nn/LabelScorer/EncoderDecoderLabelScorer.hh>
 #include <Nn/LabelScorer/ScaledLabelScorer.hh>
 #include <Nn/Module.hh>
 #include <Python/LabelScorer.hh>

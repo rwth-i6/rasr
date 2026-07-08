@@ -54,6 +54,7 @@ LexiconfreeTimesyncBeamSearch::LabelHypothesis::LabelHypothesis(
     switch (extension.transitionType) {
         case Nn::TransitionType::LABEL_LOOP:
         case Nn::TransitionType::BLANK_LOOP:
+        case Nn::TransitionType::SILENCE_LOOP:
             predecessor = base.trace->predecessor;
             break;
         default:
@@ -115,6 +116,11 @@ const Core::ParameterInt LexiconfreeTimesyncBeamSearch::paramBlankLabelIndex(
         "Index of the blank label in the lexicon. Can also be inferred from lexicon if it has a lemma with `special='blank'`. If not set, the search will not use blank.",
         Nn::invalidLabelIndex);
 
+const Core::ParameterInt LexiconfreeTimesyncBeamSearch::paramSilenceLabelIndex(
+        "silence-label-index",
+        "Index of the silence label in the lexicon. Can also be inferred from lexicon if it has a lemma with `special='silence'`. If not set, the search will not use silence.",
+        Nn::invalidLabelIndex);
+
 const Core::ParameterInt LexiconfreeTimesyncBeamSearch::paramSentenceEndLabelIndex(
         "sentence-end-label-index",
         "Index of the sentence end label in the lexicon. Can also be inferred from lexicon if it has a lemma with `special='sentence-end'` or `special='sentence-boundary'`. If not set, the search will not use sentence end.",
@@ -154,6 +160,7 @@ LexiconfreeTimesyncBeamSearch::LexiconfreeTimesyncBeamSearch(Core::Configuration
           SearchAlgorithmV2(config),
           scoreHistogram_(paramNumHistogramBins(config)),
           blankLabelIndex_(paramBlankLabelIndex(config)),
+          silenceLabelIndex_(paramSilenceLabelIndex(config)),
           sentenceEndLemma_(),
           sentenceEndLabelIndex_(paramSentenceEndLabelIndex(config)),
           collapseRepeatedLabels_(paramCollapseRepeatedLabels(config)),
@@ -190,6 +197,11 @@ LexiconfreeTimesyncBeamSearch::LexiconfreeTimesyncBeamSearch(Core::Configuration
     useBlank_ = blankLabelIndex_ != Nn::invalidLabelIndex;
     if (useBlank_) {
         log() << "Use blank label with index " << blankLabelIndex_;
+    }
+
+    useSilence_ = silenceLabelIndex_ != Nn::invalidLabelIndex;
+    if (useSilence_) {
+        log() << "Use silence label with index " << silenceLabelIndex_;
     }
 
     for (size_t i = 0; i < scoreThresholds_.size(); ++i) {
@@ -230,6 +242,18 @@ bool LexiconfreeTimesyncBeamSearch::setModelCombination(Speech::ModelCombination
         }
         else if (blankLabelIndex_ != static_cast<Nn::LabelIndex>(blankLemma->id())) {
             warning() << "Blank lemma exists in lexicon with id " << blankLemma->id() << " but is overwritten by config parameter with value " << blankLabelIndex_;
+        }
+    }
+
+    auto silenceLemma = lexicon_->specialLemma("silence");
+    if (silenceLemma) {
+        if (silenceLabelIndex_ == Nn::invalidLabelIndex) {
+            silenceLabelIndex_ = silenceLemma->id();
+            useSilence_        = true;
+            log() << "Use silence index " << silenceLabelIndex_ << " inferred from lexicon";
+        }
+        else if (silenceLabelIndex_ != static_cast<Nn::LabelIndex>(silenceLemma->id())) {
+            warning() << "Silence lemma exists in lexicon with id " << silenceLemma->id() << " but is overwritten by config parameter with value " << silenceLabelIndex_;
         }
     }
 
@@ -605,9 +629,15 @@ Nn::TransitionType LexiconfreeTimesyncBeamSearch::inferTransitionType(Nn::LabelI
     bool prevIsBlank = (useBlank_ and prevLabel == blankLabelIndex_);
     bool nextIsBlank = (useBlank_ and nextLabel == blankLabelIndex_);
 
+    bool prevIsSilence = (useSilence_ and prevLabel == silenceLabelIndex_);
+    bool nextIsSilence = (useSilence_ and nextLabel == silenceLabelIndex_);
+
     if (prevLabel == Nn::invalidLabelIndex) {
         if (nextIsBlank) {
             return Nn::TransitionType::INITIAL_BLANK;
+        }
+        else if (nextIsSilence) {
+            return Nn::TransitionType::INITIAL_SILENCE;
         }
         else {
             return Nn::TransitionType::INITIAL_LABEL;
@@ -622,9 +652,20 @@ Nn::TransitionType LexiconfreeTimesyncBeamSearch::inferTransitionType(Nn::LabelI
             return Nn::TransitionType::BLANK_TO_LABEL;
         }
     }
+    else if (prevIsSilence) {
+        if (nextIsSilence) {
+            return Nn::TransitionType::SILENCE_LOOP;
+        }
+        else {
+            return Nn::TransitionType::SILENCE_TO_LABEL;
+        }
+    }
     else {
         if (nextIsBlank) {
             return Nn::TransitionType::LABEL_TO_BLANK;
+        }
+        else if (nextIsSilence) {
+            return Nn::TransitionType::LABEL_TO_SILENCE;
         }
         else if (collapseRepeatedLabels_ and prevLabel == nextLabel) {
             return Nn::TransitionType::LABEL_LOOP;

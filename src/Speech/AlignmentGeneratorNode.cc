@@ -27,7 +27,7 @@ AlignmentGeneratorNode::AlignmentGeneratorNode(const Core::Configuration& c)
 }
 
 bool AlignmentGeneratorNode::configure() {
-    Core::Ref<Flow::Attributes> attributes(new Flow::Attributes);
+    std::shared_ptr<Flow::Attributes> attributes(new Flow::Attributes);
     getInputAttributes(1, *attributes);
     if (!configureDatatype(attributes, Flow::DataAdaptor<ConstSegmentwiseFeaturesRef>::type())) {
         return false;

@@ -47,7 +47,7 @@ RandomVectorNode::~RandomVectorNode() {
 
 bool RandomVectorNode::configure() {
     reset();
-    Core::Ref<Flow::Attributes> attributes(new Flow::Attributes());
+    std::shared_ptr<Flow::Attributes> attributes(new Flow::Attributes());
     attributes->set("datatype", Flow::Vector<Data>::type()->name());
     attributes->set("sample-rate", sampleRate_);
     attributes->set("frame-shift", frameShift_);

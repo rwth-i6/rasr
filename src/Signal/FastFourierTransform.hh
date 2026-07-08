@@ -277,7 +277,7 @@ bool FastFourierTransformNode<Algorithm>::setParameter(
 
 template<class Algorithm>
 bool FastFourierTransformNode<Algorithm>::configure() {
-    Core::Ref<Flow::Attributes> a(new Flow::Attributes());
+    std::shared_ptr<Flow::Attributes> a(new Flow::Attributes());
     getInputAttributes(0, *a);
     if (!configureDatatype(a, Flow::Vector<f32>::type()))
         return false;

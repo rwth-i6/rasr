@@ -122,7 +122,7 @@ bool TemporalIntegrationNode::setParameter(const std::string& name, const std::s
 }
 
 bool TemporalIntegrationNode::configure() {
-    Core::Ref<Flow::Attributes> a(new Flow::Attributes());
+    std::shared_ptr<Flow::Attributes> a(new Flow::Attributes());
     ;
     getInputAttributes(0, *a);
 

@@ -57,6 +57,7 @@ target_link_libraries(
             RasrMath
             RasrMm
             RasrNn
+            cppunit
 )
 
 if(${MODULE_NN})

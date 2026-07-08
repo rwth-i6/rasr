@@ -243,10 +243,10 @@ void CrossCorrelationNode::init() {
 }
 
 bool CrossCorrelationNode::configure() {
-    Core::Ref<Flow::Attributes> a(new Flow::Attributes());
-    f64                         sampleRate = 0;
+    std::shared_ptr<Flow::Attributes> a(new Flow::Attributes());
+    f64                               sampleRate = 0;
     for (Flow::PortId i = 0; i < nInputs(); i++) {
-        Core::Ref<const Flow::Attributes> b = getInputAttributes(i);
+        std::shared_ptr<const Flow::Attributes> b = getInputAttributes(i);
         if (!configureDatatype(b, Flow::Vector<f32>::type()))
             return false;
 

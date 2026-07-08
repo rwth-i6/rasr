@@ -62,7 +62,7 @@ public:
               normFunction_(c) {}
 
     virtual bool configure() {
-        Core::Ref<const Attributes> a = getInputAttributes(0);
+        std::shared_ptr<const Attributes> a = getInputAttributes(0);
         if (!configureDatatype(a, Vector<content>::type()))
             return false;
         if (!putOutputAttributes(0, a))

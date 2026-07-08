@@ -103,7 +103,7 @@ protected:
         return outputs_[out].size();
     }
 
-    bool configureDatatype(Core::Ref<const Attributes> a, const Datatype* d);
+    bool configureDatatype(std::shared_ptr<const Attributes> a, const Datatype* d);
 
     /** Fetch data packet from input port
      * @param in port id of input port to get data from
@@ -139,12 +139,12 @@ protected:
      *  @return is always valid, e.i. reference points to a valid object.
      *  If the configuration of the predecessor node fails, an empty Attributes object is generated.
      */
-    Core::Ref<const Attributes> getInputAttributes(PortId in);
-    void                        getInputAttributes(PortId, Attributes&);
+    std::shared_ptr<const Attributes> getInputAttributes(PortId in);
+    void                              getInputAttributes(PortId, Attributes&);
     /** Put attribute set on output port.
      *  Additionally, output links are reconfigured and cleared.
      */
-    bool putOutputAttributes(PortId out, Core::Ref<const Attributes> a);
+    bool putOutputAttributes(PortId out, std::shared_ptr<const Attributes> a);
     /** Erases attributes of all output links recursively. */
     void eraseOutputAttributes();
 

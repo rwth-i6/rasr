@@ -57,7 +57,7 @@ public:
     virtual ~VectorDemultiplexNode() {}
 
     virtual bool configure() {
-        Core::Ref<Attributes> a(new Attributes());
+        std::shared_ptr<Attributes> a(new Attributes());
         getInputAttributes(0, *a);
         if (!configureDatatype(a, Vector<T>::type()))
             return false;

@@ -61,7 +61,7 @@ bool InputNode::setParameter(const std::string& name, const std::string& value) 
 }
 
 bool InputNode::configure() {
-    Core::Ref<Flow::Attributes> a(new Flow::Attributes());
+    std::shared_ptr<Flow::Attributes> a(new Flow::Attributes());
     a->set("sample-rate", sampleRate_);
     a->set("track-count", trackCount_);
     switch (sampleType_) {

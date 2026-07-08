@@ -81,8 +81,8 @@ template<class T>
 bool VectorSequenceAggregation<T>::configure() {
     clear();
 
-    Core::Ref<Flow::Attributes>       attr(new Flow::Attributes);
-    Core::Ref<const Flow::Attributes> a = getInputAttributes(0);
+    std::shared_ptr<Flow::Attributes>       attr(new Flow::Attributes);
+    std::shared_ptr<const Flow::Attributes> a = getInputAttributes(0);
     if (!configureDatatype(a, Flow::Vector<T>::type()))
         return false;
     attr->merge(*a);

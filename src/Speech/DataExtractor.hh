@@ -38,17 +38,17 @@ class DataExtractor : public CorpusProcessor {
     typedef CorpusProcessor Precursor;
 
 private:
-    Core::Ref<DataSource>    dataSource_;
-    Core::XmlChannel         statisticsChannel_;
-    u32                      nRecordings_, nSegments_;
-    std::vector<std::string> portNames_;
-    std::vector<size_t>      nFrames_;
+    std::shared_ptr<DataSource> dataSource_;
+    Core::XmlChannel            statisticsChannel_;
+    u32                         nRecordings_, nSegments_;
+    std::vector<std::string>    portNames_;
+    std::vector<size_t>         nFrames_;
 
 protected:
-    void setDataSource(Core::Ref<DataSource> s) {
+    void setDataSource(std::shared_ptr<DataSource> s) {
         dataSource_ = s;
     }
-    Core::Ref<DataSource> dataSource() const {
+    std::shared_ptr<DataSource> dataSource() const {
         return dataSource_;
     }
 

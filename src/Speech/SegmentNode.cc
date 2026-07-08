@@ -41,7 +41,7 @@ bool SegmentNode::setParameter(const std::string& name, const std::string& value
 }
 
 bool SegmentNode::configure() {
-    Core::Ref<Flow::Attributes> attributes(new Flow::Attributes);
+    std::shared_ptr<Flow::Attributes> attributes(new Flow::Attributes);
     getInputAttributes(0, *attributes);
     if (!configureDatatype(attributes, Flow::DataAdaptor<ModelCombinationRef>::type())) {
         return false;
@@ -79,7 +79,7 @@ SegmentwiseFeaturesNode::SegmentwiseFeaturesNode(const Core::Configuration& c)
 }
 
 bool SegmentwiseFeaturesNode::configure() {
-    Core::Ref<Flow::Attributes> attributes(new Flow::Attributes);
+    std::shared_ptr<Flow::Attributes> attributes(new Flow::Attributes);
     getInputAttributes(1, *attributes);
     if (!configureDatatype(attributes, Feature::FlowFeature::type())) {
         return false;

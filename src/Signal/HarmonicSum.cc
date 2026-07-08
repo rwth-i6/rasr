@@ -37,7 +37,7 @@ HarmonicSumNode::HarmonicSumNode(const Configuration& c)
 }
 
 bool HarmonicSumNode::configure() {
-    Core::Ref<const Flow::Attributes> a = getInputAttributes(0);
+    std::shared_ptr<const Flow::Attributes> a = getInputAttributes(0);
     if (!configureDatatype(a, Flow::Vector<f32>::type()))
         return false;
 

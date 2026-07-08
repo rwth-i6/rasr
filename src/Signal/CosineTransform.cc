@@ -198,7 +198,7 @@ bool CosineTransformNode::setParameter(const std::string& name, const std::strin
 }
 
 bool CosineTransformNode::configure() {
-    Core::Ref<Flow::Attributes> attributes(new Flow::Attributes());
+    std::shared_ptr<Flow::Attributes> attributes(new Flow::Attributes());
     getInputAttributes(0, *attributes);
     if (!configureDatatype(attributes, Flow::Vector<f32>::type()))
         return false;

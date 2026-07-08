@@ -134,7 +134,7 @@ public:
 
 template<class C>
 bool TypeConverterNode<C>::configure() {
-    Core::Ref<Attributes> a(new Attributes());
+    std::shared_ptr<Attributes> a(new Attributes());
     getInputAttributes(0, *a);
     if (!configureDatatype(a, In::type()))
         return false;

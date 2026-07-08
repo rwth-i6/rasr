@@ -82,14 +82,14 @@ bool LinearFilterNode::setParameter(const std::string& name, const std::string& 
 }
 
 bool LinearFilterNode::configure() {
-    Core::Ref<Flow::Attributes> attributes(new Flow::Attributes());
+    std::shared_ptr<Flow::Attributes> attributes(new Flow::Attributes());
 
-    Core::Ref<const Flow::Attributes> signalAttributes = getInputAttributes(0);
+    std::shared_ptr<const Flow::Attributes> signalAttributes = getInputAttributes(0);
     if (!configureDatatype(signalAttributes, Flow::Vector<f32>::type()))
         return false;
     attributes->merge(*signalAttributes);
 
-    Core::Ref<const Flow::Attributes> parameterAttributes = getInputAttributes(1);
+    std::shared_ptr<const Flow::Attributes> parameterAttributes = getInputAttributes(1);
     if (!configureDatatype(parameterAttributes, LinearFilterParameter::type()))
         return false;
     attributes->merge(*parameterAttributes);

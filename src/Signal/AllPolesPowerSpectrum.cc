@@ -36,7 +36,7 @@ AllPolesPowerSpectrumNode::AllPolesPowerSpectrumNode(const Core::Configuration& 
 AllPolesPowerSpectrumNode::~AllPolesPowerSpectrumNode() {}
 
 bool AllPolesPowerSpectrumNode::configure() {
-    Core::Ref<Flow::Attributes> attributes(new Flow::Attributes());
+    std::shared_ptr<Flow::Attributes> attributes(new Flow::Attributes());
     getInputAttributes(0, *attributes);
     if (!configureDatatype(attributes, AutoregressiveCoefficients::type()))
         return false;

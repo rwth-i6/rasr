@@ -55,7 +55,7 @@ public:
     /** Override this function to obtain the data source of corpus processor which
      *  produces the labels.
      */
-    virtual void setDataSource(Core::Ref<DataSource>) {}
+    virtual void setDataSource(std::shared_ptr<DataSource>) {}
     /** Override this function to achieve the attributes of the feature streams.
      *  This function is called once before the first feature vector is processed.
      */

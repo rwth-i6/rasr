@@ -165,7 +165,7 @@ PortId TypedDisaggregateNode<T>::getOutput(const std::string& name) {
 
 template<class T>
 bool TypedDisaggregateNode<T>::configure() {
-    Core::Ref<Attributes> a(new Attributes);
+    std::shared_ptr<Attributes> a(new Attributes);
     getInputAttributes(0, *a);
     if (!configureDatatype(a, TypedAggregate<DataType>::type()))
         return false;

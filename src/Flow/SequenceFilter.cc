@@ -37,7 +37,7 @@ void SequenceFilterNode::updateSelection(const Timestamp& timestamp) {
 bool SequenceFilterNode::configure() {
     selection_.reset();
 
-    Core::Ref<Attributes> attributesSelection(new Attributes);
+    std::shared_ptr<Attributes> attributesSelection(new Attributes);
     getInputAttributes(1, *attributesSelection);
     if (!configureDatatype(attributesSelection, Vector<bool>::type()))
         return false;

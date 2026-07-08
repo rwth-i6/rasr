@@ -107,7 +107,7 @@ VectorTextInputNodeBase::VectorTextInputNodeBase(
 }
 
 bool VectorTextInputNodeBase::configure() {
-    Core::Ref<Attributes> a(new Attributes());
+    std::shared_ptr<Attributes> a(new Attributes());
     a->set("datatype", type_->name());
     a->set("frame-shift", (f32)shiftInS_);
     a->set("sample-rate", sampleRate_);

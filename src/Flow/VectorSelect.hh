@@ -100,7 +100,7 @@ void VectorSelectNode<T>::applyFeatureSelection(Flow::Vector<T>& in, Flow::Vecto
 
 template<class T>
 bool VectorSelectNode<T>::configure() {
-    Core::Ref<Flow::Attributes> attributes(new Flow::Attributes());
+    std::shared_ptr<Flow::Attributes> attributes(new Flow::Attributes());
     getInputAttributes(0, *attributes);
 
     if (!configureDatatype(attributes, Flow::Vector<T>::type())) {

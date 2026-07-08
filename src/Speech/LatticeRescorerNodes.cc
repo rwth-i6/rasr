@@ -99,7 +99,7 @@ LatticeRescorerNode::LatticeRescorerNode(const Core::Configuration& c)
 }
 
 bool LatticeRescorerNode::configure() {
-    Core::Ref<Flow::Attributes> attributes(new Flow::Attributes);
+    std::shared_ptr<Flow::Attributes> attributes(new Flow::Attributes);
     getInputAttributes(1, *attributes);
     if (!configureDatatype(attributes, Flow::DataAdaptor<Flf::ConstLatticeRef>::type())) {
         return false;
@@ -122,7 +122,7 @@ ApproximateDistanceLatticeRescorerNode::ApproximateDistanceLatticeRescorerNode(c
 }
 
 bool ApproximateDistanceLatticeRescorerNode::configure() {
-    Core::Ref<Flow::Attributes> attributes(new Flow::Attributes());
+    std::shared_ptr<Flow::Attributes> attributes(new Flow::Attributes());
 
     getInputAttributes(2, *attributes);
     if (!configureDatatype(attributes, Flow::DataAdaptor<AlignmentGeneratorRef>::type())) {
@@ -255,7 +255,7 @@ Fsa::ConstAutomatonRef SoftFramePhoneAccuracyLatticeRescorerNode::getDistanceFsa
 }
 
 bool SoftFramePhoneAccuracyLatticeRescorerNode::configure() {
-    Core::Ref<Flow::Attributes> attributes(new Flow::Attributes());
+    std::shared_ptr<Flow::Attributes> attributes(new Flow::Attributes());
 
     getInputAttributes(2, *attributes);
     if (!configureDatatype(attributes, Flow::DataAdaptor<AlignmentGeneratorRef>::type())) {
@@ -355,7 +355,7 @@ AcousticLatticeRescorerNode::AcousticLatticeRescorerNode(const Core::Configurati
           rescoreMode_((RescoreMode)paramRescoreMode(c)) {}
 
 bool AcousticLatticeRescorerNode::configure() {
-    Core::Ref<Flow::Attributes> attributes(new Flow::Attributes());
+    std::shared_ptr<Flow::Attributes> attributes(new Flow::Attributes());
 
     getInputAttributes(2, *attributes);
     if (!configureDatatype(attributes, Flow::DataAdaptor<AlignmentGeneratorRef>::type())) {

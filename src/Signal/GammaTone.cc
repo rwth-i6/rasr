@@ -275,7 +275,7 @@ bool GammaToneNode::setParameter(const std::string& name, const std::string& val
 }
 
 bool GammaToneNode::configure() {
-    Core::Ref<Flow::Attributes> a(new Flow::Attributes());
+    std::shared_ptr<Flow::Attributes> a(new Flow::Attributes());
     getInputAttributes(0, *a);
     if (!configureDatatype(a, Flow::Vector<f32>::type()))
         return false;

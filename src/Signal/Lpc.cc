@@ -39,13 +39,13 @@ bool LinearPredictionCodingNode::setParameter(const std::string& name, const std
 }
 
 bool LinearPredictionCodingNode::configure() {
-    Core::Ref<Flow::Attributes>       attributes(new Flow::Attributes());
-    Core::Ref<const Flow::Attributes> yAttributes = getInputAttributes(0);
+    std::shared_ptr<Flow::Attributes>       attributes(new Flow::Attributes());
+    std::shared_ptr<const Flow::Attributes> yAttributes = getInputAttributes(0);
     if (!configureDatatype(yAttributes, Flow::Vector<f32>::type()))
         return false;
     attributes->merge(*yAttributes);
 
-    Core::Ref<const Flow::Attributes> uAttributes = getInputAttributes(1);
+    std::shared_ptr<const Flow::Attributes> uAttributes = getInputAttributes(1);
     if (!configureDatatype(uAttributes, Flow::Vector<f32>::type()))
         return false;
     attributes->merge(*uAttributes);

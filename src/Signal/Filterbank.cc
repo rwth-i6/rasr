@@ -845,7 +845,7 @@ bool FilterBankNode::setParameter(const std::string& name, const std::string& va
 }
 
 bool FilterBankNode::configure() {
-    Core::Ref<Flow::Attributes> attributes(new Flow::Attributes());
+    std::shared_ptr<Flow::Attributes> attributes(new Flow::Attributes());
     getInputAttributes(0, *attributes);
     if (!configureDatatype(attributes, Flow::Vector<f32>::type()))
         return false;

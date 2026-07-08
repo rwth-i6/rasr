@@ -98,7 +98,7 @@ bool SourceNode::configure() {
     }
     verify(sampleCount_ == startSample);
 
-    Core::Ref<Flow::Attributes> a(new Flow::Attributes());
+    std::shared_ptr<Flow::Attributes> a(new Flow::Attributes());
     a->set("file", filename_);
     a->set("sample-rate", sampleRate_);
     a->set("sample-size", sampleSize_);
@@ -196,7 +196,7 @@ Audio::SinkNode::SinkNode(const Core::Configuration& c)
 }
 
 bool SinkNode::configure() {
-    Core::Ref<const Flow::Attributes> a = getInputAttributes(0);
+    std::shared_ptr<const Flow::Attributes> a = getInputAttributes(0);
 
     //  configureDatatype(a);
     sampleRate_ = atoi(a->get("sample-rate").c_str());

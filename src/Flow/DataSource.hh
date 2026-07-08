@@ -15,15 +15,15 @@
 #ifndef _FLOW_DATA_SOURCE_HH
 #define _FLOW_DATA_SOURCE_HH
 
-#include <Core/ReferenceCounting.hh>
+#include <memory>
+
 #include <Flow/Network.hh>
 
 namespace Flow {
 
 /** Flow::Network handling several ports
  */
-class DataSource : public Core::ReferenceCounted,
-                   public Network {
+class DataSource : public Network {
 protected:
     typedef Network Precursor;
 

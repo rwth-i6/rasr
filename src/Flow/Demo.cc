@@ -135,7 +135,7 @@ bool DemoNode::configure() {
                          << Core::XmlFull("from input port", port)
                          << Core::XmlClose("fetching attributes");
         }
-        Core::Ref<const Attributes> attr = getInputAttributes(port);
+        std::shared_ptr<const Attributes> attr = getInputAttributes(port);
         // note the output of attributes into an xml file is done
         // in the putOutputAttributes method inherited from Flow::Node
         if (!putOutputAttributes(port, attr)) {

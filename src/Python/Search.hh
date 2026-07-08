@@ -18,7 +18,6 @@
 
 #include <Flf/LatticeHandler.hh>
 #include <Flf/Lexicon.hh>
-#include <Nn/LabelScorer/ScaledLabelScorer.hh>
 #include <Search/SearchV2.hh>
 
 #pragma push_macro("ensure")  // Macro duplication in numpy.h

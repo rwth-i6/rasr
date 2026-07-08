@@ -19,11 +19,7 @@
 #include <pybind11/pybind11.h>
 #include "Nn/LabelScorer/Types.hh"
 
-#include <Nn/LabelScorer/CombineLabelScorer.hh>
-#include <Nn/LabelScorer/CtcPrefixLabelScorer.hh>
-#include <Nn/LabelScorer/EncoderDecoderLabelScorer.hh>
 #include <Nn/LabelScorer/LabelScorer.hh>
-#include <Nn/LabelScorer/ScaledLabelScorer.hh>
 
 namespace py = pybind11;
 

@@ -13,7 +13,7 @@
  *  limitations under the License.
  */
 #include "AlignmentNode.hh"
-#include <Bliss/Orthography.hh>
+#include <Bliss/OrthographicParser.hh>
 #include <Core/Directory.hh>
 #include <Core/Hash.hh>
 #include <Flow/DataAdaptor.hh>

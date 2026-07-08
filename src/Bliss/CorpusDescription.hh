@@ -21,6 +21,7 @@
 #include <Core/StringUtilities.hh>
 #include <map>
 #include <string>
+#include "Orthography.hh"
 
 namespace Bliss {
 
@@ -419,39 +420,45 @@ class SpeechSegment : public Segment {
 private:
     const Speaker* speaker_;
     std::string    lang_;
-    std::string    orth_;
-    std::string    leftContextOrth_;
-    std::string    rightContextOrth_;
+    Orthography    orth_;
+    Orthography    leftContextOrth_;
+    Orthography    rightContextOrth_;
 
 public:
     const std::string& orth() const {
-        ensure(Core::isWhitespaceNormalized(orth_, Core::requireTrailingBlank));
-        return orth_;
+        return orth_.str();
     }
 
     void setOrth(std::string const& o) {
-        require(Core::isWhitespaceNormalized(o, Core::requireTrailingBlank));
-        orth_ = o;
+        orth_ = Orthography::fromNormalized(o);
+    }
+
+    Orthography const& orthography() const {
+        return orth_;
     }
 
     std::string const& leftContextOrth() const {
-        ensure(Core::isWhitespaceNormalized(leftContextOrth_, Core::requireTrailingBlank));
-        return leftContextOrth_;
+        return leftContextOrth_.str();
     }
 
     void setLeftContextOrth(std::string const& o) {
-        require(Core::isWhitespaceNormalized(o, Core::requireTrailingBlank));
-        leftContextOrth_ = o;
+        leftContextOrth_ = Orthography::fromNormalized(o);
+    }
+
+    Orthography const& leftContextOrthography() const {
+        return leftContextOrth_;
     }
 
     std::string const& rightContextOrth() const {
-        ensure(Core::isWhitespaceNormalized(rightContextOrth_, Core::requireTrailingBlank));
-        return rightContextOrth_;
+        return rightContextOrth_.str();
     }
 
     void setRightContextOrth(std::string const& o) {
-        require(Core::isWhitespaceNormalized(o, Core::requireTrailingBlank));
-        rightContextOrth_ = o;
+        rightContextOrth_ = Orthography::fromNormalized(o);
+    }
+
+    Orthography const& rightContextOrthography() const {
+        return rightContextOrth_;
     }
 
     /**

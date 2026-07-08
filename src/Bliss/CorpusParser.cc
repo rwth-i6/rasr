@@ -496,7 +496,7 @@ void CorpusDescriptionParser::startSegment(const XmlAttributes atts) {
     segment_->track_ = (track) ? atoi(track) : 0;
 }
 
-std::string CorpusDescriptionParser::processOrth(std::string const& _orth) {
+Orthography CorpusDescriptionParser::processOrth(std::string const& _orth) {
     std::string orth(_orth);
     enforceTrailingBlank(orth);
     if (shallCaptializeTranscriptions_) {
@@ -505,25 +505,22 @@ std::string CorpusDescriptionParser::processOrth(std::string const& _orth) {
     if (shallGemenizeTranscriptions_) {
         orth = Core::convertToLowerCase(orth);
     }
-    return orth;
+    return Orthography::fromNormalized(orth);
 }
 
 void CorpusDescriptionParser::setOrth(std::string const& _orth) {
     verify(segment_);
-    std::string orth = processOrth(_orth);
-    segment_->setOrth(orth);
+    segment_->orth_ = processOrth(_orth);
 }
 
 void CorpusDescriptionParser::setLeftContextOrth(std::string const& _orth) {
     verify(segment_);
-    std::string orth = processOrth(_orth);
-    segment_->setLeftContextOrth(orth);
+    segment_->leftContextOrth_ = processOrth(_orth);
 }
 
 void CorpusDescriptionParser::setRightContextOrth(std::string const& _orth) {
     verify(segment_);
-    std::string orth = processOrth(_orth);
-    segment_->setRightContextOrth(orth);
+    segment_->rightContextOrth_ = processOrth(_orth);
 }
 
 void CorpusDescriptionParser::endSegment() {

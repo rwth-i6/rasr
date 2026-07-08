@@ -433,7 +433,7 @@ public:
         orth_ = Orthography::fromNormalized(o);
     }
 
-    const Orthography& orthography() const {
+    Orthography const& orthography() const {
         return orth_;
     }
 
@@ -445,7 +445,7 @@ public:
         leftContextOrth_ = Orthography::fromNormalized(o);
     }
 
-    const Orthography& leftContextOrthography() const {
+    Orthography const& leftContextOrthography() const {
         return leftContextOrth_;
     }
 
@@ -457,7 +457,7 @@ public:
         rightContextOrth_ = Orthography::fromNormalized(o);
     }
 
-    const Orthography& rightContextOrthography() const {
+    Orthography const& rightContextOrthography() const {
         return rightContextOrth_;
     }
 

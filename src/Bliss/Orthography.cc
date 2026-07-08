@@ -17,15 +17,13 @@
 namespace Bliss {
 
 Orthography::Span::Span(std::string const& text)
-        : type_(Type::text),
-          text_(text) {
-    require(Orthography::isValidSpan(text_));
+        : content_(text) {
+    require(Orthography::isValidSpan(text));
 }
 
 Orthography::Span::Span(std::vector<Orthography> const& alternatives)
-        : type_(Type::alternatives),
-          alternatives_(alternatives) {
-    require(!alternatives_.empty());
+        : content_(alternatives) {
+    require(!alternatives.empty());
 }
 
 Orthography Orthography::fromNormalized(std::string const& text) {

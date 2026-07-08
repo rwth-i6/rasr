@@ -434,11 +434,11 @@ void TreeLabelsyncBeamSearch::putFeatures(Nn::DataView const& features, size_t n
 }
 
 Core::Ref<const Traceback> TreeLabelsyncBeamSearch::getCurrentBestTraceback() const {
-    return getBestHypothesis(beam_).trace->performTraceback();
+    return getOutputHypothesis(beam_).trace->performTraceback();
 }
 
 Core::Ref<const LatticeAdaptor> TreeLabelsyncBeamSearch::getCurrentBestWordLattice() const {
-    auto& bestHypothesis = getBestHypothesis(beam_);
+    auto& bestHypothesis = getOutputHypothesis(beam_);
 
     LatticeTrace endTrace(bestHypothesis.trace, 0, bestHypothesis.trace->time + 1, bestHypothesis.trace->score, {});
 
@@ -454,7 +454,7 @@ Core::Ref<const LatticeAdaptor> TreeLabelsyncBeamSearch::getCurrentBestWordLatti
 }
 
 Core::Ref<const LatticeTrace> TreeLabelsyncBeamSearch::getCurrentBestLatticeTrace() const {
-    return getBestHypothesis(beam_).trace;
+    return getOutputHypothesis(beam_).trace;
 }
 
 Core::Ref<const LatticeTrace> TreeLabelsyncBeamSearch::getCommonPrefix() const {
@@ -748,7 +748,9 @@ bool TreeLabelsyncBeamSearch::decodeStep() {
     if (not useScorePruning_.empty() and useScorePruning_.back()) {
         auto relativeThreshold = scoreThresholds_.back();
         if (lengthNormScale_ != 0) {
-            relativeThreshold /= std::pow(getBestHypothesis(newBeam_).length, lengthNormScale_);
+            auto const* bestHypothesis = getBestHypothesis(newBeam_, HypothesisFilter::Any);
+            verify(bestHypothesis != nullptr);
+            relativeThreshold /= std::pow(bestHypothesis->length, lengthNormScale_);
         }
         scorePruning(newBeam_, relativeThreshold, newBeam_.size());
 
@@ -854,10 +856,10 @@ bool TreeLabelsyncBeamSearch::decodeStep() {
     if (logStepwiseStatistics_) {
         clog() << Core::XmlFull("terminated-hyps", beam_.size() - numActive);
         clog() << Core::XmlFull("active-hyps", numActive);
-        auto const* bestTerminatedHyp  = getBestTerminatedHypothesis(beam_);
-        auto const* worstTerminatedHyp = getWorstTerminatedHypothesis(beam_);
-        auto const* bestActiveHyp      = getBestActiveHypothesis(beam_);
-        auto const* worstActiveHyp     = getWorstActiveHypothesis(beam_);
+        auto const* bestTerminatedHyp  = getBestHypothesis(beam_, HypothesisFilter::Terminated);
+        auto const* worstTerminatedHyp = getWorstHypothesis(beam_, HypothesisFilter::Terminated);
+        auto const* bestActiveHyp      = getBestHypothesis(beam_, HypothesisFilter::Active);
+        auto const* worstActiveHyp     = getWorstHypothesis(beam_, HypothesisFilter::Active);
         if (bestTerminatedHyp != nullptr) {
             clog() << Core::XmlFull("best-terminated-hyp-score", bestTerminatedHyp->score);
             clog() << Core::XmlFull("best-terminated-hyp-normalized-score", bestTerminatedHyp->scaledScore);
@@ -880,78 +882,60 @@ bool TreeLabelsyncBeamSearch::decodeStep() {
     return true;
 }
 
-TreeLabelsyncBeamSearch::LabelHypothesis const* TreeLabelsyncBeamSearch::getBestTerminatedHypothesis(std::vector<LabelHypothesis> const& hypotheses) const {
+bool TreeLabelsyncBeamSearch::matchesHypothesisFilter(LabelHypothesis const& hypothesis, HypothesisFilter filter) const {
+    switch (filter) {
+        case HypothesisFilter::Any:
+            return true;
+        case HypothesisFilter::Active:
+            return hypothesis.isActive;
+        case HypothesisFilter::Terminated:
+            return not hypothesis.isActive;
+    }
+    return false;
+}
+
+TreeLabelsyncBeamSearch::LabelHypothesis const* TreeLabelsyncBeamSearch::getBestHypothesis(
+        std::vector<LabelHypothesis> const& hypotheses,
+        HypothesisFilter                    filter) const {
     LabelHypothesis const* best = nullptr;
 
     for (auto const& hyp : hypotheses) {
-        if (not hyp.isActive) {
-            if (best == nullptr or hyp < *best) {
-                best = &hyp;
-            }
+        if (not matchesHypothesisFilter(hyp, filter)) {
+            continue;
+        }
+
+        if (best == nullptr or hyp < *best) {
+            best = &hyp;
         }
     }
 
     return best;
 }
 
-TreeLabelsyncBeamSearch::LabelHypothesis const* TreeLabelsyncBeamSearch::getWorstTerminatedHypothesis(std::vector<LabelHypothesis> const& hypotheses) const {
+TreeLabelsyncBeamSearch::LabelHypothesis const* TreeLabelsyncBeamSearch::getWorstHypothesis(
+        std::vector<LabelHypothesis> const& hypotheses,
+        HypothesisFilter                    filter) const {
     LabelHypothesis const* worst = nullptr;
 
     for (auto const& hyp : hypotheses) {
-        if (not hyp.isActive) {
-            if (worst == nullptr or hyp > *worst) {
-                worst = &hyp;
-            }
+        if (not matchesHypothesisFilter(hyp, filter)) {
+            continue;
+        }
+
+        if (worst == nullptr or hyp > *worst) {
+            worst = &hyp;
         }
     }
 
     return worst;
 }
 
-TreeLabelsyncBeamSearch::LabelHypothesis const* TreeLabelsyncBeamSearch::getBestActiveHypothesis(std::vector<LabelHypothesis> const& hypotheses) const {
-    LabelHypothesis const* best = nullptr;
-
-    for (auto const& hyp : hypotheses) {
-        if (hyp.isActive) {
-            if (best == nullptr or hyp < *best) {
-                best = &hyp;
-            }
-        }
-    }
-
-    return best;
-}
-
-TreeLabelsyncBeamSearch::LabelHypothesis const* TreeLabelsyncBeamSearch::getWorstActiveHypothesis(std::vector<LabelHypothesis> const& hypotheses) const {
-    LabelHypothesis const* worst = nullptr;
-
-    for (auto const& hyp : hypotheses) {
-        if (hyp.isActive) {
-            if (worst == nullptr or hyp > *worst) {
-                worst = &hyp;
-            }
-        }
-    }
-
-    return worst;
-}
-
-TreeLabelsyncBeamSearch::LabelHypothesis const& TreeLabelsyncBeamSearch::getBestHypothesis(std::vector<LabelHypothesis> const& hypotheses) const {
-    auto const* result = getBestTerminatedHypothesis(hypotheses);
+TreeLabelsyncBeamSearch::LabelHypothesis const& TreeLabelsyncBeamSearch::getOutputHypothesis(std::vector<LabelHypothesis> const& hypotheses) const {
+    auto const* result = getBestHypothesis(hypotheses, HypothesisFilter::Terminated);
     if (result != nullptr) {
         return *result;
     }
-    result = getBestActiveHypothesis(hypotheses);
-    verify(result != nullptr);
-    return *result;
-}
-
-TreeLabelsyncBeamSearch::LabelHypothesis const& TreeLabelsyncBeamSearch::getWorstHypothesis(std::vector<LabelHypothesis> const& hypotheses) const {
-    auto const* result = getWorstTerminatedHypothesis(hypotheses);
-    if (result != nullptr) {
-        return *result;
-    }
-    result = getWorstActiveHypothesis(hypotheses);
+    result = getBestHypothesis(hypotheses, HypothesisFilter::Active);
     verify(result != nullptr);
     return *result;
 }
@@ -1220,7 +1204,7 @@ void TreeLabelsyncBeamSearch::maximumStableDelayPruning() {
 
     // No Hypothesis with a recent word-end was found so just take the overall best as fallback
     if (not root) {
-        root = getBestHypothesis(beam_).trace;
+        root = getBestHypothesis(beam_, HypothesisFilter::Any)->trace;
         warning() << "Most recent word in best hypothesis is before cutoff point for maximum-stable-delay-pruning so the limit will be surpassed";
     }
 

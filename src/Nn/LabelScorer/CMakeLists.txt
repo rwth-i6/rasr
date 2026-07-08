@@ -21,8 +21,8 @@ target_sources(
 if(${MODULE_ONNX})
     target_sources(
         RasrNn
-        PRIVATE FixedContextOnnxLabelScorer.cc NoContextOnnxLabelScorer.cc
         PRIVATE FixedContextOnnxLabelScorer.cc
+        FullContextOnnxLabelScorer.cc
                 NoContextOnnxLabelScorer.cc
                 StatefulOnnxLabelScorer.cc
                 StateManagedOnnxLabelScorer.cc

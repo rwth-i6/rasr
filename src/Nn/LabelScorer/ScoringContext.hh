@@ -33,8 +33,8 @@ bool   labelSeqEqual(std::vector<LabelIndex> const& lhs, std::vector<LabelIndex>
 struct ScoringContext : public Core::ReferenceCounted {
     virtual ~ScoringContext() = default;
 
-    virtual bool   isEqual(Core::Ref<ScoringContext const> const& other) const;
     virtual size_t hash() const;
+    virtual bool   isEqual(Core::Ref<ScoringContext const> const& other) const;
 };
 
 typedef Core::Ref<ScoringContext const> ScoringContextRef;
@@ -63,11 +63,31 @@ struct StepScoringContext : public ScoringContext {
     StepScoringContext(Speech::TimeframeIndex step)
             : currentStep(step) {}
 
-    bool   isEqual(ScoringContextRef const& other) const;
     size_t hash() const;
+    bool   isEqual(ScoringContextRef const& other) const;
 };
 
 typedef Core::Ref<StepScoringContext const> StepScoringContextRef;
+
+/*
+ * Scoring context that describes the complete sequence of previously observed labels as well as the current decoding step
+ */
+struct SeqStepScoringContext : public ScoringContext {
+    std::vector<LabelIndex> labelSeq;
+    Speech::TimeframeIndex currentStep;
+
+    SeqStepScoringContext()
+            : labelSeq(), currentStep(0ul) {}
+    SeqStepScoringContext(std::vector<LabelIndex> const& seq, Speech::TimeframeIndex step)
+            : labelSeq(seq), currentStep(step) {}
+    SeqStepScoringContext(std::vector<LabelIndex>&& seq, Speech::TimeframeIndex step)
+            : labelSeq(std::move(seq)), currentStep(step) {}
+
+    size_t hash() const override;
+    bool isEqual(ScoringContextRef const& other) const override;
+};
+
+typedef Core::Ref<SeqStepScoringContext const> SeqStepScoringContextRef;
 
 }  // namespace Nn
 

@@ -28,6 +28,7 @@
 #include "LabelScorer/EncoderDecoderLabelScorer.hh"
 #include "LabelScorer/EncoderFactory.hh"
 #include "LabelScorer/FixedContextOnnxLabelScorer.hh"
+#include "LabelScorer/FullContextOnnxLabelScorer.hh"
 #include "LabelScorer/NoContextOnnxLabelScorer.hh"
 #include "LabelScorer/NoOpLabelScorer.hh"
 #include "LabelScorer/PriorLabelScorer.hh"
@@ -188,6 +189,13 @@ Module_::Module_()
             "fixed-context-onnx",
             [](Core::Configuration const& config, ModelCache& modelCache) {
                 return Core::ref(new FixedContextOnnxLabelScorer(config, modelCache));
+            });
+
+    // Compute scores by forwarding a single input feature vector together with the full history through an ONNX model
+    labelScorerFactory_.registerLabelScorer(
+            "full-context-onnx",
+            [](Core::Configuration const& config, ModelCache& modelCache) {
+                return Core::ref(new FullContextOnnxLabelScorer(config, modelCache));
             });
 
     // Compute scores based on hidden state tensors.

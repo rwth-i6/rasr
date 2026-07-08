@@ -56,7 +56,7 @@ public:
         std::vector<Orthography> alternatives_;
     };
 
-    typedef std::vector<Span> SpanList;
+    using SpanList = std::vector<Span>;
 
     static Orthography fromNormalized(std::string const& text);
     static Orthography fromRaw(std::string const& text);

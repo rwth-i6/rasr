@@ -107,16 +107,17 @@ void ConditionDescriptionElement::start(const XmlAttributes atts) {
 
 // ===========================================================================
 
-class Bliss::OrthographyElement : public Core::XmlBuilderElement<std::string, Core::XmlMixedElement, Core::CreateStatic> {
-    typedef Core::XmlBuilderElement<std::string, Core::XmlMixedElement, Core::CreateStatic> Precursor;
-    typedef OrthographyElement                                                              Self;
-
+class Bliss::PlainOrthographyElement : public Core::XmlBuilderElement<std::string, Core::XmlMixedElement, Core::CreateStatic> {
 public:
-    OrthographyElement(char const* _elementName, Core::XmlContext* _context, Handler _handler = 0);
+    typedef Core::XmlBuilderElement<std::string, Core::XmlMixedElement, Core::CreateStatic> Precursor;
+    typedef PlainOrthographyElement                                                         Self;
+
+    PlainOrthographyElement(char const* _elementName, Core::XmlContext* _context, Handler _handler = nullptr);
+
     virtual void characters(const char* ch, int len);
 };
 
-OrthographyElement::OrthographyElement(char const* _elementName, Core::XmlContext* _context, Handler _handler /*= 0*/)
+PlainOrthographyElement::PlainOrthographyElement(char const* _elementName, Core::XmlContext* _context, Handler _handler /*= nullptr*/)
         : Precursor(_elementName, _context, _handler) {
     addChild(collect(new XmlFlattenElement("noise", this)));       // FFE
     addChild(collect(new XmlFlattenElement("hesitation", this)));  // FFE
@@ -126,7 +127,7 @@ OrthographyElement::OrthographyElement(char const* _elementName, Core::XmlContex
     flattenUnknownElements();
 }
 
-void OrthographyElement::characters(const char* ch, int len) {
+void PlainOrthographyElement::characters(const char* ch, int len) {
     std::string s(ch, len);
     if (s.find_first_of(utf8::whitespace) == 0) {
         enforceTrailingBlank(product_);
@@ -134,6 +135,153 @@ void OrthographyElement::characters(const char* ch, int len) {
     normalizeWhitespace(s);
     product_ += s;
     verify(isWhitespaceNormalized(product_, tolerateTrailingBlank));
+}
+
+class Bliss::OrthographyElement : public Core::XmlParentElement {
+public:
+    using HandlerArgument = Orthography const&;
+    using Handler         = void (XmlContext::*)(HandlerArgument);
+
+    template<class T>
+    static Handler handler(void (T::*h)(HandlerArgument)) {
+        return static_cast<Handler>(h);
+    }
+
+    OrthographyElement(char const* _elementName, Core::XmlContext* _context, Handler _handler = 0);
+
+    virtual void        start(const Core::XmlAttributes atts);
+    virtual void        end();
+    virtual void        characters(const char* ch, int len);
+    virtual XmlElement* element(const char* name);
+
+private:
+    class AlternativesElement;
+
+    Handler handler_;
+
+    Orthography product_;
+    std::string pendingText_;
+
+    void flushText(bool final);
+    void appendAlternatives(std::vector<Orthography> const& alternatives);
+};
+
+class Bliss::OrthographyElement::AlternativesElement : public Core::XmlParentElement {
+public:
+    using HandlerArgument = std::vector<Orthography> const&;
+    using Handler         = void (XmlContext::*)(HandlerArgument);
+
+    template<class T>
+    static Handler handler(void (T::*h)(HandlerArgument)) {
+        return static_cast<Handler>(h);
+    }
+
+    AlternativesElement(Core::XmlContext* _context, Handler _handler = 0);
+
+    virtual void        start(const Core::XmlAttributes atts);
+    virtual void        end();
+    virtual void        characters(const char* ch, int len);
+    virtual XmlElement* element(const char* name);
+
+    void addAlternative(Orthography const& orth);
+
+private:
+    Handler handler_;
+
+    std::vector<Orthography> alternatives_;
+};
+
+OrthographyElement::OrthographyElement(char const* _elementName, Core::XmlContext* _context, Handler _handler)
+        : Core::XmlParentElement(_elementName, _context),
+          handler_(_handler) {
+    flattenUnknownElements();
+}
+
+void OrthographyElement::start(const Core::XmlAttributes atts) {
+    product_.clear();
+    pendingText_.clear();
+}
+
+void OrthographyElement::end() {
+    flushText(true);
+    ensure(product_.str().empty() || isWhitespaceNormalized(product_.str(), requireTrailingBlank));
+    if (handler_) {
+        (context()->*handler_)(product_);
+    }
+    product_.clear();
+    pendingText_.clear();
+}
+
+void OrthographyElement::characters(const char* ch, int len) {
+    std::string s(ch, len);
+    if (s.find_first_of(utf8::whitespace) == 0) {
+        enforceTrailingBlank(pendingText_);
+    }
+    normalizeWhitespace(s);
+    pendingText_ += s;
+    verify(isWhitespaceNormalized(pendingText_, tolerateTrailingBlank));
+}
+
+XmlElement* OrthographyElement::element(const char* name) {
+    if (std::string(name) == "alternatives") {
+        return collect(new AlternativesElement(this, AlternativesElement::handler(&OrthographyElement::appendAlternatives)));
+    }
+    if ((std::string(name) == "noise") || (std::string(name) == "hesitation") ||
+        (std::string(name) == "name") || (std::string(name) == "numeral") ||
+        (std::string(name) == "pron")) {
+        return collect(new XmlFlattenElement(name, this));
+    }
+    parser()->warnAboutUnexpectedElement(name, this->name());
+    return unexpectedElement();
+}
+
+void OrthographyElement::flushText(bool final) {
+    if (final) {
+        enforceTrailingBlank(pendingText_);
+    }
+    product_.appendText(pendingText_);
+    pendingText_.clear();
+}
+
+void OrthographyElement::appendAlternatives(std::vector<Orthography> const& alternatives) {
+    flushText(false);
+    product_.appendAlternative(alternatives);
+}
+
+OrthographyElement::AlternativesElement::AlternativesElement(Core::XmlContext* _context, Handler _handler)
+        : Core::XmlParentElement("alternatives", _context),
+          handler_(_handler) {}
+
+void OrthographyElement::AlternativesElement::start(const Core::XmlAttributes atts) {
+    alternatives_.clear();
+}
+
+void OrthographyElement::AlternativesElement::end() {
+    if (alternatives_.empty()) {
+        parser()->error("Element \"alternatives\" must contain at least one \"orth\" element");
+    }
+    if (handler_) {
+        (context()->*handler_)(alternatives_);
+    }
+    alternatives_.clear();
+}
+
+void OrthographyElement::AlternativesElement::characters(const char* ch, int len) {
+    if (std::string(ch, len).find_first_not_of(utf8::whitespace) != std::string::npos) {
+        parser()->error("Element \"alternatives\" may only contain \"orth\" elements");
+    }
+}
+
+XmlElement* OrthographyElement::AlternativesElement::element(const char* name) {
+    if (std::string(name) == "orth") {
+        return collect(new OrthographyElement("orth", this, OrthographyElement::handler(&AlternativesElement::addAlternative)));
+    }
+    parser()->error("Element \"alternatives\" may only contain \"orth\" elements, found \"%s\"", name);
+    return 0;
+}
+
+void OrthographyElement::AlternativesElement::addAlternative(Orthography const& orth) {
+    alternatives_.push_back(orth);
 }
 
 // ===========================================================================
@@ -195,11 +343,11 @@ void CorpusDescriptionParser::initSchema() {
     XmlElement* orth = collect(new OrthographyElement(
             "orth", this, OrthographyElement::handler(&Self::setOrth)));
 
-    XmlElement* leftContextOrth = collect(new OrthographyElement(
-            "left-context-orth", this, OrthographyElement::handler(&Self::setLeftContextOrth)));
+    XmlElement* leftContextOrth = collect(new PlainOrthographyElement(
+            "left-context-orth", this, PlainOrthographyElement::handler(&Self::setLeftContextOrth)));
 
-    XmlElement* rightContextOrth = collect(new OrthographyElement(
-            "right-context-orth", this, OrthographyElement::handler(&Self::setRightContextOrth)));
+    XmlElement* rightContextOrth = collect(new PlainOrthographyElement(
+            "right-context-orth", this, PlainOrthographyElement::handler(&Self::setRightContextOrth)));
 
     XmlElement* description_decl = collect(new XmlIgnoreElement("description", this));  // FFE
 
@@ -496,8 +644,37 @@ void CorpusDescriptionParser::startSegment(const XmlAttributes atts) {
     segment_->track_ = (track) ? atoi(track) : 0;
 }
 
-Orthography CorpusDescriptionParser::processOrth(std::string const& _orth) {
-    std::string orth(_orth);
+Orthography CorpusDescriptionParser::processOrth(Orthography const& orth) {
+    Orthography out;
+    for (auto const& span : orth.spans()) {
+        switch (span.type()) {
+            case Orthography::Span::Type::text: {
+                std::string text = span.text();
+                if (shallCaptializeTranscriptions_) {
+                    text = Core::convertToUpperCase(text);
+                }
+                if (shallGemenizeTranscriptions_) {
+                    text = Core::convertToLowerCase(text);
+                }
+                out.appendText(text);
+                break;
+            }
+            case Orthography::Span::Type::alternatives: {
+                std::vector<Orthography> alternatives;
+                for (auto const& alternative : span.alternatives()) {
+                    alternatives.push_back(processOrth(alternative));
+                }
+                out.appendAlternative(alternatives);
+                break;
+            }
+        }
+    }
+    std::string out_str = out.str();
+    ensure(out_str.empty() || Core::isWhitespaceNormalized(out_str, Core::requireTrailingBlank));
+    return out;
+}
+
+Orthography CorpusDescriptionParser::processPlainOrth(std::string orth) {
     enforceTrailingBlank(orth);
     if (shallCaptializeTranscriptions_) {
         orth = Core::convertToUpperCase(orth);
@@ -508,19 +685,19 @@ Orthography CorpusDescriptionParser::processOrth(std::string const& _orth) {
     return Orthography::fromNormalized(orth);
 }
 
-void CorpusDescriptionParser::setOrth(std::string const& _orth) {
+void CorpusDescriptionParser::setOrth(Orthography const& orth) {
     verify(segment_);
-    segment_->orth_ = processOrth(_orth);
+    segment_->orth_ = processOrth(orth);
 }
 
-void CorpusDescriptionParser::setLeftContextOrth(std::string const& _orth) {
+void CorpusDescriptionParser::setLeftContextOrth(std::string const& orth) {
     verify(segment_);
-    segment_->leftContextOrth_ = processOrth(_orth);
+    segment_->leftContextOrth_ = processPlainOrth(orth);
 }
 
-void CorpusDescriptionParser::setRightContextOrth(std::string const& _orth) {
+void CorpusDescriptionParser::setRightContextOrth(std::string const& orth) {
     verify(segment_);
-    segment_->rightContextOrth_ = processOrth(_orth);
+    segment_->rightContextOrth_ = processPlainOrth(orth);
 }
 
 void CorpusDescriptionParser::endSegment() {

@@ -389,10 +389,12 @@ bool LexiconfreeTimesyncBeamSearch::decodeStep() {
     auto lemmas = lexicon_->lemmas();
 
     /*
-     * We build a list of all scoring contexts that need to be passed to the LabelScorer for scoring scored inside `scoringContexts_`.
-     * `hypIndexToContextIndexMap_` stores the mapping, i.e. beam_[i].scoringContext = scoringContexts_[hypIndexToScoringContextMap_[i]].
-     * In the first iteration, this is just an identity mapping, i.e. hypIndexToContextIndexMap_[i] = i but for later label scorers
-     * some scoring contexts become no longer relevant when all extensions using them have been pruned.
+     * We collect the scoring contexts that need to be passed to the LabelScorer into `scoringContexts_`.
+     * `hypIndexToContextIndexMap_` maps a beam index to the position of its context in `scoringContexts_`,
+     * i.e. beam_[i].scoringContexts.front() == scoringContexts_[hypIndexToContextIndexMap_[i]].
+     * For the first label scorer this is just the identity mapping (hypIndexToContextIndexMap_[i] == i). For each
+     * subsequent scorer the list is rebuilt, dropping the contexts of any hypotheses whose extensions were all
+     * removed by intermediate pruning.
      */
     extensions_.clear();
     scoringContexts_.clear();
@@ -479,7 +481,9 @@ bool LexiconfreeTimesyncBeamSearch::decodeStep() {
         }
 
         if (extensions_.empty()) {
-            clog() << Core::XmlClose("search-step-stats");
+            if (logStepwiseStatistics_) {
+                clog() << Core::XmlClose("search-step-stats");
+            }
             return false;
         }
 
@@ -512,7 +516,9 @@ bool LexiconfreeTimesyncBeamSearch::decodeStep() {
     }
 
     if (extensions_.empty()) {
-        clog() << Core::XmlClose("search-step-stats");
+        if (logStepwiseStatistics_) {
+            clog() << Core::XmlClose("search-step-stats");
+        }
         return false;
     }
 

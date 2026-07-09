@@ -192,7 +192,7 @@ LexiconfreeLabelsyncBeamSearch::LexiconfreeLabelsyncBeamSearch(Core::Configurati
           featureProcessingTime_(),
           scoringTime_(),
           numHypsAfterIntermediatePruning_(),
-          numTerminatedHypsAfterScorePruning_("num-termianted-hyps-after-score-pruning"),
+          numTerminatedHypsAfterScorePruning_("num-terminated-hyps-after-score-pruning"),
           numTerminatedHypsAfterRecombination_("num-terminated-hyps-after-recombination"),
           numTerminatedHypsAfterBeamPruning_("num-terminated-hyps-after-beam-pruning"),
           numActiveHypsAfterScorePruning_("num-active-hyps-after-score-pruning"),
@@ -377,10 +377,12 @@ bool LexiconfreeLabelsyncBeamSearch::decodeStep() {
     auto lemmas = lexicon_->lemmas();
 
     /*
-     * We build a list of all scoring contexts that need to be passed to the LabelScorer for scoring scored inside `scoringContexts_`.
-     * `hypIndexToContextIndexMap_` stores the mapping, i.e. beam_[i].scoringContext = scoringContexts_[hypIndexToScoringContextMap_[i]].
-     * In the first iteration, this is just an identity mapping, i.e. hypIndexToContextIndexMap_[i] = i but for later label scorers
-     * some scoring contexts become no longer relevant when all extensions using them have been pruned.
+     * We collect the scoring contexts that need to be passed to the LabelScorer into `scoringContexts_`.
+     * `hypIndexToContextIndexMap_` maps a beam index to the position of its context in `scoringContexts_`,
+     * i.e. beam_[i].scoringContexts.front() == scoringContexts_[hypIndexToContextIndexMap_[i]]. A value of -1
+     * means that hypothesis contributes no context to `scoringContexts_`.
+     * For the first label scorer only active hypotheses contribute a context. For each subsequent scorer the list
+     * is rebuilt, dropping the contexts of any hypotheses whose extensions were all removed by intermediate pruning.
      */
     extensions_.clear();
     scoringContexts_.clear();

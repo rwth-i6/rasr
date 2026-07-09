@@ -150,6 +150,24 @@ const Core::ParameterBool ForwardBackwardSearch::paramLogStatistics(
         "Log forward-backward statistics after finishSegment().",
         true);
 
+const Core::ParameterInt ForwardBackwardSearch::paramMaxBeamSize(
+        "max-beam-size",
+        "Maximum number of states kept per layer. Unset (default) means no beam-size pruning.",
+        Core::Type<s32>::max,
+        1);
+
+const Core::ParameterFloat ForwardBackwardSearch::paramScoreThreshold(
+        "score-threshold",
+        "Prune states whose alpha is worse than the best alpha in the layer by more than this amount. Unset (default) means no score-based pruning.",
+        Core::Type<Score>::max,
+        0);
+
+const Core::ParameterInt ForwardBackwardSearch::paramNumHistogramBins(
+        "num-histogram-bins",
+        "Number of bins for histogram-based beam-size pruning of states (very minor effect).",
+        100,
+        2);
+
 ForwardBackwardSearch::ForwardBackwardSearch(Core::Configuration const& config)
         : Core::Component(config),
           SearchAlgorithmV2(config),
@@ -164,6 +182,9 @@ ForwardBackwardSearch::ForwardBackwardSearch(Core::Configuration const& config)
           collapseRepeatedLabels_(paramCollapseRepeatedLabels(config)),
           cacheCleanupInterval_(paramCacheCleanupInterval(config)),
           logStatistics_(paramLogStatistics(config)),
+          maxBeamSize_(static_cast<size_t>(paramMaxBeamSize(config))),
+          scoreThreshold_(paramScoreThreshold(config)),
+          scoreHistogram_(paramNumHistogramBins(config)),
           states_(),
           layers_(),
           arcsByLayer_(),
@@ -529,10 +550,72 @@ bool ForwardBackwardSearch::buildForwardStep() {
         return false;
     }
 
+    pruneLayer(nextLayer);
+
     arcsByLayer_.push_back(arcs);
-    layers_.push_back(nextLayer);
+    layers_.push_back(std::move(nextLayer));
 
     return true;
+}
+
+void ForwardBackwardSearch::pruneLayer(std::vector<StateId>& layer) {
+    if (layer.size() <= maxBeamSize_ and scoreThreshold_ == Core::Type<Score>::max) {
+        // Neither relative score pruning nor max beam size pruning triggers
+        return;
+    }
+
+    Score lowerScore = Core::Type<Score>::max;
+    Score upperScore = Core::Type<Score>::min;
+
+    for (StateId stateId : layer) {
+        Score alpha = states_[stateId].alpha;
+        lowerScore  = std::min(lowerScore, alpha);
+        upperScore  = std::max(upperScore, alpha);
+    }
+
+    if (lowerScore == upperScore) {
+        // All alphas are the same (usually only happens when exactly 1 state is active)
+        if (layer.size() > maxBeamSize_) {
+            layer.resize(maxBeamSize_);
+        }
+        return;
+    }
+
+    Score absoluteThreshold = upperScore;
+
+    // Pruning by relative score threshold
+    if (scoreThreshold_ != Core::Type<Score>::max) {
+        absoluteThreshold = lowerScore + scoreThreshold_;
+    }
+
+    // Pruning by max beam size
+    if (layer.size() > maxBeamSize_) {
+        scoreHistogram_.clear();
+        scoreHistogram_.setLimits(lowerScore, upperScore);
+
+        for (StateId stateId : layer) {
+            scoreHistogram_ += states_[stateId].alpha;
+        }
+
+        absoluteThreshold = std::min(absoluteThreshold, scoreHistogram_.quantile(maxBeamSize_));
+    }
+
+    if (absoluteThreshold >= upperScore) {
+        // Nothing will be pruned
+        return;
+    }
+
+    // Remove states with alpha > absoluteThreshold.
+    // Such states simply become dead ends: they will not be part of the next currentLayer,
+    // so they get no outgoing arcs, so their beta stays infinite, so every arc pointing into
+    // them naturally gets posterior 0 in computeBackwardAndGammas() -- no separate handling
+    // of the arcsByLayer_ history is needed.
+    layer.erase(
+            std::remove_if(
+                    layer.begin(),
+                    layer.end(),
+                    [this, absoluteThreshold](StateId stateId) { return states_[stateId].alpha > absoluteThreshold; }),
+            layer.end());
 }
 
 void ForwardBackwardSearch::computeBackwardAndGammas() {

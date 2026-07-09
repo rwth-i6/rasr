@@ -15,6 +15,7 @@
 
 #include <Speech/ModelCombination.hh>
 
+#include <Search/Histogram.hh>
 #include <Search/SearchV2.hh>
 #include <Search/Traceback.hh>
 #include <Search/Types.hh>
@@ -66,12 +67,15 @@ namespace Search {
 // TODO LM scoring (in addition to AM score?)
 class ForwardBackwardSearch : public SearchAlgorithmV2 {
 public:
-    static const Core::ParameterInt  paramBlankLabelIndex;
-    static const Core::ParameterInt  paramSentenceEndLabelIndex;
-    static const Core::ParameterBool paramSkipSentenceEndLabel;
-    static const Core::ParameterBool paramCollapseRepeatedLabels;
-    static const Core::ParameterInt  paramCacheCleanupInterval;
-    static const Core::ParameterBool paramLogStatistics;
+    static const Core::ParameterInt   paramBlankLabelIndex;
+    static const Core::ParameterInt   paramSentenceEndLabelIndex;
+    static const Core::ParameterBool  paramSkipSentenceEndLabel;
+    static const Core::ParameterBool  paramCollapseRepeatedLabels;
+    static const Core::ParameterInt   paramCacheCleanupInterval;
+    static const Core::ParameterBool  paramLogStatistics;
+    static const Core::ParameterInt   paramMaxBeamSize;
+    static const Core::ParameterFloat paramScoreThreshold;
+    static const Core::ParameterInt   paramNumHistogramBins;
 
     explicit ForwardBackwardSearch(Core::Configuration const& config);
 
@@ -198,7 +202,7 @@ private:
     std::vector<Nn::LabelIndex> labels_;
     std::vector<std::string> labelNames_;
     // labelLemmas_[i] is the lemma belonging to labels_[i]; kept alongside so that
-    // e.g. LM scoring can access the lemma directly instead of re-looking it up via id
+    // e.g. LM scoring can access the lemma directly instead of re-looking it up via id0
     std::vector<Bliss::Lemma const*> labelLemmas_;
 
     bool            useBlank_;
@@ -211,6 +215,10 @@ private:
     bool            collapseRepeatedLabels_;
     size_t          cacheCleanupInterval_;
     bool            logStatistics_;
+
+    size_t          maxBeamSize_;
+    Score           scoreThreshold_;
+    Histogram       scoreHistogram_;
 
     // all states of all layers
     std::vector<State>              states_;
@@ -239,6 +247,17 @@ private:
     // 2. Recombine equivalent destination states using log-sum, not Viterbi max/min.
     // 3. Store arcs so that the backward pass can later walk the same graph in reverse.
     bool buildForwardStep();
+
+    // Prune `layer` down to at most maxBeamSize_ states (score-histogram-based, like the
+    // other beam searches' scorePruning()) and drop states whose alpha is worse than the
+    // layer's best alpha by more than scoreThreshold_.
+    //
+    // This does not require any special handling elsewhere: a pruned state simply never
+    // becomes part of `currentLayer` again, so it never gets outgoing arcs recorded in
+    // arcsByLayer_, so its beta (initialized to infinity) is never updated by the backward
+    // pass, so every arc pointing into it naturally gets posterior 0. partitionCost_ then
+    // becomes an approximation of the true partition function over the surviving beam.
+    void pruneLayer(std::vector<StateId>& layer);
 
     // this runs after all forward layers are built
     // - frist, it computes the total sequence probability mass by summing over all final-layer states (stored in partitionCost_)

@@ -253,10 +253,12 @@ void OrthographyElement::appendAlternatives(std::vector<Orthography> const& alte
 }
 
 void OrthographyElement::appendOptional(Orthography const& orth) {
-    std::vector<Orthography> alternatives;
-    alternatives.push_back(orth);
-    alternatives.push_back(Orthography());
-    appendAlternatives(alternatives);
+    if (not orth.empty()) {
+        std::vector<Orthography> alternatives;
+        alternatives.push_back(orth);
+        alternatives.push_back(Orthography());
+        appendAlternatives(alternatives);
+    }
 }
 
 OrthographyElement::AlternativesElement::AlternativesElement(Core::XmlContext* _context, Handler _handler)

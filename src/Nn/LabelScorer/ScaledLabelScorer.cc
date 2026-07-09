@@ -32,6 +32,18 @@ public:
         return base_->getScore(transitionType, labelIndex) * scale_;
     }
 
+    std::optional<DenseScoreSpan> getDenseScores() const override {
+        auto denseScores = base_->getDenseScores();
+        if (scale_ == 1.0 or not denseScores) {
+            return denseScores;
+        }
+
+        for (auto& term : denseScores->terms) {
+            term.scale *= scale_;
+        }
+        return denseScores;
+    }
+
     TimeframeIndex getTime() const override {
         return base_->getTime();
     }

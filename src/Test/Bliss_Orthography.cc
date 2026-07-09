@@ -218,6 +218,35 @@ TEST_F(Bliss, OrthographyParserTest, Optional) {
     EXPECT_EQ(orth.spans()[2].text(), std::string("suffix "));
 }
 
+TEST_F(Bliss, OrthographyParserTest, EmptyOptional) {
+    // An <optional> with empty content contributes nothing: the parser drops
+    // the alternatives span entirely instead of emitting a "match nothing or
+    // nothing" choice, so the surrounding text collapses into a single span.
+    Orthography orth = parseOrth("<orth>prefix <optional></optional> suffix</orth>");
+
+    EXPECT_EQ(orth.str(), std::string("prefix suffix "));
+    EXPECT_EQ(orth.spans().size(), size_t(1));
+    EXPECT_EQ(orth.spans()[0].type(), Orthography::Span::Type::text);
+    EXPECT_EQ(orth.spans()[0].text(), std::string("prefix suffix "));
+}
+
+TEST_F(Bliss, OrthographyParserTest, OptionalWithEmptyAlternatives) {
+    // An <optional> element whose only content is an <alternatives> block adds
+    // nothing when every one of those alternatives is empty. Emptiness is
+    // evaluated recursively: an alternatives span counts as empty when all of
+    // its alternatives are empty, so the surrounding optional is empty too and
+    // is dropped completely. The result is an orthography with no spans.
+    Orthography orth = parseOrth(
+            "<orth><optional><alternatives>"
+            "<orth/>"
+            "<orth/>"
+            "</alternatives></optional></orth>");
+
+    EXPECT_EQ(orth.str(), std::string(""));
+    EXPECT_TRUE(orth.empty());
+    EXPECT_EQ(orth.spans().size(), size_t(0));
+}
+
 TEST_F(Bliss, OrthographyParserTest, NestedOptional) {
     // The first optional alternative contains a full Orthography, therefore
     // nested <optional> elements become nested alternatives spans.

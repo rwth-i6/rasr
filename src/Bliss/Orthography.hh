@@ -50,6 +50,16 @@ public:
             return std::get<std::vector<Orthography>>(content_);
         }
 
+        bool empty() const {
+            if (type() == Type::text) {
+                return text() == "";
+            }
+            else {
+                auto const& alts = alternatives();
+                return alts.empty() or std::all_of(alts.begin(), alts.end(), [](Orthography const& o) { return o.empty(); });
+            }
+        }
+
     private:
         std::variant<std::string, std::vector<Orthography>> content_;
     };
@@ -73,7 +83,7 @@ public:
     }
 
     bool empty() const {
-        return spans_.empty();
+        return spans_.empty() or std::all_of(spans_.begin(), spans_.end(), [](Span const& s) { return s.empty(); });
     }
 
     void setNormalized(std::string const& text) {

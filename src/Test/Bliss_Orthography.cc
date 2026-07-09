@@ -109,6 +109,8 @@ TEST(Bliss, Orthography, AlternativeSpanUsesFirstAlternative) {
     orth.appendAlternative(alternatives);
     orth.appendText("suffix ");
 
+    // Orthography::str() keeps the historical single-string behavior by
+    // rendering each alternatives span through its first alternative.
     EXPECT_EQ(orth.str(), std::string("prefix first path suffix "));
     EXPECT_EQ(orth.spans().size(), size_t(3));
     EXPECT_EQ(orth.spans()[1].type(), Orthography::Span::Type::alternatives);
@@ -194,24 +196,90 @@ TEST_F(Bliss, OrthographyParserTest, NestedAlternatives) {
     EXPECT_EQ(orth.str(), std::string("outer inner one "));
     EXPECT_EQ(orth.spans().size(), size_t(1));
     Orthography const& firstAlternative = orth.spans()[0].alternatives()[0];
+    // Alternatives hold complete Orthography objects, so nested alternatives
+    // are represented structurally instead of flattened into text.
     EXPECT_EQ(firstAlternative.spans().size(), size_t(2));
     EXPECT_EQ(firstAlternative.spans()[1].type(), Orthography::Span::Type::alternatives);
     EXPECT_EQ(firstAlternative.spans()[1].alternatives()[1].str(), std::string("inner two "));
 }
 
+TEST_F(Bliss, OrthographyParserTest, Optional) {
+    // <optional>text</optional> is parser shorthand for
+    // <alternatives><orth>text</orth><orth/></alternatives>.
+    Orthography orth = parseOrth("<orth>prefix <optional>maybe</optional> suffix</orth>");
+
+    EXPECT_EQ(orth.str(), std::string("prefix maybe suffix "));
+    EXPECT_EQ(orth.spans().size(), size_t(3));
+    EXPECT_EQ(orth.spans()[0].text(), std::string("prefix "));
+    EXPECT_EQ(orth.spans()[1].type(), Orthography::Span::Type::alternatives);
+    EXPECT_EQ(orth.spans()[1].alternatives().size(), size_t(2));
+    EXPECT_EQ(orth.spans()[1].alternatives()[0].str(), std::string("maybe "));
+    EXPECT_EQ(orth.spans()[1].alternatives()[1].str(), std::string(""));
+    EXPECT_EQ(orth.spans()[2].text(), std::string("suffix "));
+}
+
+TEST_F(Bliss, OrthographyParserTest, EmptyOptional) {
+    // An <optional> with empty content contributes nothing: the parser drops
+    // the alternatives span entirely instead of emitting a "match nothing or
+    // nothing" choice, so the surrounding text collapses into a single span.
+    Orthography orth = parseOrth("<orth>prefix <optional></optional> suffix</orth>");
+
+    EXPECT_EQ(orth.str(), std::string("prefix suffix "));
+    EXPECT_EQ(orth.spans().size(), size_t(1));
+    EXPECT_EQ(orth.spans()[0].type(), Orthography::Span::Type::text);
+    EXPECT_EQ(orth.spans()[0].text(), std::string("prefix suffix "));
+}
+
+TEST_F(Bliss, OrthographyParserTest, OptionalWithEmptyAlternatives) {
+    // An <optional> element whose only content is an <alternatives> block adds
+    // nothing when every one of those alternatives is empty. Emptiness is
+    // evaluated recursively: an alternatives span counts as empty when all of
+    // its alternatives are empty, so the surrounding optional is empty too and
+    // is dropped completely. The result is an orthography with no spans.
+    Orthography orth = parseOrth(
+            "<orth><optional><alternatives>"
+            "<orth/>"
+            "<orth/>"
+            "</alternatives></optional></orth>");
+
+    EXPECT_EQ(orth.str(), std::string(""));
+    EXPECT_TRUE(orth.empty());
+    EXPECT_EQ(orth.spans().size(), size_t(0));
+}
+
+TEST_F(Bliss, OrthographyParserTest, NestedOptional) {
+    // The first optional alternative contains a full Orthography, therefore
+    // nested <optional> elements become nested alternatives spans.
+    Orthography orth = parseOrth("<orth><optional>outer <optional>inner</optional></optional></orth>");
+
+    EXPECT_EQ(orth.str(), std::string("outer inner "));
+    EXPECT_EQ(orth.spans().size(), size_t(1));
+    EXPECT_EQ(orth.spans()[0].type(), Orthography::Span::Type::alternatives);
+    EXPECT_EQ(orth.spans()[0].alternatives().size(), size_t(2));
+    Orthography const& firstAlternative = orth.spans()[0].alternatives()[0];
+    EXPECT_EQ(firstAlternative.spans().size(), size_t(2));
+    EXPECT_EQ(firstAlternative.spans()[0].text(), std::string("outer "));
+    EXPECT_EQ(firstAlternative.spans()[1].type(), Orthography::Span::Type::alternatives);
+    EXPECT_EQ(firstAlternative.spans()[1].alternatives().size(), size_t(2));
+    EXPECT_EQ(firstAlternative.spans()[1].alternatives()[0].str(), std::string("inner "));
+    EXPECT_EQ(firstAlternative.spans()[1].alternatives()[1].str(), std::string(""));
+}
+
 TEST_F(Bliss, OrthographyParserTest, ContextOrthographiesRemainPlain) {
     OrthographyParserVisitor visitor;
+    // Context orthographies are still parsed by the legacy plain-text path:
+    // child element text is kept, but no structured alternatives are created.
     parseCorpus(
             "<segment>"
             "<orth>main</orth>"
-            "<left-context-orth>left <alternatives><orth>ignored tag</orth></alternatives></left-context-orth>"
+            "<left-context-orth>left <alternatives><orth>ignored tag</orth></alternatives> <optional>plain optional</optional></left-context-orth>"
             "<right-context-orth>right</right-context-orth>"
             "</segment>",
             visitor);
 
     EXPECT_EQ(visitor.orthographies().size(), size_t(1));
     EXPECT_EQ(visitor.orthographies().front().str(), std::string("main "));
-    EXPECT_EQ(visitor.leftContextOrthographies().front().str(), std::string("left ignored tag "));
+    EXPECT_EQ(visitor.leftContextOrthographies().front().str(), std::string("left ignored tag plain optional "));
     EXPECT_EQ(visitor.leftContextOrthographies().front().spans().size(), size_t(1));
     EXPECT_EQ(visitor.rightContextOrthographies().front().str(), std::string("right "));
 }

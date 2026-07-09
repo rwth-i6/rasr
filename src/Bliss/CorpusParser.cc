@@ -164,6 +164,7 @@ private:
 
     void flushText(bool final);
     void appendAlternatives(std::vector<Orthography> const& alternatives);
+    void appendOptional(Orthography const& orth);
 };
 
 class Bliss::OrthographyElement::AlternativesElement : public Core::XmlParentElement {
@@ -226,6 +227,9 @@ XmlElement* OrthographyElement::element(const char* name) {
     if (std::string(name) == "alternatives") {
         return collect(new AlternativesElement(this, AlternativesElement::handler(&OrthographyElement::appendAlternatives)));
     }
+    if (std::string(name) == "optional") {
+        return collect(new OrthographyElement("optional", this, OrthographyElement::handler(&OrthographyElement::appendOptional)));
+    }
     if ((std::string(name) == "noise") || (std::string(name) == "hesitation") ||
         (std::string(name) == "name") || (std::string(name) == "numeral") ||
         (std::string(name) == "pron")) {
@@ -246,6 +250,15 @@ void OrthographyElement::flushText(bool final) {
 void OrthographyElement::appendAlternatives(std::vector<Orthography> const& alternatives) {
     flushText(false);
     product_.appendAlternative(alternatives);
+}
+
+void OrthographyElement::appendOptional(Orthography const& orth) {
+    if (not orth.empty()) {
+        std::vector<Orthography> alternatives;
+        alternatives.push_back(orth);
+        alternatives.push_back(Orthography());
+        appendAlternatives(alternatives);
+    }
 }
 
 OrthographyElement::AlternativesElement::AlternativesElement(Core::XmlContext* _context, Handler _handler)

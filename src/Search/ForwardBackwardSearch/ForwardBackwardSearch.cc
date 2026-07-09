@@ -12,6 +12,7 @@
 #include <fstream>
 #include <iomanip>
 #include <stdexcept>
+#include <tuple>
 
 namespace Search {
 
@@ -357,8 +358,9 @@ void ForwardBackwardSearch::initializeLabelsFromLexicon() {
 
     labels_.clear();
     labelNames_.clear();
+    labelLemmas_.clear();
 
-    std::vector<std::pair<Nn::LabelIndex, std::string>> labelEntries;
+    std::vector<std::tuple<Nn::LabelIndex, std::string, Bliss::Lemma const*>> labelEntries;
 
     auto lemmas = lexicon_->lemmas();
 
@@ -382,14 +384,14 @@ void ForwardBackwardSearch::initializeLabelsFromLexicon() {
             labelName = Core::form("<lemma-%d>", static_cast<int>(tokenIdx));
         }
 
-        labelEntries.emplace_back(tokenIdx, labelName);
+        labelEntries.emplace_back(tokenIdx, labelName, lemma);
     }
 
     std::sort(
             labelEntries.begin(),
             labelEntries.end(),
             [](auto const& a, auto const& b) {
-                return a.first < b.first;
+                return std::get<0>(a) < std::get<0>(b);
             });
 
     labelEntries.erase(
@@ -397,19 +399,22 @@ void ForwardBackwardSearch::initializeLabelsFromLexicon() {
                     labelEntries.begin(),
                     labelEntries.end(),
                     [](auto const& a, auto const& b) {
-                        return a.first == b.first;
+                        return std::get<0>(a) == std::get<0>(b);
                     }),
             labelEntries.end());
 
     labels_.reserve(labelEntries.size());
     labelNames_.reserve(labelEntries.size());
+    labelLemmas_.reserve(labelEntries.size());
 
-    for (auto const& [label, name] : labelEntries) {
+    for (auto const& [label, name, lemma] : labelEntries) {
         labels_.push_back(label);
         labelNames_.push_back(name);
+        labelLemmas_.push_back(lemma);
     }
 
     verify_eq(labels_.size(), labelNames_.size());
+    verify_eq(labels_.size(), labelLemmas_.size());
 }
 
 
@@ -462,29 +467,27 @@ bool ForwardBackwardSearch::buildForwardStep() {
 
         auto const& scoreAccessor = scoreAccessors[statePos];
 
-        for (Nn::LabelIndex label : labels_) {
+        for (size_t labelPos = 0ul; labelPos < labels_.size(); ++labelPos) {
+            Nn::LabelIndex label = labels_[labelPos];
+            Bliss::Lemma const* lemma = labelLemmas_[labelPos];
+
             Nn::TransitionType transitionType = inferTransitionType(srcCurrentToken, label);
 
             if (!labelScorer_->scoresTransition(transitionType)) {
                 continue;
             }
 
-            //Score arcScore = (*scoreAccessor)->getScore(transitionType, label);
-
             Score acousticScore = (*scoreAccessor)->getScore(transitionType, label);
-
-            auto const* lemmaPron = lexicon_->lemmaPronunciation(label);    // TODO should work but actually not 100% correct
-            // TODO labels_ muss auf jeden Fall refactored werden (Problem sentence-begin)
-            // actually the ids stored in labels_ are the lemma IDs
-            auto const* lemma = lemmaPron->lemma();
-            const Bliss::SyntacticTokenSequence sts = lemma->syntacticTokenSequence();
-            auto const* st = sts.front();
 
             Score lmScore = 0.0;
             Lm::History newLmHistory = srcLmHistory;
             if (not (transitionType == Nn::TransitionType::LABEL_LOOP or transitionType == Nn::TransitionType::BLANK_LOOP)) {
-                lmScore = languageModel_->score(srcLmHistory, st);
-                newLmHistory = languageModel_->extendedHistory(srcLmHistory, st);
+                Bliss::SyntacticTokenSequence const& sts = lemma->syntacticTokenSequence();
+                if (sts.size() != 0) {
+                    auto const* st = sts.front();
+                    lmScore = languageModel_->score(srcLmHistory, st);
+                    newLmHistory = languageModel_->extendedHistory(srcLmHistory, st);
+                }
             }
 
 

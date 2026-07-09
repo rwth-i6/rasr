@@ -197,6 +197,9 @@ private:
     // Collection of all labels (IDs of the lemmas in the lexicon)
     std::vector<Nn::LabelIndex> labels_;
     std::vector<std::string> labelNames_;
+    // labelLemmas_[i] is the lemma belonging to labels_[i]; kept alongside so that
+    // e.g. LM scoring can access the lemma directly instead of re-looking it up via id
+    std::vector<Bliss::Lemma const*> labelLemmas_;
 
     bool            useBlank_;
     Nn::LabelIndex  blankLabelIndex_;

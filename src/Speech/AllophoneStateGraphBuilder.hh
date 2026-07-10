@@ -165,7 +165,6 @@ protected:
     Core::XmlChannel                   modelChannel_;
 
     bool flatModelAcceptor_;  // true: single path only
-    u32  minDuration_;        // minimum duration
 
 protected:
     // compose-builds allophone-state transducer from lemma acceptor (no additional transitions)
@@ -305,9 +304,6 @@ public:
 
     // further apply transition model (loop, skip + weights)
     Fsa::ConstAutomatonRef buildTransducer(Fsa::ConstAutomatonRef);
-
-private:
-    Fsa::ConstAutomatonRef applyMinimumDuration(Fsa::ConstAutomatonRef);
 };
 
 class CTCTopologyGraphBuilder : public AllophoneStateGraphBuilder {

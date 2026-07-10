@@ -30,6 +30,15 @@
 
 namespace Search {
 
+namespace {
+
+enum RecombinationMode {
+    RecombinationModeOff,
+    RecombinationModeOn,
+};
+
+}  // namespace
+
 /*
  * =======================
  * === LabelHypothesis ===
@@ -155,6 +164,17 @@ const Core::ParameterInt LexiconfreeTimesyncBeamSearch::paramMaximumStableDelayP
         10,
         1);
 
+const Core::Choice LexiconfreeTimesyncBeamSearch::choiceRecombinationMode(
+        "off", RecombinationModeOff,
+        "on", RecombinationModeOn,
+        Core::Choice::endMark());
+
+const Core::ParameterChoice LexiconfreeTimesyncBeamSearch::paramRecombinationMode(
+        "recombination-mode",
+        &choiceRecombinationMode,
+        "Whether hypotheses with identical recombination state should be recombined.",
+        RecombinationModeOn);
+
 LexiconfreeTimesyncBeamSearch::LexiconfreeTimesyncBeamSearch(Core::Configuration const& config)
         : Core::Component(config),
           SearchAlgorithmV2(config),
@@ -167,6 +187,7 @@ LexiconfreeTimesyncBeamSearch::LexiconfreeTimesyncBeamSearch(Core::Configuration
           cacheCleanupInterval_(paramCacheCleanupInterval(config)),
           maximumStableDelay_(paramMaximumStableDelay(config)),
           maximumStableDelayPruningInterval_(paramMaximumStableDelayPruningInterval(config)),
+          recombinationEnabled_(paramRecombinationMode(config) == RecombinationModeOn),
           logStepwiseStatistics_(paramLogStepwiseStatistics(config)),
           debugChannel_(config, "debug"),
           labelScorers_(),
@@ -392,10 +413,12 @@ bool LexiconfreeTimesyncBeamSearch::decodeStep() {
     auto lemmas = lexicon_->lemmas();
 
     /*
-     * We build a list of all scoring contexts that need to be passed to the LabelScorer for scoring scored inside `scoringContexts_`.
-     * `hypIndexToContextIndexMap_` stores the mapping, i.e. beam_[i].scoringContext = scoringContexts_[hypIndexToScoringContextMap_[i]].
-     * In the first iteration, this is just an identity mapping, i.e. hypIndexToContextIndexMap_[i] = i but for later label scorers
-     * some scoring contexts become no longer relevant when all extensions using them have been pruned.
+     * We collect the scoring contexts that need to be passed to the LabelScorer into `scoringContexts_`.
+     * `hypIndexToContextIndexMap_` maps a beam index to the position of its context in `scoringContexts_`,
+     * i.e. beam_[i].scoringContexts.front() == scoringContexts_[hypIndexToContextIndexMap_[i]].
+     * For the first label scorer this is just the identity mapping (hypIndexToContextIndexMap_[i] == i). For each
+     * subsequent scorer the list is rebuilt, dropping the contexts of any hypotheses whose extensions were all
+     * removed by intermediate pruning.
      */
     extensions_.clear();
     scoringContexts_.clear();
@@ -416,6 +439,14 @@ bool LexiconfreeTimesyncBeamSearch::decodeStep() {
         scoringTime_.start();
         auto scoreAccessors = labelScorer->getScoreAccessors(scoringContexts_);
         scoringTime_.stop();
+        std::vector<std::optional<Nn::DenseScoreSpan>> denseScoreSpans(scoreAccessors.size(), std::nullopt);
+        std::vector<Nn::TimeframeIndex>                scoreTimes(scoreAccessors.size(), 0);
+        for (size_t accessorIdx = 0ul; accessorIdx < scoreAccessors.size(); ++accessorIdx) {
+            if (scoreAccessors[accessorIdx]) {
+                denseScoreSpans[accessorIdx] = (*scoreAccessors[accessorIdx])->getDenseScores();
+                scoreTimes[accessorIdx]      = (*scoreAccessors[accessorIdx])->getTime();
+            }
+        }
 
         if (scorerIdx == 0ul) {
             // In the first iteration, create extensions while pre-pruning
@@ -429,6 +460,8 @@ bool LexiconfreeTimesyncBeamSearch::decodeStep() {
                     // No extensions for hyps that couldn't be scored
                     continue;
                 }
+                auto const& denseScores = denseScoreSpans[hypIndexToContextIndexMap_[hypIndex]];
+                auto        scoreTime   = scoreTimes[hypIndexToContextIndexMap_[hypIndex]];
 
                 // Iterate over possible successors (all lemmas)
                 for (auto lemmaIt = lemmas.first; lemmaIt != lemmas.second; ++lemmaIt) {
@@ -442,8 +475,10 @@ bool LexiconfreeTimesyncBeamSearch::decodeStep() {
                     auto extScore       = hyp.score;
                     auto extTime        = hyp.trace->time;
                     if (labelScorers_[scorerIdx]->scoresTransition(transitionType)) {
-                        extScore += (*scoreAccessor)->getScore(transitionType, tokenIdx);
-                        extTime = std::max(extTime, (*scoreAccessor)->getTime());
+                        extScore += (denseScores and tokenIdx < denseScores->size())
+                                            ? (*denseScores)[tokenIdx]
+                                            : (*scoreAccessor)->getScore(transitionType, tokenIdx);
+                        extTime = std::max(extTime, scoreTime);
                     }
 
                     // Pre-prune based on score before creating extension instance and appending to list
@@ -471,8 +506,11 @@ bool LexiconfreeTimesyncBeamSearch::decodeStep() {
                 auto const& scoreAccessor = scoreAccessors[hypIndexToContextIndexMap_[ext.baseHypIndex]];
 
                 if (scoreAccessor) {
-                    ext.score += (*scoreAccessor)->getScore(ext.transitionType, ext.nextToken);
-                    ext.timeframe = std::max(ext.timeframe, (*scoreAccessor)->getTime());
+                    auto const& denseScores = denseScoreSpans[hypIndexToContextIndexMap_[ext.baseHypIndex]];
+                    ext.score += (denseScores and ext.nextToken < denseScores->size())
+                                         ? (*denseScores)[ext.nextToken]
+                                         : (*scoreAccessor)->getScore(ext.transitionType, ext.nextToken);
+                    ext.timeframe = std::max(ext.timeframe, scoreTimes[hypIndexToContextIndexMap_[ext.baseHypIndex]]);
                 }
                 else {
                     // Extension is not scorable so set the score to max in order to prune it later
@@ -482,7 +520,9 @@ bool LexiconfreeTimesyncBeamSearch::decodeStep() {
         }
 
         if (extensions_.empty()) {
-            clog() << Core::XmlClose("search-step-stats");
+            if (logStepwiseStatistics_) {
+                clog() << Core::XmlClose("search-step-stats");
+            }
             return false;
         }
 
@@ -515,7 +555,9 @@ bool LexiconfreeTimesyncBeamSearch::decodeStep() {
     }
 
     if (extensions_.empty()) {
-        clog() << Core::XmlClose("search-step-stats");
+        if (logStepwiseStatistics_) {
+            clog() << Core::XmlClose("search-step-stats");
+        }
         return false;
     }
 
@@ -737,6 +779,10 @@ template void LexiconfreeTimesyncBeamSearch::scorePruning<LexiconfreeTimesyncBea
 template void LexiconfreeTimesyncBeamSearch::scorePruning<LexiconfreeTimesyncBeamSearch::LabelHypothesis>(std::vector<LexiconfreeTimesyncBeamSearch::LabelHypothesis>&, Score, size_t);
 
 void LexiconfreeTimesyncBeamSearch::recombination(std::vector<LexiconfreeTimesyncBeamSearch::LabelHypothesis>& hypotheses) {
+    if (not recombinationEnabled_) {
+        return;
+    }
+
     // Represents a unique combination of currentToken and scoringContext
     struct RecombinationContext {
         Nn::LabelIndex                     currentToken;

@@ -20,7 +20,6 @@
 #include <Bliss/Lexicon.hh>
 #include <Core/Configuration.hh>
 
-#include "ArchiveIO.hh"
 #include "Helpers.hh"
 #include "PersistentStateTree.hh"
 #include "StateTree.hh"
@@ -31,8 +30,8 @@ using namespace Search;
 // -------------------- AbstractTreeBuilder --------------------
 
 AbstractTreeBuilder::AbstractTreeBuilder(Core::Configuration          config,
-                                         const Bliss::Lexicon&        lexicon,
-                                         const Am::AcousticModel&     acousticModel,
+                                         Bliss::Lexicon const&        lexicon,
+                                         Am::AcousticModel const&     acousticModel,
                                          Search::PersistentStateTree& network)
         : Core::Component(config),
           lexicon_(lexicon),
@@ -47,7 +46,7 @@ StateId AbstractTreeBuilder::createState(StateTree::StateDesc desc) {
 }
 
 u32 AbstractTreeBuilder::createExit(PersistentStateTree::Exit exit) {
-    ExitHash::iterator exitHashIt = exitHash_.find(exit);
+    auto exitHashIt = exitHash_.find(exit);
     if (exitHashIt != exitHash_.end()) {
         return exitHashIt->second;
     }
@@ -71,7 +70,7 @@ const Core::ParameterInt MinimizedTreeBuilder::paramMinPhones(
 
 const Core::ParameterBool MinimizedTreeBuilder::paramAddCiTransitions(
         "add-ci-transitions",
-        "whether context-independent acoustic transitions should be inserted between words. Useful for non-fluid speech, specifically when the training data consistent of fluid speech",
+        "whether context-independent acoustic transitions should be inserted between words. Useful for non-fluid speech, specifically when the training data consists of fluid speech",
         false);  // if this is false, then an additional special-root is used, which is followed only by non-words. it is labeled #|[sil] (where [sil] is the first special-phone)
 
 const Core::ParameterBool MinimizedTreeBuilder::paramUseRootForCiExits(
@@ -104,7 +103,7 @@ const Core::ParameterInt MinimizedTreeBuilder::paramMinimizeIterations(
         "usually only the first 2 iterations show an effect",
         2);
 
-MinimizedTreeBuilder::MinimizedTreeBuilder(Core::Configuration config, const Bliss::Lexicon& lexicon, const Am::AcousticModel& acousticModel, Search::PersistentStateTree& network, bool initialize)
+MinimizedTreeBuilder::MinimizedTreeBuilder(Core::Configuration config, Bliss::Lexicon const& lexicon, Am::AcousticModel const& acousticModel, Search::PersistentStateTree& network, bool initialize)
         : AbstractTreeBuilder(config, lexicon, acousticModel, network),
           minPhones_(paramMinPhones(config)),
           addCiTransitions_(paramAddCiTransitions(config)),
@@ -149,7 +148,7 @@ MinimizedTreeBuilder::MinimizedTreeBuilder(Core::Configuration config, const Bli
     }
 }
 
-std::unique_ptr<AbstractTreeBuilder> MinimizedTreeBuilder::newInstance(Core::Configuration config, const Bliss::Lexicon& lexicon, const Am::AcousticModel& acousticModel, Search::PersistentStateTree& network, bool initialize) {
+std::unique_ptr<AbstractTreeBuilder> MinimizedTreeBuilder::newInstance(Core::Configuration config, Bliss::Lexicon const& lexicon, Am::AcousticModel const& acousticModel, Search::PersistentStateTree& network, bool initialize) {
     return std::unique_ptr<AbstractTreeBuilder>(new MinimizedTreeBuilder(config, lexicon, acousticModel, network, initialize));
 }
 
@@ -176,7 +175,7 @@ void MinimizedTreeBuilder::printStats(std::string occasion) {
     log() << "states: " << network_.structure.stateCount() << " exits: " << network_.exits.size();
     log() << "coarticulated roots: " << network_.coarticulatedRootStates.size() << " unpushed: " << network_.unpushedCoarticulatedRootStates.size();
     u32 roots = 0;
-    for (std::set<StateId>::iterator it = network_.uncoarticulatedWordEndStates.begin(); it != network_.uncoarticulatedWordEndStates.end(); ++it) {
+    for (auto it = network_.uncoarticulatedWordEndStates.begin(); it != network_.uncoarticulatedWordEndStates.end(); ++it) {
         if (network_.coarticulatedRootStates.count(*it)) {
             ++roots;
         }
@@ -211,13 +210,13 @@ bool MinimizedTreeBuilder::isContextDependent(Bliss::Phoneme::Id phone) const {
 }
 
 void MinimizedTreeBuilder::buildBody() {
-    std::pair<Bliss::Lexicon::PronunciationIterator, Bliss::Lexicon::PronunciationIterator> prons = lexicon_.pronunciations();
+    auto prons = lexicon_.pronunciations();
 
     u32 coarticulatedInitial = 0, uncoarticulatedInitial = 0, coarticulatedFinal = 0, uncoarticulatedFinal = 0;
 
     // Collect initial/final phonemes
-    for (Bliss::Lexicon::PronunciationIterator pronIt = prons.first; pronIt != prons.second; ++pronIt) {
-        const Bliss::Pronunciation& pron(**pronIt);
+    for (auto pronIt = prons.first; pronIt != prons.second; ++pronIt) {
+        Bliss::Pronunciation const& pron(**pronIt);
         if (pron.length()) {
             Bliss::Phoneme::Id initial = pron[0], fin = pron[pron.length() - 1];
             if (reverse_) {
@@ -255,15 +254,15 @@ void MinimizedTreeBuilder::buildBody() {
 
     log() << "coarticulated initial phones: " << coarticulatedInitial
           << " uncoarticulated: " << uncoarticulatedInitial
-          << ", coarticulated final phones: " << uncoarticulatedFinal
+          << ", coarticulated final phones: " << coarticulatedFinal
           << " uncoarticulated: " << uncoarticulatedFinal;
 
     bool useRootForCiExits = useRootForCiExits_ && !addCiTransitions_;
 
     // Build the network-like non-coarticulated portion starting at the context-independent root
     log() << "building";
-    for (Bliss::Lexicon::PronunciationIterator pronIt = prons.first; pronIt != prons.second; ++pronIt) {
-        const Bliss::Pronunciation& pron(**pronIt);
+    for (auto pronIt = prons.first; pronIt != prons.second; ++pronIt) {
+        Bliss::Pronunciation const& pron(**pronIt);
         u32                         pronLength = pron.length();
         if (pronLength == 0) {
             continue;
@@ -284,13 +283,13 @@ void MinimizedTreeBuilder::buildBody() {
             currentState = extendPhone(currentState.second, phoneIndex, phones);
         }
 
-        std::pair<Bliss::Pronunciation::LemmaIterator, Bliss::Pronunciation::LemmaIterator> lemmaProns = pron.lemmas();
+        auto lemmaProns = pron.lemmas();
 
         if (pronLength - 1 < static_cast<u32>(minPhones_) || !isContextDependent(phones[pronLength - 1])) {
             // Statically expand the fan-out.
-            for (std::set<Bliss::Phoneme::Id>::iterator initialIt = initialPhonemes_.begin(); initialIt != initialPhonemes_.end(); ++initialIt) {
-                std::pair<StateId, StateId> tail = extendPhone(currentState.second, pronLength - 1, phones, Bliss::Phoneme::term, *initialIt);
-                for (Bliss::Pronunciation::LemmaIterator lemmaPron = lemmaProns.first; lemmaPron != lemmaProns.second; ++lemmaPron) {
+            for (auto initialIt = initialPhonemes_.begin(); initialIt != initialPhonemes_.end(); ++initialIt) {
+                auto tail = extendPhone(currentState.second, pronLength - 1, phones, Bliss::Phoneme::term, *initialIt);
+                for (auto lemmaPron = lemmaProns.first; lemmaPron != lemmaProns.second; ++lemmaPron) {
                     u32 exit;
                     if (!isContextDependent(phones[pronLength - 1]) && useRootForCiExits) {
                         exit = addExit(tail.second, Bliss::Phoneme::term, Bliss::Phoneme::term, 0, lemmaPron->id());  // Use the non-coarticulated root node
@@ -306,11 +305,11 @@ void MinimizedTreeBuilder::buildBody() {
         }
         else {
             // Minimize the remaining phoneme, insert corresponding word-ends.
-            for (Bliss::Pronunciation::LemmaIterator lemmaPron = lemmaProns.first; lemmaPron != lemmaProns.second; ++lemmaPron) {
+            for (auto lemmaPron = lemmaProns.first; lemmaPron != lemmaProns.second; ++lemmaPron) {
                 if (pronLength == 1) {
                     addExit(currentState.second, Bliss::Phoneme::term, phones[0], -1, lemmaPron->id());
 
-                    for (std::set<Bliss::Phoneme::Id>::const_iterator finalIt = finalPhonemes_.begin(); finalIt != finalPhonemes_.end(); ++finalIt) {
+                    for (auto finalIt = finalPhonemes_.begin(); finalIt != finalPhonemes_.end(); ++finalIt) {
                         Search::PersistentStateTree::Exit exit;
                         exit.transitState  = createRoot(*finalIt, phones[0], -1);
                         exit.pronunciation = lemmaPron->id();
@@ -332,28 +331,26 @@ void MinimizedTreeBuilder::buildBody() {
 
 void MinimizedTreeBuilder::buildFanInOutStructure() {
     // Create temporary coarticulated roots
-    for (std::set<Bliss::Phoneme::Id>::const_iterator finalIt = finalPhonemes_.begin(); finalIt != finalPhonemes_.end(); ++finalIt) {
-        for (std::set<Bliss::Phoneme::Id>::const_iterator initialIt = initialPhonemes_.begin(); initialIt != initialPhonemes_.end(); ++initialIt) {
+    for (auto finalIt = finalPhonemes_.begin(); finalIt != finalPhonemes_.end(); ++finalIt) {
+        for (auto initialIt = initialPhonemes_.begin(); initialIt != initialPhonemes_.end(); ++initialIt) {
             createRoot(*finalIt, *initialIt, 0);
         }
     }
 
     log() << "building fan-in";
     // Build the fan-in structure (e.g. the HMM structure representing the initial word phonemes, behind roots, up to the joints)
-    for (RootHash::const_iterator rootIt = roots_.begin(); rootIt != roots_.end(); ++rootIt) {
+    for (auto rootIt = roots_.begin(); rootIt != roots_.end(); ++rootIt) {
         if (rootIt->first.depth != 0 || rootIt->second == network_.rootState) {
             continue;
         }
         Bliss::Phoneme::Id initial = rootIt->first.right;
         verify(initialPhonemes_.count(initial));
         verify(initial != Bliss::Phoneme::term);
-        u32 paths = 0;
 
-        for (CoarticulationJointHash::const_iterator initialSuffixIt = initialPhoneSuffix_.begin(); initialSuffixIt != initialPhoneSuffix_.end(); ++initialSuffixIt) {
+        for (auto initialSuffixIt = initialPhoneSuffix_.begin(); initialSuffixIt != initialPhoneSuffix_.end(); ++initialSuffixIt) {
             if (initialSuffixIt->first.left != initial) {
                 continue;
             }
-            ++paths;
             HMMSequence hmm;
             hmmFromAllophone(hmm, rootIt->first.left, initial, initialSuffixIt->first.right, Am::Allophone::isInitialPhone);
             verify(hmm.length > 0);
@@ -365,11 +362,10 @@ void MinimizedTreeBuilder::buildFanInOutStructure() {
             addSuccessor(rootIt->second, currentNode);
         }
 
-        for (CoarticulationJointHash::const_iterator initialSuffixIt = initialFinalPhoneSuffix_.begin(); initialSuffixIt != initialFinalPhoneSuffix_.end(); ++initialSuffixIt) {
+        for (auto initialSuffixIt = initialFinalPhoneSuffix_.begin(); initialSuffixIt != initialFinalPhoneSuffix_.end(); ++initialSuffixIt) {
             if (initialSuffixIt->first.left != initial) {
                 continue;
             }
-            ++paths;
             HMMSequence hmm;
             hmmFromAllophone(hmm, rootIt->first.left, initial, initialSuffixIt->first.right, Am::Allophone::isInitialPhone | Am::Allophone::isFinalPhone);
             verify(hmm.length > 0);
@@ -387,7 +383,7 @@ void MinimizedTreeBuilder::buildFanInOutStructure() {
 
     // Build the fan-out structure (e.g. the HMM structure representing the final word phonemes, behind special roots)
     // On the left side delimited by the roots of depth -1, and on the right side by the roots of depth 0
-    for (RootHash::const_iterator leftRootIt = roots_.begin(); leftRootIt != roots_.end(); ++leftRootIt) {
+    for (auto leftRootIt = roots_.begin(); leftRootIt != roots_.end(); ++leftRootIt) {
         if (leftRootIt->first.depth != -1) {
             continue;
         }
@@ -395,7 +391,7 @@ void MinimizedTreeBuilder::buildFanInOutStructure() {
         verify(finalPhonemes_.count(fin));
 
         u32 paths = 0;
-        for (RootHash::const_iterator rightRootIt = roots_.begin(); rightRootIt != roots_.end(); ++rightRootIt) {
+        for (auto rightRootIt = roots_.begin(); rightRootIt != roots_.end(); ++rightRootIt) {
             if (rightRootIt->first.depth != 0 || (rightRootIt->first.left != fin && (!addCiTransitions_ || rightRootIt->first.left != Bliss::Phoneme::term))) {
                 continue;
             }
@@ -433,7 +429,7 @@ void MinimizedTreeBuilder::addCrossWordSkips() {
         {
             bool hasWordEnd   = false;
             bool hasSuccessor = false;
-            for (HMMStateNetwork::SuccessorIterator target = network_.structure.successors(node); target; ++target) {
+            for (auto target = network_.structure.successors(node); target; ++target) {
                 if (!target.isLabel()) {
                     hasSuccessor = true;
                 }
@@ -446,11 +442,11 @@ void MinimizedTreeBuilder::addCrossWordSkips() {
 
         std::set<PersistentStateTree::Exit> skipRoots;
 
-        for (HMMStateNetwork::SuccessorIterator target = network_.structure.successors(node); target; ++target) {
+        for (auto target = network_.structure.successors(node); target; ++target) {
             if (target.isLabel()) {
                 continue;
             }
-            for (HMMStateNetwork::SuccessorIterator target2 = network_.structure.successors(*target); target2; ++target2) {
+            for (auto target2 = network_.structure.successors(*target); target2; ++target2) {
                 if (target2.isLabel()) {
                     skipRoots.insert(network_.exits[target2.label()]);
                 }
@@ -458,7 +454,7 @@ void MinimizedTreeBuilder::addCrossWordSkips() {
         }
 
         if (skipRoots.size()) {
-            for (std::set<PersistentStateTree::Exit>::iterator it = skipRoots.begin(); it != skipRoots.end(); ++it) {
+            for (auto it = skipRoots.begin(); it != skipRoots.end(); ++it) {
                 PersistentStateTree::Exit e(*it);
                 verify(e.pronunciation != Bliss::LemmaPronunciation::invalidId);
                 if (network_.structure.state(e.transitState).stateDesc.transitionModelIndex == Am::TransitionModel::entryM2) {
@@ -472,7 +468,7 @@ void MinimizedTreeBuilder::addCrossWordSkips() {
         {
             bool hasWordEnd   = false;
             bool hasSuccessor = false;
-            for (HMMStateNetwork::SuccessorIterator target = network_.structure.successors(node); target; ++target) {
+            for (auto target = network_.structure.successors(node); target; ++target) {
                 if (!target.isLabel()) {
                     hasSuccessor = true;
                 }
@@ -487,7 +483,7 @@ void MinimizedTreeBuilder::addCrossWordSkips() {
     for (StateId node = 1; node < oldNodes; ++node) {
         bool hasWordEnd   = false;
         bool hasSuccessor = false;
-        for (HMMStateNetwork::SuccessorIterator target = network_.structure.successors(node); target; ++target) {
+        for (auto target = network_.structure.successors(node); target; ++target) {
             if (!target.isLabel()) {
                 hasSuccessor = true;
             }
@@ -509,15 +505,15 @@ void MinimizedTreeBuilder::skipRootTransitions(StateId start) {
             continue;
         }
 
-        HMMStateNetwork::ChangePlan change = network_.structure.change(node);
-        for (HMMStateNetwork::SuccessorIterator target = network_.structure.successors(node); target; ++target) {
+        auto change = network_.structure.change(node);
+        for (auto target = network_.structure.successors(node); target; ++target) {
             if (target.isLabel()) {
                 continue;
             }
 
             if (network_.structure.state(*target).stateDesc.acousticModel == Search::StateTree::invalidAcousticModel) {
                 change.removeSuccessor(*target);
-                for (HMMStateNetwork::SuccessorIterator target2 = network_.structure.successors(*target); target2; ++target2) {
+                for (auto target2 = network_.structure.successors(*target); target2; ++target2) {
                     change.addSuccessor(*target2);
                 }
             }
@@ -534,7 +530,7 @@ StateTree::StateDesc MinimizedTreeBuilder::rootDesc() const {
 }
 
 AbstractTreeBuilder::StateId MinimizedTreeBuilder::createSkipRoot(StateId baseRoot) {
-    SkipRootsHash::const_iterator it = skipRoots_.find(baseRoot);
+    auto it = skipRoots_.find(baseRoot);
     if (it != skipRoots_.end()) {
         return it->second;
     }
@@ -552,8 +548,8 @@ AbstractTreeBuilder::StateId MinimizedTreeBuilder::createSkipRoot(StateId baseRo
 }
 
 AbstractTreeBuilder::StateId MinimizedTreeBuilder::createRoot(Bliss::Phoneme::Id left, Bliss::Phoneme::Id right, int depth) {
-    RootKey                  key(left, right, depth);
-    RootHash::const_iterator it = roots_.find(key);
+    RootKey key(left, right, depth);
+    auto    it = roots_.find(key);
     if (it != roots_.end()) {
         return it->second;
     }
@@ -591,7 +587,7 @@ u32 MinimizedTreeBuilder::addExit(StateId                       predecessor,
 
     u32 exitIndex = createExit(exit);
 
-    for (HMMStateNetwork::SuccessorIterator target = network_.structure.successors(predecessor); target; ++target) {
+    for (auto target = network_.structure.successors(predecessor); target; ++target) {
         if (target.isLabel() && target.label() == exitIndex) {
             return exitIndex;
         }
@@ -630,9 +626,9 @@ void MinimizedTreeBuilder::hmmFromAllophone(HMMSequence&       ret,
         }
     }
 
-    const Am::Allophone* allophone = acousticModel_.allophoneAlphabet()->allophone(Am::Allophone(Bliss::ContextPhonology::PhonemeInContext(central, history, future), boundary));
+    auto const* allophone = acousticModel_.allophoneAlphabet()->allophone(Am::Allophone(Bliss::ContextPhonology::PhonemeInContext(central, history, future), boundary));
 
-    const Am::ClassicHmmTopology* hmmTopology = acousticModel_.hmmTopology(central);
+    auto const* hmmTopology = acousticModel_.hmmTopology(central);
 
     for (u32 phoneState = 0; phoneState < static_cast<u32>(hmmTopology->nPhoneStates()); ++phoneState) {
         Am::AllophoneState   alloState = acousticModel_.allophoneStateAlphabet()->allophoneState(allophone, phoneState);
@@ -660,7 +656,7 @@ void MinimizedTreeBuilder::hmmFromAllophone(HMMSequence&       ret,
 }
 
 bool MinimizedTreeBuilder::addSuccessor(StateId predecessor, StateId successor) {
-    for (HMMStateNetwork::SuccessorIterator target = network_.structure.successors(predecessor); target; ++target) {
+    for (auto target = network_.structure.successors(predecessor); target; ++target) {
         if (*target == successor) {
             return false;
         }
@@ -672,7 +668,7 @@ bool MinimizedTreeBuilder::addSuccessor(StateId predecessor, StateId successor) 
 
 std::pair<AbstractTreeBuilder::StateId, AbstractTreeBuilder::StateId> MinimizedTreeBuilder::extendPhone(StateId                                currentState,
                                                                                                         u32                                    phoneIndex,
-                                                                                                        const std::vector<Bliss::Phoneme::Id>& phones,
+                                                                                                        std::vector<Bliss::Phoneme::Id> const& phones,
                                                                                                         Bliss::Phoneme::Id                     left,
                                                                                                         Bliss::Phoneme::Id                     right) {
     u8 boundary = 0;
@@ -711,10 +707,10 @@ std::pair<AbstractTreeBuilder::StateId, AbstractTreeBuilder::StateId> MinimizedT
 }
 
 AbstractTreeBuilder::StateId MinimizedTreeBuilder::extendState(StateId predecessor, StateTree::StateDesc desc, MinimizedTreeBuilder::RootKey uniqueKey) {
-    for (HMMStateNetwork::SuccessorIterator target = network_.structure.successors(predecessor); target; ++target) {
+    for (auto target = network_.structure.successors(predecessor); target; ++target) {
         if (!target.isLabel() && network_.structure.state(*target).stateDesc == desc) {
             if (uniqueKey.isValid()) {
-                Core::HashMap<StateId, RootKey>::const_iterator it = stateUniqueKeys_.find(*target);
+                auto it = stateUniqueKeys_.find(*target);
                 verify(it != stateUniqueKeys_.end());
                 if (!(it->second == uniqueKey)) {
                     continue;
@@ -750,14 +746,14 @@ AbstractTreeBuilder::StateId MinimizedTreeBuilder::extendFanIn(StateId successor
     return extendFanIn(successors, desc);
 }
 
-AbstractTreeBuilder::StateId MinimizedTreeBuilder::extendFanIn(const std::set<StateId>& successorsOrExits, Search::StateTree::StateDesc desc) {
-    StatePredecessor           pred(successorsOrExits, desc);
-    PredecessorsHash::iterator it = predecessors_.find(pred);
+AbstractTreeBuilder::StateId MinimizedTreeBuilder::extendFanIn(std::set<StateId> const& successorsOrExits, Search::StateTree::StateDesc desc) {
+    StatePredecessor pred(successorsOrExits, desc);
+    auto             it = predecessors_.find(pred);
     if (it != predecessors_.end()) {
         return it->second;
     }
     StateId ret = createState(desc);
-    for (std::set<StateId>::const_iterator it = successorsOrExits.begin(); it != successorsOrExits.end(); ++it) {
+    for (auto it = successorsOrExits.begin(); it != successorsOrExits.end(); ++it) {
         network_.structure.addTargetToNode(ret, *it);
     }
     predecessors_.insert(std::make_pair(pred, ret));
@@ -771,7 +767,7 @@ std::vector<AbstractTreeBuilder::StateId> MinimizedTreeBuilder::minimize(bool fo
         log() << "forcing exact word-ends";
     }
 
-    for (std::set<StateId>::iterator it = network_.unpushedCoarticulatedRootStates.begin(); it != network_.unpushedCoarticulatedRootStates.end(); ++it) {
+    for (auto it = network_.unpushedCoarticulatedRootStates.begin(); it != network_.unpushedCoarticulatedRootStates.end(); ++it) {
         verify(network_.coarticulatedRootStates.count(*it));
     }
 
@@ -782,7 +778,7 @@ std::vector<AbstractTreeBuilder::StateId> MinimizedTreeBuilder::minimize(bool fo
 
     // Collect all zero-depth roots to skip them during clean-up
     std::set<StateId> usefulRoots;
-    for (RootHash::const_iterator rootIt = roots_.begin(); rootIt != roots_.end(); ++rootIt) {
+    for (auto rootIt = roots_.begin(); rootIt != roots_.end(); ++rootIt) {
         if (rootIt->first.depth == 0) {
             usefulRoots.insert(rootIt->second);
         }
@@ -790,7 +786,7 @@ std::vector<AbstractTreeBuilder::StateId> MinimizedTreeBuilder::minimize(bool fo
 
     for (StateId node = 1; node < network_.structure.stateCount(); ++node) {
         active.push_back(node);
-        for (HMMStateNetwork::SuccessorIterator target = network_.structure.successors(node); target; ++target) {
+        for (auto target = network_.structure.successors(node); target; ++target) {
             if (target.isLabel()) {
                 usedRoots.insert(network_.exits[target.label()].transitState);
                 fanIn[network_.exits[target.label()].transitState] += 1;
@@ -802,7 +798,7 @@ std::vector<AbstractTreeBuilder::StateId> MinimizedTreeBuilder::minimize(bool fo
     }
 
     std::set<StateId> oldCoarticulatedRoots = network_.coarticulatedRootStates;
-    for (std::set<StateId>::iterator it = oldCoarticulatedRoots.begin(); it != oldCoarticulatedRoots.end(); ++it) {
+    for (auto it = oldCoarticulatedRoots.begin(); it != oldCoarticulatedRoots.end(); ++it) {
         // not clean up 0-depth roots' connection if needed
         if (usedRoots.count(*it) == 0 && usefulRoots.count(*it) == 0) {
             network_.coarticulatedRootStates.erase(*it);
@@ -828,19 +824,19 @@ std::vector<AbstractTreeBuilder::StateId> MinimizedTreeBuilder::minimize(bool fo
         while (!active.empty()) {
             StateId state = active.front();
             active.pop_front();
-            HMMStateNetwork::ChangePlan                                                                change = network_.structure.change(state);
-            typedef std::unordered_multimap<StateTree::StateDesc, StateId, StateTree::StateDesc::Hash> SuccessorHash;
-            SuccessorHash                                                                              successors;
-            for (HMMStateNetwork::SuccessorIterator target = network_.structure.successors(state); target; ++target) {
+            auto change = network_.structure.change(state);
+
+            std::unordered_multimap<StateTree::StateDesc, StateId, StateTree::StateDesc::Hash> successors;
+            for (auto target = network_.structure.successors(state); target; ++target) {
                 if (!target.isLabel() && (forceDeterminization || fanIn[*target] == 1)) {
                     successors.insert(std::make_pair(network_.structure.state(*target).stateDesc, *target));
                 }
             }
 
             while (!successors.empty()) {
-                std::pair<SuccessorHash::iterator, SuccessorHash::iterator> items = successors.equal_range(successors.begin()->first);
+                auto items = successors.equal_range(successors.begin()->first);
 
-                SuccessorHash::iterator it = items.first;
+                auto it = items.first;
                 if (++it != items.second) {
                     StateId newNode = network_.structure.allocateTreeNode();
                     if (newNode >= determinizeMap.size()) {
@@ -850,7 +846,7 @@ std::vector<AbstractTreeBuilder::StateId> MinimizedTreeBuilder::minimize(bool fo
                     if (network_.uncoarticulatedWordEndStates.count(items.first->second)) {
                         network_.uncoarticulatedWordEndStates.insert(newNode);
                     }
-                    HMMStateNetwork::ChangePlan newChange = network_.structure.change(newNode);
+                    auto newChange = network_.structure.change(newNode);
                     // There are multiple successors with the same state-desc, join them
                     for (it = items.first; it != items.second; ++it) {
                         verify(it->second < determinizeMap.size());
@@ -861,7 +857,7 @@ std::vector<AbstractTreeBuilder::StateId> MinimizedTreeBuilder::minimize(bool fo
                             ++determinizeClashes;
                         }
                         determinizeMap[it->second] = newNode;
-                        for (HMMStateNetwork::SuccessorIterator target2 = network_.structure.successors(it->second); target2; ++target2) {
+                        for (auto target2 = network_.structure.successors(it->second); target2; ++target2) {
                             newChange.addSuccessor(*target2);
                         }
                         change.removeSuccessor(it->second);
@@ -886,15 +882,15 @@ std::vector<AbstractTreeBuilder::StateId> MinimizedTreeBuilder::minimize(bool fo
     std::vector<StateId> minimizeMap(network_.structure.stateCount(), 0);
 
     minimizeState(network_.rootState, minimizeMap);
-    for (std::set<StateId>::iterator it = network_.coarticulatedRootStates.begin(); it != network_.coarticulatedRootStates.end(); ++it) {
+    for (auto it = network_.coarticulatedRootStates.begin(); it != network_.coarticulatedRootStates.end(); ++it) {
         minimizeState(*it, minimizeMap);
     }
-    for (std::set<StateId>::iterator it = skipRootSet_.begin(); it != skipRootSet_.end(); ++it) {
+    for (auto it = skipRootSet_.begin(); it != skipRootSet_.end(); ++it) {
         minimizeState(*it, minimizeMap);
     }
 
     // loop over 0-depth roots to make sure they are mapped and connected with updated successors
-    for (std::set<StateId>::iterator it = usefulRoots.begin(); it != usefulRoots.end(); ++it) {
+    for (auto it = usefulRoots.begin(); it != usefulRoots.end(); ++it) {
         if (determinizeMap[*it]) {
             minimizeState(determinizeMap[*it], minimizeMap);
         }
@@ -948,7 +944,7 @@ std::vector<AbstractTreeBuilder::StateId> MinimizedTreeBuilder::minimize(bool fo
         PersistentStateTree::RootTransitDescriptions oldTransitDescs;
         oldTransitDescs.swap(network_.rootTransitDescriptions);
 
-        for (std::map<StateId, std::pair<Bliss::Phoneme::Id, Bliss::Phoneme::Id>>::iterator it = oldTransitDescs.begin(); it != oldTransitDescs.end(); ++it) {
+        for (auto it = oldTransitDescs.begin(); it != oldTransitDescs.end(); ++it) {
             StateId orig = it->first;
             if (orig == network_.rootState || orig >= minimizeMap.size()) {
                 if (orig == network_.rootState || network_.coarticulatedRootStates.count(orig)) {
@@ -983,8 +979,8 @@ std::vector<AbstractTreeBuilder::StateId> MinimizedTreeBuilder::minimize(bool fo
     minimizeMap = determinizeMap;
 
     // cleanup also changes structure, need to update map accordingly
-    HMMStateNetwork::CleanupResult cleanupResult = network_.cleanup();
-    for (std::vector<StateId>::iterator it = minimizeMap.begin(); it != minimizeMap.end(); ++it) {
+    auto cleanupResult = network_.cleanup();
+    for (auto it = minimizeMap.begin(); it != minimizeMap.end(); ++it) {
         if (*it) {
             if (cleanupResult.nodeMap.count(*it)) {
                 *it = cleanupResult.nodeMap[*it];
@@ -1018,7 +1014,7 @@ void MinimizedTreeBuilder::minimizeState(StateId state, std::vector<StateId>& mi
 
     verify(state && state < network_.structure.stateCount());
     std::set<StateId> successors;
-    for (HMMStateNetwork::SuccessorIterator target = network_.structure.successors(state); target; ++target) {
+    for (auto target = network_.structure.successors(state); target; ++target) {
         if (target.isLabel()) {
             successors.insert(*target);
             continue;
@@ -1037,26 +1033,25 @@ void MinimizedTreeBuilder::minimizeState(StateId state, std::vector<StateId>& mi
 
     network_.structure.clearOutputEdges(state);
 
-    StatePredecessor                                                                pred(successors, network_.structure.state(state).stateDesc, forceExactWordEnds_ && network_.uncoarticulatedWordEndStates.count(state));
-    std::unordered_map<StatePredecessor, StateId, StatePredecessor::Hash>::iterator it = predecessors_.find(pred);
+    StatePredecessor pred(successors, network_.structure.state(state).stateDesc, forceExactWordEnds_ && network_.uncoarticulatedWordEndStates.count(state));
+    auto             it = predecessors_.find(pred);
     if (it != predecessors_.end()) {
         minimizeMap[state] = it->second;
     }
     else {
         minimizeMap[state] = state;
         predecessors_.insert(std::make_pair(pred, state));
-        for (std::set<StateId>::iterator succIt = successors.begin(); succIt != successors.end(); ++succIt)
+        for (auto succIt = successors.begin(); succIt != successors.end(); ++succIt)
             network_.structure.addTargetToNode(state, *succIt);
     }
 }
 
-void MinimizedTreeBuilder::minimizeExits(StateId state, const std::vector<u32>& minimizeExitsMap) {
-    typedef std::multimap<Bliss::LemmaPronunciation::Id, u32> ExitMap;
-    ExitMap                                                   successorExits;
+void MinimizedTreeBuilder::minimizeExits(StateId state, std::vector<u32> const& minimizeExitsMap) {
+    std::multimap<Bliss::LemmaPronunciation::Id, u32> successorExits;
 
     {
         std::set<StateId> successorStates;
-        for (HMMStateNetwork::SuccessorIterator target = network_.structure.successors(state); target; ++target) {
+        for (auto target = network_.structure.successors(state); target; ++target) {
             if (target.isLabel()) {
                 successorExits.insert(std::make_pair(network_.exits[minimizeExitsMap[target.label()]].pronunciation, minimizeExitsMap[target.label()]));
                 continue;
@@ -1069,15 +1064,15 @@ void MinimizedTreeBuilder::minimizeExits(StateId state, const std::vector<u32>& 
         }
 
         network_.structure.clearOutputEdges(state);
-        for (std::set<StateId>::iterator it = successorStates.begin(); it != successorStates.end(); ++it) {
+        for (auto it = successorStates.begin(); it != successorStates.end(); ++it) {
             network_.structure.addTargetToNode(state, *it);
         }
     }
 
     // Join multiple exits for the same pronunciation to one
     while (successorExits.size()) {
-        std::pair<ExitMap::iterator, ExitMap::iterator> range = successorExits.equal_range(successorExits.begin()->first);
-        ExitMap::iterator                               i     = range.first;
+        auto range = successorExits.equal_range(successorExits.begin()->first);
+        auto i     = range.first;
         if (++i == range.second) {
             network_.structure.addOutputToNode(state, range.first->second);
         }
@@ -1086,7 +1081,7 @@ void MinimizedTreeBuilder::minimizeExits(StateId state, const std::vector<u32>& 
             std::set<StateId>            newRootSuccessors;
             std::set<Bliss::Phoneme::Id> left, right;
             for (i = range.first; i != range.second; ++i) {
-                for (HMMStateNetwork::SuccessorIterator target = network_.structure.successors(network_.exits[i->second].transitState); target; ++target) {
+                for (auto target = network_.structure.successors(network_.exits[i->second].transitState); target; ++target) {
                     newRootSuccessors.insert(*target);
                 }
                 left.insert(network_.rootTransitDescriptions[network_.exits[i->second].transitState].first);
@@ -1116,10 +1111,10 @@ void MinimizedTreeBuilder::minimizeExits(StateId state, const std::vector<u32>& 
     }
 }
 
-void MinimizedTreeBuilder::mapSet(std::set<StateId>& set, const std::vector<StateId>& minimizeMap, bool force) {
+void MinimizedTreeBuilder::mapSet(std::set<StateId>& set, std::vector<StateId> const& minimizeMap, bool force) {
     std::set<StateId> oldSet;
     oldSet.swap(set);
-    for (std::set<StateId>::iterator it = oldSet.begin(); it != oldSet.end(); ++it) {
+    for (auto it = oldSet.begin(); it != oldSet.end(); ++it) {
         if (*it >= minimizeMap.size()) {
             set.insert(*it);
         }
@@ -1134,9 +1129,9 @@ void MinimizedTreeBuilder::mapSet(std::set<StateId>& set, const std::vector<Stat
 
 // update hash structures according to minimizeMap (invalid ones are removed)
 // should be ok for any number of minimize iterations
-void MinimizedTreeBuilder::updateHashFromMap(const std::vector<StateId>& map, const std::vector<u32>& exitMap) {
+void MinimizedTreeBuilder::updateHashFromMap(std::vector<StateId> const& map, std::vector<u32> const& exitMap) {
     Core::HashMap<StateId, RootKey> tmpKeyHash;
-    for (Core::HashMap<StateId, RootKey>::iterator iter = stateUniqueKeys_.begin(); iter != stateUniqueKeys_.end(); ++iter) {
+    for (auto iter = stateUniqueKeys_.begin(); iter != stateUniqueKeys_.end(); ++iter) {
         if (iter->first < map.size() && map[iter->first]) {
             tmpKeyHash.insert(std::make_pair(map[iter->first], iter->second));
         }
@@ -1147,7 +1142,7 @@ void MinimizedTreeBuilder::updateHashFromMap(const std::vector<StateId>& map, co
     mapCoarticulationJointHash(initialFinalPhoneSuffix_, map, exitMap);
 
     RootHash tmpRootHash;
-    for (RootHash::const_iterator rootIt = roots_.begin(); rootIt != roots_.end(); ++rootIt) {
+    for (auto rootIt = roots_.begin(); rootIt != roots_.end(); ++rootIt) {
         if (rootIt->second < map.size() && map[rootIt->second]) {
             tmpRootHash.insert(std::make_pair(rootIt->first, map[rootIt->second]));
         }
@@ -1162,11 +1157,11 @@ void MinimizedTreeBuilder::updateHashFromMap(const std::vector<StateId>& map, co
 
     // PredecessorsHash still the FanIn/Out ones at this point (recorded in minimize())
     PredecessorsHash tmpPredHash;
-    for (PredecessorsHash::iterator pIt = predecessors_.begin(); pIt != predecessors_.end(); ++pIt) {
+    for (auto pIt = predecessors_.begin(); pIt != predecessors_.end(); ++pIt) {
         if (pIt->second >= map.size() || !map[pIt->second]) {
             continue;
         }
-        const StatePredecessor& sp = pIt->first;
+        StatePredecessor const& sp = pIt->first;
         std::set<StateId>       tmpSet;
         mapSuccessors(sp.successors, tmpSet, map, exitMap);
         if (!tmpSet.empty()) {
@@ -1177,9 +1172,9 @@ void MinimizedTreeBuilder::updateHashFromMap(const std::vector<StateId>& map, co
     predecessors_.swap(tmpPredHash);
 }
 
-inline void MinimizedTreeBuilder::mapCoarticulationJointHash(CoarticulationJointHash& hash, const std::vector<StateId>& map, const std::vector<u32>& exitMap) {
+inline void MinimizedTreeBuilder::mapCoarticulationJointHash(CoarticulationJointHash& hash, std::vector<StateId> const& map, std::vector<u32> const& exitMap) {
     CoarticulationJointHash tmpHash;
-    for (CoarticulationJointHash::iterator iter = hash.begin(); iter != hash.end(); ++iter) {
+    for (auto iter = hash.begin(); iter != hash.end(); ++iter) {
         std::set<StateId> tmpSet;
         mapSuccessors(iter->second, tmpSet, map, exitMap);
         if (!tmpSet.empty()) {
@@ -1189,8 +1184,8 @@ inline void MinimizedTreeBuilder::mapCoarticulationJointHash(CoarticulationJoint
     hash.swap(tmpHash);
 }
 
-inline void MinimizedTreeBuilder::mapSuccessors(const std::set<StateId>& successors, std::set<StateId>& tmpSet, const std::vector<StateId>& map, const std::vector<u32>& exitMap) {
-    for (std::set<StateId>::const_iterator sIt = successors.cbegin(); sIt != successors.cend(); ++sIt) {
+inline void MinimizedTreeBuilder::mapSuccessors(std::set<StateId> const& successors, std::set<StateId>& tmpSet, std::vector<StateId> const& map, std::vector<u32> const& exitMap) {
+    for (auto sIt = successors.cbegin(); sIt != successors.cend(); ++sIt) {
         if (IS_LABEL(*sIt)) {
             u32 eIdx = LABEL_FROM_ID(*sIt);
             if (exitMap.empty() || eIdx >= exitMap.size()) {
@@ -1209,8 +1204,8 @@ inline void MinimizedTreeBuilder::mapSuccessors(const std::set<StateId>& success
 // -------------------- SharedBaseClassTreeBuilder --------------------
 
 SharedBaseClassTreeBuilder::SharedBaseClassTreeBuilder(Core::Configuration          config,
-                                                       const Bliss::Lexicon&        lexicon,
-                                                       const Am::AcousticModel&     acousticModel,
+                                                       Bliss::Lexicon const&        lexicon,
+                                                       Am::AcousticModel const&     acousticModel,
                                                        Search::PersistentStateTree& network)
         : AbstractTreeBuilder(config, lexicon, acousticModel, network) {}
 
@@ -1220,7 +1215,7 @@ StateId SharedBaseClassTreeBuilder::createRoot() {
 
 StateId SharedBaseClassTreeBuilder::extendState(StateId predecessor, StateTree::StateDesc desc, bool ignoreLoops) {
     // Check if the successor already exists
-    for (HMMStateNetwork::SuccessorIterator target = network_.structure.successors(predecessor); target; ++target) {
+    for (auto target = network_.structure.successors(predecessor); target; ++target) {
         if (!target.isLabel() && network_.structure.state(*target).stateDesc == desc) {
             if (*target == predecessor && ignoreLoops) {
                 continue;
@@ -1238,17 +1233,14 @@ StateId SharedBaseClassTreeBuilder::extendState(StateId predecessor, StateTree::
 }
 
 void SharedBaseClassTreeBuilder::addTransition(StateId predecessor, StateId successor) {
-    auto const& predecessorStateDesc = network_.structure.state(predecessor).stateDesc;
-    auto const& successorStateDesc   = network_.structure.state(successor).stateDesc;
-
-    for (HMMStateNetwork::SuccessorIterator target = network_.structure.successors(predecessor); target; ++target) {
-        if (!target.isLabel() && network_.structure.state(*target).stateDesc == successorStateDesc) {
+    for (auto target = network_.structure.successors(predecessor); target; ++target) {
+        if (!target.isLabel() && *target == successor) {
             // The node is already a successor of the predecessor, so the transition already exists
             return;
         }
     }
 
-    // The transition does not exists yet, add it
+    // The transition does not exist yet, add it
     network_.structure.addTargetToNode(predecessor, successor);
 }
 
@@ -1261,7 +1253,7 @@ u32 SharedBaseClassTreeBuilder::addExit(StateId state, StateId transitState, Bli
 
     // Check if the exit is already a successor
     // This should only happen if the same lemma is contained multiple times in the lexicon
-    for (HMMStateNetwork::SuccessorIterator target = network_.structure.successors(state); target; ++target) {
+    for (auto target = network_.structure.successors(state); target; ++target) {
         if (target.isLabel() && target.label() == exitIndex) {
             return exitIndex;
         }
@@ -1289,7 +1281,7 @@ const Core::ParameterBool CtcTreeBuilder::paramForceBlank(
         "require a blank label between two identical labels (only works if label-loops are disabled)",
         true);
 
-CtcTreeBuilder::CtcTreeBuilder(Core::Configuration config, const Bliss::Lexicon& lexicon, const Am::AcousticModel& acousticModel, Search::PersistentStateTree& network, bool initialize)
+CtcTreeBuilder::CtcTreeBuilder(Core::Configuration config, Bliss::Lexicon const& lexicon, Am::AcousticModel const& acousticModel, Search::PersistentStateTree& network, bool initialize)
         : SharedBaseClassTreeBuilder(config, lexicon, acousticModel, network),
           labelLoop_(paramLabelLoop(config)),
           blankLoop_(paramBlankLoop(config)),
@@ -1324,8 +1316,8 @@ CtcTreeBuilder::CtcTreeBuilder(Core::Configuration config, const Bliss::Lexicon&
     }
 }
 
-std::unique_ptr<AbstractTreeBuilder> CtcTreeBuilder::newInstance(Core::Configuration config, const Bliss::Lexicon& lexicon, const Am::AcousticModel& acousticModel, Search::PersistentStateTree& network, bool initialize) {
-    return std::unique_ptr<AbstractTreeBuilder>(new CtcTreeBuilder(config, lexicon, acousticModel, network));
+std::unique_ptr<AbstractTreeBuilder> CtcTreeBuilder::newInstance(Core::Configuration config, Bliss::Lexicon const& lexicon, Am::AcousticModel const& acousticModel, Search::PersistentStateTree& network, bool initialize) {
+    return std::unique_ptr<AbstractTreeBuilder>(new CtcTreeBuilder(config, lexicon, acousticModel, network, initialize));
 }
 
 void CtcTreeBuilder::build() {
@@ -1381,8 +1373,8 @@ StateId CtcTreeBuilder::extendPronunciation(StateId startState, Bliss::Pronuncia
         }
 
         Bliss::ContextPhonology::SemiContext history, future;
-        const Am::Allophone*                 allophone        = acousticModel_.allophoneAlphabet()->allophone(Am::Allophone(Bliss::ContextPhonology::PhonemeInContext(phoneme, history, future), boundary));
-        const Am::ClassicHmmTopology*        hmmTopology      = acousticModel_.hmmTopology(phoneme);
+        auto const*                          allophone        = acousticModel_.allophoneAlphabet()->allophone(Am::Allophone(Bliss::ContextPhonology::PhonemeInContext(phoneme, history, future), boundary));
+        auto const*                          hmmTopology      = acousticModel_.hmmTopology(phoneme);
         const bool                           allophoneIsBlank = acousticModel_.allophoneStateAlphabet()->index(allophone, 0, false) == blankAllophoneStateIndex_;
 
         for (u32 phoneState = 0; phoneState < static_cast<u32>(hmmTopology->nPhoneStates()); ++phoneState) {
@@ -1447,7 +1439,7 @@ void CtcTreeBuilder::addWordBoundaryStates() {
     addExit(wordBoundaryEnd, network_.rootState, wordBoundaryPronLemma->id());
 
     std::vector<StateId> wordBoundaryLemmaStartStates;
-    for (HMMStateNetwork::SuccessorIterator target = network_.structure.successors(wordBoundaryRoot_); target; ++target) {
+    for (auto target = network_.structure.successors(wordBoundaryRoot_); target; ++target) {
         if (!target.isLabel()) {
             wordBoundaryLemmaStartStates.push_back(*target);
         }
@@ -1484,7 +1476,7 @@ const Core::ParameterBool RnaTreeBuilder::paramForceBlank(
         "require a blank label between two identical labels (only works if label-loops are disabled)",
         false);
 
-RnaTreeBuilder::RnaTreeBuilder(Core::Configuration config, const Bliss::Lexicon& lexicon, const Am::AcousticModel& acousticModel, Search::PersistentStateTree& network, bool initialize)
+RnaTreeBuilder::RnaTreeBuilder(Core::Configuration config, Bliss::Lexicon const& lexicon, Am::AcousticModel const& acousticModel, Search::PersistentStateTree& network, bool initialize)
         : CtcTreeBuilder(config, lexicon, acousticModel, network, initialize) {
     this->labelLoop_  = paramLabelLoop(config);
     this->forceBlank_ = paramForceBlank(config);
@@ -1492,7 +1484,7 @@ RnaTreeBuilder::RnaTreeBuilder(Core::Configuration config, const Bliss::Lexicon&
 
 // -------------------- AedTreeBuilder --------------------
 
-AedTreeBuilder::AedTreeBuilder(Core::Configuration config, const Bliss::Lexicon& lexicon, const Am::AcousticModel& acousticModel, Search::PersistentStateTree& network, bool initialize)
+AedTreeBuilder::AedTreeBuilder(Core::Configuration config, Bliss::Lexicon const& lexicon, Am::AcousticModel const& acousticModel, Search::PersistentStateTree& network, bool initialize)
         : SharedBaseClassTreeBuilder(config, lexicon, acousticModel, network) {
     auto iters = lexicon.phonemeInventory()->phonemes();
     for (auto it = iters.first; it != iters.second; ++it) {
@@ -1511,8 +1503,8 @@ AedTreeBuilder::AedTreeBuilder(Core::Configuration config, const Bliss::Lexicon&
     }
 }
 
-std::unique_ptr<AbstractTreeBuilder> AedTreeBuilder::newInstance(Core::Configuration config, const Bliss::Lexicon& lexicon, const Am::AcousticModel& acousticModel, Search::PersistentStateTree& network, bool initialize) {
-    return std::unique_ptr<AbstractTreeBuilder>(new AedTreeBuilder(config, lexicon, acousticModel, network));
+std::unique_ptr<AbstractTreeBuilder> AedTreeBuilder::newInstance(Core::Configuration config, Bliss::Lexicon const& lexicon, Am::AcousticModel const& acousticModel, Search::PersistentStateTree& network, bool initialize) {
+    return std::unique_ptr<AbstractTreeBuilder>(new AedTreeBuilder(config, lexicon, acousticModel, network, initialize));
 }
 
 void AedTreeBuilder::build() {
@@ -1563,8 +1555,8 @@ StateId AedTreeBuilder::extendPronunciation(StateId startState, Bliss::Pronuncia
         }
 
         Bliss::ContextPhonology::SemiContext history, future;
-        const Am::Allophone*                 allophone   = acousticModel_.allophoneAlphabet()->allophone(Am::Allophone(Bliss::ContextPhonology::PhonemeInContext(phoneme, history, future), boundary));
-        const Am::ClassicHmmTopology*        hmmTopology = acousticModel_.hmmTopology(phoneme);
+        auto const*                          allophone   = acousticModel_.allophoneAlphabet()->allophone(Am::Allophone(Bliss::ContextPhonology::PhonemeInContext(phoneme, history, future), boundary));
+        auto const*                          hmmTopology = acousticModel_.hmmTopology(phoneme);
 
         for (u32 phoneState = 0; phoneState < static_cast<u32>(hmmTopology->nPhoneStates()); ++phoneState) {
             Am::AllophoneState   alloState = acousticModel_.allophoneStateAlphabet()->allophoneState(allophone, phoneState);
@@ -1608,10 +1600,10 @@ void AedTreeBuilder::addWordBoundaryStates() {
 
 const Core::ParameterBool HmmTreeBuilder::paramAddCiTransitions(
         "add-ci-transitions",
-        "Whether context-independent acoustic transitions should be inserted between words. Useful for non-fluid speech, specifically when the training data consistent of fluid speech",
+        "Whether context-independent acoustic transitions should be inserted between words. Useful for non-fluid speech, specifically when the training data consists of fluid speech",
         false);
 
-HmmTreeBuilder::HmmTreeBuilder(Core::Configuration config, const Bliss::Lexicon& lexicon, const Am::AcousticModel& acousticModel, Search::PersistentStateTree& network, bool initialize)
+HmmTreeBuilder::HmmTreeBuilder(Core::Configuration config, Bliss::Lexicon const& lexicon, Am::AcousticModel const& acousticModel, Search::PersistentStateTree& network, bool initialize)
         : SharedBaseClassTreeBuilder(config, lexicon, acousticModel, network),
           addCiTransitions_(paramAddCiTransitions(config)) {
     const auto iters = lexicon.phonemeInventory()->phonemes();
@@ -1625,7 +1617,7 @@ HmmTreeBuilder::HmmTreeBuilder(Core::Configuration config, const Bliss::Lexicon&
         network_.finalStates.insert(network_.rootState);
 
         for (auto it = iters.first; it != iters.second; ++it) {
-            const auto* phoneme = *it;
+            auto const* phoneme = *it;
 
             if (phoneme->isContextDependent()) {
                 // Create coarticulated root states for context dependent phonemes
@@ -1641,8 +1633,8 @@ HmmTreeBuilder::HmmTreeBuilder(Core::Configuration config, const Bliss::Lexicon&
     }
 }
 
-std::unique_ptr<AbstractTreeBuilder> HmmTreeBuilder::newInstance(Core::Configuration config, const Bliss::Lexicon& lexicon, const Am::AcousticModel& acousticModel, Search::PersistentStateTree& network, bool initialize) {
-    return std::unique_ptr<AbstractTreeBuilder>(new HmmTreeBuilder(config, lexicon, acousticModel, network));
+std::unique_ptr<AbstractTreeBuilder> HmmTreeBuilder::newInstance(Core::Configuration config, Bliss::Lexicon const& lexicon, Am::AcousticModel const& acousticModel, Search::PersistentStateTree& network, bool initialize) {
+    return std::unique_ptr<AbstractTreeBuilder>(new HmmTreeBuilder(config, lexicon, acousticModel, network, initialize));
 }
 
 void HmmTreeBuilder::build() {
@@ -1650,7 +1642,7 @@ void HmmTreeBuilder::build() {
 
     // Pass 1: Iterate over lemmas and add them to the tree starting from the global root
     for (auto it = iters.first; it != iters.second; ++it) {
-        const auto*   pron      = (*it)->pronunciation();
+        auto const*   pron      = (*it)->pronunciation();
         const StateId lastState = extendPronunciation(network_.rootState, Bliss::Phoneme::term, pron);
 
         const Bliss::Phoneme::Id lastPhoneme = (*pron)[pron->length() - 1];
@@ -1669,17 +1661,17 @@ void HmmTreeBuilder::build() {
     // Pass 2: Append lemmas to context-dependent root states
     // Only create the first phoneme generation, the second generation connects to the already existing states
     for (auto it = iters.first; it != iters.second; ++it) {
-        const auto*              pron        = (*it)->pronunciation();
+        auto const*              pron        = (*it)->pronunciation();
         const Bliss::Phoneme::Id lastPhoneme = (*pron)[pron->length() - 1];
 
-        for (const auto& kv : rootPhonemeMap_) {
+        for (auto const& kv : rootPhonemeMap_) {
             const Bliss::Phoneme::Id contextPhoneme = kv.first;
             const StateId            contextRoot    = kv.second;
 
             // Lemma consists of only one phoneme
             if (pron->length() == 1) {
                 // For non-context dependent phonemes there is already a state reachable from the context-independent root state
-                // so just add a transtion from the context-dependent root to this state
+                // so just add a transition from the context-dependent root to this state
                 if (not acousticModel_.phonemeInventory()->phoneme(lastPhoneme)->isContextDependent()) {
                     if (contextRoot != network_.rootState) {
                         const StateId firstState = extendPronunciation(network_.rootState, contextPhoneme, pron, true);  // the state already exists, use this to get its ID
@@ -1707,7 +1699,7 @@ void HmmTreeBuilder::build() {
 
 StateId HmmTreeBuilder::extendPronunciation(StateId                     startState,
                                             Bliss::Phoneme::Id          startContext,
-                                            const Bliss::Pronunciation* pron,
+                                            Bliss::Pronunciation const* pron,
                                             bool                        returnFirstState) {
     require(pron != nullptr);
 
@@ -1773,8 +1765,8 @@ void HmmTreeBuilder::hmmFromAllophone(HMMSequence&                          ret,
         }
     }
 
-    const Am::Allophone*          allophone   = acousticModel_.allophoneAlphabet()->allophone(Am::Allophone(contextPhoneme, boundary));
-    const Am::ClassicHmmTopology* hmmTopology = acousticModel_.hmmTopology(central);
+    auto const* allophone   = acousticModel_.allophoneAlphabet()->allophone(Am::Allophone(contextPhoneme, boundary));
+    auto const* hmmTopology = acousticModel_.hmmTopology(central);
 
     for (u32 phoneState = 0; phoneState < hmmTopology->nPhoneStates(); ++phoneState) {
         const Am::AllophoneState alloState = acousticModel_.allophoneStateAlphabet()->allophoneState(allophone, phoneState);
@@ -1794,7 +1786,7 @@ void HmmTreeBuilder::hmmFromAllophone(HMMSequence&                          ret,
 
 StateId HmmTreeBuilder::connectRoot(StateId                     startState,
                                     Bliss::Phoneme::Id          startContext,
-                                    const Bliss::Pronunciation* pron) {
+                                    Bliss::Pronunciation const* pron) {
     require(pron != nullptr);
 
     StateId currentState = startState;
@@ -1830,7 +1822,7 @@ StateId HmmTreeBuilder::connectRoot(StateId                     startState,
                 if (j == 0u) {
                     // Check if context-independent root state already has this state as a successor
                     // If yes, add a transition from context-dependent root to this state
-                    for (HMMStateNetwork::SuccessorIterator target = network_.structure.successors(network_.rootState); target; ++target) {
+                    for (auto target = network_.structure.successors(network_.rootState); target; ++target) {
                         if (!target.isLabel() && network_.structure.state(*target).stateDesc == hmm[j]) {
                             addTransition(currentState, *target);
                             stateFound = true;
@@ -1853,9 +1845,10 @@ StateId HmmTreeBuilder::connectRoot(StateId                     startState,
         }
         else {
             // Second phoneme generation: connect to existing states (if not already connected to first phoneme generation of context-independent root)
-            const auto desc  = hmm[0];
-            const auto state = secondGenPhonemes_[desc];
-            addTransition(currentState, state);
+            const auto desc    = hmm[0];
+            const auto stateIt = secondGenPhonemes_.find(desc);
+            verify(stateIt != secondGenPhonemes_.end());
+            addTransition(currentState, stateIt->second);
         }
     }
 

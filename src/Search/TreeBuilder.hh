@@ -297,6 +297,8 @@ public:
 
     RnaTreeBuilder(Core::Configuration config, Bliss::Lexicon const& lexicon, Am::AcousticModel const& acousticModel, Search::PersistentStateTree& network, bool initialize = true);
     virtual ~RnaTreeBuilder() = default;
+
+    virtual std::unique_ptr<AbstractTreeBuilder> newInstance(Core::Configuration config, Bliss::Lexicon const& lexicon, Am::AcousticModel const& acousticModel, Search::PersistentStateTree& network, bool initialize = true) override;
 };
 
 class AedTreeBuilder : public SharedBaseClassTreeBuilder {

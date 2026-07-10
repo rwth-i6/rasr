@@ -1482,6 +1482,10 @@ RnaTreeBuilder::RnaTreeBuilder(Core::Configuration config, Bliss::Lexicon const&
     this->forceBlank_ = paramForceBlank(config);
 }
 
+std::unique_ptr<AbstractTreeBuilder> RnaTreeBuilder::newInstance(Core::Configuration config, Bliss::Lexicon const& lexicon, Am::AcousticModel const& acousticModel, Search::PersistentStateTree& network, bool initialize) {
+    return std::unique_ptr<AbstractTreeBuilder>(new RnaTreeBuilder(config, lexicon, acousticModel, network, initialize));
+}
+
 // -------------------- AedTreeBuilder --------------------
 
 AedTreeBuilder::AedTreeBuilder(Core::Configuration config, Bliss::Lexicon const& lexicon, Am::AcousticModel const& acousticModel, Search::PersistentStateTree& network, bool initialize)

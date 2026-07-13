@@ -505,7 +505,7 @@ void MinimizedTreeBuilder::skipRootTransitions(StateId start) {
             continue;
         }
 
-        auto change = network_.structure.change(node);
+        HMMStateNetwork::ChangePlan change = network_.structure.change(node);
         for (auto target = network_.structure.successors(node); target; ++target) {
             if (target.isLabel()) {
                 continue;
@@ -626,9 +626,8 @@ void MinimizedTreeBuilder::hmmFromAllophone(HMMSequence&       ret,
         }
     }
 
-    auto const* allophone = acousticModel_.allophoneAlphabet()->allophone(Am::Allophone(Bliss::ContextPhonology::PhonemeInContext(central, history, future), boundary));
-
-    auto const* hmmTopology = acousticModel_.hmmTopology(central);
+    Am::Allophone const*          allophone   = acousticModel_.allophoneAlphabet()->allophone(Am::Allophone(Bliss::ContextPhonology::PhonemeInContext(central, history, future), boundary));
+    Am::ClassicHmmTopology const* hmmTopology = acousticModel_.hmmTopology(central);
 
     for (u32 phoneState = 0; phoneState < static_cast<u32>(hmmTopology->nPhoneStates()); ++phoneState) {
         Am::AllophoneState   alloState = acousticModel_.allophoneStateAlphabet()->allophoneState(allophone, phoneState);
@@ -1373,8 +1372,8 @@ StateId CtcTreeBuilder::extendPronunciation(StateId startState, Bliss::Pronuncia
         }
 
         Bliss::ContextPhonology::SemiContext history, future;
-        auto const*                          allophone        = acousticModel_.allophoneAlphabet()->allophone(Am::Allophone(Bliss::ContextPhonology::PhonemeInContext(phoneme, history, future), boundary));
-        auto const*                          hmmTopology      = acousticModel_.hmmTopology(phoneme);
+        Am::Allophone const*                 allophone        = acousticModel_.allophoneAlphabet()->allophone(Am::Allophone(Bliss::ContextPhonology::PhonemeInContext(phoneme, history, future), boundary));
+        Am::ClassicHmmTopology const*        hmmTopology      = acousticModel_.hmmTopology(phoneme);
         const bool                           allophoneIsBlank = acousticModel_.allophoneStateAlphabet()->index(allophone, 0, false) == blankAllophoneStateIndex_;
 
         for (u32 phoneState = 0; phoneState < static_cast<u32>(hmmTopology->nPhoneStates()); ++phoneState) {
@@ -1559,8 +1558,8 @@ StateId AedTreeBuilder::extendPronunciation(StateId startState, Bliss::Pronuncia
         }
 
         Bliss::ContextPhonology::SemiContext history, future;
-        auto const*                          allophone   = acousticModel_.allophoneAlphabet()->allophone(Am::Allophone(Bliss::ContextPhonology::PhonemeInContext(phoneme, history, future), boundary));
-        auto const*                          hmmTopology = acousticModel_.hmmTopology(phoneme);
+        Am::Allophone const*                 allophone   = acousticModel_.allophoneAlphabet()->allophone(Am::Allophone(Bliss::ContextPhonology::PhonemeInContext(phoneme, history, future), boundary));
+        Am::ClassicHmmTopology const*        hmmTopology = acousticModel_.hmmTopology(phoneme);
 
         for (u32 phoneState = 0; phoneState < static_cast<u32>(hmmTopology->nPhoneStates()); ++phoneState) {
             Am::AllophoneState   alloState = acousticModel_.allophoneStateAlphabet()->allophoneState(allophone, phoneState);
@@ -1769,8 +1768,8 @@ void HmmTreeBuilder::hmmFromAllophone(HMMSequence&                          ret,
         }
     }
 
-    auto const* allophone   = acousticModel_.allophoneAlphabet()->allophone(Am::Allophone(contextPhoneme, boundary));
-    auto const* hmmTopology = acousticModel_.hmmTopology(central);
+    Am::Allophone const*          allophone   = acousticModel_.allophoneAlphabet()->allophone(Am::Allophone(contextPhoneme, boundary));
+    Am::ClassicHmmTopology const* hmmTopology = acousticModel_.hmmTopology(central);
 
     for (u32 phoneState = 0; phoneState < hmmTopology->nPhoneStates(); ++phoneState) {
         const Am::AllophoneState alloState = acousticModel_.allophoneStateAlphabet()->allophoneState(allophone, phoneState);

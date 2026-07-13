@@ -524,6 +524,14 @@ bool TreeLabelsyncBeamSearch::decodeStep() {
         scoringTime_.start();
         auto scoreAccessors = labelScorer->getScoreAccessors(scoringContexts_);
         scoringTime_.stop();
+        std::vector<std::optional<Nn::DenseScoreSpan>> denseScoreSpans(scoreAccessors.size(), std::nullopt);
+        std::vector<Nn::TimeframeIndex>                scoreTimes(scoreAccessors.size(), 0);
+        for (size_t accessorIdx = 0ul; accessorIdx < scoreAccessors.size(); ++accessorIdx) {
+            if (scoreAccessors[accessorIdx]) {
+                denseScoreSpans[accessorIdx] = (*scoreAccessors[accessorIdx])->getDenseScores();
+                scoreTimes[accessorIdx]      = (*scoreAccessors[accessorIdx])->getTime();
+            }
+        }
 
         if (scorerIdx == 0ul) {
             // In the first iteration, create extensions while pre-pruning
@@ -537,6 +545,8 @@ bool TreeLabelsyncBeamSearch::decodeStep() {
                 }
 
                 auto const& scoreAccessor = scoreAccessors[hypIndexToContextIndexMap_[hypIndex]];
+                auto const& denseScores   = denseScoreSpans[hypIndexToContextIndexMap_[hypIndex]];
+                auto        scoreTime     = scoreTimes[hypIndexToContextIndexMap_[hypIndex]];
 
                 if (not scoreAccessor) {
                     // No extensions for hyps that couldn't be scored
@@ -559,8 +569,10 @@ bool TreeLabelsyncBeamSearch::decodeStep() {
                     auto extScore = hyp.score;
                     auto extTime  = hyp.trace->time;
                     if (labelScorer->scoresTransition(transitionType)) {
-                        extScore += (*scoreAccessor)->getScore(transitionType, tokenIdx);
-                        extTime = std::max(extTime, (*scoreAccessor)->getTime());
+                        extScore += (denseScores and tokenIdx < denseScores->size())
+                                            ? (*denseScores)[tokenIdx]
+                                            : (*scoreAccessor)->getScore(transitionType, tokenIdx);
+                        extTime = std::max(extTime, scoreTime);
                     }
 
                     // Pre-prune based on score before creating extension instance and appending to list
@@ -588,7 +600,10 @@ bool TreeLabelsyncBeamSearch::decodeStep() {
                 auto const& scoreAccessor = scoreAccessors[hypIndexToContextIndexMap_[ext.baseHypIndex]];
 
                 if (scoreAccessor) {
-                    ext.score += (*scoreAccessor)->getScore(ext.transitionType, ext.nextToken);
+                    auto const& denseScores = denseScoreSpans[hypIndexToContextIndexMap_[ext.baseHypIndex]];
+                    ext.score += (denseScores and ext.nextToken < denseScores->size())
+                                         ? (*denseScores)[ext.nextToken]
+                                         : (*scoreAccessor)->getScore(ext.transitionType, ext.nextToken);
                     ext.timeframe = std::max(ext.timeframe, (*scoreAccessor)->getTime());
                 }
                 else {

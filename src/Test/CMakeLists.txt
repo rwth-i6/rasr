@@ -1,5 +1,6 @@
 add_executable(
     unit-test
+    Bliss_Orthography.cc
     Bliss_SegmentOrdering.cc
     Core_StringUtilities.cc
     Core_Thread.cc
@@ -57,6 +58,7 @@ target_link_libraries(
             RasrMath
             RasrMm
             RasrNn
+            cppunit
 )
 
 if(${MODULE_NN})

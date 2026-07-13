@@ -13,7 +13,7 @@
  *  limitations under the License.
  */
 #include "LatticeRescorerNodes.hh"
-#include <Bliss/Orthography.hh>
+#include <Bliss/OrthographicParser.hh>
 #include <Flf/FlfCore/Basic.hh>
 #include <Fsa/Cache.hh>
 #include <Fsa/Compose.hh>

@@ -30,6 +30,7 @@
 #include "LabelScorer/FixedContextOnnxLabelScorer.hh"
 #include "LabelScorer/NoContextOnnxLabelScorer.hh"
 #include "LabelScorer/NoOpLabelScorer.hh"
+#include "LabelScorer/PrefixSpeechLmOnnxLabelScorer.hh"
 #include "LabelScorer/PriorLabelScorer.hh"
 #include "LabelScorer/StateManagedOnnxLabelScorer.hh"
 #include "LabelScorer/StatefulOnnxLabelScorer.hh"
@@ -194,11 +195,25 @@ Module_::Module_()
                 return Core::ref(new FixedContextOnnxLabelScorer(config, modelCache));
             });
 
+    // Feed speech-conditioned prompt into LM as prefix before decoding. Uses StateManager.
+    labelScorerFactory_.registerLabelScorer(
+            "prefix-speech-lm-onnx",
+            [](Core::Configuration const& config, ModelCache& modelCache) {
+                return Core::ref(new PrefixSpeechLmOnnxLabelScorer(config, modelCache));
+            });
+
     // Compute scores based on hidden state tensors.
     labelScorerFactory_.registerLabelScorer(
             "stateful-onnx",
             [](Core::Configuration const& config, ModelCache& modelCache) {
                 return Core::ref(new StatefulOnnxLabelScorer(config, modelCache));
+            });
+
+    // Compute scores with recurrent ONNX state packing delegated to a StateManager.
+    labelScorerFactory_.registerLabelScorer(
+            "state-managed-onnx",
+            [](Core::Configuration const& config, ModelCache& modelCache) {
+                return Core::ref(new StateManagedOnnxLabelScorer(config, modelCache));
             });
 
     // Compute scores with recurrent ONNX state packing delegated to a StateManager.

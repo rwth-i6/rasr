@@ -22,6 +22,8 @@
 #include <Core/CollapsedVector.hh>
 #include <Core/XmlStream.hh>
 #include <Lattice/LatticeAdaptor.hh>
+#include <Lm/BackingOff.hh>
+#include <Lm/Module.hh>
 #include <Nn/LabelScorer/LabelScorer.hh>
 #include <Nn/LabelScorer/ScoringContext.hh>
 #include <Search/Module.hh>
@@ -49,9 +51,13 @@ TreeTimesyncBeamSearch::LabelHypothesis::LabelHypothesis()
         : scoringContexts(),
           currentToken(Nn::invalidLabelIndex),
           currentState(invalidTreeNodeIndex),
+          lookahead(),
           lmHistory(),
+          lookaheadHistory(),
+          fullLookaheadHistory(),
           timeframe(0),
           score(0.0),
+          lookaheadScore(0.0),
           trace(Core::ref(new LatticeTrace(0, {0, 0}, {}))) {}
 
 TreeTimesyncBeamSearch::LabelHypothesis::LabelHypothesis(
@@ -61,22 +67,32 @@ TreeTimesyncBeamSearch::LabelHypothesis::LabelHypothesis(
         : scoringContexts(newScoringContexts),
           currentToken(extension.nextToken),
           currentState(extension.nextState),
+          lookahead(base.lookahead),
           lmHistory(base.lmHistory),
+          lookaheadHistory(base.lookaheadHistory),
+          fullLookaheadHistory(base.fullLookaheadHistory),
           timeframe(extension.timeframe),
           score(extension.score),
+          lookaheadScore(extension.lookaheadScore),
           trace(base.trace) {
 }
 
 TreeTimesyncBeamSearch::LabelHypothesis::LabelHypothesis(
         LabelHypothesis const&                                   base,
         TreeTimesyncBeamSearch::WordEndExtensionCandidate const& extension,
-        Lm::History const&                                       newLmHistory)
+        Lm::History const&                                       newLmHistory,
+        LanguageModelLookahead::ContextLookaheadReference const  newLookahead,
+        Lm::History const&                                       newLookaheadHistory)
         : scoringContexts(base.scoringContexts),
           currentToken(base.currentToken),
           currentState(extension.rootState),
+          lookahead(newLookahead),
           lmHistory(newLmHistory),
+          lookaheadHistory(newLookaheadHistory),
+          fullLookaheadHistory(base.fullLookaheadHistory),
           timeframe(base.timeframe),
-          score(extension.score) {
+          score(extension.score),
+          lookaheadScore(0.0) {
     auto newLmScore   = score - base.score;
     auto totalLmScore = base.trace->score.lm + newLmScore;
     auto totalAmScore = score - totalLmScore;
@@ -148,6 +164,21 @@ const Core::ParameterBool TreeTimesyncBeamSearch::paramCollapseRepeatedLabels(
         "Collapse repeated emission of the same label into one output. If false, every emission is treated like a new output.",
         false);
 
+const Core::ParameterBool TreeTimesyncBeamSearch::paramLmLookahead(
+        "lm-lookahead",
+        "Enable language model lookahead.",
+        false);
+
+const Core::ParameterBool TreeTimesyncBeamSearch::paramSeparateLookaheadLm(
+        "separate-lookahead-lm",
+        "Use a separate LM for lookahead.",
+        false);
+
+const Core::ParameterBool TreeTimesyncBeamSearch::paramSparseLmLookAhead(
+        "sparse-lm-lookahead",
+        "Use sparse n-gram LM lookahead.",
+        true);
+
 const Core::ParameterBool TreeTimesyncBeamSearch::paramSentenceEndFallBack(
         "sentence-end-fall-back",
         "Allow for fallback solution if no active word-end hypothesis exists at the end of a segment.",
@@ -210,6 +241,9 @@ TreeTimesyncBeamSearch::TreeTimesyncBeamSearch(Core::Configuration const& config
           labelScorers_(),
           nonWordLemmas_(),
           debugChannel_(config, "debug"),
+          enableLmLookahead_(paramLmLookahead(config)),
+          separateLookaheadLm_(paramSeparateLookaheadLm(config)),
+          sparseLmLookahead_(paramSparseLmLookAhead(config)),
           hypIndexToContextIndexMap_(),
           withinWordExtensions_(),
           wordEndExtensions_(),
@@ -350,6 +384,42 @@ bool TreeTimesyncBeamSearch::setModelCombination(Speech::ModelCombination const&
     // Create look-ups for state successors and exits of each state
     createSuccessorLookups();
 
+    // Set lookahead LM
+    if (enableLmLookahead_) {
+        if (separateLookaheadLm_) {
+            log() << "Use separate lookahead LM";
+            lookaheadLm_ = Lm::Module::instance().createScaledLanguageModel(select("lm-lookahead"), lexicon_);
+        }
+        else if (languageModel_->lookaheadLanguageModel().get() != nullptr) {
+            lookaheadLm_ = Core::Ref<Lm::ScaledLanguageModel>(new Lm::LanguageModelScaling(select("lookahead-lm"),
+                                                                                           Core::Ref<Lm::LanguageModel>(const_cast<Lm::LanguageModel*>(languageModel_->lookaheadLanguageModel().get()))));
+        }
+        else {
+            lookaheadLm_ = languageModel_;
+        }
+
+        if (sparseLmLookahead_ && !dynamic_cast<const Lm::BackingOffLm*>(lookaheadLm_->unscaled().get())) {
+            warning() << "Not using sparse LM lookahead, because the LM is not a backing-off LM.";
+            sparseLmLookahead_ = false;
+        }
+
+        lmLookahead_ = new LanguageModelLookahead(Core::Configuration(config, "lm-lookahead"),
+                                                  modelCombination.pronunciationScale(),
+                                                  lookaheadLm_,
+                                                  network_->structure,
+                                                  network_->rootState,
+                                                  network_->exits,
+                                                  acousticModel_);
+    }
+
+    // Create global cache
+    if (network_->write(0)) {
+        log() << "writing network image ready";
+    }
+    else {
+        log() << "writing network image failed";
+    }
+
     return true;
 }
 
@@ -383,6 +453,11 @@ void TreeTimesyncBeamSearch::enterSegment(Bliss::SpeechSegment const* segment) {
     }
     beam_.front().currentState = network_->rootState;
     beam_.front().lmHistory    = languageModel_->startHistory();
+
+    if (enableLmLookahead_) {
+        beam_.front().lookaheadHistory     = lookaheadLm_->startHistory();
+        beam_.front().fullLookaheadHistory = lookaheadLm_->startHistory();
+    }
 
     currentSearchStep_ = 0ul;
     finishedSegment_   = false;
@@ -551,14 +626,22 @@ bool TreeTimesyncBeamSearch::decodeStep() {
                         continue;
                     }
                     currentBestScore = std::min(currentBestScore, extScore);
-
                     withinWordExtensions_.push_back(
                             {.nextToken      = tokenIdx,
                              .nextState      = successorState,
                              .timeframe      = extTime,
                              .score          = extScore,
+                             .lookaheadScore = 0,
                              .transitionType = transitionType,
                              .baseHypIndex   = hypIndex});
+
+                    // Add the LM lookahead score to the extensions' scores for pruning
+                    // Make sure not to calculate the lookahead score for the blank lemma which is reachable from the root
+                    if (enableLmLookahead_ and not(hyp.currentState == network_->rootState and tokenIdx == blankLabelIndex_)) {
+                        auto lookaheadScore                         = getLmLookaheadScore(withinWordExtensions_.back());
+                        withinWordExtensions_.back().lookaheadScore = lookaheadScore;
+                        withinWordExtensions_.back().score += lookaheadScore;
+                    }
                 }
             }
         }
@@ -622,7 +705,7 @@ bool TreeTimesyncBeamSearch::decodeStep() {
 
     // Create new label hypotheses from extension candidates
     newBeam_.clear();
-    for (auto const& extension : withinWordExtensions_) {
+    for (auto extension : withinWordExtensions_) {
         auto const& baseHyp = beam_[extension.baseHypIndex];
 
         std::vector<Nn::ScoringContextRef> newScoringContexts;
@@ -656,6 +739,12 @@ bool TreeTimesyncBeamSearch::decodeStep() {
     wordEndExtensions_.clear();
     for (size_t hypIndex = 0ul; hypIndex < newBeam_.size(); ++hypIndex) {
         auto& hyp = newBeam_[hypIndex];
+
+        if (enableLmLookahead_) {
+            // Subtract the LM lookahead score again
+            hyp.score -= hyp.lookaheadScore;
+            hyp.lookaheadScore = 0.0;
+        }
 
         // Create one word-end hypothesis for each exit
         for (size_t i = stateExitsOffset_[hyp.currentState]; i < stateExitsOffset_[hyp.currentState + 1]; ++i) {
@@ -709,7 +798,7 @@ bool TreeTimesyncBeamSearch::decodeStep() {
         clog() << Core::XmlFull("num-word-end-hyps-after-score-pruning", wordEndExtensions_.size());
     }
 
-    // Create new word-end label hypotheses from word-end extension candidates and update the LM history
+    // Create new word-end label hypotheses from word-end extension candidates, update the LM history and prepare the new lookahead if its history has changed
     wordEndHypotheses_.clear();
     for (auto& extension : wordEndExtensions_) {
         auto const& baseHyp = newBeam_[extension.baseHypIndex];
@@ -717,13 +806,24 @@ bool TreeTimesyncBeamSearch::decodeStep() {
         auto        newLmHistory = baseHyp.lmHistory;
         auto const& sts          = extension.pron->lemma()->syntacticTokenSequence();
 
+        LanguageModelLookahead::ContextLookaheadReference newLookahead        = baseHyp.lookahead;
+        Lm::History                                       newLookaheadHistory = baseHyp.fullLookaheadHistory;
+
         if (sts.size() != 0) {
             require(sts.size() == 1);
             const Bliss::SyntacticToken* st = sts.front();
             newLmHistory                    = languageModel_->extendedHistory(newLmHistory, st);
+
+            if (enableLmLookahead_) {
+                newLookaheadHistory = lookaheadLm_->extendedHistory(baseHyp.fullLookaheadHistory, st);
+
+                if (!(newLookaheadHistory == baseHyp.lookaheadHistory)) {
+                    getLmLookahead(newLookahead, newLookaheadHistory);
+                }
+            }
         }
 
-        wordEndHypotheses_.push_back({baseHyp, extension, newLmHistory});
+        wordEndHypotheses_.push_back({baseHyp, extension, newLmHistory, newLookahead, newLookaheadHistory});
     }
 
     recombination(wordEndHypotheses_, true);
@@ -830,6 +930,10 @@ void TreeTimesyncBeamSearch::logStatistics() const {
     numWordEndHypsAfterBeamPruning_.write(clog());
     numActiveHyps_.write(clog());
     numActiveTrees_.write(clog());
+
+    if (enableLmLookahead_) {
+        lmLookahead_->logStatistics();
+    }
 }
 
 Nn::TransitionType TreeTimesyncBeamSearch::inferTransitionType(Nn::LabelIndex prevLabel, Nn::LabelIndex nextLabel, bool isSameState) const {
@@ -1079,12 +1183,13 @@ void TreeTimesyncBeamSearch::finalizeHypotheses() {
         for (size_t hypIndex = 0ul; hypIndex < tempHypotheses_.size(); ++hypIndex) {
             auto& hyp = tempHypotheses_[hypIndex];
             withinWordExtensions_.push_back(
-                    {sentenceEndLabelIndex_,
-                     hyp.currentState,
-                     hyp.trace->time,
-                     hyp.score,
-                     Nn::TransitionType::SENTENCE_END,
-                     hypIndex});
+                    {.nextToken      = sentenceEndLabelIndex_,
+                     .nextState      = hyp.currentState,
+                     .timeframe      = hyp.trace->time,
+                     .score          = hyp.score,
+                     .lookaheadScore = 0,
+                     .transitionType = Nn::TransitionType::SENTENCE_END,
+                     .baseHypIndex   = hypIndex});
         }
 
         // Score sentence-end with all label scorers
@@ -1152,7 +1257,7 @@ void TreeTimesyncBeamSearch::finalizeHypotheses() {
         for (size_t extensionIdx = 0ul; extensionIdx < wordEndExtensions_.size(); ++extensionIdx) {
             auto&       ext     = wordEndExtensions_[extensionIdx];
             auto const& baseHyp = newBeam_[ext.baseHypIndex];
-            tempHypotheses_.push_back({baseHyp, ext, baseHyp.lmHistory});
+            tempHypotheses_.push_back({baseHyp, ext, baseHyp.lmHistory, baseHyp.lookahead, baseHyp.lookaheadHistory});
         }
     }
     else {  // No valid final hypotheses and no sentence-end fallback
@@ -1183,6 +1288,43 @@ void TreeTimesyncBeamSearch::finalizeHypotheses() {
         ss << "\n";
         debugChannel_ << ss.str();
     }
+}
+
+void TreeTimesyncBeamSearch::getLmLookahead(LanguageModelLookahead::ContextLookaheadReference& lookahead, Lm::History history) {
+    lookahead = lmLookahead_->getLookahead(history);
+    lmLookahead_->fill(lookahead, sparseLmLookahead_);
+}
+
+Score TreeTimesyncBeamSearch::getLmLookaheadScore(TreeTimesyncBeamSearch::WithinWordExtensionCandidate& extension) {
+    auto& baseHyp = beam_[extension.baseHypIndex];
+
+    if (!baseHyp.lookahead) {
+        getLmLookahead(baseHyp.lookahead, baseHyp.lookaheadHistory);
+    }
+
+    Score lookaheadScore = 0;
+    bool  scoreFound     = false;
+    do {
+        if (baseHyp.lookahead->isSparse()) {  // Sparse lookahead
+            auto lookaheadHash = lmLookahead_->lookaheadHash(extension.nextState);
+            scoreFound         = baseHyp.lookahead->getScoreForLookAheadHashSparse(lookaheadHash, lookaheadScore);
+        }
+        else {  // Non-sparse lookahead
+            auto lookaheadId = lmLookahead_->lookaheadId(extension.nextState);
+            lookaheadScore   = baseHyp.lookahead->scoreForLookAheadIdNormal(lookaheadId);
+            scoreFound       = true;
+        }
+
+        if (!scoreFound) {  // No lookahead table entry, use back-off
+            const Lm::BackingOffLm* lm = dynamic_cast<const Lm::BackingOffLm*>(lookaheadLm_->unscaled().get());
+            lookaheadScore += lm->getBackOffScore(baseHyp.lookaheadHistory);
+            // Reduce the history and retrieve the corresponding lookahead table
+            baseHyp.lookaheadHistory = lm->reducedHistory(baseHyp.lookaheadHistory, lm->historyLength(baseHyp.lookaheadHistory) - 1);
+            getLmLookahead(baseHyp.lookahead, baseHyp.lookaheadHistory);
+        }
+    } while (!scoreFound);
+
+    return lookaheadScore;
 }
 
 void TreeTimesyncBeamSearch::maximumStableDelayPruning() {

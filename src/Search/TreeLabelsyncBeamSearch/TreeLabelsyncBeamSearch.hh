@@ -63,7 +63,7 @@ public:
     // Inherited methods from `SearchAlgorithmV2`
 
     Speech::ModelCombination::Mode  requiredModelCombination() const override;
-    Speech::ModelCombination::Mode  requiredAcousticModel() const override;
+    Am::AcousticModel::Mode         requiredAcousticModel() const override;
     bool                            setModelCombination(Speech::ModelCombination const& modelCombination) override;
     void                            enterSegment(Bliss::SpeechSegment const* = nullptr) override;
     void                            finishSegment() override;

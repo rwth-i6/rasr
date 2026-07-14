@@ -190,7 +190,8 @@ const Core::ParameterBool TreeLabelsyncBeamSearch::paramLogStepwiseStatistics(
 const Core::ParameterInt TreeLabelsyncBeamSearch::paramCacheCleanupInterval(
         "cache-cleanup-interval",
         "Interval of search steps after which buffered inputs that are not needed anymore get cleaned up.",
-        10);
+        10,
+        1);
 
 const Core::ParameterInt TreeLabelsyncBeamSearch::paramMaximumStableDelay(
         "maximum-stable-delay",
@@ -238,7 +239,7 @@ TreeLabelsyncBeamSearch::TreeLabelsyncBeamSearch(Core::Configuration const& conf
           featureProcessingTime_(),
           scoringTime_(),
           numHypsAfterIntermediatePruning_(),
-          numTerminatedHypsAfterScorePruning_("num-termianted-hyps-after-score-pruning"),
+          numTerminatedHypsAfterScorePruning_("num-terminated-hyps-after-score-pruning"),
           numTerminatedHypsAfterRecombination_("num-terminated-hyps-after-recombination"),
           numTerminatedHypsAfterBeamPruning_("num-terminated-hyps-after-beam-pruning"),
           numActiveHypsAfterScorePruning_("num-active-hyps-after-score-pruning"),
@@ -278,7 +279,7 @@ Speech::ModelCombination::Mode TreeLabelsyncBeamSearch::requiredModelCombination
     return Speech::ModelCombination::useLabelScorer | Speech::ModelCombination::useLexicon | Speech::ModelCombination::useAcousticModel | Speech::ModelCombination::useLanguageModel;
 }
 
-Speech::ModelCombination::Mode TreeLabelsyncBeamSearch::requiredAcousticModel() const {
+Am::AcousticModel::Mode TreeLabelsyncBeamSearch::requiredAcousticModel() const {
     return Am::AcousticModel::noEmissions;
 }
 
@@ -496,8 +497,7 @@ bool TreeLabelsyncBeamSearch::decodeStep() {
     withinWordExtensions_.clear();
     scoringContexts_.clear();
     scoringContexts_.reserve(beam_.size());
-    hypIndexToContextIndexMap_.resize(beam_.size());
-    std::iota(hypIndexToContextIndexMap_.begin(), hypIndexToContextIndexMap_.end(), 0ul);
+    hypIndexToContextIndexMap_.assign(beam_.size(), -1);
 
     // Only the scoring contexts of active hypotheses need to be forwarded; collect them here
     for (size_t hypIndex = 0ul; hypIndex < beam_.size(); ++hypIndex) {
@@ -538,7 +538,7 @@ bool TreeLabelsyncBeamSearch::decodeStep() {
             Score currentBestScore = Core::Type<Score>::max;
 
             for (size_t hypIndex = 0ul; hypIndex < beam_.size(); ++hypIndex) {
-                auto const hyp = beam_[hypIndex];
+                auto const& hyp = beam_[hypIndex];
 
                 if (not hyp.isActive) {
                     continue;

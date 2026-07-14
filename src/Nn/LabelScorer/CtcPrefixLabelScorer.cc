@@ -15,6 +15,7 @@
 
 #include "CtcPrefixLabelScorer.hh"
 
+#include <Math/Utilities.hh>
 #include <Nn/Module.hh>
 #include <cmath>
 #include <limits>
@@ -24,9 +25,13 @@ namespace {
 
 using namespace Nn;
 
+bool isFiniteScore(Score score) {
+    return not Math::isnan(score) and not Math::isinf(score);
+}
+
 // Compute score difference while accounting for inf values
 Score scoreDelta(Score extScore, Score prefixScore) {
-    if (std::isinf(extScore) or std::isinf(prefixScore)) {
+    if (not isFiniteScore(extScore) or not isFiniteScore(prefixScore)) {
         return Core::Type<Score>::max;
     }
     return extScore - prefixScore;
@@ -208,6 +213,12 @@ std::optional<ScoreAccessorRef> CtcPrefixLabelScorer::getScoreAccessor(ScoringCo
 
     auto context = Core::ref(dynamic_cast<const CtcPrefixScoringContext*>(scoringContext.get()));
     finalizeScoringContext(context);
+    if (not context->prefixScore or not isFiniteScore(*context->prefixScore)) {
+        return {};
+    }
+    if (not context->timePrefixScores or context->timePrefixScores->empty()) {
+        return {};
+    }
 
     return Core::ref(new CtcPrefixScoreAccessor(context, ctcScores_));
 }

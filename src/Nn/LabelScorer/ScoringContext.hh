@@ -18,10 +18,14 @@
 
 #include <Core/ReferenceCounting.hh>
 #include <Mm/Types.hh>
-#include <Onnx/Value.hh>
+#include <Nn/AbstractStateManager.hh>
+
 #include "Types.hh"
 
 namespace Nn {
+
+size_t labelSeqHash(std::vector<LabelIndex> const& labelSeq);
+bool   labelSeqEqual(std::vector<LabelIndex> const& lhs, std::vector<LabelIndex> const& rhs);
 
 /*
  * Empty scoring context base class
@@ -48,24 +52,6 @@ struct ScoringContextEq {
 };
 
 /*
- * Combines multiple scoring contexts at once
- */
-struct CombineScoringContext : public ScoringContext {
-    std::vector<ScoringContextRef> scoringContexts;
-
-    CombineScoringContext()
-            : scoringContexts() {}
-
-    CombineScoringContext(std::vector<ScoringContextRef>&& scoringContexts)
-            : scoringContexts(scoringContexts) {}
-
-    bool   isEqual(ScoringContextRef const& other) const;
-    size_t hash() const;
-};
-
-typedef Core::Ref<CombineScoringContext const> CombineScoringContextRef;
-
-/*
  * Scoring context that only describes the current decoding step
  */
 struct StepScoringContext : public ScoringContext {
@@ -82,68 +68,6 @@ struct StepScoringContext : public ScoringContext {
 };
 
 typedef Core::Ref<StepScoringContext const> StepScoringContextRef;
-
-/*
- * Scoring context that describes a sequence of previously observed labels as well as the current decoding step
- */
-struct SeqStepScoringContext : public ScoringContext {
-    std::vector<LabelIndex> labelSeq;
-    Speech::TimeframeIndex  currentStep;
-
-    SeqStepScoringContext()
-            : labelSeq(), currentStep(0ul) {}
-    SeqStepScoringContext(std::vector<LabelIndex> const& seq, Speech::TimeframeIndex step)
-            : labelSeq(seq), currentStep(step) {}
-    SeqStepScoringContext(std::vector<LabelIndex>&& seq, Speech::TimeframeIndex step)
-            : labelSeq(std::move(seq)), currentStep(step) {}
-
-    bool   isEqual(ScoringContextRef const& other) const;
-    size_t hash() const;
-};
-
-typedef Core::Ref<SeqStepScoringContext const> SeqStepScoringContextRef;
-
-/*
- * Hidden state represented by a dictionary of named ONNX values
- */
-struct OnnxHiddenState : public Core::ReferenceCounted {
-    std::unordered_map<std::string, Onnx::Value> stateValueMap;
-
-    OnnxHiddenState()
-            : stateValueMap() {}
-
-    OnnxHiddenState(std::vector<std::string>&& names, std::vector<Onnx::Value>&& values) {
-        verify(names.size() == values.size());
-        stateValueMap.reserve(names.size());
-        for (size_t i = 0ul; i < names.size(); ++i) {
-            stateValueMap.emplace(std::move(names[i]), std::move(values[i]));
-        }
-    }
-};
-
-typedef Core::Ref<OnnxHiddenState const> OnnxHiddenStateRef;
-
-/*
- * Scoring context consisting of a hidden state.
- * Assumes that two hidden states are equal if and only if they were created
- * from the same label history.
- */
-struct OnnxHiddenStateScoringContext : public ScoringContext {
-    std::vector<LabelIndex>    labelSeq;  // Used for hashing
-    mutable OnnxHiddenStateRef hiddenState;
-    mutable bool               requiresFinalize;
-
-    OnnxHiddenStateScoringContext()
-            : labelSeq(), hiddenState(), requiresFinalize(false) {}
-
-    OnnxHiddenStateScoringContext(std::vector<LabelIndex> const& labelSeq, OnnxHiddenStateRef state, bool requiresFinalize)
-            : labelSeq(labelSeq), hiddenState(state), requiresFinalize(requiresFinalize) {}
-
-    bool   isEqual(ScoringContextRef const& other) const;
-    size_t hash() const;
-};
-
-typedef Core::Ref<OnnxHiddenStateScoringContext const> OnnxHiddenStateScoringContextRef;
 
 }  // namespace Nn
 

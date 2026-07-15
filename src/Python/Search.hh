@@ -42,9 +42,8 @@ class SearchAlgorithm : public Core::Component {
 public:
     SearchAlgorithm(const Core::Configuration& c);
 
-    // Call before starting a new recognition. Clean up existing data structures
-    // from the previous run.
-    void reset();
+    // Return the model combination used by the search.
+    Speech::ModelCombination& modelCombination();
 
     // Call at the beginning of a new segment.
     void enterSegment();

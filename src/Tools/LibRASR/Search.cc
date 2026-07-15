@@ -17,7 +17,20 @@
 
 #include <sstream>
 
+#include <Lm/ScaledLanguageModel.hh>
+#include <Nn/LabelScorer/ScaledLabelScorer.hh>
 #include <Python/Search.hh>
+#include <Speech/ModelCombination.hh>
+
+// Return the lanuage model
+Lm::ScaledLanguageModel* getLanguageModel(Speech::ModelCombination& modelCombination) {
+    return modelCombination.languageModel().get();
+}
+
+// Return the label scorer
+Nn::ScaledLabelScorer* getLabelScorer(Speech::ModelCombination& modelCombination, size_t index = 0) {
+    return dynamic_cast<Nn::ScaledLabelScorer*>(modelCombination.labelScorer(index).get());
+}
 
 void bindSearchAlgorithm(py::module_& module) {
     /*
@@ -56,6 +69,48 @@ void bindSearchAlgorithm(py::module_& module) {
             });
 
     /*
+     * =========================
+     * === Model Combination ===
+     * =========================
+     */
+
+    py::class_<Speech::ModelCombination> pyModelCombination(
+            module,
+            "ModelCombination",
+            "Combination of lexicon, acoustic model, label scorer and language model.");
+
+    pyModelCombination.def(
+            "label_scorer",
+            &getLabelScorer,
+            py::arg("index") = 0ul,
+            py::return_value_policy::reference_internal,
+            "Return the label scorer.");
+
+    pyModelCombination.def(
+            "language_model",
+            &getLanguageModel,
+            py::return_value_policy::reference_internal,
+            "Return the language model.");
+
+    py::class_<Lm::ScaledLanguageModel> pyScaledLanguageModel(
+            module,
+            "ScaledLanguageModel",
+            "Language model with configurable scale.");
+
+    pyScaledLanguageModel.def(
+            "set_scale",
+            [](Lm::ScaledLanguageModel& lm, Mc::Scale scale) {
+                lm.setOwnScale(scale / lm.parentScale());
+            },
+            py::arg("scale"),
+            "Set the effective LM scale, overriding the value from the config.");
+
+    pyScaledLanguageModel.def(
+            "scale",
+            &Lm::ScaledLanguageModel::scale,
+            "Return the current effective LM scale.");
+
+    /*
      * ========================
      * === Search Algorithm ===
      * ========================
@@ -68,7 +123,6 @@ void bindSearchAlgorithm(py::module_& module) {
             "It works by calling `enter_segment()`, passing segment features\n"
             "via `put_feature` or `put_features` and finally calling `finish_segment()`.\n"
             "Intermediate and final results can be retrieved via `get_current_best_traceback()`.\n"
-            "Before recognizing the next segment, `reset` should be called.\n"
             "There is also a convenience function `recognize_segment` that performs all\n"
             "these steps in one go given an array of segment features.");
 
@@ -76,11 +130,6 @@ void bindSearchAlgorithm(py::module_& module) {
             py::init<const Core::Configuration&>(),
             py::arg("config"),
             "Initialize search algorithm using a RASR config.");
-
-    pySearchAlgorithm.def(
-            "reset",
-            &SearchAlgorithm::reset,
-            "Call before starting a new recognition. Cleans up existing data structures from the previous run.");
 
     pySearchAlgorithm.def(
             "enter_segment",
@@ -124,12 +173,18 @@ void bindSearchAlgorithm(py::module_& module) {
             "recognize_segment",
             &SearchAlgorithm::recognizeSegment,
             py::arg("features"),
-            "Convenience function to reset the search algorithm, start a segment, pass all the features as a numpy array of shape [T, F] or [1, T, F], finish the segment, and return the recognition result.");
+            "Convenience function to start a segment, pass all the features as a numpy array of shape [T, F] or [1, T, F], finish the segment, and return the recognition result.");
 
     pySearchAlgorithm.def(
             "recognize_segment_n_best",
             &SearchAlgorithm::recognizeSegmentNBest,
             py::arg("features"),
             py::arg("n"),
-            "Convenience function to reset the search algorithm, start a segment, pass all the features as a numpy array of shape [T, F] or [1, T, F], finish the segment, and return a n-best list of results.");
+            "Convenience function to start a segment, pass all the features as a numpy array of shape [T, F] or [1, T, F], finish the segment, and return a n-best list of results.");
+
+    pySearchAlgorithm.def(
+            "model_combination",
+            &SearchAlgorithm::modelCombination,
+            py::return_value_policy::reference_internal,
+            "Return the model combination used by the search.");
 }

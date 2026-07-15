@@ -24,6 +24,7 @@ const Core::Choice TransitionSet::choiceTransitionPreset(
         "transducer", TransitionPresetType::TRANSDUCER,
         "aed", TransitionPresetType::AED,
         "lm", TransitionPresetType::LM,
+        "hmm", TransitionPresetType::HMM,
         Core::Choice::endMark());
 
 const Core::ParameterChoice TransitionSet::paramTransitionPreset(
@@ -95,6 +96,15 @@ void TransitionSet::enablePreset(TransitionPresetType preset) {
             enable(BLANK_TO_LABEL);
             enable(INITIAL_LABEL);
             enable(SENTENCE_END);
+            break;
+        case TransitionPresetType::HMM:
+            enable(LABEL_TO_LABEL);
+            enable(LABEL_LOOP);
+            enable(LABEL_TO_SILENCE);
+            enable(SILENCE_TO_LABEL);
+            enable(SILENCE_LOOP);
+            enable(INITIAL_LABEL);
+            enable(INITIAL_SILENCE);
             break;
     }
 }

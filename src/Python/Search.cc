@@ -34,8 +34,8 @@ SearchAlgorithm::SearchAlgorithm(const Core::Configuration& c)
     searchAlgorithm_->setModelCombination(modelCombination_);
 }
 
-void SearchAlgorithm::reset() {
-    searchAlgorithm_->reset();
+Speech::ModelCombination& SearchAlgorithm::modelCombination() {
+    return modelCombination_;
 }
 
 void SearchAlgorithm::enterSegment() {
@@ -185,7 +185,6 @@ std::vector<Traceback> SearchAlgorithm::getCurrentNBestList(size_t nBestSize) {
 }
 
 Traceback SearchAlgorithm::recognizeSegment(py::array_t<f32> const& features) {
-    reset();
     enterSegment();
     putFeatures(features);
     finishSegment();
@@ -193,7 +192,6 @@ Traceback SearchAlgorithm::recognizeSegment(py::array_t<f32> const& features) {
 }
 
 std::vector<Traceback> SearchAlgorithm::recognizeSegmentNBest(py::array_t<f32> const& features, size_t nBestSize) {
-    reset();
     enterSegment();
     putFeatures(features);
     finishSegment();

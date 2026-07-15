@@ -19,6 +19,10 @@
 #include <pybind11/numpy.h>
 #include <pybind11/stl.h>
 
+#include <Nn/LabelScorer/CombineLabelScorer.hh>
+#include <Nn/LabelScorer/CtcPrefixLabelScorer.hh>
+#include <Nn/LabelScorer/EncoderDecoderLabelScorer.hh>
+#include <Nn/LabelScorer/ScaledLabelScorer.hh>
 #include <Nn/Module.hh>
 #include <Python/LabelScorer.hh>
 
@@ -29,13 +33,38 @@ PYBIND11_DECLARE_HOLDER_TYPE(T, Core::Ref<T>, true);
 void registerPythonLabelScorer(std::string const& name, py::object const& pyLabelScorerClass) {
     Nn::Module::instance().labelScorerFactory().registerLabelScorer(
             name.c_str(),
-            [pyLabelScorerClass](Core::Configuration const& config) {
+            [pyLabelScorerClass](Core::Configuration const& config, Nn::ModelCache& modelCache) {
                 py::gil_scoped_acquire gil;
                 // Call constructor of `pyLabelScorerClass`
                 py::object inst = pyLabelScorerClass(config);
                 inst.cast<Python::PythonLabelScorer*>()->setInstance(inst);
                 return inst.cast<Core::Ref<Nn::LabelScorer>>();
             });
+}
+
+// Return the sub-scorer that is wrapped by the given label scorer
+// If the label scorer is a CombineLabelScorer, return the sub-scorer at the specified index
+Nn::ScaledLabelScorer* getSubScorer(Nn::ScaledLabelScorer& labelScorer, size_t index = 0) {
+    auto wrappedLabelScorer = labelScorer.labelScorer();
+
+    auto* combineScorer = dynamic_cast<Nn::CombineLabelScorer*>(wrappedLabelScorer.get());
+    if (combineScorer) {
+        return combineScorer->getSubScorer(index).get();
+    }
+
+    auto* encoderDecoderScorer = dynamic_cast<Nn::EncoderDecoderLabelScorer*>(wrappedLabelScorer.get());
+    if (encoderDecoderScorer) {
+        require(index == 0);
+        return encoderDecoderScorer->getDecoderLabelScorer().get();
+    }
+
+    auto* ctcPrefixScorer = dynamic_cast<Nn::CtcPrefixLabelScorer*>(wrappedLabelScorer.get());
+    if (ctcPrefixScorer) {
+        require(index == 0);
+        return ctcPrefixScorer->getCtcLabelScorer().get();
+    }
+
+    throw py::value_error("Label scorer does not a have a sub-scorer");
 }
 
 void bindLabelScorer(py::module_& module) {
@@ -56,8 +85,12 @@ void bindLabelScorer(py::module_& module) {
             .value("LABEL_TO_BLANK", Nn::TransitionType::LABEL_TO_BLANK)
             .value("BLANK_TO_LABEL", Nn::TransitionType::BLANK_TO_LABEL)
             .value("BLANK_LOOP", Nn::TransitionType::BLANK_LOOP)
+            .value("LABEL_TO_SILENCE", Nn::TransitionType::LABEL_TO_SILENCE)
+            .value("SILENCE_TO_LABEL", Nn::TransitionType::SILENCE_TO_LABEL)
+            .value("SILENCE_LOOP", Nn::TransitionType::SILENCE_LOOP)
             .value("INITIAL_LABEL", Nn::TransitionType::INITIAL_LABEL)
             .value("INITIAL_BLANK", Nn::TransitionType::INITIAL_BLANK)
+            .value("INITIAL_SILENCE", Nn::TransitionType::INITIAL_SILENCE)
             .value("WORD_EXIT", Nn::TransitionType::WORD_EXIT)
             .value("NONWORD_EXIT", Nn::TransitionType::NONWORD_EXIT)
             .value("SILENCE_EXIT", Nn::TransitionType::SILENCE_EXIT)
@@ -151,4 +184,27 @@ void bindLabelScorer(py::module_& module) {
             "    A vector of length `B` containing either `None` if the label scorer is not ready to process the requests (e.g. expects more features or segment end signal)\n"
             "    or a tuple of a score-list and a timestamp for each context. The returned timestamps will be used\n"
             "    to form word boundaries in the search traceback.");
+
+    py::class_<Nn::ScaledLabelScorer, Nn::LabelScorer, Core::Ref<Nn::ScaledLabelScorer>> pyScaledLabelScorer(
+            module,
+            "ScaledLabelScorer",
+            "Label scorer with configurable scale.");
+
+    pyScaledLabelScorer.def(
+            "set_scale",
+            &Nn::ScaledLabelScorer::setScale,
+            py::arg("scale"),
+            "Set the label scorer scale, overriding the value from the config.");
+
+    pyScaledLabelScorer.def(
+            "scale",
+            &Nn::ScaledLabelScorer::scale,
+            "Return the current label scorer scale.");
+
+    pyScaledLabelScorer.def(
+            "get_sub_scorer",
+            &getSubScorer,
+            py::arg("index") = 0ul,
+            py::return_value_policy::reference_internal,
+            "Return the wrapped sub-scorer.");
 }

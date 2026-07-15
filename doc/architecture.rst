@@ -4,50 +4,74 @@ Architecture
 Build environment
 -----------------
 
-The build process is organized in Makefiles ::
+RASR is built with CMake. The top-level build file is ``CMakeLists.txt`` in the repository root. A typical out-of-source build looks as follows::
 
-    Config.make
-    Makefile
-    Makefile.cfg
-    Modules.make
-    Options.make
-    Rules.make
-    config/*.make
+    cmake -S . -B build
+    cmake --build build
+    cmake --install build
 
-The low-level ("atomic") makefiles are:
+The first command configures the project and generates the build system in ``build/``. The second command compiles the entire project or the target if selected via ``--target <NAME>``.
+The third command installs the executables and libraries below ``arch/<system>-<architecture>-<build-type>/``, unless a different installation prefix is selected.
 
-* ``Modules.make`` lists enabled modules. Modules are high level concepts that are defined as macros in ``Modules.make`` and used in order to enable and disable parts of code using ``ifdef`` directive.
-* ``Options.make`` sets some high level options (debug mode, compiler, binary naming etc)
-* ``Rules.make`` are actual build rules (including different levels of "clean")
+Useful CMake options include:
 
-  * ``config/cc-*.make`` compiler selection, code-relevant compiler/linker flags
-  * ``config/os-*.make`` compiler/linker flags related to external paths and modules
-  * ``config/proc-*.make`` compiler flags related to CPU architecture
+* ``-G Ninja`` to use Ninja as build system (usually faster)
+* ``-DCMAKE_EXPORT_COMPILE_COMMANDS=1`` to generate file ``compile_commands.json`` which can be used for parsing the project by some LSPs
+* ``-DMODULE_<NAME>=0`` to disable a module, for example ``-DMODULE_TENSORFLOW=0 -DMODULE_LM_TFRNN=0`` to disable TensorFlow
+* ``-D<TOOL>=0`` to disable a tool, for example ``-DLibRASR=0`` to disable ``LibRASR``
+* ``-DCMAKE_BUILD_TYPE=<type>`` to select the build type. Supported values are ``standard``, ``debug`` and ``release``.
+  For example, use ``-DCMAKE_BUILD_TYPE=debug`` to build with debug flags. If unset, RASR uses ``standard``.
 
-The "aggregate" makefiles to be included from src/* are
+Build structure
+^^^^^^^^^^^^^^^
 
-* ``Makefile.cfg`` (simple wrapper for ``Config.make``)
-* ``Config.make`` (main aggregate, included in ``Makefile``, defining high level build targets
+The CMake build is organized around libraries, tools, modules and optional external dependencies.
 
-The source code is compiled by two levels of makefiles that include the aggregate makefiles:
+The main configuration files are:
 
-* ``src/$Foo/Makefile`` - builds a library ``libSprintFoo.a``
-* ``src/Tools/$Bar/Makefile`` - builds an executable ``$Bar`` and links multiple libraries ``libSprint*.a`` as well as third-party libraries
+* ``CMakeLists.txt``: top-level project configuration.
+  It includes the shared CMake files, enables optional integrations such as Python, TensorFlow and ONNX,
+  defines the default installation prefix below ``arch/`` and adds the ``src/`` tree.
+* ``cmake_resources/CompileOptions.cmake``: common compiler settings and baseline system dependencies.
+  It sets the C++ standard, compiler flags, architecture flags and common libraries such as libxml2, zlib, threads and LAPACK.
+* ``cmake_resources/ConfigurationTypes.cmake``: build-type configuration.
+  It defines the supported build types ``standard``, ``debug`` and ``release``, including their compiler and linker flags.
+* ``cmake_resources/Modules.cmake``: module and tool options.
+  It defines the available ``MODULE_*`` options, tool options, defaults and compile-time feature definitions.
+* ``cmake_resources/Onnx.cmake``: ONNX Runtime integration
+* ``cmake_resources/Python.cmake``: Python and NumPy integration
+* ``cmake_resources/Tensorflow.cmake``: TensorFlow C++ integration
 
-The sources are .cc and .hh files, that are compiled into individual object files in ``src/$Foo/.build/linux-x86_64-standard/*.o`` that are later archived into a ``libSprint*.a`` via ``ar rucs``.
+The source tree is organized into libraries below ``src/``. For example, ``src/Core/CMakeLists.txt`` builds the ``RasrCore`` static library.
+Optional source directories such as ``Cart``, ``Flf``, ``OpenFst``, ``Nn``, ``Onnx``, ``Python`` and ``Tensorflow`` are only added when the corresponding CMake module option is enabled.
 
-Docker environment
+Tools are configured separately from modules. Enabled tools are collected in the ``TOOLS`` list and added from ``src/Tools/CMakeLists.txt``.
+For example, ``LibRASR`` builds the ``librasr`` Python extension.
+
+Modules and tools
+^^^^^^^^^^^^^^^^^
+
+Modules are controlled by CMake options, usually named ``MODULE_<NAME>``.
+They can be enabled and disabled in ``cmake_resources/Modules.cmake``.
+When a module is enabled, the corresponding preprocessor definition is added to the build.
+This allows code to include or exclude functionality via compile-time feature macros.
+
+Examples::
+
+    cmake -S . -B build -DMODULE_ONNX=0 -DMODULE_CUDA=0
+    cmake -S . -B build -DMODULE_OPENFST=1
+
+Tools are controlled by options named after the tool. For example::
+
+    cmake -S . -B build -DLibRASR=0
+    cmake -S . -B build -DSpeechRecognizer=1
+
+**Modules** enable functionality and compile-time feature macros, while **tools** select which executables or extension modules are built.
+
+Python integration
 ^^^^^^^^^^^^^^^^^^
 
-Most modules are straightforward to enable/disable and do not require complex configuration. Usually, it boils down to a few -I flags for the includes, -L and -l for the linker flags.
-
-The modules that require the most attention are MODULE_PYTHON and MODULE_TENSORFLOW. In order to simplify the building process, we provide a docker environment that illustrates how to get all dependencies right.
-
-MODULE_PYTHON
-^^^^^^^^^^^^^
-
-It should support both Python 2 and Python 3.
-Use `numpy.get_include() <https://numpy.org/devdocs/reference/generated/numpy.get_include.html>`_ to obtain include path from a local virtual environment.
+``MODULE_PYTHON`` enables the RASR Python integration. The CMake build uses Python 3 development files and NumPy for this module.
 
 It can be used for various purpose:
 
@@ -66,24 +90,66 @@ On RETURNN side, several implementations for these interfaces exists:
 
 Note that there is also the Tensorflow module which provides a separate FeatureScorer.
 
-MODULE_TENSORFLOW
-^^^^^^^^^^^^^^^^^
+LibRASR
+^^^^^^^
 
-In order to use TF C++ API, we have to be able to include TF headers (e.g. tensorflow/core/framework/tensor.h) and link against libtensorflow_cc.so and libtensorflow_framework.so. Also, we want TF to include Intel MKL support and link against libiomp5.so and libmklml_intel.so. The only way to get libtensorflow_cc.so is to build TF from sources.
+``LibRASR`` builds the ``librasr`` Python extension. It provides Python bindings for selected RASR functionality and is built with pybind11.
+
+``LibRASR`` is configured as a tool, not as a module. It is enabled by default and can be disabled with::
+
+    cmake -S . -B build -DLibRASR=0
+
+When ``MODULE_PYTHON`` is enabled, additional Python-related bindings are compiled into ``librasr``.
+Depending on the enabled modules, ``librasr`` also links against optional RASR libraries such as ``RasrPython``, ``RasrNn``, ``RasrOnnx`` or ``RasrTensorflow``.
+
+The Python package can be built through ``pip``. For example::
+
+    pip install .
+
+TensorFlow and ONNX Runtime
+^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+``MODULE_TENSORFLOW`` enables TensorFlow support. The CMake configuration expects a TensorFlow C++ installation and looks for TensorFlow headers
+``libtensorflow_cc.so`` and ``libtensorflow_framework.so``. It can obtain the TensorFlow include and library directories from the active Python environment.
+
+``MODULE_ONNX`` enables ONNX Runtime support. The CMake configuration looks for ``onnxruntime_cxx_api.h`` and the ``onnxruntime`` library.
+If ONNX Runtime is installed in a non-standard location, ``ONNXRUNTIME_ROOT`` can be set::
+
+    cmake -S . -B build -DONNXRUNTIME_ROOT=/path/to/onnxruntime
+
+Container environments
+^^^^^^^^^^^^^^^^^^^^^^
+
+For reproducible builds, especially on HPC systems, the repository provides Apptainer definitions in ``apptainer/``.
+These images contain preconfigured build environments for common RASR setups, including TensorFlow/ONNX-based
+configurations.
+
+Use one of these images if you do not want to install all build dependencies manually on the host system.
 
 Dependencies
 ^^^^^^^^^^^^
 
-You can run ``scripts/requirements.sh`` to verify if your build environment meets the requirements. As of January 2020, RASR is known to compile with gcc between 4.8 and 7.3, optionally with Python 3.6 and TF 1.12 to 1.15. 
+For a native build, the following tools and libraries are required:
 
-Currently, RASR requires C++11. As of January 2020, we plan to upgrade to C++14 or 17 at some later point in time because of some internal dependencies in our infrastructure.
+* CMake >= 3.22
+* a C++ compiler with C++20 support, for example GCC or Clang
+* Bison
+* libxml2
+* BLAS/LAPACK, for example OpenBLAS
+* zlib
+* libsndfile
 
-Run time environment
---------------------
+Depending on the enabled modules and tools, additional dependencies may be required, for example
+TensorFlow, ONNX Runtime, CUDA, OpenMP, FFmpeg, OpenFST or FLAC, and Python 3, NumPy and pybind11 for ``LibRASR``.
+
+Runtime environment
+-------------------
 
 Once the binaries have been built, external shared libraries need to be made available to the run time environment via ``$LD_LIBRARY_PATH``. Use ``ldd`` to check the run time dependencies.
 
 Any code that relies on an external BLAS library (OpenBLAS or Intel MKL) will respect the environment variable ``$OMP_NUM_THREADS``. If not set, the value defaults to the number of all available CPU cores.
+
+We recommend to run the binaries in the same Apptainer which was used for building.
 
 Source code
 -----------

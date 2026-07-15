@@ -29,9 +29,41 @@
 #include <Speech/Feature.hh>
 
 #include "BufferedLabelScorer.hh"
+#include "ModelCache.hh"
 #include "ScoringContext.hh"
 
 namespace Nn {
+
+/*
+ * Hidden state represented by a dictionary of named ONNX values
+ */
+struct OnnxHiddenState : public Core::ReferenceCounted {
+    std::unordered_map<std::string, Onnx::Value> stateValueMap;
+
+    OnnxHiddenState();
+    OnnxHiddenState(std::vector<std::string>&& names, std::vector<Onnx::Value>&& values);
+};
+
+typedef Core::Ref<OnnxHiddenState const> OnnxHiddenStateRef;
+
+/*
+ * Scoring context consisting of a hidden state.
+ * Assumes that two hidden states are equal if and only if they were created
+ * from the same label history.
+ */
+struct OnnxHiddenStateScoringContext : public ScoringContext {
+    std::vector<LabelIndex>    labelSeq;  // Used for hashing
+    mutable OnnxHiddenStateRef hiddenState;
+    mutable bool               requiresFinalize;
+
+    OnnxHiddenStateScoringContext();
+    OnnxHiddenStateScoringContext(std::vector<LabelIndex> const& labelSeq, OnnxHiddenStateRef state, bool requiresFinalize);
+
+    bool   isEqual(ScoringContextRef const& other) const override;
+    size_t hash() const override;
+};
+
+typedef Core::Ref<OnnxHiddenStateScoringContext const> OnnxHiddenStateScoringContextRef;
 
 /*
  * Label Scorer that performs scoring by forwarding hidden states through an ONNX model.
@@ -61,12 +93,13 @@ class StatefulOnnxLabelScorer : public BufferedLabelScorer {
     using Precursor = BufferedLabelScorer;
 
     static const Core::ParameterBool paramBlankUpdatesHistory;
+    static const Core::ParameterBool paramSilenceUpdatesHistory;
     static const Core::ParameterBool paramLoopUpdatesHistory;
     static const Core::ParameterInt  paramMaxBatchSize;
     static const Core::ParameterInt  paramMaxCachedScores;
 
 public:
-    StatefulOnnxLabelScorer(Core::Configuration const& config);
+    StatefulOnnxLabelScorer(Core::Configuration const& config, ModelCache& modelCache);
     virtual ~StatefulOnnxLabelScorer() = default;
 
     void reset() override;
@@ -108,12 +141,13 @@ private:
     void setupEncoderStatesSizeValue();
 
     bool   blankUpdatesHistory_;
+    bool   silenceUpdatesHistory_;
     bool   loopUpdatesHistory_;
     size_t maxBatchSize_;
 
-    Onnx::Model scorerOnnxModel_;
-    Onnx::Model stateInitializerOnnxModel_;
-    Onnx::Model stateUpdaterOnnxModel_;
+    std::shared_ptr<Onnx::Model> scorerOnnxModel_;
+    std::shared_ptr<Onnx::Model> stateInitializerOnnxModel_;
+    std::shared_ptr<Onnx::Model> stateUpdaterOnnxModel_;
 
     OnnxHiddenStateRef initialHiddenState_;
 

@@ -29,12 +29,24 @@
 namespace Nn {
 
 /*
- * Label scorer that forwards the input feature at the current timestep together
- * with the complete label history through a single ONNX model.
+ * Label scorer that forwards the complete label history together with some form of
+ * acoustic input through a single ONNX model.
  *
  * This is stateless with respect to the ONNX model: the full history is supplied
  * as input on every scoring call. Unlike FixedContextOnnxLabelScorer, the history
  * is never truncated.
+ *
+ * The acoustic input can be given to the ONNX model in one of two ways, depending on
+ * which inputs are mapped in the model's ONNX I/O spec:
+ *  - "input-feature": only the single input feature at the hypothesis' current timestep
+ *    is fed in, re-selected on every scoring call. This works incrementally as features
+ *    arrive.
+ *  - "encoder-states"/"encoder-states-size": the complete input sequence collected so far
+ *    is fed in as one tensor, together with its length. Since this requires the whole
+ *    sequence, scoring only starts once all features of the segment have been passed
+ *    (i.e. after `signalNoMoreFeatures`), and the input buffer is never trimmed.
+ * Both can also be mapped at once, in which case the model receives both the current
+ * frame and the full sequence.
  */
 class FullContextOnnxLabelScorer : public BufferedLabelScorer {
     using Precursor = BufferedLabelScorer;
@@ -53,6 +65,9 @@ public:
 
     // Clear feature buffer and cached scores
     void reset() override;
+
+    // Add a single input feature to the buffer
+    void addInput(DataView const& input) override;
 
     // Initial scoring context contains step 0 and initial-history-length copies of start-label-index
     // For the common BOS-prefix case, leave this at 1
@@ -78,8 +93,13 @@ protected:
 
 private:
     // Forward a batch of histories through the ONNX model and put the resulting scores into the score cache
-    // Assumes that all histories in the batch are based on the same timestep and share the same history length
+    // Assumes that all histories in the batch share the same history length and if a per-frame input-feature
+    // is used, are also based on the same timestep
     void forwardBatch(std::vector<SeqStepScoringContextRef> const& scoringContextBatch);
+
+    // Set up encoderStatesValue_/encoderStatesSizeValue_ from the full input buffer, unless already cached
+    void setupEncoderStatesValue();
+    void setupEncoderStatesSizeValue();
 
     size_t startLabelIndex_;
     size_t initialHistoryLength_;
@@ -92,8 +112,15 @@ private:
     std::shared_ptr<Onnx::Model> onnxModel_;
 
     std::string inputFeatureName_;
+    std::string encoderStatesName_;
+    std::string encoderStatesSizeName_;
     std::string historyName_;
+    std::string historySizeName_;
     std::string scoresName_;
+
+    // Store the onnx values with all encoder states and lengths inside so that it doesn't have to be recomputed every time
+    Onnx::Value encoderStatesValue_;
+    Onnx::Value encoderStatesSizeValue_;
 
     std::unordered_map<SeqStepScoringContextRef, std::shared_ptr<std::vector<Score>>, ScoringContextHash, ScoringContextEq> scoreCache_;
 };

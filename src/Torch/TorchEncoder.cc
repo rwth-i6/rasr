@@ -29,15 +29,13 @@ namespace Torch {
 const Core::ParameterInt TorchEncoder::paramInputsPerOutput("inputs-per-output", "The number of input features needed to produce one output. Set to 0 to infer at runtime.", 0, 0);
 const Core::ParameterInt TorchEncoder::paramInputStepSize("input-step-size", "The difference in the number of input features between the first features corresponding to two consecutive outputs. Set to 0 to copy value from inputs-per-output.", 0, 0);
 
-TorchEncoder::TorchEncoder(Core::Configuration const& config, Nn::EncoderModelCache& cachedModel)
+TorchEncoder::TorchEncoder(Core::Configuration const& config, Nn::ModelCache& modelCache)
         : Core::Component(config),
           Precursor(config),
           inputsPerOutput_(paramInputsPerOutput(config)),
           inputStepSize_(paramInputStepSize(config)) {
-    if (cachedModel.empty()) {
-        cachedModel.put(std::make_shared<Model>(select("torch-model")));
-    }
-    torchModel_   = cachedModel.get<Model>();
+    Core::Configuration modelConfig(config, "torch-model");
+    torchModel_   = modelCache.getOrCreate<Model>(modelConfig.getSelection(), modelConfig);
     stateManager_ = StateManager::create(select("state-manager"));
 
     if (torchModel_->hasJsonIoSpec()) {

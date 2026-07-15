@@ -34,7 +34,7 @@ public:
     static const Core::ParameterInt paramInputsPerOutput;
     static const Core::ParameterInt paramInputStepSize;
 
-    TorchEncoder(const Core::Configuration& config, Nn::EncoderModelCache& cachedModel);
+    TorchEncoder(const Core::Configuration& config, Nn::ModelCache& modelCache);
     virtual ~TorchEncoder() = default;
 
     // Clear buffers and reset segment end flag

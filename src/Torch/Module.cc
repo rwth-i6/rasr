@@ -36,7 +36,7 @@ Module_::Module_() {
     // Forward encoder inputs through a Torch model
     Nn::Module::instance().encoderFactory().registerEncoder(
             "torch",
-            [](Core::Configuration const& config, Nn::EncoderModelCache& modelCache) {
+            [](Core::Configuration const& config, Nn::ModelCache& modelCache) {
                 return Core::ref(new TorchEncoder(config, modelCache));
             });
 }

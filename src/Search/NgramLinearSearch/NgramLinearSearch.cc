@@ -381,8 +381,11 @@ bool NgramLinearSearch::decodeStep() {
     	if (logStepwiseStatistics_) {
         	clog() << Core::XmlFull("num-hyps-after-recombination", newBeam_.size());
     	}
+    }
 
-       scorePruning(newBeam_, scoreThreshold_, maxBeamSize_);
+    scorePruning(newBeam_, scoreThreshold_, maxBeamSize_);
+
+    if (logStatistics_) {
 
        numHypsAfterPruning_ += newBeam_.size();
 

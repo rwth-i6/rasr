@@ -1,4 +1,4 @@
-/** Copyright 2025 RWTH Aachen University. All rights reserved.
+/** Copyright 2026 RWTH Aachen University. All rights reserved.
  *
  * Licensed under the RWTH ASR License (the "License");
  * you may not use this file except in compliance with the License.
@@ -26,11 +26,6 @@ const Core::ParameterInt FullContextOnnxLabelScorer::paramStartLabelIndex(
         "start-label-index",
         "Initial history in the first step is filled with this label index.",
         0);
-
-const Core::ParameterInt FullContextOnnxLabelScorer::paramInitialHistoryLength(
-        "initial-history-length",
-        "Number of start labels in the initial full-history context.",
-        1);
 
 const Core::ParameterBool FullContextOnnxLabelScorer::paramBlankUpdatesHistory(
         "blank-updates-history",
@@ -105,7 +100,6 @@ FullContextOnnxLabelScorer::FullContextOnnxLabelScorer(Core::Configuration const
         : Core::Component(config),
           Precursor(config, TransitionPresetType::AED),
           startLabelIndex_(paramStartLabelIndex(config)),
-          initialHistoryLength_(paramInitialHistoryLength(config)),
           blankUpdatesHistory_(paramBlankUpdatesHistory(config)),
           silenceUpdatesHistory_(paramSilenceUpdatesHistory(config)),
           loopUpdatesHistory_(paramLoopUpdatesHistory(config)),
@@ -142,7 +136,7 @@ void FullContextOnnxLabelScorer::addInput(DataView const& input) {
 
 ScoringContextRef FullContextOnnxLabelScorer::getInitialScoringContext() {
     auto hist = Core::ref(new SeqStepScoringContext());
-    hist->labelSeq.resize(initialHistoryLength_, startLabelIndex_);
+    hist->labelSeq.push_back(startLabelIndex_);
     return hist;
 }
 

@@ -1,4 +1,4 @@
-/** Copyright 2025 RWTH Aachen University. All rights reserved.
+/** Copyright 2026 RWTH Aachen University. All rights reserved.
  *
  * Licensed under the RWTH ASR License (the "License");
  * you may not use this file except in compliance with the License.
@@ -57,7 +57,6 @@ class FullContextOnnxLabelScorer : public BufferedLabelScorer {
     using Precursor = BufferedLabelScorer;
 
     static const Core::ParameterInt  paramStartLabelIndex;
-    static const Core::ParameterInt  paramInitialHistoryLength;
     static const Core::ParameterBool paramBlankUpdatesHistory;
     static const Core::ParameterBool paramSilenceUpdatesHistory;
     static const Core::ParameterBool paramLoopUpdatesHistory;
@@ -74,8 +73,7 @@ public:
     // Add a single input feature to the buffer
     void addInput(DataView const& input) override;
 
-    // Initial scoring context contains step 0 and initial-history-length copies of start-label-index
-    // For the common BOS-prefix case, leave this at 1
+    // Initial scoring context contains step 0 and a single start-label-index as history
     ScoringContextRef getInitialScoringContext() override;
 
     // May increment the step by 1 (except for vertical transitions) and may append the next token to the
@@ -107,7 +105,6 @@ private:
     void setupEncoderStatesSizeValue();
 
     size_t startLabelIndex_;
-    size_t initialHistoryLength_;
     bool   blankUpdatesHistory_;
     bool   silenceUpdatesHistory_;
     bool   loopUpdatesHistory_;

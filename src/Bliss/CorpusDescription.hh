@@ -21,6 +21,7 @@
 #include <Core/StringUtilities.hh>
 #include <map>
 #include <string>
+#include "Orthography.hh"
 
 namespace Bliss {
 
@@ -414,44 +415,43 @@ public:
  */
 
 class SpeechSegment : public Segment {
-    friend class CorpusDescriptionParser;
-
-private:
-    const Speaker* speaker_;
-    std::string    lang_;
-    std::string    orth_;
-    std::string    leftContextOrth_;
-    std::string    rightContextOrth_;
-
 public:
-    const std::string& orth() const {
-        ensure(Core::isWhitespaceNormalized(orth_, Core::requireTrailingBlank));
-        return orth_;
+    SpeechSegment(Recording*);
+
+    std::string orth() const {
+        return orth_.str();
     }
 
     void setOrth(std::string const& o) {
-        require(Core::isWhitespaceNormalized(o, Core::requireTrailingBlank));
-        orth_ = o;
+        orth_ = Orthography::fromNormalized(o);
     }
 
-    std::string const& leftContextOrth() const {
-        ensure(Core::isWhitespaceNormalized(leftContextOrth_, Core::requireTrailingBlank));
-        return leftContextOrth_;
+    Orthography const& orthography() const {
+        return orth_;
+    }
+
+    std::string leftContextOrth() const {
+        return leftContextOrth_.str();
     }
 
     void setLeftContextOrth(std::string const& o) {
-        require(Core::isWhitespaceNormalized(o, Core::requireTrailingBlank));
-        leftContextOrth_ = o;
+        leftContextOrth_ = Orthography::fromNormalized(o);
     }
 
-    std::string const& rightContextOrth() const {
-        ensure(Core::isWhitespaceNormalized(rightContextOrth_, Core::requireTrailingBlank));
-        return rightContextOrth_;
+    Orthography const& leftContextOrthography() const {
+        return leftContextOrth_;
+    }
+
+    std::string rightContextOrth() const {
+        return rightContextOrth_.str();
     }
 
     void setRightContextOrth(std::string const& o) {
-        require(Core::isWhitespaceNormalized(o, Core::requireTrailingBlank));
-        rightContextOrth_ = o;
+        rightContextOrth_ = Orthography::fromNormalized(o);
+    }
+
+    Orthography const& rightContextOrthography() const {
+        return rightContextOrth_;
     }
 
     /**
@@ -460,17 +460,24 @@ public:
      * specified in the corpus description
      * @see Speaker
      */
-    const Speaker* speaker() const {
+    Speaker const* speaker() const {
         return (speaker_) ? speaker_ : recording()->defaultSpeaker();
     }
 
-    void setSpeaker(const Speaker* speaker) {
+    void setSpeaker(Speaker const* speaker) {
         speaker_ = speaker;
     }
 
-    SpeechSegment(Recording*);
-
     virtual void accept(SegmentVisitor*);
+
+private:
+    friend class CorpusDescriptionParser;
+
+    Speaker const* speaker_;
+    std::string    lang_;
+    Orthography    orth_;
+    Orthography    leftContextOrth_;
+    Orthography    rightContextOrth_;
 };
 
 /**

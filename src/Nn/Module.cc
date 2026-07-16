@@ -171,10 +171,14 @@ Module_::Module_()
     labelScorerFactory_.registerLabelScorer(
             "encoder-only",
             [this](Core::Configuration const& config, ModelCache& modelCache) {
+                Core::Ref<LabelScorer> decoder = Core::ref(new StepwiseNoOpLabelScorer(config));
+
+                Core::Ref<ScaledLabelScorer> scaledDecoder = Core::ref(new ScaledLabelScorer(Core::Configuration(config, "decoder"), decoder));
+
                 return Core::ref(new EncoderDecoderLabelScorer(
                         config,
                         encoderFactory_.createEncoder(Core::Configuration(config, "encoder"), modelCache),
-                        Core::ref(new StepwiseNoOpLabelScorer(config))));
+                        scaledDecoder));
             });
 
     // Compute scores by forwarding a single input feature vector without history through an ONNX model

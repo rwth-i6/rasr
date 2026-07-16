@@ -32,6 +32,15 @@ public:
 
     ScaledLabelScorer(Core::Configuration const& config, Core::Ref<LabelScorer> const& scorer);
 
+    // Return the wrapped label scorer
+    Core::Ref<LabelScorer> labelScorer() const;
+
+    // Return the current scale
+    Score scale() const;
+
+    // Set the scale, overriding the value from the config
+    void setScale(Score scale);
+
     // Reset sub-scorer
     void reset() override;
 

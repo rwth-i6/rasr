@@ -19,6 +19,10 @@
 #include <pybind11/numpy.h>
 #include <pybind11/stl.h>
 
+#include <Nn/LabelScorer/CombineLabelScorer.hh>
+#include <Nn/LabelScorer/CtcPrefixLabelScorer.hh>
+#include <Nn/LabelScorer/EncoderDecoderLabelScorer.hh>
+#include <Nn/LabelScorer/ScaledLabelScorer.hh>
 #include <Nn/Module.hh>
 #include <Python/LabelScorer.hh>
 
@@ -36,6 +40,31 @@ void registerPythonLabelScorer(std::string const& name, py::object const& pyLabe
                 inst.cast<Python::PythonLabelScorer*>()->setInstance(inst);
                 return inst.cast<Core::Ref<Nn::LabelScorer>>();
             });
+}
+
+// Return the sub-scorer that is wrapped by the given label scorer
+// If the label scorer is a CombineLabelScorer, return the sub-scorer at the specified index
+Nn::ScaledLabelScorer* getSubScorer(Nn::ScaledLabelScorer& labelScorer, size_t index = 0) {
+    auto wrappedLabelScorer = labelScorer.labelScorer();
+
+    auto* combineScorer = dynamic_cast<Nn::CombineLabelScorer*>(wrappedLabelScorer.get());
+    if (combineScorer) {
+        return combineScorer->getSubScorer(index).get();
+    }
+
+    auto* encoderDecoderScorer = dynamic_cast<Nn::EncoderDecoderLabelScorer*>(wrappedLabelScorer.get());
+    if (encoderDecoderScorer) {
+        require(index == 0);
+        return encoderDecoderScorer->getDecoderLabelScorer().get();
+    }
+
+    auto* ctcPrefixScorer = dynamic_cast<Nn::CtcPrefixLabelScorer*>(wrappedLabelScorer.get());
+    if (ctcPrefixScorer) {
+        require(index == 0);
+        return ctcPrefixScorer->getCtcLabelScorer().get();
+    }
+
+    throw py::value_error("Label scorer does not a have a sub-scorer");
 }
 
 void bindLabelScorer(py::module_& module) {
@@ -155,4 +184,27 @@ void bindLabelScorer(py::module_& module) {
             "    A vector of length `B` containing either `None` if the label scorer is not ready to process the requests (e.g. expects more features or segment end signal)\n"
             "    or a tuple of a score-list and a timestamp for each context. The returned timestamps will be used\n"
             "    to form word boundaries in the search traceback.");
+
+    py::class_<Nn::ScaledLabelScorer, Nn::LabelScorer, Core::Ref<Nn::ScaledLabelScorer>> pyScaledLabelScorer(
+            module,
+            "ScaledLabelScorer",
+            "Label scorer with configurable scale.");
+
+    pyScaledLabelScorer.def(
+            "set_scale",
+            &Nn::ScaledLabelScorer::setScale,
+            py::arg("scale"),
+            "Set the label scorer scale, overriding the value from the config.");
+
+    pyScaledLabelScorer.def(
+            "scale",
+            &Nn::ScaledLabelScorer::scale,
+            "Return the current label scorer scale.");
+
+    pyScaledLabelScorer.def(
+            "get_sub_scorer",
+            &getSubScorer,
+            py::arg("index") = 0ul,
+            py::return_value_policy::reference_internal,
+            "Return the wrapped sub-scorer.");
 }

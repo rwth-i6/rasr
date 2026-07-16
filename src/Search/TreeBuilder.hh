@@ -21,18 +21,6 @@
 
 #include "PersistentStateTree.hh"
 
-namespace Bliss {
-class Lexicon;
-}
-
-namespace Am {
-class AcousticModel;
-};
-
-namespace Core {
-class Configuration;
-}
-
 struct HMMSequence {
     HMMSequence()
             : length(0) {}
@@ -44,11 +32,11 @@ struct HMMSequence {
     s32                          length;
     Search::StateTree::StateDesc hmm[MaxLength];
 
-    inline const Search::StateTree::StateDesc& operator[](u32 index) const {
+    inline Search::StateTree::StateDesc const& operator[](u32 index) const {
         return hmm[index];
     }
 
-    bool operator==(const HMMSequence& rhs) const {
+    bool operator==(HMMSequence const& rhs) const {
         verify(length < MaxLength);
         return length == rhs.length && std::equal(hmm, hmm + length, rhs.hmm);
     }
@@ -62,7 +50,7 @@ struct HMMSequence {
     }
 
     struct Hash {
-        size_t operator()(const HMMSequence& seq) const {
+        size_t operator()(HMMSequence const& seq) const {
             size_t ret = seq.length;
             for (s32 p = 0; p < seq.length; ++p)
                 ret = Core::StandardValueHash<size_t>()(ret + Search::StateTree::StateDesc::Hash()(seq[p]));
@@ -71,23 +59,23 @@ struct HMMSequence {
     };
 };
 
-typedef Core::HashMap<Search::PersistentStateTree::Exit, u32, Search::PersistentStateTree::Exit::Hash> ExitHash;
+using ExitHash = Core::HashMap<Search::PersistentStateTree::Exit, u32, Search::PersistentStateTree::Exit::Hash>;
 
 class AbstractTreeBuilder : public Core::Component {
 public:
-    typedef u32 StateId;
+    using StateId = u32;
 
-    AbstractTreeBuilder(Core::Configuration config, const Bliss::Lexicon& lexicon, const Am::AcousticModel& acousticModel, Search::PersistentStateTree& network);
+    AbstractTreeBuilder(Core::Configuration config, Bliss::Lexicon const& lexicon, Am::AcousticModel const& acousticModel, Search::PersistentStateTree& network);
     virtual ~AbstractTreeBuilder() = default;
 
-    virtual std::unique_ptr<AbstractTreeBuilder> newInstance(Core::Configuration config, const Bliss::Lexicon& lexicon, const Am::AcousticModel& acousticModel, Search::PersistentStateTree& network, bool initialize = true) = 0;
+    virtual std::unique_ptr<AbstractTreeBuilder> newInstance(Core::Configuration config, Bliss::Lexicon const& lexicon, Am::AcousticModel const& acousticModel, Search::PersistentStateTree& network, bool initialize = true) = 0;
 
     // Build a new persistent state network.
     virtual void build() = 0;
 
 protected:
-    const Bliss::Lexicon&        lexicon_;
-    const Am::AcousticModel&     acousticModel_;
+    Bliss::Lexicon const&        lexicon_;
+    Am::AcousticModel const&     acousticModel_;
     Search::PersistentStateTree& network_;
 
     ExitHash exitHash_;
@@ -108,14 +96,13 @@ public:
     static const Core::ParameterBool paramAllowCrossWordSkips;
     static const Core::ParameterBool paramRepeatSilence;
     static const Core::ParameterInt  paramMinimizeIterations;
-    typedef u32                      StateId;
 
-    MinimizedTreeBuilder(Core::Configuration config, const Bliss::Lexicon& lexicon, const Am::AcousticModel& acousticModel, Search::PersistentStateTree& network, bool initialize = true);
+    MinimizedTreeBuilder(Core::Configuration config, Bliss::Lexicon const& lexicon, Am::AcousticModel const& acousticModel, Search::PersistentStateTree& network, bool initialize = true);
     virtual ~MinimizedTreeBuilder() = default;
 
-    virtual std::unique_ptr<AbstractTreeBuilder> newInstance(Core::Configuration config, const Bliss::Lexicon& lexicon, const Am::AcousticModel& acousticModel, Search::PersistentStateTree& network, bool initialize = true);
+    virtual std::unique_ptr<AbstractTreeBuilder> newInstance(Core::Configuration config, Bliss::Lexicon const& lexicon, Am::AcousticModel const& acousticModel, Search::PersistentStateTree& network, bool initialize = true) override;
 
-    virtual void build();
+    virtual void build() override;
 
 protected:
     struct RootKey {
@@ -131,12 +118,12 @@ protected:
             return left != Core::Type<Bliss::Phoneme::Id>::max || right != Core::Type<Bliss::Phoneme::Id>::max;
         }
 
-        bool operator==(const RootKey& rhs) const {
+        bool operator==(RootKey const& rhs) const {
             return left == rhs.left && right == rhs.right && depth == rhs.depth;
         }
 
         struct Hash {
-            u32 operator()(const RootKey& key) const {
+            u32 operator()(RootKey const& key) const {
                 return key.hash;
             }
         };
@@ -153,12 +140,12 @@ protected:
                   isWordEnd(_isWordEnd),
                   hash(Core::StandardValueHash<Bliss::Phoneme::Id>()(Core::SetHash<StateId>()(successors) + Search::StateTree::StateDesc::Hash()(desc) + (isWordEnd ? 1312 : 0))) {}
 
-        bool operator==(const StatePredecessor& rhs) const {
+        bool operator==(StatePredecessor const& rhs) const {
             return successors == rhs.successors && desc == rhs.desc && isWordEnd == rhs.isWordEnd;
         }
 
         struct Hash {
-            u32 operator()(const StatePredecessor& pred) const {
+            u32 operator()(StatePredecessor const& pred) const {
                 return pred.hash;
             }
         };
@@ -169,11 +156,11 @@ protected:
         const u32                          hash;
     };
 
-    typedef std::set<Bliss::Phoneme::Id>                                             PhonemeIdSet;
-    typedef Core::HashMap<RootKey, StateId, RootKey::Hash>                           RootHash;
-    typedef Core::HashMap<StateId, StateId>                                          SkipRootsHash;
-    typedef Core::HashMap<RootKey, std::set<StateId>, RootKey::Hash>                 CoarticulationJointHash;
-    typedef Core::HashMap<StatePredecessor, Search::StateId, StatePredecessor::Hash> PredecessorsHash;
+    using PhonemeIdSet            = std::set<Bliss::Phoneme::Id>;
+    using RootHash                = Core::HashMap<RootKey, StateId, RootKey::Hash>;
+    using SkipRootsHash           = Core::HashMap<StateId, StateId>;
+    using CoarticulationJointHash = Core::HashMap<RootKey, std::set<StateId>, RootKey::Hash>;
+    using PredecessorsHash        = Core::HashMap<StatePredecessor, Search::StateId, StatePredecessor::Hash>;
 
     s32  minPhones_;
     bool addCiTransitions_;
@@ -229,30 +216,30 @@ protected:
     bool                        addSuccessor(StateId predecessor, StateId successor);
     std::pair<StateId, StateId> extendPhone(StateId                                currentState,
                                             u32                                    phoneIndex,
-                                            const std::vector<Bliss::Phoneme::Id>& phones,
+                                            std::vector<Bliss::Phoneme::Id> const& phones,
                                             Bliss::Phoneme::Id                     left  = Bliss::Phoneme::term,
                                             Bliss::Phoneme::Id                     right = Bliss::Phoneme::term);
     StateId                     extendState(StateId predecessor, Search::StateTree::StateDesc desc, RootKey uniqueKey = RootKey());
     StateId                     extendBodyState(StateId state, Bliss::Phoneme::Id first, Bliss::Phoneme::Id second, Search::StateTree::StateDesc desc);
     StateId                     extendFanIn(StateId successor, Search::StateTree::StateDesc desc);
-    StateId                     extendFanIn(const std::set<StateId>& successors, Search::StateTree::StateDesc desc);
+    StateId                     extendFanIn(std::set<StateId> const& successors, Search::StateTree::StateDesc desc);
 
     // Returns a mapping of state-indices. Zero means 'invalid'.
     // If onlyMinimizeBackwards is true, then no forward determinization is performed, but rather only backwards minimization.
     // If allowLost is true, losing states is allowed. Happens if there are unreachable garbage states.
     std::vector<StateId> minimize(bool forceDeterminization = true, bool onlyMinimizeBackwards = false, bool allowLost = false);
     void                 minimizeState(StateId state, std::vector<StateId>& minimizeMap);
-    void                 minimizeExits(StateId state, const std::vector<u32>& minimizeExitsMap);
-    static void          mapSet(std::set<StateId>& set, const std::vector<StateId>& minimizeMap, bool force);
+    void                 minimizeExits(StateId state, std::vector<u32> const& minimizeExitsMap);
+    static void          mapSet(std::set<StateId>& set, std::vector<StateId> const& minimizeMap, bool force);
 
-    void updateHashFromMap(const std::vector<StateId>& map, const std::vector<u32>& exitMap);
-    void mapCoarticulationJointHash(CoarticulationJointHash& hash, const std::vector<StateId>& map, const std::vector<u32>& exitMap);
-    void mapSuccessors(const std::set<StateId>&, std::set<StateId>&, const std::vector<StateId>&, const std::vector<u32>&);
+    void updateHashFromMap(std::vector<StateId> const& map, std::vector<u32> const& exitMap);
+    void mapCoarticulationJointHash(CoarticulationJointHash& hash, std::vector<StateId> const& map, std::vector<u32> const& exitMap);
+    void mapSuccessors(std::set<StateId> const&, std::set<StateId>&, std::vector<StateId> const&, std::vector<u32> const&);
 };
 
 class SharedBaseClassTreeBuilder : public AbstractTreeBuilder {
 public:
-    SharedBaseClassTreeBuilder(Core::Configuration config, const Bliss::Lexicon& lexicon, const Am::AcousticModel& acousticModel, Search::PersistentStateTree& network);
+    SharedBaseClassTreeBuilder(Core::Configuration config, Bliss::Lexicon const& lexicon, Am::AcousticModel const& acousticModel, Search::PersistentStateTree& network);
     virtual ~SharedBaseClassTreeBuilder() = default;
 
 protected:
@@ -276,19 +263,18 @@ public:
     static const Core::ParameterBool paramBlankLoop;
     static const Core::ParameterBool paramForceBlank;
 
-    CtcTreeBuilder(Core::Configuration config, const Bliss::Lexicon& lexicon, const Am::AcousticModel& acousticModel, Search::PersistentStateTree& network, bool initialize = true);
+    CtcTreeBuilder(Core::Configuration config, Bliss::Lexicon const& lexicon, Am::AcousticModel const& acousticModel, Search::PersistentStateTree& network, bool initialize = true);
     virtual ~CtcTreeBuilder() = default;
 
-    virtual std::unique_ptr<AbstractTreeBuilder> newInstance(Core::Configuration config, const Bliss::Lexicon& lexicon, const Am::AcousticModel& acousticModel, Search::PersistentStateTree& network, bool initialize = true);
+    virtual std::unique_ptr<AbstractTreeBuilder> newInstance(Core::Configuration config, Bliss::Lexicon const& lexicon, Am::AcousticModel const& acousticModel, Search::PersistentStateTree& network, bool initialize = true) override;
 
     // Build a new persistent state network.
-    virtual void build();
+    virtual void build() override;
 
 protected:
     bool labelLoop_;
     bool blankLoop_;
     bool forceBlank_;
-    bool allowBlankAfterSentenceEnd_;
 
     StateId                      wordBoundaryRoot_;
     Search::StateTree::StateDesc blankDesc_;
@@ -309,19 +295,21 @@ public:
     static const Core::ParameterBool paramLabelLoop;
     static const Core::ParameterBool paramForceBlank;
 
-    RnaTreeBuilder(Core::Configuration config, const Bliss::Lexicon& lexicon, const Am::AcousticModel& acousticModel, Search::PersistentStateTree& network, bool initialize = true);
+    RnaTreeBuilder(Core::Configuration config, Bliss::Lexicon const& lexicon, Am::AcousticModel const& acousticModel, Search::PersistentStateTree& network, bool initialize = true);
     virtual ~RnaTreeBuilder() = default;
+
+    virtual std::unique_ptr<AbstractTreeBuilder> newInstance(Core::Configuration config, Bliss::Lexicon const& lexicon, Am::AcousticModel const& acousticModel, Search::PersistentStateTree& network, bool initialize = true) override;
 };
 
 class AedTreeBuilder : public SharedBaseClassTreeBuilder {
 public:
-    AedTreeBuilder(Core::Configuration config, const Bliss::Lexicon& lexicon, const Am::AcousticModel& acousticModel, Search::PersistentStateTree& network, bool initialize = true);
+    AedTreeBuilder(Core::Configuration config, Bliss::Lexicon const& lexicon, Am::AcousticModel const& acousticModel, Search::PersistentStateTree& network, bool initialize = true);
     virtual ~AedTreeBuilder() = default;
 
-    virtual std::unique_ptr<AbstractTreeBuilder> newInstance(Core::Configuration config, const Bliss::Lexicon& lexicon, const Am::AcousticModel& acousticModel, Search::PersistentStateTree& network, bool initialize = true);
+    virtual std::unique_ptr<AbstractTreeBuilder> newInstance(Core::Configuration config, Bliss::Lexicon const& lexicon, Am::AcousticModel const& acousticModel, Search::PersistentStateTree& network, bool initialize = true) override;
 
     // Build a new persistent state network.
-    virtual void build();
+    virtual void build() override;
 
 protected:
     StateId wordBoundaryRoot_;
@@ -340,13 +328,13 @@ class HmmTreeBuilder : public SharedBaseClassTreeBuilder {
 public:
     static const Core::ParameterBool paramAddCiTransitions;
 
-    HmmTreeBuilder(Core::Configuration config, const Bliss::Lexicon& lexicon, const Am::AcousticModel& acousticModel, Search::PersistentStateTree& network, bool initialize = true);
+    HmmTreeBuilder(Core::Configuration config, Bliss::Lexicon const& lexicon, Am::AcousticModel const& acousticModel, Search::PersistentStateTree& network, bool initialize = true);
     virtual ~HmmTreeBuilder() = default;
 
-    virtual std::unique_ptr<AbstractTreeBuilder> newInstance(Core::Configuration config, const Bliss::Lexicon& lexicon, const Am::AcousticModel& acousticModel, Search::PersistentStateTree& network, bool initialize = true);
+    virtual std::unique_ptr<AbstractTreeBuilder> newInstance(Core::Configuration config, Bliss::Lexicon const& lexicon, Am::AcousticModel const& acousticModel, Search::PersistentStateTree& network, bool initialize = true) override;
 
     // Build a new persistent state network.
-    virtual void build();
+    virtual void build() override;
 
 protected:
     // Starting in `startState` (usually a root), include the lemma with pronunciation `pron` in the tree

@@ -168,6 +168,7 @@ private:
     Histogram           scoreHistogram_;
     float               lengthNormScale_;
     float               maxLabelsPerTimestep_;
+    Bliss::Lemma const* sentenceEndLemma_;
     Nn::LabelIndex      sentenceEndLabelIndex_;
     size_t              cacheCleanupInterval_;
     size_t              maximumStableDelay_;
@@ -243,7 +244,8 @@ private:
 
     /*
      * Helper function for recombination of hypotheses at the same point in the tree with the same
-     * scoring context and LM history. Hypotheses at a root state (i.e. word-end hypotheses, which
+     * scoring context, LM history and activity status (so terminated hypotheses are never
+     * recombined with active ones). Hypotheses at a root state (i.e. word-end hypotheses, which
      * always own a freshly created trace) are chained together as trace siblings for lattice
      * building. Hypotheses at any other state are not, since they may still share an unmodified
      * trace object from their last word boundary, which would make sibling-chaining unsafe.
@@ -269,9 +271,13 @@ private:
     void createSuccessorLookups();
 
     /*
-     * After reaching the segment end, go through the active hypotheses, only keep those
-     * which are final states of the search tree.
-     * If no such hypotheses exist, use sentence-end fallback or construct an empty hypothesis.
+     * After reaching the segment end, only keep terminated hypotheses.
+     * If there are none, fall back to active hypotheses at a word end (i.e. in a root state)
+     * and if there are none of those either, fall back to all remaining hypotheses or
+     * construct an empty hypothesis if `sentence-end-fall-back` is false.
+     * The fallback hypotheses are terminated like a normal sentence-end prediction,
+     * they get the sentence-end AM and LM score added as well as a trace item with
+     * the sentence-end pronunciation.
      */
     void finalizeHypotheses();
 

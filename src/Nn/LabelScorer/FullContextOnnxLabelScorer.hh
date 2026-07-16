@@ -36,6 +36,11 @@ namespace Nn {
  * as input on every scoring call. Unlike FixedContextOnnxLabelScorer, the history
  * is never truncated.
  *
+ * Since histories in a batch can have different lengths, the "history" input is padded
+ * to the longest one in the batch and the "history-size" input tells the model the true
+ * length of each entry, so the model itself is responsible for handling the padding
+ * correctly (e.g. via masking).
+ *
  * The acoustic input can be given to the ONNX model in one of two ways, depending on
  * which inputs are mapped in the model's ONNX I/O spec:
  *  - "input-feature": only the single input feature at the hypothesis' current timestep
@@ -93,8 +98,8 @@ protected:
 
 private:
     // Forward a batch of histories through the ONNX model and put the resulting scores into the score cache
-    // Assumes that all histories in the batch share the same history length and if a per-frame input-feature
-    // is used, are also based on the same timestep
+    // The history tensor is padded to the longest one and history-size contains the true length of each entry.
+    // If a per-frame input-feature is used, all histories in the batch must be based on the same timestep
     void forwardBatch(std::vector<SeqStepScoringContextRef> const& scoringContextBatch);
 
     // Set up encoderStatesValue_/encoderStatesSizeValue_ from the full input buffer, unless already cached

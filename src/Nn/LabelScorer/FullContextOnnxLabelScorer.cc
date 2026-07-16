@@ -89,7 +89,7 @@ static const std::vector<Onnx::IOSpecification> ioSpec = {
         Onnx::IOSpecification{
                 "history-size",
                 Onnx::IODirection::INPUT,
-                true,
+                false,
                 {Onnx::ValueType::TENSOR},
                 {Onnx::ValueDataType::INT32},
                 {{1}, {-1}}},  // [1] or [B]
@@ -253,12 +253,11 @@ std::vector<std::optional<ScoreAccessorRef>> FullContextOnnxLabelScorer::getScor
     }
 
     /*
-     * Collect all requests that have the same history length. If a per-frame input-feature is
-     * used, requests are additionally grouped by their timestep since the fed-in feature differs
-     * by step. The batched call otherwise uses the same full encoder-states input for every step,
-     * so no such grouping is needed in that case.
+     * Collect all requests. If a per-frame input-feature is used, requests are grouped by their
+     * timestep since the fed-in feature differs by step. The batched call otherwise uses the same
+     * full encoder-states input for every step, so no such grouping is needed in that case.
      */
-    std::unordered_map<size_t, std::unordered_map<size_t, std::vector<size_t>>> contextsWithTimestepAndHistoryLength;
+    std::unordered_map<size_t, std::vector<size_t>> contextsByTimestep;
 
     for (size_t contextIndex = 0ul; contextIndex < scoringContexts.size(); ++contextIndex) {
         auto step = seqStepScoringContexts[contextIndex]->currentStep;
@@ -273,10 +272,7 @@ std::vector<std::optional<ScoreAccessorRef>> FullContextOnnxLabelScorer::getScor
             groupKey = step;
         }
 
-        auto  historyLength             = seqStepScoringContexts[contextIndex]->labelSeq.size();
-        auto& contextsWithHistoryLength = contextsWithTimestepAndHistoryLength[groupKey];
-        auto [it, inserted]             = contextsWithHistoryLength.emplace(historyLength, std::vector<size_t>());
-        it->second.push_back(contextIndex);
+        contextsByTimestep[groupKey].push_back(contextIndex);
     }
 
     std::vector<std::optional<ScoreAccessorRef>> scoreAccessors(scoringContexts.size(), std::nullopt);
@@ -284,40 +280,38 @@ std::vector<std::optional<ScoreAccessorRef>> FullContextOnnxLabelScorer::getScor
     /*
      * Iterate over distinct groups
      */
-    for (auto const& [groupKey, contextsWithHistoryLength] : contextsWithTimestepAndHistoryLength) {
-        for (auto const& [historyLength, contextIndices] : contextsWithHistoryLength) {
-            /*
-             * Identify unique histories that still need session runs
-             */
-            std::unordered_set<SeqStepScoringContextRef, ScoringContextHash, ScoringContextEq> uniqueUncachedContexts;
+    for (auto const& [groupKey, contextIndices] : contextsByTimestep) {
+        /*
+         * Identify unique histories that still need session runs
+         */
+        std::unordered_set<SeqStepScoringContextRef, ScoringContextHash, ScoringContextEq> uniqueUncachedContexts;
 
-            for (auto contextIndex : contextIndices) {
-                if (scoreCache_.find(seqStepScoringContexts[contextIndex]) == scoreCache_.end()) {
-                    // Group by unique context
-                    uniqueUncachedContexts.emplace(seqStepScoringContexts[contextIndex]);
-                }
+        for (auto contextIndex : contextIndices) {
+            if (scoreCache_.find(seqStepScoringContexts[contextIndex]) == scoreCache_.end()) {
+                // Group by unique context
+                uniqueUncachedContexts.emplace(seqStepScoringContexts[contextIndex]);
             }
+        }
 
-            if (uniqueUncachedContexts.empty()) {
-                continue;
-            }
+        if (uniqueUncachedContexts.empty()) {
+            continue;
+        }
 
-            std::vector<SeqStepScoringContextRef> contextBatch;
-            contextBatch.reserve(std::min(uniqueUncachedContexts.size(), maxBatchSize_));
-            for (auto context : uniqueUncachedContexts) {
-                contextBatch.push_back(context);
-                if (contextBatch.size() == maxBatchSize_) {  // Batch is full -> forward now
-                    forwardBatch(contextBatch);
-                    contextBatch.clear();
-                }
+        std::vector<SeqStepScoringContextRef> contextBatch;
+        contextBatch.reserve(std::min(uniqueUncachedContexts.size(), maxBatchSize_));
+        for (auto context : uniqueUncachedContexts) {
+            contextBatch.push_back(context);
+            if (contextBatch.size() == maxBatchSize_) {  // Batch is full -> forward now
+                forwardBatch(contextBatch);
+                contextBatch.clear();
             }
-            forwardBatch(contextBatch);  // Forward remaining histories
+        }
+        forwardBatch(contextBatch);  // Forward remaining histories
 
-            // Create score accessors from cache
-            for (auto const& contextIndex : contextIndices) {
-                auto const& scoreVec         = scoreCache_.at(seqStepScoringContexts[contextIndex]);
-                scoreAccessors[contextIndex] = Core::ref(new VectorScoreAccessor(scoreVec, seqStepScoringContexts[contextIndex]->currentStep));
-            }
+        // Create score accessors from cache
+        for (auto const& contextIndex : contextIndices) {
+            auto const& scoreVec         = scoreCache_.at(seqStepScoringContexts[contextIndex]);
+            scoreAccessors[contextIndex] = Core::ref(new VectorScoreAccessor(scoreVec, seqStepScoringContexts[contextIndex]->currentStep));
         }
     }
 
@@ -355,26 +349,29 @@ void FullContextOnnxLabelScorer::forwardBatch(std::vector<SeqStepScoringContextR
         sessionInputs.emplace_back(encoderStatesSizeName_, encoderStatesSizeValue_);
     }
 
-    // All requests in this batch share the same history length
-    size_t                historyLength = scoringContextBatch.front()->labelSeq.size();
-    Math::FastMatrix<s32> historyMat(historyLength, scoringContextBatch.size());
+    // Requests in this batch may have different history lengths, therefore the history tensor is
+    // padded to the longest one and history-size tells the model the true length of each entry
+    size_t maxHistoryLength = 0ul;
+    for (auto const& context : scoringContextBatch) {
+        maxHistoryLength = std::max(maxHistoryLength, context->labelSeq.size());
+    }
+
+    Math::FastMatrix<s32> historyMat(maxHistoryLength, scoringContextBatch.size());
+    historyMat.fill(0);
+
+    std::vector<s32> historySizes(scoringContextBatch.size());
 
     // Create batched context input
     for (size_t b = 0ul; b < scoringContextBatch.size(); ++b) {
-        auto context = scoringContextBatch[b];
-        if (context->labelSeq.size() != historyLength) {
-            error() << "FullContextOnnxLabelScorer internal batching error: expected history length " << historyLength << " but got " << context->labelSeq.size();
-        }
-        if (historyLength > 0ul) {
+        auto const& context = scoringContextBatch[b];
+        historySizes[b]     = static_cast<s32>(context->labelSeq.size());
+        if (not context->labelSeq.empty()) {
             std::copy(context->labelSeq.begin(), context->labelSeq.end(), &(historyMat.at(0, b)));  // Pointer to first element in column b
         }
     }
 
     sessionInputs.emplace_back(historyName_, Onnx::Value::create(historyMat, true));
-
-    if (historySizeName_ != "") {
-        sessionInputs.emplace_back(historySizeName_, Onnx::Value::create(std::vector<s32>(scoringContextBatch.size(), static_cast<s32>(historyLength))));
-    }
+    sessionInputs.emplace_back(historySizeName_, Onnx::Value::create(historySizes));
 
     /*
      * Run session

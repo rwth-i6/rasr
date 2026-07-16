@@ -16,12 +16,12 @@
 #include "LexiconfreeTimesyncBeamSearch.hh"
 
 #include <algorithm>
-#include <cmath>
 #include <strings.h>
 
 #include <Core/CollapsedVector.hh>
 #include <Core/XmlStream.hh>
 #include <Lattice/LatticeAdaptor.hh>
+#include <Math/Utilities.hh>
 #include <Nn/LabelScorer/LabelScorer.hh>
 #include <Nn/LabelScorer/ScoringContext.hh>
 #include <Search/Histogram.hh>
@@ -732,7 +732,7 @@ void LexiconfreeTimesyncBeamSearch::scorePruning(std::vector<Element>& hypothese
                     hypotheses.begin(),
                     hypotheses.end(),
                     [](auto const& hyp) {
-                        return not std::isfinite(hyp.score) or hyp.score >= Core::Type<Score>::max;
+                        return Math::isinf(hyp.score) or hyp.score >= Core::Type<Score>::max;
                     }),
             hypotheses.end());
 

@@ -16,6 +16,7 @@
 #include "LexiconfreeLabelsyncBeamSearch.hh"
 
 #include <algorithm>
+#include <cmath>
 #include <numeric>
 #include <strings.h>
 
@@ -520,6 +521,12 @@ bool LexiconfreeLabelsyncBeamSearch::decodeStep() {
         if (logStepwiseStatistics_) {
             clog() << Core::XmlFull("num-hyps-after-intermediate-pruning-" + std::to_string(scorerIdx + 1), extensions_.size());
         }
+        if (extensions_.empty()) {
+            if (logStepwiseStatistics_) {
+                clog() << Core::XmlClose("search-step-stats");
+            }
+            return false;
+        }
 
         if (scorerIdx < labelScorers_.size() - 1) {
             // Prepare scoring context list for next iteration
@@ -757,6 +764,20 @@ void LexiconfreeLabelsyncBeamSearch::logStatistics() const {
 
 template<typename Element>
 void LexiconfreeLabelsyncBeamSearch::scorePruning(std::vector<Element>& hypotheses, Score relativeThreshold, size_t maxBeamSize) {
+    hypotheses.erase(
+            std::remove_if(
+                    hypotheses.begin(),
+                    hypotheses.end(),
+                    [](auto const& hyp) {
+                        return not std::isfinite(hyp.score) or hyp.score >= Core::Type<Score>::max;
+                        or
+                    }),
+            hypotheses.end());
+
+    if (hypotheses.empty()) {
+        return;
+    }
+
     if (hypotheses.size() <= maxBeamSize and relativeThreshold == Core::Type<Score>::max) {
         // Neither relative score pruning nor max beam size pruning triggers
         return;

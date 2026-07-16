@@ -16,6 +16,7 @@
 #include "LexiconfreeTimesyncBeamSearch.hh"
 
 #include <algorithm>
+#include <cmath>
 #include <strings.h>
 
 #include <Core/CollapsedVector.hh>
@@ -538,6 +539,12 @@ bool LexiconfreeTimesyncBeamSearch::decodeStep() {
             clog() << Core::XmlFull("num-hyps-after-intermediate-pruning-" + std::to_string(scorerIdx + 1), extensions_.size());
         }
         numHypsAfterIntermediatePruning_[scorerIdx] += extensions_.size();
+        if (extensions_.empty()) {
+            if (logStepwiseStatistics_) {
+                clog() << Core::XmlClose("search-step-stats");
+            }
+            return false;
+        }
 
         if (scorerIdx < labelScorers_.size() - 1) {
             // Prepare scoring context list for next iteration
@@ -720,6 +727,19 @@ Nn::TransitionType LexiconfreeTimesyncBeamSearch::inferTransitionType(Nn::LabelI
 
 template<typename Element>
 void LexiconfreeTimesyncBeamSearch::scorePruning(std::vector<Element>& hypotheses, Score relativeThreshold, size_t maxBeamSize) {
+    hypotheses.erase(
+            std::remove_if(
+                    hypotheses.begin(),
+                    hypotheses.end(),
+                    [](auto const& hyp) {
+                        return not std::isfinite(hyp.score) or hyp.score >= Core::Type<Score>::max;
+                    }),
+            hypotheses.end());
+
+    if (hypotheses.empty()) {
+        return;
+    }
+
     if (hypotheses.size() <= maxBeamSize and relativeThreshold == Core::Type<Score>::max) {
         // Neither relative score pruning nor max beam size pruning triggers
         return;

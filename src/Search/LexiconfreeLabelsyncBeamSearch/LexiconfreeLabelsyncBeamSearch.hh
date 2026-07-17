@@ -181,10 +181,11 @@ private:
 
     /*
      * Helper function for acoustic pruning of hypotheses. Calculates an absolute threshold based on best score + relative threshold and
-     * score histogram. Removes all extensions worse than the absolute threshold.
+     * score histogram. If given, referenceScore is used instead of the best score in hypotheses for relative pruning.
+     * Removes all extensions worse than the absolute threshold.
      */
     template<typename Element>
-    void scorePruning(std::vector<Element>& hypotheses, Score relativeThreshold, size_t maxBeamSize);
+    void scorePruning(std::vector<Element>& hypotheses, Score relativeThreshold, size_t maxBeamSize, Score referenceScore = Core::Type<Score>::max);
 
     /*
      * Helper function for recombination of hypotheses with the same scoring context

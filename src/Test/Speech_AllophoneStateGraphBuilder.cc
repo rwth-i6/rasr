@@ -1,4 +1,4 @@
-/** Copyright 2020 RWTH Aachen University. All rights reserved.
+/** Copyright 2026 RWTH Aachen University. All rights reserved.
  *
  *  Licensed under the RWTH ASR License (the "License");
  *  you may not use this file except in compliance with the License.
@@ -77,7 +77,7 @@ void CTCGraphBuilderTest::setUp() {
     setParameter("*.hmm.across-word-model", "no");
 
     // CTC transitions: forward/exit default to 0.0, so only loop and skip need setting.
-    const char* entryStates[] = {"entry-m1", "entry-m2"};
+    char const* entryStates[] = {"entry-m1", "entry-m2"};
     for (const char* st : entryStates) {
         setParameter(std::string("*.tdp.") + st + ".loop", "infinity");
         setParameter(std::string("*.tdp.") + st + ".skip", "infinity");
@@ -164,7 +164,7 @@ TEST_F(Speech, CTCGraphBuilderTest, BuildSimpleSentence) {
     EXPECT_FALSE(Fsa::isEmpty(graph));
 
     // The reference graph on disk was generated from this very builder
-    // and manually checked for corectness.
+    // and manually checked for correctness.
     Fsa::ConstAutomatonRef reference = Fsa::read("data/allophone_state_graph_builder/ctc_abc.fsa.xml");
     EXPECT_TRUE(static_cast<bool>(reference));
     EXPECT_FALSE(Fsa::isEmpty(reference));

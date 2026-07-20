@@ -12,148 +12,111 @@
  *  See the License for the specific language governing permissions and
  *  limitations under the License.
  */
-// $Id$
+#ifndef _BLISS_ORTHOGRAPHY_HH
+#define _BLISS_ORTHOGRAPHY_HH
 
-#ifndef _BLISS_CLASS_HH
-#define _BLISS_CLASS_HH
+#include <string>
+#include <variant>
+#include <vector>
 
-#include <Core/Component.hh>
-#include <Core/ReferenceCounting.hh>
-#include "Fsa.hh"
-#include "Lexicon.hh"
-#include "PrefixTree.hh"
+#include <Core/Assertions.hh>
+#include <Core/StringUtilities.hh>
 
 namespace Bliss {
 
-class OrthographicPrefixTree {
-private:
-    typedef std::pair<const OrthographicForm::Char*, const Lemma*>       ListItem;
-    typedef std::vector<ListItem>                                        List;
-    typedef PrefixTree<const char*, ListItem, Core::select1st<ListItem>> Tree;
-
-    List list_;
-    Tree tree_;
-
+class Orthography {
 public:
-    typedef Tree::ItemRange    ItemRange;
-    typedef Tree::ItemLocation ItemLocation;
-
-    void build(LexiconRef lexicon);
-
-    ItemRange lookup(const char* seq, int& maxLen) const {
-        return tree_.lookup(seq, maxLen);
-    }
-};
-
-/** Parses an orthographic sentence into lemmas. */
-
-class OrthographicParser : public Core::ReferenceCounted, Core::Component {
-private:
-    Core::Ref<const Lexicon> lexicon_;
-    const Lemma*             unknownLemma_;
-    OrthographicPrefixTree   prefixTree_;
-    bool                     allowForSilenceRepetitions_;
-
-public:
-    Core::Ref<const Lexicon> lexicon() const {
-        return lexicon_;
-    }
-    const Lemma* unknownLemma() const {
-        return unknownLemma_;
-    }
-
-    typedef void* Node;
-
-    class Handler {
-    protected:
-        const OrthographicParser* parser_;
-
+    class Span {
     public:
-        virtual ~Handler(){};
-        virtual void initialize(const OrthographicParser*);
-        virtual Node newNode()                                       = 0;
-        virtual void newEdge(Node from, Node to, const Lemma* lemma) = 0;
-        virtual void newSilenceEdge(Node from, Node to, const Lemma* silenceLemma, bool isFinal) {
-            newEdge(from, to, silenceLemma);
+        enum class Type {
+            text,
+            alternatives
+        };
+
+        Span(std::string const& text);
+        Span(std::vector<Orthography> const& alternatives);
+
+        Type type() const {
+            return std::holds_alternative<std::string>(content_) ? Type::text : Type::alternatives;
         }
-        virtual void newUnmatchableEdge(Node from, Node to, const std::string& orth);
-        virtual void finalize(Node intial, Node final) = 0;
+
+        std::string const& text() const {
+            require(type() == Type::text);
+            return std::get<std::string>(content_);
+        }
+
+        std::vector<Orthography> const& alternatives() const {
+            require(type() == Type::alternatives);
+            return std::get<std::vector<Orthography>>(content_);
+        }
+
+        bool empty() const {
+            if (type() == Type::text) {
+                return text() == "";
+            }
+            else {
+                auto const& alts = alternatives();
+                return alts.empty() or std::all_of(alts.begin(), alts.end(), [](Orthography const& o) { return o.empty(); });
+            }
+        }
+
+    private:
+        std::variant<std::string, std::vector<Orthography>> content_;
     };
 
-public:
-    OrthographicParser(
-            const Core::Configuration&,
-            Core::Ref<const Lexicon>);
+    using SpanList = std::vector<Span>;
 
-    ~OrthographicParser();
+    static Orthography fromNormalized(std::string const& text);
+    static Orthography fromRaw(std::string const& text);
 
-    void suppressSilenceRepetitions() {
-        allowForSilenceRepetitions_ = false;
+    Orthography() {}
+    explicit Orthography(std::string const& text);
+
+    std::string str() const;
+
+    SpanList const& spans() const {
+        return spans_;
     }
 
-    /**
-     * Parse an orthographic string and make appropriate calls the
-     * the given handler.
-     */
-    void parse(
-            const std::string& orth,
-            Handler&           handler) const;
+    void clear() {
+        spans_.clear();
+    }
 
-    /**
-     * Parse a string and return two iterators, the begin and the end of the matching lemmas.
-     * This way it can be used to resolve orthographic symbols.
-     */
-    class LemmaIterator {
-        typedef OrthographicPrefixTree::ItemLocation ItemIterator;
-        ItemIterator                                 itemIt_;
+    bool empty() const {
+        return spans_.empty() or std::all_of(spans_.begin(), spans_.end(), [](Span const& s) { return s.empty(); });
+    }
 
-    public:
-        LemmaIterator()
-                : itemIt_(0) {}
-        LemmaIterator(ItemIterator itemIt)
-                : itemIt_(itemIt) {}
-        const Lemma* operator*() {
-            return itemIt_->second;
+    void setNormalized(std::string const& text) {
+        require(isValid(text));
+        spans_.clear();
+        if (!text.empty()) {
+            spans_.push_back(Span(text));
         }
-        const Lemma* operator->() {
-            return itemIt_->second;
-        }
-        void operator++() {
-            ++itemIt_;
-        }
-        bool operator==(const LemmaIterator& l) const {
-            return itemIt_ == l.itemIt_;
-        }
-        bool operator!=(const LemmaIterator& l) const {
-            return itemIt_ != l.itemIt_;
-        }
-    };
-    typedef std::pair<LemmaIterator, LemmaIterator> LemmaRange;
-    LemmaRange                                      lemmas(std::string& orth) const;
+    }
 
-    Core::Ref<LemmaAcceptor> createLemmaAcceptor(const std::string& orth) const;
-};
+    void appendText(std::string const& text) {
+        require(isValidSpan(text));
+        if (!text.empty()) {
+            spans_.push_back(Span(text));
+        }
+    }
 
-class LemmaAcceptorBuilder : public OrthographicParser::Handler {
-    typedef OrthographicParser::Handler Precursor;
+    void appendAlternative(std::vector<Orthography> const& alternatives) {
+        spans_.push_back(Span(alternatives));
+    }
 
 private:
-    Core::Ref<LemmaAcceptor> result_;
-
-public:
-    virtual void                     initialize(const OrthographicParser*);
-    virtual OrthographicParser::Node newNode();
-    virtual void                     newEdge(OrthographicParser::Node from, OrthographicParser::Node to, const Lemma* lemma);
-    virtual void                     newSilenceEdge(OrthographicParser::Node from, OrthographicParser::Node to, const Lemma* silenceLemma, bool isFinal);
-    virtual void                     finalize(OrthographicParser::Node intial, OrthographicParser::Node final);
-
-    LemmaAcceptorBuilder();
-    ~LemmaAcceptorBuilder();
-    Core::Ref<LemmaAcceptor> product() const {
-        return result_;
+    static bool isValid(std::string const& text) {
+        return text.empty() || Core::isWhitespaceNormalized(text, Core::requireTrailingBlank);
     }
+
+    static bool isValidSpan(std::string const& text) {
+        return Core::isWhitespaceNormalized(text, Core::tolerateTrailingBlank);
+    }
+
+    SpanList spans_;
 };
 
 }  // namespace Bliss
 
-#endif  // _BLISS_CLASS_HH
+#endif  // _BLISS_ORTHOGRAPHY_HH

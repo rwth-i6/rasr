@@ -764,31 +764,27 @@ void LexiconfreeLabelsyncBeamSearch::logStatistics() const {
 
 template<typename Element>
 void LexiconfreeLabelsyncBeamSearch::scorePruning(std::vector<Element>& hypotheses, Score relativeThreshold, size_t maxBeamSize) {
-    hypotheses.erase(
-            std::remove_if(
-                    hypotheses.begin(),
-                    hypotheses.end(),
-                    [](auto const& hyp) {
-                        return Math::isinf(hyp.score) or hyp.score >= Core::Type<Score>::max;
-                    }),
-            hypotheses.end());
+    // Find ranges for score histogram and setting absolute threshold
+    Score lowerScore = Core::Type<Score>::max;
+    Score upperScore = Core::Type<Score>::min;
 
-    if (hypotheses.empty()) {
+    for (auto const& hyp : hypotheses) {
+        if (Math::isinf(hyp.score) or hyp.score >= Core::Type<Score>::max) {
+            continue;
+        }
+        lowerScore = std::min(lowerScore, hyp.pruningScore());
+        upperScore = std::max(upperScore, hyp.pruningScore());
+    }
+
+    if (lowerScore > upperScore) {
+        // No hypothesis with finite score is present in the beam
+        hypotheses.clear();
         return;
     }
 
     if (hypotheses.size() <= maxBeamSize and relativeThreshold == Core::Type<Score>::max) {
         // Neither relative score pruning nor max beam size pruning triggers
         return;
-    }
-
-    // Find ranges for score histogram and setting absolute threshold
-    Score lowerScore = Core::Type<Score>::max;
-    Score upperScore = Core::Type<Score>::min;
-
-    for (auto const& hyp : hypotheses) {
-        lowerScore = std::min(lowerScore, hyp.pruningScore());
-        upperScore = std::max(upperScore, hyp.pruningScore());
     }
 
     if (lowerScore == upperScore) {

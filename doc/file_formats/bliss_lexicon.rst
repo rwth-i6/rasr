@@ -210,7 +210,7 @@ Examples
 
 The attribute score (>=0) refers to negative log of the pronunciation variant probability p(v|w), while the attribute weight refers to the probability itself (between 0 and 1). The default - if no attributes are provided - is weight=1.
 
-The default value of *.lexicon.normalize-pronunciation is true, which normalizes the weights so that \sum_v p(v|w) = 1. Setting it to false does not enforce any normalization, keeping the values as specified.
+The default value of ``*.lexicon.normalize-pronunciation`` is true, which normalizes the weights so that \sum_v p(v|w) = 1. Setting it to false does not enforce any normalization, keeping the values as specified.
 
 **Acoustic Phrase**
 

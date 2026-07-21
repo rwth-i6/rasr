@@ -1737,8 +1737,10 @@ Features:
 
 * confidence: Frank-Wessel's confidence scores
 * error:      smoothed, expected time frame error
-** alpha=0.0 -> unsmoothed error
-** fCN[t]=0.0|1.0 -> (smoothed) time frame error
+
+  * alpha=0.0 -> unsmoothed error
+  * fCN[t]=0.0|1.0 -> (smoothed) time frame error
+
 * Min.fWER-decoding: select the path with the lowest error
 
 "Accuracy/Error lattices:
@@ -2882,7 +2884,35 @@ semiring is used.
     [0:lattice] 1:bliss-speech-segment
     output:
     0:lattice
-    
+
+
+recognizer-v2
+--------------
+
+Second version of RASR recognizer.
+Output are lattices in Flf format.
+Much more minimalistic than the first recognizer node
+and works with a ``SearchAlgorithmV2`` instead of
+``SearchAlgorithm``. Performs recognition of the input segments
+and sends the result lattices as outputs.
+
+See :doc:`search_v2` for a full guide to configuring the search algorithm and label scorer(s) used by this node.
+
+**Configuration**
+
+.. code-block: ini
+
+    [*.network.recognizer-v2]
+    type                        = recognizer-v2
+
+**Port assignment**
+
+.. code-block: ini
+
+    input:
+    0:bliss-speech-segment
+    output:
+    0:lattice
 
 
 reduce

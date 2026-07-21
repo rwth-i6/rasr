@@ -72,5 +72,5 @@ action: estimate-cart
 
 **References**
 
-* K. Beulen. `Phonetische Entscheidungsbäume für die automatische Spracherkennung mit großem Vokabular <http://www-i6.informatik.rwth-aachen.de/publications/download/262/BeulenK.--PhonetischeEntscheidungsb%7Ba%7Dumef%7Bu%7DrdieautomatischeSpracherkennungmitgro%7Bss%7DemVokabular--1999.pdf >`_. PhD Thesis, Aachen, Germany, July 1999.
+* K. Beulen. `Phonetische Entscheidungsbäume für die automatische Spracherkennung mit großem Vokabular <http://www-i6.informatik.rwth-aachen.de/publications/download/262/BeulenK.--PhonetischeEntscheidungsb%7Ba%7Dumef%7Bu%7DrdieautomatischeSpracherkennungmitgro%7Bss%7DemVokabular--1999.pdf>`_. PhD Thesis, Aachen, Germany, July 1999.
 

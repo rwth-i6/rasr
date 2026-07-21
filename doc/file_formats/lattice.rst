@@ -48,7 +48,7 @@ A composition of the time-conditioned lattice with the language model transducer
 
 References
 ----------
-* `RWTH FSA Toolkit http://www-i6.informatik.rwth-aachen.de/web/Software/index.html`_
-* `S. Kanthak and H. Ney: FSA: An Efficient and Flexible C++ Toolkit for Finite State Automata Using On-Demand Computation". In Proceedings of the 42nd Annual Meeting of the Association for Computational Linguistics (ACL 2004), Barcelona, Spain, pp. 510-517, July, 2004. <http://www-i6.informatik.rwth-aachen.de/PostScript/InterneArbeiten/kanthak_acl2004.pdf >`_.
+* `RWTH FSA Toolkit <http://www-i6.informatik.rwth-aachen.de/web/Software/index.html>`_
+* `S. Kanthak and H. Ney: FSA: An Efficient and Flexible C++ Toolkit for Finite State Automata Using On-Demand Computation. In Proceedings of the 42nd Annual Meeting of the Association for Computational Linguistics (ACL 2004), Barcelona, Spain, pp. 510-517, July, 2004. <http://www-i6.informatik.rwth-aachen.de/PostScript/InterneArbeiten/kanthak_acl2004.pdf>`_
 * S. Ortmanns, H. Ney, X. Aubert. "A Word Graph Algorithm for Large Vocabulary Continuous Speech Recognition". Computer, Speech and Language, Vol. 11, No. 1, pp. 43-72, January 1997.
 

@@ -52,8 +52,8 @@ public:
     int main(const std::vector<std::string>& arguments) {
         try {
             std::cout << "Load encoder..." << std::endl;
-            Nn::ModelCache        modelCache;
-            Torch::TorchEncoder   encoder(config, modelCache);
+            Nn::ModelCache      modelCache;
+            Torch::TorchEncoder encoder(config, modelCache);
             std::cout << "Encoder loaded." << std::endl;
 
             size_t num_frames       = static_cast<size_t>(paramNumFrames(config));

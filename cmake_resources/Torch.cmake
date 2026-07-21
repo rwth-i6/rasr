@@ -62,19 +62,19 @@ message(STATUS "Torch include dirs: ${TORCH_INCLUDE_DIRS}")
 message(STATUS "Torch libraries: ${TORCH_LIBRARIES}")
 message(STATUS "Torch CXX flags: ${TORCH_CXX_FLAGS}")
 
-add_library(RasrExternalTorch INTERFACE)
+add_library(LibTorch INTERFACE)
 
 if (TARGET torch)
-    target_link_libraries(RasrExternalTorch INTERFACE torch)
+    target_link_libraries(LibTorch INTERFACE torch)
 else ()
-    target_include_directories(RasrExternalTorch INTERFACE ${TORCH_INCLUDE_DIRS})
-    target_link_libraries(RasrExternalTorch INTERFACE ${TORCH_LIBRARIES})
+    target_include_directories(LibTorch INTERFACE ${TORCH_INCLUDE_DIRS})
+    target_link_libraries(LibTorch INTERFACE ${TORCH_LIBRARIES})
 endif ()
 
 if (TORCH_CXX_FLAGS)
     separate_arguments(_torch_cxx_flags NATIVE_COMMAND "${TORCH_CXX_FLAGS}")
-    target_compile_options(RasrExternalTorch INTERFACE ${_torch_cxx_flags})
+    target_compile_options(LibTorch INTERFACE ${_torch_cxx_flags})
 endif ()
 
 # For running RASR binaries without manually setting LD_LIBRARY_PATH
-target_link_options(RasrExternalTorch INTERFACE "LINKER:-rpath,${_torch_lib_dir}")
+target_link_options(LibTorch INTERFACE "LINKER:-rpath,${_torch_lib_dir}")

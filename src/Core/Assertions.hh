@@ -168,9 +168,6 @@ template<class S, class T>
 void assertionFailedVerbose(const S& x, const T& y, const char* op,
                             const char* expr, const char* function,
                             const char* filename, unsigned int line) {
-    // FailedAssertion("assertion", expr, function, filename, line).stream()
-    //         << x << " " << op << " " << y;
-
     if constexpr (std::is_same_v<T, std::nullptr_t>) {
         FailedAssertion("assertion", expr, function, filename, line).stream()
                 << x << " " << op << " " << "null";
@@ -179,8 +176,6 @@ void assertionFailedVerbose(const S& x, const T& y, const char* op,
         FailedAssertion("assertion", expr, function, filename, line).stream()
                 << x << " " << op << " " << y;
     }
-
-    std::abort();
 }
 
 /**

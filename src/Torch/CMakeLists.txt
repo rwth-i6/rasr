@@ -14,7 +14,7 @@ add_library(
 )
 
 target_link_libraries(
-    RasrTorch PUBLIC RasrExternalTorch RasrCore RasrFlow RasrMath RasrMm
+    RasrTorch PUBLIC LibTorch RasrCore RasrFlow RasrMath RasrMm
     RasrNn
 )
 

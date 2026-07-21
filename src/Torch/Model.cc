@@ -109,7 +109,7 @@ Model::Model(Core::Configuration const& config)
         IOValidator                  validator(select("io-validator"));
         std::vector<IOSpecification> validationSpec = {
                 {"features", featuresPosition_, IODirection::INPUT, false, {torch::kFloat32}, {3}},
-                {"features-lengths", featuresLengthsPosition_, IODirection::INPUT, false, {torch::kInt64}, {1}},
+                {"lengths", featuresLengthsPosition_, IODirection::INPUT, false, {torch::kInt64}, {1}},
                 {"outputs", outputsPosition_, IODirection::OUTPUT, false, {torch::kFloat32}, {3}},
         };
         if (!validator.validate(session_, validationSpec)) {

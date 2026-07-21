@@ -24,6 +24,7 @@
 #include <Lattice/LatticeAdaptor.hh>
 #include <Lm/BackingOff.hh>
 #include <Lm/Module.hh>
+#include <Math/Utilities.hh>
 #include <Nn/LabelScorer/LabelScorer.hh>
 #include <Nn/LabelScorer/ScoringContext.hh>
 #include <Search/Module.hh>
@@ -688,6 +689,12 @@ bool TreeTimesyncBeamSearch::decodeStep() {
         if (logStepwiseStatistics_) {
             clog() << Core::XmlFull("num-hyps-after-intermediate-pruning-" + std::to_string(scorerIdx + 1), withinWordExtensions_.size());
         }
+        if (withinWordExtensions_.empty()) {
+            if (logStepwiseStatistics_) {
+                clog() << Core::XmlClose("search-step-stats");
+            }
+            return false;
+        }
 
         if (scorerIdx < labelScorers_.size() - 1) {
             // Prepare scoring context list for next iteration
@@ -1018,6 +1025,19 @@ Nn::TransitionType TreeTimesyncBeamSearch::inferTransitionType(Nn::LabelIndex pr
 
 template<typename Element>
 void TreeTimesyncBeamSearch::scorePruning(std::vector<Element>& hypotheses, Score relativeThreshold, size_t maxBeamSize) {
+    hypotheses.erase(
+            std::remove_if(
+                    hypotheses.begin(),
+                    hypotheses.end(),
+                    [](auto const& hyp) {
+                        return Math::isinf(hyp.score) or hyp.score >= Core::Type<Score>::max;
+                    }),
+            hypotheses.end());
+
+    if (hypotheses.empty()) {
+        return;
+    }
+
     if (hypotheses.size() <= maxBeamSize and relativeThreshold == Core::Type<Score>::max) {
         // Neither relative score pruning nor max beam size pruning triggers
         return;

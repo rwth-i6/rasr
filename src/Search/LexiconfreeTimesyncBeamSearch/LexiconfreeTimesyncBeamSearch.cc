@@ -33,8 +33,8 @@ namespace Search {
 namespace {
 
 enum RecombinationMode {
-    recombinationModeOff,
-    recombinationModeOn,
+    RecombinationModeOff,
+    RecombinationModeOn,
 };
 
 }  // namespace
@@ -63,6 +63,7 @@ LexiconfreeTimesyncBeamSearch::LabelHypothesis::LabelHypothesis(
     switch (extension.transitionType) {
         case Nn::TransitionType::LABEL_LOOP:
         case Nn::TransitionType::BLANK_LOOP:
+        case Nn::TransitionType::SILENCE_LOOP:
             predecessor = base.trace->predecessor;
             break;
         default:
@@ -124,6 +125,11 @@ const Core::ParameterInt LexiconfreeTimesyncBeamSearch::paramBlankLabelIndex(
         "Index of the blank label in the lexicon. Can also be inferred from lexicon if it has a lemma with `special='blank'`. If not set, the search will not use blank.",
         Nn::invalidLabelIndex);
 
+const Core::ParameterInt LexiconfreeTimesyncBeamSearch::paramSilenceLabelIndex(
+        "silence-label-index",
+        "Index of the silence label in the lexicon. Can also be inferred from lexicon if it has a lemma with `special='silence'`. If not set, the search will not use silence.",
+        Nn::invalidLabelIndex);
+
 const Core::ParameterInt LexiconfreeTimesyncBeamSearch::paramSentenceEndLabelIndex(
         "sentence-end-label-index",
         "Index of the sentence end label in the lexicon. Can also be inferred from lexicon if it has a lemma with `special='sentence-end'` or `special='sentence-boundary'`. If not set, the search will not use sentence end.",
@@ -159,28 +165,29 @@ const Core::ParameterInt LexiconfreeTimesyncBeamSearch::paramMaximumStableDelayP
         1);
 
 const Core::Choice LexiconfreeTimesyncBeamSearch::choiceRecombinationMode(
-        "off", recombinationModeOff,
-        "on", recombinationModeOn,
+        "off", RecombinationModeOff,
+        "on", RecombinationModeOn,
         Core::Choice::endMark());
 
 const Core::ParameterChoice LexiconfreeTimesyncBeamSearch::paramRecombinationMode(
         "recombination-mode",
         &choiceRecombinationMode,
         "Whether hypotheses with identical recombination state should be recombined.",
-        recombinationModeOn);
+        RecombinationModeOn);
 
 LexiconfreeTimesyncBeamSearch::LexiconfreeTimesyncBeamSearch(Core::Configuration const& config)
         : Core::Component(config),
           SearchAlgorithmV2(config),
           scoreHistogram_(paramNumHistogramBins(config)),
           blankLabelIndex_(paramBlankLabelIndex(config)),
+          silenceLabelIndex_(paramSilenceLabelIndex(config)),
           sentenceEndLemma_(),
           sentenceEndLabelIndex_(paramSentenceEndLabelIndex(config)),
           collapseRepeatedLabels_(paramCollapseRepeatedLabels(config)),
           cacheCleanupInterval_(paramCacheCleanupInterval(config)),
           maximumStableDelay_(paramMaximumStableDelay(config)),
           maximumStableDelayPruningInterval_(paramMaximumStableDelayPruningInterval(config)),
-          recombinationEnabled_(paramRecombinationMode(config) == recombinationModeOn),
+          recombinationEnabled_(paramRecombinationMode(config) == RecombinationModeOn),
           logStepwiseStatistics_(paramLogStepwiseStatistics(config)),
           debugChannel_(config, "debug"),
           labelScorers_(),
@@ -211,6 +218,11 @@ LexiconfreeTimesyncBeamSearch::LexiconfreeTimesyncBeamSearch(Core::Configuration
     useBlank_ = blankLabelIndex_ != Nn::invalidLabelIndex;
     if (useBlank_) {
         log() << "Use blank label with index " << blankLabelIndex_;
+    }
+
+    useSilence_ = silenceLabelIndex_ != Nn::invalidLabelIndex;
+    if (useSilence_) {
+        log() << "Use silence label with index " << silenceLabelIndex_;
     }
 
     for (size_t i = 0; i < scoreThresholds_.size(); ++i) {
@@ -251,6 +263,18 @@ bool LexiconfreeTimesyncBeamSearch::setModelCombination(Speech::ModelCombination
         }
         else if (blankLabelIndex_ != static_cast<Nn::LabelIndex>(blankLemma->id())) {
             warning() << "Blank lemma exists in lexicon with id " << blankLemma->id() << " but is overwritten by config parameter with value " << blankLabelIndex_;
+        }
+    }
+
+    auto silenceLemma = lexicon_->specialLemma("silence");
+    if (silenceLemma) {
+        if (silenceLabelIndex_ == Nn::invalidLabelIndex) {
+            silenceLabelIndex_ = silenceLemma->id();
+            useSilence_        = true;
+            log() << "Use silence index " << silenceLabelIndex_ << " inferred from lexicon";
+        }
+        else if (silenceLabelIndex_ != static_cast<Nn::LabelIndex>(silenceLemma->id())) {
+            warning() << "Silence lemma exists in lexicon with id " << silenceLemma->id() << " but is overwritten by config parameter with value " << silenceLabelIndex_;
         }
     }
 
@@ -389,10 +413,12 @@ bool LexiconfreeTimesyncBeamSearch::decodeStep() {
     auto lemmas = lexicon_->lemmas();
 
     /*
-     * We build a list of all scoring contexts that need to be passed to the LabelScorer for scoring scored inside `scoringContexts_`.
-     * `hypIndexToContextIndexMap_` stores the mapping, i.e. beam_[i].scoringContext = scoringContexts_[hypIndexToScoringContextMap_[i]].
-     * In the first iteration, this is just an identity mapping, i.e. hypIndexToContextIndexMap_[i] = i but for later label scorers
-     * some scoring contexts become no longer relevant when all extensions using them have been pruned.
+     * We collect the scoring contexts that need to be passed to the LabelScorer into `scoringContexts_`.
+     * `hypIndexToContextIndexMap_` maps a beam index to the position of its context in `scoringContexts_`,
+     * i.e. beam_[i].scoringContexts.front() == scoringContexts_[hypIndexToContextIndexMap_[i]].
+     * For the first label scorer this is just the identity mapping (hypIndexToContextIndexMap_[i] == i). For each
+     * subsequent scorer the list is rebuilt, dropping the contexts of any hypotheses whose extensions were all
+     * removed by intermediate pruning.
      */
     extensions_.clear();
     scoringContexts_.clear();
@@ -449,12 +475,9 @@ bool LexiconfreeTimesyncBeamSearch::decodeStep() {
                     auto extScore       = hyp.score;
                     auto extTime        = hyp.trace->time;
                     if (labelScorers_[scorerIdx]->scoresTransition(transitionType)) {
-                        if (denseScores and tokenIdx < denseScores->size()) {
-                            extScore += (*denseScores)[tokenIdx];
-                        }
-                        else {
-                            extScore += (*scoreAccessor)->getScore(transitionType, tokenIdx);
-                        }
+                        extScore += (denseScores and tokenIdx < denseScores->size())
+                                            ? (*denseScores)[tokenIdx]
+                                            : (*scoreAccessor)->getScore(transitionType, tokenIdx);
                         extTime = std::max(extTime, scoreTime);
                     }
 
@@ -497,7 +520,9 @@ bool LexiconfreeTimesyncBeamSearch::decodeStep() {
         }
 
         if (extensions_.empty()) {
-            clog() << Core::XmlClose("search-step-stats");
+            if (logStepwiseStatistics_) {
+                clog() << Core::XmlClose("search-step-stats");
+            }
             return false;
         }
 
@@ -530,7 +555,9 @@ bool LexiconfreeTimesyncBeamSearch::decodeStep() {
     }
 
     if (extensions_.empty()) {
-        clog() << Core::XmlClose("search-step-stats");
+        if (logStepwiseStatistics_) {
+            clog() << Core::XmlClose("search-step-stats");
+        }
         return false;
     }
 
@@ -644,9 +671,15 @@ Nn::TransitionType LexiconfreeTimesyncBeamSearch::inferTransitionType(Nn::LabelI
     bool prevIsBlank = (useBlank_ and prevLabel == blankLabelIndex_);
     bool nextIsBlank = (useBlank_ and nextLabel == blankLabelIndex_);
 
+    bool prevIsSilence = (useSilence_ and prevLabel == silenceLabelIndex_);
+    bool nextIsSilence = (useSilence_ and nextLabel == silenceLabelIndex_);
+
     if (prevLabel == Nn::invalidLabelIndex) {
         if (nextIsBlank) {
             return Nn::TransitionType::INITIAL_BLANK;
+        }
+        else if (nextIsSilence) {
+            return Nn::TransitionType::INITIAL_SILENCE;
         }
         else {
             return Nn::TransitionType::INITIAL_LABEL;
@@ -661,9 +694,20 @@ Nn::TransitionType LexiconfreeTimesyncBeamSearch::inferTransitionType(Nn::LabelI
             return Nn::TransitionType::BLANK_TO_LABEL;
         }
     }
+    else if (prevIsSilence) {
+        if (nextIsSilence) {
+            return Nn::TransitionType::SILENCE_LOOP;
+        }
+        else {
+            return Nn::TransitionType::SILENCE_TO_LABEL;
+        }
+    }
     else {
         if (nextIsBlank) {
             return Nn::TransitionType::LABEL_TO_BLANK;
+        }
+        else if (nextIsSilence) {
+            return Nn::TransitionType::LABEL_TO_SILENCE;
         }
         else if (collapseRepeatedLabels_ and prevLabel == nextLabel) {
             return Nn::TransitionType::LABEL_LOOP;

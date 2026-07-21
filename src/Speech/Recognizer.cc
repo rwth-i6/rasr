@@ -15,7 +15,7 @@
 #include "Recognizer.hh"
 #include <Bliss/CorpusDescription.hh>
 #include <Bliss/Evaluation.hh>
-#include <Bliss/Orthography.hh>
+#include <Bliss/OrthographicParser.hh>
 #include <Core/Archive.hh>
 #include <Core/Types.hh>
 #include <Fsa/Arithmetic.hh>

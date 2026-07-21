@@ -38,11 +38,10 @@ public:
             return denseScores;
         }
 
-        std::vector<DenseScoreTerm> denseScoreTerms(denseScores->terms.begin(), denseScores->terms.end());
-        for (auto& term : denseScoreTerms) {
+        for (auto& term : denseScores->terms) {
             term.scale *= scale_;
         }
-        return DenseScoreSpan(std::move(denseScoreTerms));
+        return denseScores;
     }
 
     TimeframeIndex getTime() const override {
@@ -69,6 +68,18 @@ ScaledLabelScorer::ScaledLabelScorer(Core::Configuration const& config, Core::Re
           scorer_(scorer),
           scale_(paramScale(config)) {
     enabledTransitions_ = scorer->enabledTransitions();
+}
+
+Core::Ref<LabelScorer> ScaledLabelScorer::labelScorer() const {
+    return scorer_;
+}
+
+Score ScaledLabelScorer::scale() const {
+    return scale_;
+}
+
+void ScaledLabelScorer::setScale(Score scale) {
+    scale_ = scale;
 }
 
 void ScaledLabelScorer::reset() {

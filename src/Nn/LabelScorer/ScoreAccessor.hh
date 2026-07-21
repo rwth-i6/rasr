@@ -37,18 +37,26 @@ struct DenseScoreSpan {
     std::vector<DenseScoreTerm> terms;
 
     DenseScoreSpan(std::vector<DenseScoreTerm>&& terms)
-            : terms(std::move(terms)) {}
+            : terms(std::move(terms)) {
+        if (not terms.empty()) {
+            // All terms must have score spans of the same length
+            size_t commonSize = terms.front().scores.size();
+            require(std::all_of(terms.begin(), terms.end(), [commonSize](auto const& term) {
+                return term.scores.size() == commonSize;
+            }));
+        }
+    }
+
     DenseScoreSpan(DenseScoreTerm&& term)
             : terms{std::move(term)} {};
 
+    // Returns the length of the score spans in the terms.
     size_t size() const {
         return terms.empty() ? 0ul : terms.front().scores.size();
     }
 
+    // Access the score at a given index by computing the weighted sum over all terms
     Score operator[](size_t idx) const {
-        if (idx == Nn::invalidLabelIndex) {
-            return 0.0;
-        }
         // Fast path without loop for common 1-element case
         if (terms.size() == 1ul) {
             return terms.front().scores[idx] * terms.front().scale;

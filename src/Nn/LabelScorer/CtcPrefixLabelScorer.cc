@@ -174,6 +174,10 @@ CtcPrefixLabelScorer::CtcPrefixLabelScorer(Core::Configuration const& config, Mo
           ctcScores_(std::make_shared<Math::FastMatrix<Score>>(vocabSize_, 0)) {
 }
 
+Core::Ref<ScaledLabelScorer> CtcPrefixLabelScorer::getCtcLabelScorer() const {
+    return ctcScorer_;
+}
+
 void CtcPrefixLabelScorer::reset() {
     ctcScorer_->reset();
     expectMoreFeatures_ = true;

@@ -32,20 +32,19 @@ public:
             return std::nullopt;
         }
 
-	std::vector<Nn::DenseScoreTerm> denseScoreTerms(denseScores->terms.begin(), denseScores->terms.end());
-
         if (negateInput_) {
-            for (auto& term : denseScoreTerms) {
+            for (auto& term : denseScores->terms) {
                 term.scale *= -1.0;
             }
         }
 
         if (prior_->scale() != 0.0) {
             require(denseScores->size() == prior_->size());  // Prior size must match base scorer vocab size
-            denseScoreTerms.push_back(Nn::DenseScoreTerm{denseScores->size() > 0ul ? std::span<Score const>(&prior_->at(0), prior_->size()) : std::span<Score const>(), prior_->scale()});
+            std::span<Score const> priorScores(&prior_->at(0), prior_->size());
+            denseScores->terms.push_back(Nn::DenseScoreTerm{.scores = priorScores, .scale = prior_->scale()});
         }
 
-        return Nn::DenseScoreSpan(std::move(denseScoreTerms));
+        return denseScores;
     }
 
     virtual Nn::TimeframeIndex getTime() const override {

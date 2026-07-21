@@ -19,6 +19,7 @@
 #include "LabelScorer.hh"
 #include "Math/FastMatrix.hh"
 #include "ModelCache.hh"
+#include "ScaledLabelScorer.hh"
 
 namespace Nn {
 
@@ -85,6 +86,9 @@ public:
     CtcPrefixLabelScorer(Core::Configuration const& config, ModelCache& modelCache);
     virtual ~CtcPrefixLabelScorer() = default;
 
+    // Return the CTC label scorer
+    Core::Ref<ScaledLabelScorer> getCtcLabelScorer() const;
+
     void reset() override;
     void signalNoMoreFeatures() override;
     void addInput(DataView const& input) override;
@@ -95,10 +99,10 @@ public:
     std::optional<ScoreAccessorRef> getScoreAccessor(ScoringContextRef scoringContext) override;
 
 private:
-    LabelIndex             blankIndex_;
-    size_t                 vocabSize_;
-    Core::Ref<LabelScorer> ctcScorer_;
-    bool                   expectMoreFeatures_;
+    LabelIndex                   blankIndex_;
+    size_t                       vocabSize_;
+    Core::Ref<ScaledLabelScorer> ctcScorer_;
+    bool                         expectMoreFeatures_;
 
     std::shared_ptr<Math::FastMatrix<Score>> ctcScores_;  // Cached T x V matrix of scores
 

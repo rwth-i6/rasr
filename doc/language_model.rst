@@ -46,6 +46,7 @@ Class LM
 --------
 
 Class LMs are supported in two ways:
+
 - using a modified / mapped lexicon: set in the lexicon the syntactic token sequence to the desired class. See the description of the :ref:`Bliss Lexicon` format.
 - using a class language model, consisting of a word-to-class map (see ``classes.*``) and an ARPA format language model trained on the classes.
 
@@ -179,6 +180,7 @@ A typical config of the FLF node for lattice rescoring with a TF RNN LM looks e.
     verbose            = true
 
 When compiling the recognition.meta graph of a model trained with RETURNN, remember to:
+
 * sync the settings of the output layer (e.g. ``'class': 'linear', 'activation' : 'log_softmax'``) with the post-processing options (``transform-output-*``).
 * configure the recurrent layers as ``"unit": "nativelstm2", "initial_state" : "keep_over_epoch_no_init"`` .
 

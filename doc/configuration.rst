@@ -15,6 +15,7 @@ the HMM structure used by the recognizer). The first selector is always the name
 
 The request for the value of a parameter ``<name>`` w.r.t. to a given selection ``<selector1>.<selector2>. ... .<selectorM>``
 is resolved as follows:
+
 * The selection ``<selector1>.<selector2>. ... .<selectorM>.<name>`` is matched against the key part of each resource.
 * If matching resources exist, the value of the best matching resource is returned.
 

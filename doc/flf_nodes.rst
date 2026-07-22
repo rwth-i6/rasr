@@ -126,18 +126,20 @@ CN-features
 Per arc, set the value for a feature derived from the CN to
 the corresponding dimension.
 Features:
+
 * confidence:    slot based confidence
 * score:         negative logarithm of confidence
 * cost:          oracle alignment based cost;
-0, if oracle label equals arc label, 1, else
+  0, if oracle label equals arc label, 1, else
 * oracle-output: store oracle alignment as output label
 * entropy:       entropy of normalized slot
 * slot:          number of the slot the lattice arc falls into
 * non-eps-slot:  Same as "slot", but slots containing only epsilon arcs
-are ignored; epsilon arcs do not get this feature.
-If the threshold is < 1.0, then all slots with an
-epsilon mass >= threshold are ignored; the input of
-lattice arcs pointing at these slots are set to epsilon.
+  are ignored; epsilon arcs do not get this feature.
+  If the threshold is < 1.0, then all slots with an
+  epsilon mass >= threshold are ignored; the input of
+  lattice arcs pointing at these slots are set to epsilon.
+
 Attention: confidence, score, and entropy feature require the
 defintion of "cn.posterior-key".
 
@@ -755,9 +757,11 @@ clean-up
 --------
 
 Clean up lattice. Arcs that
+
 * close a cycle
 * have an invalid label id
 * have an invalid or semiring-zero score in at least one dimension
+
 are discarded and the lattice is trimmed.
 Thus, the resulting lattice is guaranteed to be
 acyclic, trim, and zero-sum free.
@@ -1863,11 +1867,13 @@ fit
 
 Fit lattice into segment boundaries.
 The fitted lattice has the following properties:
+
 * single initial state (id=0) s_i and single final state s_f (id=1)
 * weight of the final state s_f is semiring one
 * 0 = time(s_i) <= time(s) < time(s_f)
 * for each path in the original lattice, there exist a path in the fitted lattice with the same score (w.r.t to the used semiring); and vice versa
 * optional: each arc ending in s_f has </s>-label
+
 The bounding box is given by the segment provided at port 1.
 If no segment is provided, start time is 0 and end time is
 is the max. time of all states in the lattice.
@@ -2125,10 +2131,12 @@ map-labels
 
 Map the input labels of the incoming lattice according to the
 specified mappings:
+
 * non-words, i.e. words having the empty eval. tok. seq., to epsilon
 * compound word splitting, i.e. split at " ", "_", or "-"
 * static mapping, where the mappings are loaded from a file; the
-format is "<source-word> <target-word-1> <target-word-2> ...\n
+  format is "<source-word> <target-word-1> <target-word-2> ...\n
+
 All mappings preserve or interpolate time boundaries, all mappings
 have a static implementation.
 
@@ -2506,16 +2514,18 @@ oracle-alignment
 Compute oracle alignment between CN and reference.
 The oracle loss requires a posterior score, i.e.
 Cost functions:
+
 * oracle-error
-0, if word in slot
-1, else
+  0, if word in slot
+  1, else
 * weighted-oracle-error
-i**alpha, where
-i is the position of the reference word in the slot,
-resp. 100, if the reference word is not in the slot
+  i**alpha, where
+  i is the position of the reference word in the slot,
+  resp. 100, if the reference word is not in the slot
 * oracle-loss
-1 - p(word|slot), if word in slot
-100, else,
+  1 - p(word|slot), if word in slot
+  100, else,
+
 i.e. align w.r.t to minimum oracle error as primary criterion
 and minimum expected error as secondary criterion
 either a normalized CN or posterior key defined.
@@ -3215,8 +3225,10 @@ unite
 
 Build union of incoming lattices.
 Incoming lattices need to have
+
 * same alphabets and
 * same semiring
+
 or a new semiring is defined.
 
 **Configuration**

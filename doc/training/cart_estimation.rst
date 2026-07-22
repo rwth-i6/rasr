@@ -7,12 +7,14 @@ Estimation of the phonetic decision tree.
 The current implementation optimizes the log-likelihood, where the log-likelihood for a class(or cluster) is modeled by a single Gaussian with diagonal co-variance matrix.
 
 **Inputs**
+
 * :doc:`file_formats/cart_accumulators.rst`
 * :doc:`file_formats/cart_question_file.rst`
 * :ref:`HMM configuration`
 * :ref:`Lexicon configuration`
 
 **Output**
+
 * CART tree
 
 **Parameters**

@@ -76,7 +76,8 @@ Configuration files can include other configuration files by a ``include`` direc
 The referenced file is included at exactly this position. If the included file does not contain a group selector, the preceding group selector is used.
 
 **Example**
-::
+
+.. code-block:: ini
 
     [*.output-channel]
     file   = logfile.log

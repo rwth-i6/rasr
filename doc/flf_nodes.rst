@@ -2895,19 +2895,6 @@ semiring is used.
     output:
     0:lattice
 
-
-recognizer-v2
---------------
-
-Second version of RASR recognizer.
-Output are lattices in Flf format.
-Much more minimalistic than the first recognizer node
-and works with a ``SearchAlgorithmV2`` instead of
-``SearchAlgorithm``. Performs recognition of the input segments
-and sends the result lattices as outputs.
-
-See :doc:`search_v2` for a full guide to configuring the search algorithm and label scorer(s) used by this node.
-
 **Configuration**
 
 .. code-block: ini

@@ -16,6 +16,7 @@
  * Test cases for Speech::CTCTopologyGraphBuilder.
  */
 
+#include <Test/File.hh>
 #include <Test/Lexicon.hh>
 #include <Test/UnitTest.hh>
 
@@ -165,7 +166,7 @@ TEST_F(Speech, CTCGraphBuilderTest, BuildSimpleSentence) {
 
     // The reference graph on disk was generated from this very builder
     // and manually checked for correctness.
-    Fsa::ConstAutomatonRef reference = Fsa::read("data/allophone_state_graph_builder/ctc_abc.fsa.xml");
+    Fsa::ConstAutomatonRef reference = Fsa::read(Test::dataFile("allophone_state_graph_builder/ctc_abc.fsa.xml"));
     EXPECT_TRUE(static_cast<bool>(reference));
     EXPECT_FALSE(Fsa::isEmpty(reference));
 

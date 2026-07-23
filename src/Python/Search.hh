@@ -42,6 +42,9 @@ class SearchAlgorithm : public Core::Component {
 public:
     SearchAlgorithm(const Core::Configuration& c);
 
+    // Return the model combination used by the search.
+    Speech::ModelCombination& modelCombination();
+
     // Call at the beginning of a new segment.
     void enterSegment();
 

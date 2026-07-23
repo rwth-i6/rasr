@@ -46,11 +46,14 @@ public:
     static const Core::ParameterFloatVector paramScoreThresholds;
     static const Core::ParameterInt         paramNumHistogramBins;
     static const Core::ParameterInt         paramBlankLabelIndex;
+    static const Core::ParameterInt         paramSilenceLabelIndex;
     static const Core::ParameterInt         paramSentenceEndLabelIndex;
     static const Core::ParameterBool        paramCollapseRepeatedLabels;
     static const Core::ParameterInt         paramCacheCleanupInterval;
     static const Core::ParameterInt         paramMaximumStableDelay;
     static const Core::ParameterInt         paramMaximumStableDelayPruningInterval;
+    static const Core::Choice               choiceRecombinationMode;
+    static const Core::ParameterChoice      paramRecombinationMode;
     static const Core::ParameterBool        paramLogStepwiseStatistics;
 
     LexiconfreeTimesyncBeamSearch(Core::Configuration const&);
@@ -117,6 +120,8 @@ private:
     Histogram           scoreHistogram_;
     bool                useBlank_;
     Nn::LabelIndex      blankLabelIndex_;
+    bool                useSilence_;
+    Nn::LabelIndex      silenceLabelIndex_;
     bool                useSentenceEnd_;
     Bliss::Lemma const* sentenceEndLemma_;
     Nn::LabelIndex      sentenceEndLabelIndex_;
@@ -124,6 +129,7 @@ private:
     size_t              cacheCleanupInterval_;
     size_t              maximumStableDelay_;
     size_t              maximumStableDelayPruningInterval_;
+    bool                recombinationEnabled_;
     bool                logStepwiseStatistics_;
 
     Core::Channel debugChannel_;
@@ -157,7 +163,7 @@ private:
     void logStatistics() const;
 
     /*
-     * Infer type of transition between two tokens based on whether each of them is blank
+     * Infer type of transition between two tokens based on whether each of them is blank or silence
      * and/or whether they are the same
      */
     Nn::TransitionType inferTransitionType(Nn::LabelIndex prevLabel, Nn::LabelIndex nextLabel) const;

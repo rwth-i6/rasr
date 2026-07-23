@@ -15,9 +15,25 @@
 #ifndef _TEST_FILE_HH
 #define _TEST_FILE_HH
 
+#include <string>
+
 #include <Core/Directory.hh>
 
 namespace Test {
+
+/**
+ * Directory containing the checked-in unit-test data files.
+ *
+ * Defaults to "src/Test/data", i.e. it assumes the test binary is started from
+ * the repository root. Override it with the command-line option
+ *   --test-data-dir=<path>
+ * e.g. "--test-data-dir=data" when running the binary from within src/Test.
+ */
+std::string dataDir();
+
+/** Path to a file below the unit-test data directory, e.g.
+ *  dataFile("arpa_lm/unigram.arpa.gz"). Honors --test-data-dir (see dataDir()). */
+std::string dataFile(const std::string& relativePath);
 
 /**
  * Directory for intermediate files.

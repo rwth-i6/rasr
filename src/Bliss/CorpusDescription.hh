@@ -415,17 +415,10 @@ public:
  */
 
 class SpeechSegment : public Segment {
-    friend class CorpusDescriptionParser;
-
-private:
-    const Speaker* speaker_;
-    std::string    lang_;
-    Orthography    orth_;
-    Orthography    leftContextOrth_;
-    Orthography    rightContextOrth_;
-
 public:
-    const std::string& orth() const {
+    SpeechSegment(Recording*);
+
+    std::string orth() const {
         return orth_.str();
     }
 
@@ -437,7 +430,7 @@ public:
         return orth_;
     }
 
-    std::string const& leftContextOrth() const {
+    std::string leftContextOrth() const {
         return leftContextOrth_.str();
     }
 
@@ -449,7 +442,7 @@ public:
         return leftContextOrth_;
     }
 
-    std::string const& rightContextOrth() const {
+    std::string rightContextOrth() const {
         return rightContextOrth_.str();
     }
 
@@ -467,17 +460,24 @@ public:
      * specified in the corpus description
      * @see Speaker
      */
-    const Speaker* speaker() const {
+    Speaker const* speaker() const {
         return (speaker_) ? speaker_ : recording()->defaultSpeaker();
     }
 
-    void setSpeaker(const Speaker* speaker) {
+    void setSpeaker(Speaker const* speaker) {
         speaker_ = speaker;
     }
 
-    SpeechSegment(Recording*);
-
     virtual void accept(SegmentVisitor*);
+
+private:
+    friend class CorpusDescriptionParser;
+
+    Speaker const* speaker_;
+    std::string    lang_;
+    Orthography    orth_;
+    Orthography    leftContextOrth_;
+    Orthography    rightContextOrth_;
 };
 
 /**

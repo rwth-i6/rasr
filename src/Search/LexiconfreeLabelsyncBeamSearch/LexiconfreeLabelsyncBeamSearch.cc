@@ -21,6 +21,7 @@
 
 #include <Core/CollapsedVector.hh>
 #include <Core/XmlStream.hh>
+#include <Math/Utilities.hh>
 #include <Nn/LabelScorer/LabelScorer.hh>
 #include <Search/Traceback.hh>
 #include <Search/TracebackHelper.hh>
@@ -548,6 +549,12 @@ bool LexiconfreeLabelsyncBeamSearch::decodeStep() {
         numHypsAfterIntermediatePruning_[scorerIdx] += extensions_.size();
         if (logStepwiseStatistics_) {
             clog() << Core::XmlFull("num-hyps-after-intermediate-pruning-" + std::to_string(scorerIdx + 1), extensions_.size());
+        }
+        if (extensions_.empty()) {
+            if (logStepwiseStatistics_) {
+                clog() << Core::XmlClose("search-step-stats");
+            }
+            return false;
         }
 
         if (scorerIdx < labelScorers_.size() - 1) {

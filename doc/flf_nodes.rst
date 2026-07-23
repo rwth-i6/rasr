@@ -2895,22 +2895,6 @@ semiring is used.
     output:
     0:lattice
 
-**Configuration**
-
-.. code-block: ini
-
-    [*.network.recognizer-v2]
-    type                        = recognizer-v2
-
-**Port assignment**
-
-.. code-block: ini
-
-    input:
-    0:bliss-speech-segment
-    output:
-    0:lattice
-
 recognizer-v2
 --------------
 
@@ -2930,6 +2914,15 @@ See :doc:`search_v2` for a full guide to configuring the search algorithm and la
 
     [*.network.recognizer-v2]
     type                        = recognizer-v2
+
+**Port assignment**
+
+.. code-block: ini
+
+    input:
+    0:bliss-speech-segment
+    output:
+    0:lattice
 
 reduce
 ------

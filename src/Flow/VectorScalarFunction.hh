@@ -136,7 +136,7 @@ VectorScalarFunctionNode<Function>::VectorScalarFunctionNode(const Core::Configu
 
 template<class Function>
 bool VectorScalarFunctionNode<Function>::configure() {
-    std::shared_ptr<Attributes> attributes(new Attributes());
+    auto attributes = std::make_shared<Attributes>();
     getInputAttributes(0, *attributes);
 
     if (!configureDatatype(attributes, Vector<ArgumentType>::type()))

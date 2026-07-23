@@ -251,8 +251,8 @@ bool AlignedFeatureCacheWriterNode::setParameter(const std::string& name, const 
 }
 
 bool AlignedFeatureCacheWriterNode::configure() {
-    std::shared_ptr<Flow::Attributes> alignmentAttributes(new Flow::Attributes());
-    std::shared_ptr<Flow::Attributes> featureAttributes(new Flow::Attributes());
+    auto alignmentAttributes = std::make_shared<Flow::Attributes>();
+    auto featureAttributes   = std::make_shared<Flow::Attributes>();
 
     getInputAttributes(0, *alignmentAttributes);
     getInputAttributes(1, *featureAttributes);
@@ -386,12 +386,12 @@ bool AlignedFeatureCacheReaderNode::setParameter(const std::string& name, const 
 
 bool AlignedFeatureCacheReaderNode::configure() {
     verify(cacheReader_->datatype());
-    haveLabel_ = false;
-    std::shared_ptr<Flow::Attributes> labelAttributes(new Flow::Attributes);
+    haveLabel_           = false;
+    auto labelAttributes = std::make_shared<Flow::Attributes>();
     getInputAttributes(0, *labelAttributes);
     if (!configureDatatype(labelAttributes, Flow::String::type()))
         return false;
-    std::shared_ptr<Flow::Attributes> attributes(new Flow::Attributes());
+    auto attributes = std::make_shared<Flow::Attributes>();
     attributes->set("datatype", cacheReader_->datatype()->name());
     return putOutputAttributes(0, attributes);
 }

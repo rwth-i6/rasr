@@ -310,7 +310,7 @@ bool CacheNode::configure() {
     if (isCached_) {
         Core::ArchiveReader r(*archive_, id_ + ".attribs");
         if (r.isOpen()) {
-            std::shared_ptr<Attributes> ca(new Attributes());
+            auto ca = std::make_shared<Attributes>();
             if (attributesParser_.buildFromStream(*ca, r)) {
                 std::string datatype = ca->get("datatype");
                 if (!datatype.empty()) {

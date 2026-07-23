@@ -156,7 +156,7 @@ bool WindowNode::setParameter(const std::string& name, const std::string& value)
 }
 
 bool WindowNode::configure() {
-    std::shared_ptr<Flow::Attributes> a(new Flow::Attributes());
+    auto a = std::make_shared<Flow::Attributes>();
     getInputAttributes(0, *a);
 
     if (!configureDatatype(a, Flow::Vector<f32>::type())) {

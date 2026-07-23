@@ -57,7 +57,7 @@ public:
     virtual ~VectorDemultiplexNode() {}
 
     virtual bool configure() {
-        std::shared_ptr<Attributes> a(new Attributes());
+        auto a = std::make_shared<Attributes>();
         getInputAttributes(0, *a);
         if (!configureDatatype(a, Vector<T>::type()))
             return false;

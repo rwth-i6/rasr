@@ -235,7 +235,7 @@ bool NthOrderFeaturesNode::setParameter(const std::string& name, const std::stri
 }
 
 bool NthOrderFeaturesNode::configure() {
-    std::shared_ptr<Flow::Attributes> attributes(new Flow::Attributes());
+    auto attributes = std::make_shared<Flow::Attributes>();
     getInputAttributes(0, *attributes);
     if (!configureDatatype(attributes, Flow::Vector<f32>::type()))
         return false;

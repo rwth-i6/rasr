@@ -236,7 +236,7 @@ bool MrastaFilteringNode::setParameter(const std::string& name, const std::strin
 }
 
 bool MrastaFilteringNode::configure() {
-    std::shared_ptr<Flow::Attributes> attributes(new Flow::Attributes());
+    auto attributes = std::make_shared<Flow::Attributes>();
     getInputAttributes(0, *attributes);
 
     if (!configureDatatype(attributes, Flow::Vector<Value>::type()))

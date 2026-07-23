@@ -39,7 +39,7 @@ bool LinearPredictionCodingNode::setParameter(const std::string& name, const std
 }
 
 bool LinearPredictionCodingNode::configure() {
-    std::shared_ptr<Flow::Attributes>       attributes(new Flow::Attributes());
+    auto                                    attributes  = std::make_shared<Flow::Attributes>();
     std::shared_ptr<const Flow::Attributes> yAttributes = getInputAttributes(0);
     if (!configureDatatype(yAttributes, Flow::Vector<f32>::type()))
         return false;

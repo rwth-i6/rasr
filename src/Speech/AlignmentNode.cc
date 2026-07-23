@@ -79,7 +79,7 @@ bool AlignmentBaseNode::setParameter(const std::string& name, const std::string&
 }
 
 bool AlignmentBaseNode::configure(const Flow::Datatype* type) {
-    std::shared_ptr<Flow::Attributes> attributes(new Flow::Attributes);
+    auto attributes = std::make_shared<Flow::Attributes>();
     getInputAttributes(0, *attributes);
     if (!configureDatatype(attributes, type))
         return false;
@@ -426,7 +426,7 @@ bool AlignmentDumpNode::configure() {
         alignmentType_ = AlignmentType(plainText);
         Core::ArchiveReader r(*archive_, segmentId_ + ".attribs");
         if (r.isOpen()) {
-            std::shared_ptr<Flow::Attributes> ca(new Flow::Attributes());
+            auto ca = std::make_shared<Flow::Attributes>();
             if (attributesParser_.buildFromStream(*ca, r)) {
                 std::string datatype = ca->get("datatype");
                 if (datatype.empty()) {

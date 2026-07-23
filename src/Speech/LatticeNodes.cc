@@ -151,7 +151,7 @@ ModelCombinationNode::ModelCombinationNode(const Core::Configuration& c)
 }
 
 bool ModelCombinationNode::configure() {
-    std::shared_ptr<Flow::Attributes> attributes(new Flow::Attributes);
+    auto attributes = std::make_shared<Flow::Attributes>();
 
     if (needInit_)
         initialize();
@@ -203,7 +203,7 @@ bool LatticeIoNode::setParameter(const std::string& name, const std::string& val
 }
 
 bool LatticeIoNode::configure() {
-    std::shared_ptr<Flow::Attributes> attributes(new Flow::Attributes);
+    auto attributes = std::make_shared<Flow::Attributes>();
     getInputAttributes(0, *attributes);
 
     if (!configureDatatype(attributes, Flow::DataAdaptor<ModelCombinationRef>::type())) {
@@ -304,7 +304,7 @@ void LatticeWriteNode::initialize(ModelCombinationRef modelCombination) {
 }
 
 bool LatticeWriteNode::configure() {
-    std::shared_ptr<Flow::Attributes> attributes(new Flow::Attributes);
+    auto attributes = std::make_shared<Flow::Attributes>();
     getInputAttributes(1, *attributes);
     if (!configureDatatype(attributes, Flow::DataAdaptor<Flf::ConstLatticeRef>::type())) {
         return false;
@@ -341,7 +341,7 @@ LatticeSemiringNode::LatticeSemiringNode(const Core::Configuration& c)
 }
 
 bool LatticeSemiringNode::configure() {
-    std::shared_ptr<Flow::Attributes> attributes(new Flow::Attributes());
+    auto attributes = std::make_shared<Flow::Attributes>();
     getInputAttributes(0, *attributes);
 
     if (!configureDatatype(attributes, Flow::DataAdaptor<Flf::ConstLatticeRef>::type())) {
@@ -391,7 +391,7 @@ bool LatticeSimpleModifyNode::setParameter(const std::string& name, const std::s
 }
 
 bool LatticeSimpleModifyNode::configure() {
-    std::shared_ptr<Flow::Attributes> attributes(new Flow::Attributes());
+    auto attributes = std::make_shared<Flow::Attributes>();
     getInputAttributes(0, *attributes);
 
     if (!configureDatatype(attributes, Flow::DataAdaptor<Flf::ConstLatticeRef>::type())) {
@@ -433,7 +433,7 @@ LatticeTransformNode::LatticeTransformNode(
 }
 
 bool LatticeTransformNode::configure() {
-    std::shared_ptr<Flow::Attributes> attributes(new Flow::Attributes);
+    auto attributes = std::make_shared<Flow::Attributes>();
     getInputAttributes(0, *attributes);
     if (!configureDatatype(attributes, Flow::DataAdaptor<Flf::ConstLatticeRef>::type())) {
         return false;
@@ -481,7 +481,7 @@ LatticeTransform2Node::LatticeTransform2Node(
 }
 
 bool LatticeTransform2Node::configure() {
-    std::shared_ptr<Flow::Attributes> attributes(new Flow::Attributes);
+    auto attributes = std::make_shared<Flow::Attributes>();
     getInputAttributes(1, *attributes);
     if (!configureDatatype(attributes, Flow::DataAdaptor<Flf::ConstLatticeRef>::type())) {
         return false;
@@ -590,7 +590,7 @@ LatticeNBestNode::LatticeNBestNode(const Core::Configuration& c)
 }
 
 bool LatticeNBestNode::configure() {
-    std::shared_ptr<Flow::Attributes> attributes(new Flow::Attributes());
+    auto attributes = std::make_shared<Flow::Attributes>();
     getInputAttributes(0, *attributes);
 
     if (!configureDatatype(attributes, Flow::DataAdaptor<Flf::ConstLatticeRef>::type())) {
@@ -643,7 +643,7 @@ bool LatticeDumpCtmNode::setParameter(const std::string& name, const std::string
 }
 
 bool LatticeDumpCtmNode::configure() {
-    std::shared_ptr<Flow::Attributes> attributes(new Flow::Attributes());
+    auto attributes = std::make_shared<Flow::Attributes>();
 
     if (inputConnected(1)) {
         getInputAttributes(1, *attributes);

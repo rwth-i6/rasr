@@ -98,7 +98,7 @@ bool SourceNode::configure() {
     }
     verify(sampleCount_ == startSample);
 
-    std::shared_ptr<Flow::Attributes> a(new Flow::Attributes());
+    auto a = std::make_shared<Flow::Attributes>();
     a->set("file", filename_);
     a->set("sample-rate", sampleRate_);
     a->set("sample-size", sampleSize_);

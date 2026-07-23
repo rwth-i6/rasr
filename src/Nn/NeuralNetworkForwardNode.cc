@@ -95,7 +95,7 @@ bool NeuralNetworkForwardNode::configureDataType(std::shared_ptr<const Flow::Att
 // output of the node is a single vector stream
 bool NeuralNetworkForwardNode::configure() {
     // get the attributes
-    std::shared_ptr<Flow::Attributes> attributes(new Flow::Attributes());
+    auto attributes = std::make_shared<Flow::Attributes>();
     getInputAttributes(0, *attributes);
 
     // check the allowed data types (Vector + aggregate Vector)
@@ -191,7 +191,7 @@ bool NeuralNetworkForwardNode::work(Flow::PortId p) {
 
     if (needInit_) {
         // get data type of the flow stream
-        std::shared_ptr<Flow::Attributes> attributes(new Flow::Attributes());
+        auto attributes = std::make_shared<Flow::Attributes>();
         getInputAttributes(p, *attributes);
         aggregatedFeatures_ = configureDataType(attributes, Flow::TypedAggregate<Flow::Vector<FeatureType>>::type());
     }

@@ -41,7 +41,7 @@ bool FeatureScorerNode::configure() {
     timeStamps_.clear();
 
     // get the attributes
-    std::shared_ptr<Flow::Attributes> attributes(new Flow::Attributes());
+    auto attributes = std::make_shared<Flow::Attributes>();
     getInputAttributes(0, *attributes);
 
     // check the allowed data types (Vector + aggregate Vector)
@@ -165,7 +165,7 @@ bool FeatureScorerNode::work() {
 bool FeatureScorerNode::work(Flow::PortId /*output, expected to be zero*/) {
     if (needInit_) {
         // get data type of the flow stream
-        std::shared_ptr<Flow::Attributes> attributes(new Flow::Attributes());
+        auto attributes = std::make_shared<Flow::Attributes>();
         getInputAttributes(0, *attributes);
         aggregatedFeatures_ = configureDataType(attributes, Flow::TypedAggregate<Flow::Vector<FeatureType>>::type());
         needInit_           = false;

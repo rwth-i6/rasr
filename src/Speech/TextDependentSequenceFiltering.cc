@@ -147,9 +147,9 @@ bool AlignmentToSequenceSelectionNode::setParameter(const std::string& name, con
 bool AlignmentToSequenceSelectionNode::configure() {
     initialize();
 
-    std::shared_ptr<Flow::Attributes> attributeSelection(new Flow::Attributes);
+    auto attributeSelection = std::make_shared<Flow::Attributes>();
     getInputAttributes(0, *attributeSelection);
-    std::shared_ptr<Flow::Attributes> attributeRatio(new Flow::Attributes(*attributeSelection));
+    auto attributeRatio = std::make_shared<Flow::Attributes>(*attributeSelection);
 
     if (!configureDatatype(attributeSelection, Flow::DataAdaptor<Alignment>::type()))
         return false;

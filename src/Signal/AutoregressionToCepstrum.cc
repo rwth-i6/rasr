@@ -50,7 +50,7 @@ AutoregressionToCepstrumNode::AutoregressionToCepstrumNode(const Core::Configura
 AutoregressionToCepstrumNode::~AutoregressionToCepstrumNode() {}
 
 bool AutoregressionToCepstrumNode::configure() {
-    std::shared_ptr<Flow::Attributes> attributes(new Flow::Attributes());
+    auto attributes = std::make_shared<Flow::Attributes>();
     getInputAttributes(0, *attributes);
     if (!configureDatatype(attributes, AutoregressiveCoefficients::type()))
         return false;

@@ -78,7 +78,7 @@ bool CoprusKeyMapNode::setParameter(const std::string& name, const std::string& 
 bool CoprusKeyMapNode::configure() {
     reset();
 
-    std::shared_ptr<Attributes> a(new Flow::Attributes);
+    auto a = std::make_shared<Attributes>();
     a->set("datatype", String::type()->name());
     return putOutputAttributes(0, a);
 }

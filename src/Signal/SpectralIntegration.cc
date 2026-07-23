@@ -105,7 +105,7 @@ bool SpectralIntegrationNode::setParameter(const std::string& name, const std::s
 }
 
 bool SpectralIntegrationNode::configure() {
-    std::shared_ptr<Flow::Attributes> a(new Flow::Attributes());
+    auto a = std::make_shared<Flow::Attributes>();
     ;
     getInputAttributes(0, *a);
 

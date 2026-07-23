@@ -69,7 +69,7 @@ void FeatureShiftAdaptor::updateAlignment(const Flow::Timestamp& timestamp) {
 bool FeatureShiftAdaptor::configure() {
     alignment_.reset();
 
-    std::shared_ptr<Flow::Attributes> attributesSelection(new Flow::Attributes);
+    auto attributesSelection = std::make_shared<Flow::Attributes>();
     getInputAttributes(1, *attributesSelection);
     if (!configureDatatype(attributesSelection, Flow::DataAdaptor<Alignment>::type()))
         return false;

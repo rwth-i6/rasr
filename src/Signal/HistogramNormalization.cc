@@ -143,12 +143,12 @@ bool HistogramNormalizationNode::setParameter(const std::string& name, const std
 bool HistogramNormalizationNode::configure() {
     reset();
 
-    std::shared_ptr<Flow::Attributes> featureAttributes(new Flow::Attributes);
+    auto featureAttributes = std::make_shared<Flow::Attributes>();
     getInputAttributes(0, *featureAttributes);
     if (!configureDatatype(featureAttributes, Flow::Vector<f32>::type()))
         return false;
 
-    std::shared_ptr<Flow::Attributes> scaleAttributes(new Flow::Attributes);
+    auto scaleAttributes = std::make_shared<Flow::Attributes>();
     for (Flow::PortId i = firstScalePortId_; i < nInputs(); ++i) {
         std::shared_ptr<const Flow::Attributes> scaleAttributes = getInputAttributes(i);
         if (!configureDatatype(scaleAttributes, Flow::DataAdaptor<HistogramWeight>::type()))

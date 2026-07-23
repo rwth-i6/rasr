@@ -318,7 +318,7 @@ BayesClassificationNode::BayesClassificationNode(const Core::Configuration& c)
 bool BayesClassificationNode::configure() {
     reset();
 
-    std::shared_ptr<Flow::Attributes> attributes(new Flow::Attributes());
+    auto attributes = std::make_shared<Flow::Attributes>();
     getInputAttributes(0, *attributes);
     if (!configureDatatype(attributes, Flow::Vector<f32>::type()))
         return false;

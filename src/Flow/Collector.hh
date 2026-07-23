@@ -177,7 +177,7 @@ bool CollectorNode<I, O>::setParameter(const std::string& name, const std::strin
 
 template<class I, class O>
 bool CollectorNode<I, O>::configure() {
-    std::shared_ptr<Attributes> a(new Flow::Attributes);
+    auto a = std::make_shared<Attributes>();
     for (PortId i = 0; i < nInputs(); i++) {
         std::shared_ptr<const Attributes> b = getInputAttributes(i);
         if (!configureDatatype(b, InputData::type()))

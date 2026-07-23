@@ -33,7 +33,7 @@ AlignmentTransformNode::AlignmentTransformNode(
 AlignmentTransformNode::~AlignmentTransformNode() {}
 
 bool AlignmentTransformNode::configure() {
-    std::shared_ptr<Flow::Attributes> attributes(new Flow::Attributes());
+    auto attributes = std::make_shared<Flow::Attributes>();
     getInputAttributes(0, *attributes);
 
     if (!configureDatatype(attributes, Flow::DataAdaptor<Alignment>::type()))
@@ -323,7 +323,7 @@ BinaryAlignmentTransformNode::BinaryAlignmentTransformNode(
 BinaryAlignmentTransformNode::~BinaryAlignmentTransformNode() {}
 
 bool BinaryAlignmentTransformNode::configure() {
-    std::shared_ptr<Flow::Attributes> attributes(new Flow::Attributes());
+    auto attributes = std::make_shared<Flow::Attributes>();
 
     getInputAttributes(0, *attributes);
     if (!configureDatatype(attributes, Flow::DataAdaptor<Alignment>::type())) {
@@ -447,7 +447,7 @@ void AlignmentRemoveEmissionScoreNode::checkFeatureDependencies(const Mm::Featur
 }
 
 bool AlignmentRemoveEmissionScoreNode::configure() {
-    std::shared_ptr<Flow::Attributes> attributes(new Flow::Attributes());
+    auto attributes = std::make_shared<Flow::Attributes>();
 
     getInputAttributes(1, *attributes);
     if (!configureDatatype(attributes, Feature::FlowFeature::type())) {
@@ -511,7 +511,7 @@ SetAlignmentWeightsByTiedStateAlignmentWeightsNode::SetAlignmentWeightsByTiedSta
 }
 
 bool SetAlignmentWeightsByTiedStateAlignmentWeightsNode::configure() {
-    std::shared_ptr<Flow::Attributes> attributes(new Flow::Attributes());
+    auto attributes = std::make_shared<Flow::Attributes>();
 
     getInputAttributes(1, *attributes);
 

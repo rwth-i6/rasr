@@ -117,7 +117,7 @@ Core::XmlWriter& Aggregate::dump(Core::XmlWriter& o) const {
 //==========================================================================================
 
 bool AggregationNode::configure() {
-    std::shared_ptr<Attributes> a(new Flow::Attributes);
+    auto a = std::make_shared<Attributes>();
     for (PortId i = 0; i < nInputs(); i++) {
         std::shared_ptr<const Attributes> b = getInputAttributes(i);
         if (b)

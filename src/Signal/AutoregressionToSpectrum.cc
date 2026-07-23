@@ -37,7 +37,7 @@ AutoregressionToSpectrumNode::AutoregressionToSpectrumNode(const Core::Configura
 AutoregressionToSpectrumNode::~AutoregressionToSpectrumNode() {}
 
 bool AutoregressionToSpectrumNode::configure() {
-    std::shared_ptr<Flow::Attributes> attributes(new Flow::Attributes());
+    auto attributes = std::make_shared<Flow::Attributes>();
     getInputAttributes(0, *attributes);
     if (!configureDatatype(attributes, Signal::AutoregressiveCoefficients::type()))
         return false;

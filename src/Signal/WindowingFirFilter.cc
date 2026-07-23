@@ -228,7 +228,7 @@ bool WindowingFirFilterNode::setParameter(const std::string& name, const std::st
 }
 
 bool WindowingFirFilterNode::configure() {
-    std::shared_ptr<Flow::Attributes> attributes(new Flow::Attributes);
+    auto attributes = std::make_shared<Flow::Attributes>();
 
     std::shared_ptr<const Flow::Attributes> signalAttributes = getInputAttributes(0);
     if (!configureDatatype(signalAttributes, Flow::Vector<f32>::type()))

@@ -30,7 +30,7 @@ Node::Node(const Core::Configuration& c)
 /******************************************************************************/
 
 bool Node::configure() {
-    std::shared_ptr<Attributes> a(new Attributes());
+    auto a = std::make_shared<Attributes>();
     for (PortId i = 0; i < nInputs(); i++) {
         std::shared_ptr<const Attributes> b = getInputAttributes(i);
         ensure(b);

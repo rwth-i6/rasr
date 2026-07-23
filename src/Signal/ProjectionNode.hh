@@ -73,7 +73,7 @@ ProjectionNode<T>::~ProjectionNode() {}
 
 template<class T>
 bool ProjectionNode<T>::configure() {
-    std::shared_ptr<Flow::Attributes> attributes(new Flow::Attributes());
+    auto attributes = std::make_shared<Flow::Attributes>();
     getInputAttributes(0, *attributes);
     if (!configureDatatype(attributes, Flow::Vector<T>::type()))
         return false;

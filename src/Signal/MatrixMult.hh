@@ -157,8 +157,8 @@ Flow::PortId MatrixMultiplicationNode<T>::getOutput(const std::string& name) {
 
 template<class T>
 bool MatrixMultiplicationNode<T>::configure() {
-    std::shared_ptr<Flow::Attributes> attributes(new Flow::Attributes());
-    std::shared_ptr<Flow::Attributes> inputAttributes(new Flow::Attributes());
+    auto attributes      = std::make_shared<Flow::Attributes>();
+    auto inputAttributes = std::make_shared<Flow::Attributes>();
     for (s32 i = 0; i < multiData_; ++i) {
         getInputAttributes((Flow::PortId)i, *inputAttributes);
         if (!configureDatatype(inputAttributes, Flow::Vector<f32>::type()))

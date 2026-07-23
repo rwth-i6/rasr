@@ -185,7 +185,7 @@ private:
      * Removes all extensions worse than the absolute threshold.
      */
     template<typename Element>
-    void scorePruning(std::vector<Element>& hypotheses, Score relativeThreshold, size_t maxBeamSize, Score referenceScore = Core::Type<Score>::max);
+    void scorePruning(std::vector<Element>& hypotheses, Score relativeThreshold, size_t maxBeamSize, std::optional<Score> referenceScore = std::nullopt);
 
     /*
      * Helper function for recombination of hypotheses with the same scoring context

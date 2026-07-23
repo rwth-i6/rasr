@@ -49,6 +49,8 @@ public:
     static const Core::ParameterInt         paramCacheCleanupInterval;
     static const Core::ParameterFloat       paramLengthNormScale;
     static const Core::ParameterFloat       paramMaxLabelsPerTimestep;
+    static const Core::Choice               choicePruningStrategyType;
+    static const Core::ParameterChoice      paramPruningStrategyType;
     static const Core::Choice               choiceRecombinationMode;
     static const Core::ParameterChoice      paramRecombinationMode;
     static const Core::ParameterBool        paramLogStepwiseStatistics;
@@ -137,6 +139,7 @@ private:
     float               lengthNormScale_;
     float               maxLabelsPerTimestep_;
     Nn::LabelIndex      sentenceEndLabelIndex_;
+    Core::Choice::Value pruningStrategyType_;
     bool                recombinationEnabled_;
     bool                logStepwiseStatistics_;
     size_t              cacheCleanupInterval_;

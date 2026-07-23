@@ -114,7 +114,7 @@ std::string LexiconfreeLabelsyncBeamSearch::LabelHypothesis::toString() const {
 
 const Core::ParameterIntVector LexiconfreeLabelsyncBeamSearch::paramMaxBeamSizes(
         "max-beam-size",
-        "Maximum number of active and terminated elements retained per pruning group. Pruning is applied after each intermediate label scorer.",
+        "Maximum number of active and terminated hypotheses in the search beam. Pruning is applied independently to active and terminated hypotheses after each intermediate label scorer.",
         "",
         1);
 
@@ -540,8 +540,9 @@ bool LexiconfreeLabelsyncBeamSearch::decodeStep() {
                 activeExtensions.push_back(extension);
             }
         }
-        scorePruning(activeExtensions, scoreThresholds_[scorerIdx], maxBeamSize, bestScore);
         scorePruning(terminatedExtensions, scoreThresholds_[scorerIdx], maxBeamSize);
+        scorePruning(activeExtensions, scoreThresholds_[scorerIdx], maxBeamSize, bestScore);
+
         extensions_.clear();
         extensions_.reserve(activeExtensions.size() + terminatedExtensions.size());
         extensions_.insert(extensions_.end(), activeExtensions.begin(), activeExtensions.end());
@@ -675,11 +676,8 @@ bool LexiconfreeLabelsyncBeamSearch::decodeStep() {
     }
     auto finalBeamSize = maxBeamSizes_[labelScorers_.size() - 1];
     scorePruning(terminatedHypotheses, Core::Type<Score>::max, finalBeamSize);
+    scorePruning(activeHypotheses, Core::Type<Score>::max, finalBeamSize);
 
-    auto remainingSpace = terminatedHypotheses.size() - finalBeamSize;
-    if (remainingSpace > 0) {
-        scorePruning(activeHypotheses, Core::Type<Score>::max, remainingSpace);
-    }
     newBeam_.clear();
     newBeam_.reserve(activeHypotheses.size() + terminatedHypotheses.size());
     newBeam_.insert(newBeam_.end(), terminatedHypotheses.begin(), terminatedHypotheses.end());

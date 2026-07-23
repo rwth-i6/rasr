@@ -114,7 +114,7 @@ std::string LexiconfreeLabelsyncBeamSearch::LabelHypothesis::toString() const {
 
 const Core::ParameterIntVector LexiconfreeLabelsyncBeamSearch::paramMaxBeamSizes(
         "max-beam-size",
-        "Maximum number of elements in the search beam. Terminated hypotheses have preference in the beam. Pruning is applied after each intermediate label scorer.",
+        "Maximum number of active and terminated hypotheses in the search beam. Pruning is applied independently to active and terminated hypotheses after each intermediate label scorer.",
         "",
         1);
 
@@ -541,13 +541,8 @@ bool LexiconfreeLabelsyncBeamSearch::decodeStep() {
             }
         }
         scorePruning(terminatedExtensions, scoreThresholds_[scorerIdx], maxBeamSize);
-        auto remainingSize = terminatedExtensions.size() - maxBeamSize;
-        if (remainingSize > 0) {
-            scorePruning(activeExtensions, scoreThresholds_[scorerIdx], remainingSize, bestScore);
-        }
-        else {
-            activeExtensions.clear();
-        }
+        scorePruning(activeExtensions, scoreThresholds_[scorerIdx], maxBeamSize, bestScore);
+
         extensions_.clear();
         extensions_.reserve(activeExtensions.size() + terminatedExtensions.size());
         extensions_.insert(extensions_.end(), activeExtensions.begin(), activeExtensions.end());
@@ -681,14 +676,8 @@ bool LexiconfreeLabelsyncBeamSearch::decodeStep() {
     }
     auto finalBeamSize = maxBeamSizes_[labelScorers_.size() - 1];
     scorePruning(terminatedHypotheses, Core::Type<Score>::max, finalBeamSize);
+    scorePruning(activeHypotheses, Core::Type<Score>::max, finalBeamSize);
 
-    auto remainingSize = terminatedHypotheses.size() - finalBeamSize;
-    if (remainingSize > 0) {
-        scorePruning(activeHypotheses, Core::Type<Score>::max, remainingSize);
-    }
-    else {
-        activeHypotheses.clear();
-    }
     newBeam_.clear();
     newBeam_.reserve(activeHypotheses.size() + terminatedHypotheses.size());
     newBeam_.insert(newBeam_.end(), terminatedHypotheses.begin(), terminatedHypotheses.end());

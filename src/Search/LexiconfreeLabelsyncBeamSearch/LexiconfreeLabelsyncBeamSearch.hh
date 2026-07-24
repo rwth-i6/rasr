@@ -49,6 +49,8 @@ public:
     static const Core::ParameterInt         paramCacheCleanupInterval;
     static const Core::ParameterFloat       paramLengthNormScale;
     static const Core::ParameterFloat       paramMaxLabelsPerTimestep;
+    static const Core::Choice               choicePruningStrategyType;
+    static const Core::ParameterChoice      paramPruningStrategyType;
     static const Core::Choice               choiceRecombinationMode;
     static const Core::ParameterChoice      paramRecombinationMode;
     static const Core::ParameterBool        paramLogStepwiseStatistics;
@@ -137,6 +139,7 @@ private:
     float               lengthNormScale_;
     float               maxLabelsPerTimestep_;
     Nn::LabelIndex      sentenceEndLabelIndex_;
+    Core::Choice::Value pruningStrategyType_;
     bool                recombinationEnabled_;
     bool                logStepwiseStatistics_;
     size_t              cacheCleanupInterval_;
@@ -181,10 +184,11 @@ private:
 
     /*
      * Helper function for acoustic pruning of hypotheses. Calculates an absolute threshold based on best score + relative threshold and
-     * score histogram. Removes all extensions worse than the absolute threshold.
+     * score histogram. If given, referenceScore is used instead of the best score in hypotheses for relative pruning.
+     * Removes all extensions worse than the absolute threshold.
      */
     template<typename Element>
-    void scorePruning(std::vector<Element>& hypotheses, Score relativeThreshold, size_t maxBeamSize);
+    void scorePruning(std::vector<Element>& hypotheses, Score relativeThreshold, size_t maxBeamSize, std::optional<Score> referenceScore = std::nullopt);
 
     /*
      * Helper function for recombination of hypotheses with the same scoring context

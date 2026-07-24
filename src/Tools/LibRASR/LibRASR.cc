@@ -53,10 +53,6 @@ void DummyApplication::initLogging(Core::Configuration const& loggingConfig) {
         closeLogging(false);
     }
     config = loggingConfig;
-    std::string encoding;
-    if (!config.get("encoding", encoding)) {
-        config.set("*.encoding", "utf-8");
-    }
     setTitle("lib-rasr");
     openLogging();
 }

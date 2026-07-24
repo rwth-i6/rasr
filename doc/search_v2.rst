@@ -844,6 +844,13 @@ this document -- you can build it programmatically, load it from a file, or both
 * ``config.get_selection()`` / ``config.set_selection(name)`` : get/set the selection root used when resolving relative keys.
 * ``config.resolve(value)`` : resolve ``$(VAR)`` substitutions in a string the same way the config parser does.
 * ``config.enable_logging()`` : turn on RASR's normal log output (XML log to stderr) for this process.
+* ``librasr.init_logging(config)`` : initialize process-wide RASR logging from ``config``; call this after preparing
+  the logging configuration and before constructing other RASR objects. This passes the configuration to
+  ``Channel::Manager`` setup, so Python code can use the same channel options as the command-line tools, e.g.
+  redirect ``*.log.channel`` / ``*.warning.channel`` / ``*.error.channel`` to ``stderr``, ``nil`` or a named target,
+  set broad target defaults such as ``*.encoding = utf-8`` or ``*.unbuffered = yes``, or configure a named target via
+  ``*.channels.<target>.file`` / ``append`` / ``encoding``. If ``init_logging`` is not called explicitly,
+  ``librasr`` falls back to its default logging settings when logging is first opened.
 * ``Configuration(other_config)`` / ``Configuration(other_config, selection)`` : copy a configuration, optionally
   rooted at a different selection, e.g. to build a sub-config for a nested component.
 
@@ -862,6 +869,11 @@ else in this document -- see :ref:`Search algorithms` and :ref:`SearchV2 Label S
 
     config = librasr.Configuration()
     config.set_from_file("recognition.config")
+    # Optional: configure RASR logging before it is opened.
+    config.set("*.log.channel", "stderr")
+    config.set("*.encoding", "utf-8")
+    config.set("*.unbuffered", "yes")
+    librasr.init_logging(config)
 
     search = librasr.SearchAlgorithm(config)
 

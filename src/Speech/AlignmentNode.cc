@@ -79,7 +79,7 @@ bool AlignmentBaseNode::setParameter(const std::string& name, const std::string&
 }
 
 bool AlignmentBaseNode::configure(const Flow::Datatype* type) {
-    Core::Ref<Flow::Attributes> attributes(new Flow::Attributes);
+    auto attributes = std::make_shared<Flow::Attributes>();
     getInputAttributes(0, *attributes);
     if (!configureDatatype(attributes, type))
         return false;
@@ -420,13 +420,13 @@ bool AlignmentDumpNode::configure() {
     if (!hasParameters("id"))
         error("Missing some parameters.");
 
-    Core::Ref<Flow::Attributes> attributes;
+    std::shared_ptr<Flow::Attributes> attributes;
 
     if (archiveExists_) {
         alignmentType_ = AlignmentType(plainText);
         Core::ArchiveReader r(*archive_, segmentId_ + ".attribs");
         if (r.isOpen()) {
-            Core::Ref<Flow::Attributes> ca(new Flow::Attributes());
+            auto ca = std::make_shared<Flow::Attributes>();
             if (attributesParser_.buildFromStream(*ca, r)) {
                 std::string datatype = ca->get("datatype");
                 if (datatype.empty()) {
@@ -438,13 +438,13 @@ bool AlignmentDumpNode::configure() {
         }
     }
     else if (inputConnected(0)) {
-        attributes = Core::ref(new Flow::Attributes);
+        attributes = std::make_shared<Flow::Attributes>();
         getInputAttributes(0, *attributes);
         if (!configureDatatype(attributes, Flow::DataAdaptor<Alignment>::type()))
             return false;
     }
     else
-        attributes = Core::ref(new Flow::Attributes());
+        attributes = std::make_shared<Flow::Attributes>();
 
     if (writer_) {
         alignmentType_ = AlignmentType(standard);

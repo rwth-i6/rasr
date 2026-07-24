@@ -94,7 +94,7 @@ public:
 
 private:
     // checks whether we have aggregated or simple Flow features
-    bool configureDataType(Core::Ref<const Flow::Attributes> a, const Flow::Datatype* d);
+    bool configureDataType(std::shared_ptr<const Flow::Attributes> a, const Flow::Datatype* d);
     // do the work
     void processBuffer();
     bool bufferEmpty() const {

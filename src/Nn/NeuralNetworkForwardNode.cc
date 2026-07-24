@@ -69,7 +69,7 @@ bool NeuralNetworkForwardNode::setParameter(const std::string& name, const std::
 /* same as Flow::Node::configureDatatype but without the error message
  * used for checking whether aggregated features or single feature stream is received
  * */
-bool NeuralNetworkForwardNode::configureDataType(Core::Ref<const Flow::Attributes> a, const Flow::Datatype* d) {
+bool NeuralNetworkForwardNode::configureDataType(std::shared_ptr<const Flow::Attributes> a, const Flow::Datatype* d) {
     // check for valid attribute reference
     if (not a) {
         return false;
@@ -95,7 +95,7 @@ bool NeuralNetworkForwardNode::configureDataType(Core::Ref<const Flow::Attribute
 // output of the node is a single vector stream
 bool NeuralNetworkForwardNode::configure() {
     // get the attributes
-    Core::Ref<Flow::Attributes> attributes(new Flow::Attributes());
+    auto attributes = std::make_shared<Flow::Attributes>();
     getInputAttributes(0, *attributes);
 
     // check the allowed data types (Vector + aggregate Vector)
@@ -191,7 +191,7 @@ bool NeuralNetworkForwardNode::work(Flow::PortId p) {
 
     if (needInit_) {
         // get data type of the flow stream
-        Core::Ref<Flow::Attributes> attributes(new Flow::Attributes());
+        auto attributes = std::make_shared<Flow::Attributes>();
         getInputAttributes(p, *attributes);
         aggregatedFeatures_ = configureDataType(attributes, Flow::TypedAggregate<Flow::Vector<FeatureType>>::type());
     }

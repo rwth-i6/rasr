@@ -949,8 +949,8 @@ static const Core::ParameterString paramAlignmentPortName(
 struct NoneFeatureExtractor : public Speech::CorpusProcessor {
     typedef Speech::CorpusProcessor Precursor;
 
-    Core::Ref<Speech::DataSource> dataSource() const {
-        return Core::Ref<Speech::DataSource>();
+    std::shared_ptr<Speech::DataSource> dataSource() const {
+        return std::shared_ptr<Speech::DataSource>();
     }
 
     NoneFeatureExtractor(const Core::Configuration& c)

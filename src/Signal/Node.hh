@@ -40,7 +40,7 @@ public:
 protected:
     virtual void reset() {}
     virtual bool configure() {
-        Core::Ref<const Flow::Attributes> a = getInputAttributes(0);
+        std::shared_ptr<const Flow::Attributes> a = getInputAttributes(0);
         if (a) {
             std::list<const Flow::Datatype*>::const_iterator i;
             for (i = datatypes_.begin(); i != datatypes_.end(); i++)

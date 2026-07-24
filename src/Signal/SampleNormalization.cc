@@ -323,7 +323,7 @@ bool SampleNormalizationNode::setParameter(const std::string& name, const std::s
 }
 
 bool SampleNormalizationNode::configure() {
-    Core::Ref<const Attributes> a = getInputAttributes(0);
+    std::shared_ptr<const Attributes> a = getInputAttributes(0);
     if (!configureDatatype(a, Vector<f32>::type()))
         return false;
 

@@ -28,7 +28,7 @@ StatePosteriorFeatureScorerNode::StatePosteriorFeatureScorerNode(const Core::Con
 }
 
 bool StatePosteriorFeatureScorerNode::configure() {
-    Core::Ref<Flow::Attributes> attributes(new Flow::Attributes());
+    auto attributes = std::make_shared<Flow::Attributes>();
     getInputAttributes(0, *attributes);
     if (!configureDatatype(attributes, Feature::FlowFeature::type()))
         return false;

@@ -61,7 +61,7 @@ std::string NgramLinearSearch::LabelHypothesis::toString() const {
 const Core::ParameterInt NgramLinearSearch::paramMaxBeamSize(
         "max-beam-size",
         "Maximum number of hypotheses in the search beam.",
-        1);
+        Core::Type<Score>::max);
 
 const Core::ParameterFloat NgramLinearSearch::paramScoreThreshold(
         "score-threshold",
@@ -71,7 +71,7 @@ const Core::ParameterFloat NgramLinearSearch::paramScoreThreshold(
 const Core::ParameterInt NgramLinearSearch::paramNumHistogramBins(
         "num-histogram-bins",
         "Number of bins for histogram pruning of hypotheses.",
-        2);
+        100);
 
 const Core::ParameterInt NgramLinearSearch::paramBlankLabelIndex(
         "blank-label-index",

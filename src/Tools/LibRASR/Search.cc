@@ -45,6 +45,7 @@ void bindSearchAlgorithm(py::module_& module) {
     pyTracebackItem.def_readwrite("lemma", &TracebackItem::lemma);
     pyTracebackItem.def_readwrite("am_score", &TracebackItem::amScore);
     pyTracebackItem.def_readwrite("lm_score", &TracebackItem::lmScore);
+    pyTracebackItem.def_readwrite("sub_scores", &TracebackItem::subScores);
     pyTracebackItem.def_readwrite("start_time", &TracebackItem::startTime);
     pyTracebackItem.def_readwrite("end_time", &TracebackItem::endTime);
 
@@ -56,6 +57,16 @@ void bindSearchAlgorithm(py::module_& module) {
                 ss << "lemma='" << t.lemma << "'";
                 ss << ", am_score=" << t.amScore;
                 ss << ", lm_score=" << t.lmScore;
+                if (not t.subScores.empty()) {
+                    ss << ", sub_scores=[";
+                    for (size_t i = 0; i < t.subScores.size(); ++i) {
+                        if (i > 0) {
+                            ss << ", ";
+                        }
+                        ss << t.subScores[i];
+                    }
+                    ss << "]";
+                }
                 ss << ", start_time=" << t.startTime;
                 ss << ", end_time=" << t.endTime;
                 ss << ")>";

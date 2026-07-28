@@ -78,6 +78,16 @@ public:
         });
     }
 
+    // Individual score of each sub-scorer, in the same order as the `scorer-<n>` sub-configs
+    std::optional<std::vector<Score>> getSubScores(TransitionType transitionType, LabelIndex labelIndex = invalidLabelIndex) const override {
+        std::vector<Score> result;
+        result.reserve(subAccessors_.size());
+        for (auto const& subAccessor : subAccessors_) {
+            result.push_back(subAccessor->getScore(transitionType, labelIndex));
+        }
+        return result;
+    }
+
     std::optional<DenseScoreSpan> getDenseScores() const override {
         if (subAccessors_.empty()) {
             return std::nullopt;

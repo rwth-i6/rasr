@@ -63,6 +63,11 @@ public:
     Speech::TimeframeIndex           time;           // Ending time
     ScoreVector                      score;          // Absolute score
     Transit                          transit;        // Final transition description
+
+    // Optional absolute per-sub-scorer breakdown of the acoustic part of `score`, e.g. for a
+    // CombineLabelScorer with multiple sub-scorers. Empty if not populated by the search algorithm.
+    std::vector<Speech::Score> subAcousticScores;
+
     TracebackItem(const Bliss::LemmaPronunciation* p, Speech::TimeframeIndex t, ScoreVector s, Transit te)
             : pronunciation(p), time(t), score(s), transit(te) {}
 };

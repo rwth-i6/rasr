@@ -37,8 +37,18 @@ std::string NgramLinearSearch::LabelHypothesis::toString() const {
     std::stringstream ss;
 
     ss << "Score: " << score
-       << ", AM score: " << acousticScore
-       << ", total score: " << score
+       << ", AM score: " << acousticScore;
+    if (not subAcousticScores.empty()) {
+        ss << " (";
+        for (size_t i = 0ul; i < subAcousticScores.size(); ++i) {
+            if (i > 0ul) {
+                ss << ", ";
+            }
+            ss << "scorer-" << (i + 1ul) << ": " << subAcousticScores[i];
+        }
+        ss << ")";
+    }
+    ss << ", total score: " << score
        << ", timeframe: " << timeframe
        << ", traceback: ";
 
@@ -298,10 +308,12 @@ bool NgramLinearSearch::decodeStep() {
 
             Score amScore = 0.0;
             Speech::TimeframeIndex timeframe = hyp.timeframe;
+            std::optional<std::vector<Score>> amSubScores;
 
             if (labelScorer_->scoresTransition(transitionType)) {
                 amScore += (*scoreAccessor)->getScore(transitionType, nextToken);
                 timeframe = std::max(timeframe, (*scoreAccessor)->getTime());
+                amSubScores = (*scoreAccessor)->getSubScores(transitionType, nextToken);
             }
 
             Score newScore = hyp.score + amScore + lmScore;
@@ -337,6 +349,20 @@ bool NgramLinearSearch::decodeStep() {
             newHyp.acousticScore   = hyp.acousticScore + amScore;
             newHyp.lmHistory       = newLmHistory;
 
+            if (amSubScores) {
+                newHyp.subAcousticScores = hyp.subAcousticScores;
+                if (newHyp.subAcousticScores.empty()) {
+                    newHyp.subAcousticScores.assign(amSubScores->size(), 0.0);
+                }
+                verify(newHyp.subAcousticScores.size() == amSubScores->size());
+                for (size_t i = 0ul; i < amSubScores->size(); ++i) {
+                    newHyp.subAcousticScores[i] += (*amSubScores)[i];
+                }
+            }
+            else {
+                newHyp.subAcousticScores = hyp.subAcousticScores;
+            }
+
             Core::Ref<LatticeTrace> predecessor;
             if (transitionType == Nn::TransitionType::LABEL_LOOP or transitionType == Nn::TransitionType::BLANK_LOOP) {
                 predecessor = hyp.trace->predecessor;
@@ -351,6 +377,7 @@ bool NgramLinearSearch::decodeStep() {
                 newHyp.timeframe + 1,
                 {newHyp.acousticScore, newHyp.score - newHyp.acousticScore},
                 {}));
+            newHyp.trace->subAcousticScores = newHyp.subAcousticScores;
 
             if (inserted) {
                 newBeam_.push_back(std::move(newHyp));

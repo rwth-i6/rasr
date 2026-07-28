@@ -99,6 +99,7 @@ Traceback SearchAlgorithm::searchTracebackToPythonTraceback(Core::Ref<Search::Tr
                 .lemma     = it->pronunciation->lemma()->symbol(),
                 .amScore   = it->score.acoustic,
                 .lmScore   = it->score.lm,
+                .subScores = std::vector<f32>(it->subAcousticScores.begin(), it->subAcousticScores.end()),
                 .startTime = prevTime,
                 .endTime   = it->time,
         });

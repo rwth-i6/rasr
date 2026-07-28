@@ -29,6 +29,10 @@ Score ScoreAccessor::getScore(TransitionType transitionType, LabelIndex labelInd
     return 0.0;
 }
 
+std::optional<std::vector<Score>> ScoreAccessor::getSubScores(TransitionType transitionType, LabelIndex labelIndex) const {
+    return std::nullopt;
+}
+
 std::optional<DenseScoreSpan> ScoreAccessor::getDenseScores() const {
     return std::nullopt;
 }

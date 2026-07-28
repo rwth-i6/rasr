@@ -32,6 +32,17 @@ public:
         return base_->getScore(transitionType, labelIndex) * scale_;
     }
 
+    std::optional<std::vector<Score>> getSubScores(TransitionType transitionType, LabelIndex labelIndex = invalidLabelIndex) const override {
+        auto subScores = base_->getSubScores(transitionType, labelIndex);
+        if (not subScores) {
+            return std::nullopt;
+        }
+        for (auto& score : *subScores) {
+            score *= scale_;
+        }
+        return subScores;
+    }
+
     std::optional<DenseScoreSpan> getDenseScores() const override {
         auto denseScores = base_->getDenseScores();
         if (scale_ == 1.0 or not denseScores) {

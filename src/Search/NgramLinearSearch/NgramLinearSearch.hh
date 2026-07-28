@@ -114,6 +114,7 @@ protected:
         Speech::TimeframeIndex             timeframe;
         Score                              score;
         Score                              acousticScore;
+        std::vector<Score>                 subAcousticScores;  // per-sub-scorer breakdown of `acousticScore`, if available
         Core::Ref<LatticeTrace>            trace;
 
         LabelHypothesis();

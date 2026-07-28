@@ -77,6 +77,11 @@ class ScoreAccessor : public Core::ReferenceCounted {
 public:
     virtual Score getScore(TransitionType transitionType, LabelIndex labelIndex = invalidLabelIndex) const;
 
+    // Optional breakdown of `getScore` into the scores of the individual components that make up
+    // this accessor, e.g. the sub-scorers of a combined/scaled accessor. Returns `std::nullopt` for
+    // accessors that don't have such a decomposition (e.g. leaf accessors).
+    virtual std::optional<std::vector<Score>> getSubScores(TransitionType transitionType, LabelIndex labelIndex = invalidLabelIndex) const;
+
     // Optional contiguous score view over vocabulary for accessors that support it
     virtual std::optional<DenseScoreSpan> getDenseScores() const;
 

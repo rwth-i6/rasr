@@ -29,11 +29,12 @@
 namespace py = pybind11;
 
 struct TracebackItem {
-    std::string lemma;
-    f32         amScore;
-    f32         lmScore;
-    u32         startTime;
-    u32         endTime;
+    std::string      lemma;
+    f32              amScore;
+    f32              lmScore;
+    std::vector<f32> subScores;  // per-sub-scorer breakdown of `amScore`; empty if not available
+    u32              startTime;
+    u32              endTime;
 };
 
 typedef std::vector<TracebackItem> Traceback;

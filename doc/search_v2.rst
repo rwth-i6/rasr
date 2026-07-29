@@ -8,8 +8,7 @@ Attention encoder-decoder, ...). It replaces the acoustic feature scoring of the
 from which model topology the scores come from.
 
 This page describes SearchV2 from a user's perspective: which search algorithms and label scorers are available, how to
-configure them, and how to wire them into an Flf network or a ``librasr`` Python session. It does not require reading
-any C++ code.
+configure them, and how to wire them into an Flf network or a ``librasr`` Python session.
 
 .. contents::
    :local:
@@ -23,7 +22,7 @@ per use case, not globally.
 
 * **Classic search** (``Search::SearchAlgorithm``, mostly ``AdvancedTreeSearch``) drives the search with
   acoustic scores from a ``Mm::FeatureScorer`` (GMMs, hybrid NN/HMM). It is used by the :ref:`recognizer` Flf node
-  and by ``speech-recognizer``.
+  and by ``speech-recognizer`` binary.
 * **SearchV2** (``Search::SearchAlgorithmV2``) drives the search by pulling scores directly from one or more
   :ref:`label scorers <SearchV2 Label Scorers>` (typically wrapping an ONNX model). It is used by the
   :ref:`recognizer-v2` Flf node and by the ``librasr`` Python bindings.
@@ -56,7 +55,7 @@ whether it is invoked by the :ref:`recognizer-v2` node or by Python:
 #. Retrieve the final result, either as a single-best traceback or as a word lattice.
 
 Since features are pushed in and results are pulled out independently, the same algorithm implementation can
-be used both for offline decoding of a full corpus and for online/streaming decoding, without any change to
+be used both for offline/batch decoding and for online/streaming decoding, without any change to
 configuration.
 
 Search algorithms
@@ -70,13 +69,14 @@ and vocabulary you use:
 * ``lexiconfree-labelsync-beam-search``: label-synchronous decoding, no pronunciation lexicon required. Typical
   use case: attention encoder-decoder (AED) models and Speech LLMs.
 * ``tree-timesync-beam-search``: time-synchronous decoding over a pronunciation lexicon search tree, with a
-  word-level language model. The topology of the tree itself (HMM, CTC, RNA, AED, ...) is a separate choice,
+  word-level language model. The topology of the tree itself (HMM, CTC, RNA, ...) is a separate choice,
   see :ref:`Search tree types` below.
 * ``tree-labelsync-beam-search``: label-synchronous counterpart to ``tree-timesync-beam-search``, decoding over
   a pronunciation lexicon search tree built with the ``aed`` tree builder, with a word-level language model.
 
-The "lexiconfree" searches treat every entry of the lexicon as a single output token and do not build a
-pronunciation search tree or apply a word-level transition model.
+The "lexiconfree" searches technically still require a lexicon containing the output vocabulary. However, they do
+not build a pronunciation search tree or apply a word-level transition model. For details on the lexicon,
+see :ref:`Lexicon requirements`.
 The "tree" searches (also called lexicon-constrained) build a prefix tree from the pronunciation lexicon
 and additionally scores a language model at word ends.
 
@@ -84,18 +84,19 @@ Lexicon requirements
 ^^^^^^^^^^^^^^^^^^^^^
 
 Even though the "lexiconfree" searches do not build a lexical prefix tree, a lexicon is still required.
-Each lemma is treated as one output label and the lemma's index in the lexicon must match the corresponding
-output index of the label scorer (e.g. the softmax index of a CTC/transducer/AED model). ``blank-label-index``,
-``silence-label-index`` and ``sentence-end-label-index`` (see below) are likewise resolved as the ``id()`` of the
-lemma marked ``special="blank"``/``"silence"``/``"sentence-end"``/``"sentence-boundary"`` respectively.
+Each lemma in the lexicon is treated as one output label and the lemma's index in the lexicon must match the
+corresponding output index of the label scorer (e.g. the softmax index of a CTC/transducer/AED model).
+``blank-label-index``, ``silence-label-index`` and ``sentence-end-label-index`` (see below) are likewise resolved
+as the ``id()`` of the lemma marked ``special="blank"``/``"silence"``/``"sentence-end"``/``"sentence-boundary"``
+respectively.
 
 There are two ways to provide such a lexicon:
 
-* A full Bliss XML lexicon (``file = /path/to/lexicon.xml.gz``, the default ``xml`` format). Here it is the
-  responsibility of whoever writes the lexicon to declare the phoneme inventory and the lemma list in the same
-  order, so that the Nth lemma corresponds to the Nth phoneme/output label -- this correspondence is *not*
-  verified at runtime, so a mismatch will silently produce wrong labels rather than an error. For example, a
-  minimal 3-label lexicon (labels ``A``, ``B``, ``C``, at output indices 0, 1, 2 respectively) looks like this:
+* A full Bliss XML lexicon. Here it is the responsibility of whoever writes the lexicon to declare the phoneme
+  inventory and the lemma list in the same order, so that the Nth lemma corresponds to the Nth phoneme/output label
+  -- this correspondence is *not* verified at runtime, so a mismatch will silently produce wrong labels rather than
+  an error. For example, a minimal 3-label lexicon (labels ``A``, ``B``, ``C``, at output indices 0, 1, 2 respectively)
+  looks like this:
 
   .. code-block:: xml
 
@@ -154,8 +155,8 @@ There are two ways to provide such a lexicon:
   ``vocab-text``/``vocab-txt`` lexicon and must be passed explicitly as parameters to the search algorithm instead.
 
 The "tree" searches, in contrast, always need a full pronunciation lexicon (the ``xml`` format). They build the
-prefix search tree directly from its pronunciations, so the ``vocab-text``/``vocab-txt`` format does not apply
-there.
+prefix search tree directly from its pronunciations, so the ``vocab-text``/``vocab-txt`` format is not suitable
+for them.
 
 Selecting an algorithm
 ^^^^^^^^^^^^^^^^^^^^^^^
@@ -403,7 +404,7 @@ listed below. Note that ``minimized-hmm``/``previousBehavior`` is still the code
 Multiple label scorers and per-stage parameters
 ------------------------------------------------
 
-All three algorithms can use more than one label scorer at once (e.g. an acoustic model scorer plus a separate
+All new search algorithms can use more than one label scorer at once (e.g. an acoustic model scorer plus a separate
 language model scorer), applied one after another with pruning in between. The number of label scorers is set
 independently via ``num-label-scorers`` (see below); ``max-beam-size`` and ``score-threshold`` then take one
 value **per label scorer**, separated by whitespace, applied in the same order the label scorers are scored:
@@ -415,8 +416,11 @@ value **per label scorer**, separated by whitespace, applied in the same order t
     score-threshold = 20.0 14.0
 
 Here the beam is pruned to 2400 hypotheses (with a score threshold of 20.0) after the first label scorer, and
-further pruned to 1200 hypotheses (score threshold 14.0) after the second. If only a single value is given, it is
-used after the (only) label scorer.
+further pruned to 1200 hypotheses (score threshold 14.0) after the second. The values are *not* repeated across
+stages. ``max-beam-size`` must have exactly one value per label scorer -- fewer values than label scorers is an
+error, more is just a warning about unused trailing values. ``score-threshold`` is more lenient, any label scorer
+stage without a corresponding value gets no score-threshold pruning at all (rather than reusing the last given value).
+With a single label scorer, a single value is of course sufficient for both parameters.
 
 .. _SearchV2 Label Scorers:
 
@@ -437,7 +441,7 @@ instances, configured under the ``label-scorer`` selector (or ``label-scorer-1``
     scale             = 1.0
     ; further label-scorer specific parameters, e.g. ONNX model file, I/O tensor names, ...
 
-Every label scorer constructed this way (whatever its ``type``) is automatically wrapped in a
+Every label scorer constructed this way (whatever its ``type``) is automatically wrapped in an
 ``Nn::ScaledLabelScorer``, so a log-linear ``scale`` (float, default ``1.0``) is always available as a
 parameter on the same selector, e.g. ``*.search-algorithm.label-scorer.scale``.
 
@@ -610,19 +614,6 @@ encoder output. It automatically handles passing encoder output into the decoder
 ``encoder-only`` is the same idea without a "real" decoder: the encoder output *is* the score (wrapped in a
 trivial pass-through decoder), used when encoder and output/CTC layer are exported as a single ONNX graph.
 
-* ``encoder.type`` (``onnx``/``chunked-onnx``): which encoder implementation to use. Default ``onnx``.
-* ``encoder.onnx-model.*`` : the encoder's ONNX model, configured like ``onnx-model`` above.
-* ``encoder.inputs-per-output`` (int): number of input features consumed per encoder output frame (e.g. for a
-  subsampling encoder). ``0`` infers this at runtime. Default ``0``.
-* ``encoder.input-step-size`` (int): shift in input features between consecutive encoder outputs; ``0`` copies
-  the value from ``inputs-per-output``. Default ``0``.
-* For ``chunked-onnx`` additionally: ``encoder.chunk-size`` / ``step-size`` (int, in input features, default
-  ``1`` each) define how the input is split into overlapping chunks fed through the encoder separately (useful
-  to bound memory/latency for long or streaming inputs); ``left-padding`` / ``right-padding`` (int, default
-  ``0`` each) pad each chunk with additional context on either side; ``zero-padding`` (bool, default ``false``)
-  pads the first/last chunk with zeros to a uniform size; ``window-type`` (default ``triangular``) and
-  ``interpolation-mode`` (default ``no-interpolation``) control how overlapping chunk outputs are blended back
-  together.
 * ``decoder.*`` : configuration of the wrapped decoder label scorer (``encoder-decoder`` only), same
   parameters as the chosen ``decoder.type`` label scorer.
 
@@ -630,14 +621,70 @@ trivial pass-through decoder), used when encoder and output/CTC layer are export
 
     [*.search-algorithm.label-scorer]
     type                            = encoder-decoder
-    encoder.type                    = chunked-onnx
-    encoder.chunk-size              = 50
-    encoder.step-size               = 25
-    encoder.left-padding            = 10
-    encoder.right-padding           = 5
+    encoder.type                    = onnx
     encoder.onnx-model.session.file = /path/to/encoder.onnx
     decoder.type                    = state-managed-onnx
     decoder.onnx-model.session.file = /path/to/decoder.onnx
+
+Encoders
+""""""""
+
+The encoder is its own class (``Nn::Encoder``), separate from ``Nn::LabelScorer``: ``encoder-decoder`` and
+``encoder-only`` each construct their own ``Nn::Encoder`` instance, configured under the ``encoder``
+sub-selector. Common to every encoder type:
+
+* ``encoder.type`` (enum): which encoder implementation to use. Default ``onnx``.
+* ``encoder.inputs-per-output`` (int): number of input features consumed per encoder output frame (e.g. for a
+  subsampling encoder). ``0`` infers this at runtime. Default ``0``.
+* ``encoder.input-step-size`` (int): shift in input features between consecutive encoder outputs; ``0`` copies
+  the value from ``inputs-per-output``. Default ``0``.
+
+onnx encoder
+~~~~~~~~~~~~
+
+Forwards the full input sequence through a single ONNX model in one call.
+
+* ``encoder.onnx-model.*`` : the encoder's ONNX model, following the same :ref:`ONNX model configuration`
+  pattern as the ``*-onnx`` label scorers.
+
+.. code-block:: ini
+
+    [*.search-algorithm.label-scorer.encoder]
+    type                    = onnx
+    onnx-model.session.file = /path/to/encoder.onnx
+
+chunked-onnx encoder
+~~~~~~~~~~~~~~~~~~~~
+
+Like ``onnx``, but splits the input into overlapping chunks forwarded through the encoder separately, useful
+to bound memory/latency for long or streaming inputs.
+
+* ``encoder.onnx-model.*`` : as for ``onnx``.
+* ``encoder.chunk-size`` / ``step-size`` (int, in input features): size of and shift between consecutive
+  chunks. Default ``1`` each.
+* ``encoder.left-padding`` / ``right-padding`` (int): additional context padded onto each chunk on either side.
+  Default ``0`` each.
+* ``encoder.zero-padding`` (bool): whether to pad the first/last chunk with zeros to a uniform size. Default
+  ``false``.
+* ``encoder.window-type`` (enum): weighting window used to blend overlapping chunk outputs back together.
+  Default ``triangular``.
+* ``encoder.interpolation-mode`` (enum): how overlapping chunk outputs are interpolated. Default
+  ``no-interpolation``.
+
+.. code-block:: ini
+
+    [*.search-algorithm.label-scorer.encoder]
+    type                    = chunked-onnx
+    chunk-size              = 50
+    step-size               = 25
+    left-padding            = 10
+    right-padding           = 5
+    onnx-model.session.file = /path/to/encoder.onnx
+
+torch encoder
+~~~~~~~~~~~~~
+
+``encoder.type = torch``. TODO.
 
 ctc-prefix
 ^^^^^^^^^^^
@@ -652,7 +699,8 @@ AED and a CTC model at the label level.
   but should always be set explicitly to match your vocabulary.
 * ``vocab-size`` (int): number of labels in the wrapped CTC scorer's vocabulary. Default ``0``, but must be set
   explicitly -- a default of ``0`` produces a degenerate, empty score matrix.
-* ``label-scorer.*`` : configuration of the wrapped time-synchronous CTC label scorer (nested selector).
+* ``label-scorer.*`` : configuration of the wrapped time-synchronous CTC label scorer (nested selector), most likely
+  :ref:`no-context-onnx`, configured the same way as under a top-level ``label-scorer`` selector.
 
 .. code-block:: ini
 
@@ -668,7 +716,7 @@ combine
 
 Log-linearly combines multiple sub-label-scorers into a single one, assuming all sub-scorers share the same
 label alphabet: ``combined_score = sum_i(score_i * scale_i)``. The combined timeframe is the maximum over the
-sub-scorers' timeframes. This is the usual way to log-linearly combine e.g. an acoustic model scorer and a
+sub-scorers' timeframes. In this way, one can log-linearly combine e.g. an acoustic model scorer and a
 neural language model scorer inside one label-scorer "stage" (as opposed to using two separate
 ``num-label-scorers`` stages with pruning in between).
 
@@ -696,10 +744,30 @@ transition
 
 Returns a fixed, configured score for each transition type, independent of any input features or label
 history. Useful to model e.g. label-loop penalties or blank/word/sentence-end exit penalties analogous to HMM
-transition penalties, without needing a model to produce them. Recognized transition types are
-``label-to-label``, ``label-loop``, ``label-to-blank``, ``blank-to-label``, ``blank-loop``,
-``label-to-silence``, ``silence-to-label``, ``silence-loop``, ``initial-label``, ``initial-blank``,
-``initial-silence``, ``word-exit``, ``nonword-exit``, ``silence-exit`` and ``sentence-end``.
+transition penalties, without needing a model to produce them. Recognized transition types, grouped by the state
+the transition originates from:
+
+* from a regular label:
+
+  * ``label-to-label``, ``label-loop``, ``label-to-blank``, ``label-to-silence``
+
+* from blank:
+
+  * ``blank-to-label``, ``blank-loop``
+
+* from silence:
+
+  * ``silence-to-label``, ``silence-loop``
+
+* at the start of a segment, when there is no previous label yet:
+
+  * ``initial-label``, ``initial-blank``, ``initial-silence``
+
+* at a word/segment boundary:
+
+  * ``word-exit``, ``nonword-exit``, ``silence-exit``, ``sentence-end``
+
+Configuration:
 
 * ``<transition-type>-score`` (float): fixed score for the given transition type, e.g. ``label-loop-score``.
   Any transition type not explicitly set defaults to a score of ``0.0``.
@@ -982,10 +1050,9 @@ scorer, or used as the ``decoder`` of an ``encoder-decoder`` label scorer.
 * ``librasr.register_label_scorer_type(name, label_scorer_cls)`` : register ``label_scorer_cls`` (a subclass of
   ``librasr.LabelScorer``) under ``name``, making it selectable via ``label-scorer.type = <name>`` in any config
   from then on, for the lifetime of the process.
-* ``librasr.TransitionType`` : enum mirroring the C++ ``Nn::TransitionType`` values used elsewhere in this
-  document (``LABEL_TO_LABEL``, ``LABEL_LOOP``, ``LABEL_TO_BLANK``, ``BLANK_TO_LABEL``, ``BLANK_LOOP``,
-  ``LABEL_TO_SILENCE``, ``SILENCE_TO_LABEL``, ``SILENCE_LOOP``, ``INITIAL_LABEL``, ``INITIAL_BLANK``,
-  ``INITIAL_SILENCE``, ``WORD_EXIT``, ``NONWORD_EXIT``, ``SILENCE_EXIT``, ``SENTENCE_END``).
+* ``librasr.TransitionType`` : enum mirroring the C++ ``Nn::TransitionType`` values, with the same transition
+  types as listed under :ref:`transition` above, but as ``SCREAMING_SNAKE_CASE`` enum members instead of
+  hyphenated strings, e.g. ``label-to-label`` becomes ``librasr.TransitionType.LABEL_TO_LABEL``.
 * Required overrides on a ``librasr.LabelScorer`` subclass: ``reset``, ``signal_no_more_features``,
   ``get_initial_scoring_context``, ``allowed_transition_types``, ``extended_scoring_context``, ``add_inputs``,
   ``compute_scores_with_times`` (signatures shown in the example above).

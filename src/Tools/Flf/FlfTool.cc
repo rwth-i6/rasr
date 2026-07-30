@@ -37,6 +37,9 @@
 #ifdef MODULE_TENSORFLOW
 #include <Tensorflow/Module.hh>
 #endif
+#ifdef MODULE_TORCH
+#include <Torch/Module.hh>
+#endif
 
 class FlfTool : public Core::Application {
 private:
@@ -114,6 +117,9 @@ public:
 #endif
 #ifdef MODULE_TENSORFLOW
         INIT_MODULE(Tensorflow);
+#endif
+#ifdef MODULE_TORCH
+        INIT_MODULE(Torch);
 #endif
         setTitle("flf-lattice-tool");
         setDefaultLoadConfigurationFile(false);

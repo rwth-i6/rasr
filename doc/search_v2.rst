@@ -455,7 +455,7 @@ Built-in label scorer types include:
 
 * ``no-context-onnx``, ``fixed-context-onnx``, ``stateful-onnx``, ``state-managed-onnx``: forward
   features (and, depending on type, label history/hidden state) through an ONNX model.
-* ``encoder-decoder`` / ``encoder-only``: wrap a separate encoder (see ``encoder`` sub-selector) that
+* ``encoder-decoder`` / ``encoder-only``: wrap a separate encoder (see :ref:`Encoders` below) that
   pre-processes features, combined with a decoder label scorer (or no decoder, for encoder-only models).
 * ``ctc-prefix``: wraps a time-synchronous CTC scorer and derives label-synchronous prefix scores from it
   (useful with ``lexiconfree-labelsync-beam-search``).
@@ -532,8 +532,8 @@ have no ``transition-preset`` of their own and always report whichever transitio
 ONNX model configuration
 ^^^^^^^^^^^^^^^^^^^^^^^^^
 
-The four ``*-onnx`` label scorers below (and the ``onnx``/``chunked-onnx`` encoders used by
-``encoder-decoder``/``encoder-only``) all wrap one or more ONNX Runtime sessions and share the same
+The four ``*-onnx`` label scorers below (and the ``onnx``/``chunked-onnx`` :ref:`encoders <Encoders>` used by
+:ref:`encoder-decoder / encoder-only`) all wrap one or more ONNX Runtime sessions and share the same
 sub-configuration pattern for each wrapped model, under a model-specific selector (e.g. ``onnx-model`` for the
 single-model scorers):
 
@@ -678,6 +678,7 @@ encoder output. It automatically handles passing encoder output into the decoder
 ``encoder-only`` is the same idea without a "real" decoder: the encoder output *is* the score (wrapped in a
 trivial pass-through decoder), used when encoder and output/CTC layer are exported as a single ONNX graph.
 
+* ``encoder.*`` : configuration of the wrapped encoder, see :ref:`Encoders` below.
 * ``decoder.*`` : configuration of the wrapped decoder label scorer (``encoder-decoder`` only), same
   parameters as the chosen ``decoder.type`` label scorer.
 * No :ref:`transition-preset <Transition types and presets>` of their own -- always report whichever transition
@@ -691,66 +692,6 @@ trivial pass-through decoder), used when encoder and output/CTC layer are export
     encoder.onnx-model.session.file = /path/to/encoder.onnx
     decoder.type                    = state-managed-onnx
     decoder.onnx-model.session.file = /path/to/decoder.onnx
-
-Encoders
-""""""""
-
-The encoder is its own class (``Nn::Encoder``), separate from ``Nn::LabelScorer``: ``encoder-decoder`` and
-``encoder-only`` each construct their own ``Nn::Encoder`` instance, configured under the ``encoder``
-sub-selector. Common to every encoder type:
-
-* ``encoder.type`` (enum): which encoder implementation to use. Default ``onnx``.
-* ``encoder.inputs-per-output`` (int): number of input features consumed per encoder output frame (e.g. for a
-  subsampling encoder). ``0`` infers this at runtime. Default ``0``.
-* ``encoder.input-step-size`` (int): shift in input features between consecutive encoder outputs; ``0`` copies
-  the value from ``inputs-per-output``. Default ``0``.
-
-onnx encoder
-~~~~~~~~~~~~
-
-Forwards the full input sequence through a single ONNX model in one call.
-
-* ``encoder.onnx-model.*`` : the encoder's ONNX model, following the same :ref:`ONNX model configuration`
-  pattern as the ``*-onnx`` label scorers.
-
-.. code-block:: ini
-
-    [*.search-algorithm.label-scorer.encoder]
-    type                    = onnx
-    onnx-model.session.file = /path/to/encoder.onnx
-
-chunked-onnx encoder
-~~~~~~~~~~~~~~~~~~~~
-
-Like ``onnx``, but splits the input into overlapping chunks forwarded through the encoder separately, useful
-to bound memory/latency for long or streaming inputs.
-
-* ``encoder.onnx-model.*`` : as for ``onnx``.
-* ``encoder.chunk-size`` / ``step-size`` (int, in input features): size of and shift between consecutive
-  chunks. Default ``1`` each.
-* ``encoder.left-padding`` / ``right-padding`` (int): additional context padded onto each chunk on either side.
-  Default ``0`` each.
-* ``encoder.zero-padding`` (bool): whether to pad the first/last chunk with zeros to a uniform size. Default
-  ``false``.
-* ``encoder.window-type`` (enum): weighting window used to blend overlapping chunk outputs back together.
-  Default ``triangular``.
-* ``encoder.interpolation-mode`` (enum): how overlapping chunk outputs are interpolated. Default
-  ``no-interpolation``.
-
-.. code-block:: ini
-
-    [*.search-algorithm.label-scorer.encoder]
-    type                    = chunked-onnx
-    chunk-size              = 50
-    step-size               = 25
-    left-padding            = 10
-    right-padding           = 5
-    onnx-model.session.file = /path/to/encoder.onnx
-
-torch encoder
-~~~~~~~~~~~~~
-
-``encoder.type = torch``. TODO.
 
 ctc-prefix
 ^^^^^^^^^^^
@@ -854,6 +795,66 @@ and/or subtracting a prior from it, which is useful e.g. to convert posteriors i
     negate-input = true
     prior-file   = /path/to/prior.xml
     priori-scale = 0.3
+
+Encoders
+--------
+
+The encoder is its own class (``Nn::Encoder``), separate from ``Nn::LabelScorer``. The
+:ref:`encoder-decoder / encoder-only` label scorer types each construct their own ``Nn::Encoder`` instance,
+configured under the ``encoder`` sub-selector. Common to every encoder type:
+
+* ``encoder.type`` (enum): which encoder implementation to use, see the subsections below. Default ``onnx``.
+* ``encoder.inputs-per-output`` (int): number of input features consumed per encoder output frame (e.g. for a
+  subsampling encoder). ``0`` infers this at runtime. Default ``0``.
+* ``encoder.input-step-size`` (int): shift in input features between consecutive encoder outputs; ``0`` copies
+  the value from ``inputs-per-output``. Default ``0``.
+
+onnx encoder
+^^^^^^^^^^^^
+
+Forwards the full input sequence through a single ONNX model in one call.
+
+* ``encoder.onnx-model.*`` : the encoder's ONNX model, following the same :ref:`ONNX model configuration`
+  pattern as the ``*-onnx`` label scorers.
+
+.. code-block:: ini
+
+    [*.search-algorithm.label-scorer.encoder]
+    type                    = onnx
+    onnx-model.session.file = /path/to/encoder.onnx
+
+chunked-onnx encoder
+^^^^^^^^^^^^^^^^^^^^
+
+Like ``onnx``, but splits the input into overlapping chunks forwarded through the encoder separately, useful
+to bound memory/latency for long or streaming inputs.
+
+* ``encoder.onnx-model.*`` : as for ``onnx``.
+* ``encoder.chunk-size`` / ``step-size`` (int, in input features): size of and shift between consecutive
+  chunks. Default ``1`` each.
+* ``encoder.left-padding`` / ``right-padding`` (int): additional context padded onto each chunk on either side.
+  Default ``0`` each.
+* ``encoder.zero-padding`` (bool): whether to pad the first/last chunk with zeros to a uniform size. Default
+  ``false``.
+* ``encoder.window-type`` (``none``/``triangular``/``hamming``): weighting window used to blend overlapping
+  chunk outputs back together. Default ``triangular``.
+* ``encoder.interpolation-mode`` (``no-interpolation``/``linear``/``log-linear``/``neglog-linear``): how
+  overlapping chunk outputs are interpolated. Default ``no-interpolation``.
+
+.. code-block:: ini
+
+    [*.search-algorithm.label-scorer.encoder]
+    type                    = chunked-onnx
+    chunk-size              = 50
+    step-size               = 25
+    left-padding            = 10
+    right-padding           = 5
+    onnx-model.session.file = /path/to/encoder.onnx
+
+torch encoder
+^^^^^^^^^^^^^
+
+``encoder.type = torch``. TODO.
 
 Running SearchV2 in an Flf network
 ------------------------------------

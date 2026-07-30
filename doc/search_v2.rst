@@ -470,6 +470,65 @@ Label scorer configuration is its own (large) topic. The essential thing to know
 
 The rest of this section describes each built-in label scorer type in more detail.
 
+Transition types and presets
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+Every label scorer -- not just :ref:`transition` -- decides, per transition, whether it contributes a score for
+it at all. If a transition type is not enabled for a given label scorer, that scorer is simply skipped for
+extensions of that type, so as if it contributed a score of ``0.0``. This is what lets e.g. a label scorer for an
+acoustic model stay silent at word-end transitions while a label scorer for a language mode stays silent at
+within-word  transitions, without either needing to know about the other.
+
+Recognized transition types, grouped by the state the transition originates from:
+
+* from a regular label:
+
+  * ``label-to-label``, ``label-loop``, ``label-to-blank``, ``label-to-silence``
+
+* from blank:
+
+  * ``blank-to-label``, ``blank-loop``
+
+* from silence:
+
+  * ``silence-to-label``, ``silence-loop``
+
+* at the start of a segment, when there is no previous label yet:
+
+  * ``initial-label``, ``initial-blank``, ``initial-silence``
+
+* at a word/segment boundary:
+
+  * ``word-exit``, ``nonword-exit``, ``silence-exit``, ``sentence-end``
+
+Which of these are enabled for a given label scorer is controlled by two parameters available on every label
+scorer:
+
+* ``transition-preset`` (``none``/``all``/``ctc``/``transducer``/``aed``/``lm``/``hmm``): selects a predefined
+  set of enabled transition types, see below. Default depends on the label scorer type.
+* ``extra-transition-types`` (comma-separated list of transition type names): additional transition types
+  enabled on top of the preset. Default: unset, i.e. no additional types.
+
+There is no way to *remove* individual types from a preset -- to enable an arbitrary custom set, set
+``transition-preset = none`` and list the exact set of types via ``extra-transition-types`` instead.
+
+Available presets and the transition types each of them enables:
+
+* ``ctc``: ``label-to-label``, ``label-loop``, ``label-to-blank``, ``blank-to-label``, ``blank-loop``,
+  ``initial-label``, ``initial-blank``.
+* ``transducer``: ``label-to-label``, ``label-to-blank``, ``blank-to-label``, ``blank-loop``, ``initial-label``,
+  ``initial-blank``.
+* ``lm`` / ``aed``: ``label-to-label``, ``blank-to-label``, ``initial-label``, ``sentence-end``.
+* ``hmm``: ``label-to-label``, ``label-loop``, ``label-to-silence``, ``silence-to-label``, ``silence-loop``,
+  ``initial-label``, ``initial-silence``.
+* ``all``: every transition type.
+* ``none``: no transition types enabled.
+
+Each built-in label scorer type ships with its own default preset, chosen to match how that type is typically
+used -- noted in that type's own section below. ``encoder-decoder``/``encoder-only`` are the one exception: they
+have no ``transition-preset`` of their own and always report whichever transition types their wrapped
+``decoder`` label scorer enables.
+
 ONNX model configuration
 ^^^^^^^^^^^^^^^^^^^^^^^^^
 
@@ -505,6 +564,7 @@ single ``encoder-only`` label scorer instead.
 
 * ``onnx-model.io-map.input-feature`` : ONNX tensor name that receives the input feature. No default -- required.
 * ``onnx-model.io-map.scores`` : ONNX tensor name of the resulting score vector. No default -- required.
+* Default :ref:`transition-preset <Transition types and presets>`: ``ctc``.
 
 .. code-block:: ini
 
@@ -532,6 +592,7 @@ history instead of a recurrent state.
   the time step (relevant for certain transducer topologies). Default ``false``.
 * ``max-batch-size`` (int): maximum number of histories forwarded through the ONNX model in one call, hypotheses
   beyond this are split into further calls. Default unbounded.
+* Default :ref:`transition-preset <Transition types and presets>`: ``transducer``.
 
 .. code-block:: ini
 
@@ -566,6 +627,7 @@ stateful (recurrent) language model.
 * ``max-batch-size`` (int): maximum number of hidden states forwarded through the scorer model at once. Default unbounded.
 * ``max-cached-score-vectors`` (int): size of an LRU cache mapping scoring contexts to already-computed score
   vectors, to avoid recomputation and bound memory use on very long segments. Default ``1000``.
+* Default :ref:`transition-preset <Transition types and presets>`: ``lm``.
 
 .. code-block:: ini
 
@@ -596,6 +658,7 @@ caches (splitting/merging/rebasing state across beam search steps) without quadr
 * ``blank-updates-history`` / ``silence-updates-history`` / ``loop-updates-history`` (bool): as above. Default ``false``.
 * ``max-batch-size`` (int): maximum number of scoring contexts forwarded through the ONNX model at once. Default unbounded.
 * ``max-cached-score-vectors`` (int): size of the score-vector cache, as for ``stateful-onnx``.
+* Default :ref:`transition-preset <Transition types and presets>`: ``lm``.
 
 .. code-block:: ini
 
@@ -616,6 +679,8 @@ trivial pass-through decoder), used when encoder and output/CTC layer are export
 
 * ``decoder.*`` : configuration of the wrapped decoder label scorer (``encoder-decoder`` only), same
   parameters as the chosen ``decoder.type`` label scorer.
+* No :ref:`transition-preset <Transition types and presets>` of its own -- always reports whichever transition
+  types the wrapped ``decoder`` label scorer enables.
 
 .. code-block:: ini
 
@@ -701,6 +766,7 @@ AED and a CTC model at the label level.
   explicitly -- a default of ``0`` produces a degenerate, empty score matrix.
 * ``label-scorer.*`` : configuration of the wrapped time-synchronous CTC label scorer (nested selector), most likely
   :ref:`no-context-onnx`, configured the same way as under a top-level ``label-scorer`` selector.
+* Default :ref:`transition-preset <Transition types and presets>`: ``lm``.
 
 .. code-block:: ini
 
@@ -726,6 +792,7 @@ neural language model scorer inside one label-scorer "stage" (as opposed to usin
 * ``scorer-<i>.scale`` (float): log-linear weight of the ``i``-th sub-scorer's score. This is just the same
   implicit ``scale`` parameter every label scorer has (see :ref:`SearchV2 Label Scorers` above), applied here
   once per sub-scorer since each ``scorer-<i>`` is itself a full label scorer. Default ``1.0``.
+* Default :ref:`transition-preset <Transition types and presets>`: ``all``.
 
 .. code-block:: ini
 
@@ -744,33 +811,12 @@ transition
 
 Returns a fixed, configured score for each transition type, independent of any input features or label
 history. Useful to model e.g. label-loop penalties or blank/word/sentence-end exit penalties analogous to HMM
-transition penalties, without needing a model to produce them. Recognized transition types, grouped by the state
-the transition originates from:
-
-* from a regular label:
-
-  * ``label-to-label``, ``label-loop``, ``label-to-blank``, ``label-to-silence``
-
-* from blank:
-
-  * ``blank-to-label``, ``blank-loop``
-
-* from silence:
-
-  * ``silence-to-label``, ``silence-loop``
-
-* at the start of a segment, when there is no previous label yet:
-
-  * ``initial-label``, ``initial-blank``, ``initial-silence``
-
-* at a word/segment boundary:
-
-  * ``word-exit``, ``nonword-exit``, ``silence-exit``, ``sentence-end``
-
-Configuration:
+transition penalties, without needing a model to produce them. See :ref:`Transition types and presets` above for
+the full list of recognized types.
 
 * ``<transition-type>-score`` (float): fixed score for the given transition type, e.g. ``label-loop-score``.
   Any transition type not explicitly set defaults to a score of ``0.0``.
+* Default :ref:`transition-preset <Transition types and presets>`: ``all``.
 
 .. code-block:: ini
 
@@ -798,6 +844,7 @@ and/or subtracting a prior from it, which is useful e.g. to convert posteriors i
   this unset does *not* by itself disable the prior -- set ``priori-scale = 0.0`` explicitly to disable it without
   providing a file.
 * ``priori-scale`` (float): log-linear scale applied to the prior before subtracting it from the score. Default ``1.0``.
+* Default :ref:`transition-preset <Transition types and presets>` (both ``no-op`` and ``prior``): ``ctc``.
 
 .. code-block:: ini
 
@@ -1051,8 +1098,8 @@ scorer, or used as the ``decoder`` of an ``encoder-decoder`` label scorer.
   ``librasr.LabelScorer``) under ``name``, making it selectable via ``label-scorer.type = <name>`` in any config
   from then on, for the lifetime of the process.
 * ``librasr.TransitionType`` : enum mirroring the C++ ``Nn::TransitionType`` values, with the same transition
-  types as listed under :ref:`transition` above, but as ``SCREAMING_SNAKE_CASE`` enum members instead of
-  hyphenated strings, e.g. ``label-to-label`` becomes ``librasr.TransitionType.LABEL_TO_LABEL``.
+  types as listed under :ref:`Transition types and presets` above, but as ``SCREAMING_SNAKE_CASE`` enum members
+  instead of hyphenated strings, e.g. ``label-to-label`` becomes ``librasr.TransitionType.LABEL_TO_LABEL``.
 * Required overrides on a ``librasr.LabelScorer`` subclass: ``reset``, ``signal_no_more_features``,
   ``get_initial_scoring_context``, ``allowed_transition_types``, ``extended_scoring_context``, ``add_inputs``,
   ``compute_scores_with_times`` (signatures shown in the example above).

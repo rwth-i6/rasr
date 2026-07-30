@@ -1,13 +1,13 @@
 SearchV2 Framework
 ===================
 
-SearchV2 is RASR's newer decoding framework for neural, end-to-end style recognizers (CTC, RNN-T/transducer,
+``SearchV2`` is RASR's newer decoding framework for neural, end-to-end style recognizers (CTC, RNN-T/transducer,
 Attention encoder-decoder, ...). It replaces the acoustic feature scoring of the classic
 :ref:`Decoder` (``Search::SearchAlgorithm`` + ``Mm::FeatureScorer``) with a self-contained
 :ref:`label scorer <SearchV2 Label Scorers>` abstraction, so the search algorithm itself no longer needs to know
 from which model topology the scores come from.
 
-This page describes SearchV2 from a user's perspective: which search algorithms and label scorers are available, how to
+This page describes ``SearchV2`` from a user's perspective: which search algorithms and label scorers are available, how to
 configure them, and how to wire them into an Flf network or a ``librasr`` Python session.
 
 .. contents::
@@ -22,12 +22,12 @@ per use case, not globally.
 
 * **Classic search** (``Search::SearchAlgorithm``, mostly ``AdvancedTreeSearch``) drives the search with
   acoustic scores from a ``Mm::FeatureScorer`` (GMMs, hybrid NN/HMM). It is used by the :ref:`recognizer` Flf node
-  and by ``speech-recognizer`` binary.
+  and by the ``speech-recognizer`` binary.
 * **SearchV2** (``Search::SearchAlgorithmV2``) drives the search by pulling scores directly from one or more
   :ref:`label scorers <SearchV2 Label Scorers>` (typically wrapping an ONNX model). It is used by the
   :ref:`recognizer-v2` Flf node and by the ``librasr`` Python bindings.
 
-Use SearchV2 if your acoustic/language model is a neural end-to-end model (CTC, transducer, attention
+Use ``SearchV2`` if your acoustic/language model is a neural end-to-end model (CTC, transducer, attention
 encoder-decoder).
 Use the classic search for GMM or hybrid NN/HMM systems, or when you need one of the more specialized classic
 searches (WFST-based search, linear search, ...).
@@ -36,14 +36,14 @@ Both frameworks produce the same kind of output (a single-best traceback and/or 
 downstream lattice processing (rescoring, CTM writing, ...) works the same way regardless of which search
 produced the lattice.
 
-The SearchV2 framework is intentionally kept simple. Instead of one large monolithic search implementation with
+The ``SearchV2`` framework is intentionally kept simple. Instead of one large monolithic search implementation with
 many different configuration options, it contains smaller, more specialized search algorithms for different use-cases
 and various label scorers for different models.
 
 Core workflow
 -------------
 
-Every SearchV2 algorithm implements the ``Search::SearchAlgorithmV2`` interface and is driven the same way,
+Every ``SearchV2`` algorithm implements the ``Search::SearchAlgorithmV2`` interface and is driven the same way,
 whether it is invoked by the :ref:`recognizer-v2` node or by Python:
 
 #. Determine which parts of a :ref:`Model Combination <Common component configuration>` the algorithm needs
@@ -61,7 +61,7 @@ configuration.
 Search algorithms
 -----------------
 
-Four search algorithms are currently implemented on top of SearchV2. Which one to pick depends on the type of model
+Four search algorithms are currently implemented on top of ``SearchV2``. Which one to pick depends on the type of model
 and vocabulary you use:
 
 * ``lexiconfree-timesync-beam-search``: time-synchronous decoding, no pronunciation lexicon required. Typical
@@ -87,8 +87,8 @@ Even though the "lexiconfree" searches do not build a lexical prefix tree, a lex
 Each lemma in the lexicon is treated as one output label and the lemma's index in the lexicon must match the
 corresponding output index of the label scorer (e.g. the softmax index of a CTC/transducer/AED model).
 ``blank-label-index``, ``silence-label-index`` and ``sentence-end-label-index`` (see below) are likewise resolved
-as the ``id()`` of the lemma marked ``special="blank"``/``"silence"``/``"sentence-end"``/``"sentence-boundary"``
-respectively.
+from the lexicon: ``blank-label-index`` from the lemma marked ``special="blank"``, ``silence-label-index`` from
+``special="silence"``, and ``sentence-end-label-index`` from ``special="sentence-end"``/``"sentence-boundary"``.
 
 There are two ways to provide such a lexicon:
 
@@ -279,7 +279,7 @@ and state tying, not for scoring) and a language model, in addition to the label
   acoustic model: ``ctc``, ``rna``, ``aed`` or ``hmm`` (``classic-hmm`` and ``minimized-hmm`` only work for
   ``Search`` and are not compatible with ``SearchV2``). Choose the one matching your model's topology.
   See :ref:`Search tree types` below for a full description of each. **This must always be set explicitly**:
-  the code-level default when unset is ``minimized-hmm``, which is not compatible with SearchV2 (see below).
+  the code-level default when unset is ``minimized-hmm``, which is not compatible with ``SearchV2`` (see below).
 
 Example config:
 
@@ -366,7 +366,7 @@ context-dependent triphones are built, etc.), so it must match the alignment top
 scorer(s) actually produce.
 
 ``classic-hmm`` and ``minimized-hmm`` are also valid ``tree-builder-type`` choices, but they are not compatible
-with SearchV2 -- they build the full/minimized cross-word triphone HMM tree used by the classic
+with ``SearchV2`` -- they build the full/minimized cross-word triphone HMM tree used by the classic
 ``Search::SearchAlgorithm``/``AdvancedTreeSearch`` and its ``Mm::FeatureScorer``-based scoring, so they are not
 listed below. Note that ``minimized-hmm``/``previousBehavior`` is still the code-level default when
 ``tree-builder-type`` is left unset, so it must always be set explicitly to one of the options below for
@@ -427,7 +427,7 @@ With a single label scorer, a single value is of course sufficient for both para
 Label scorers
 --------------
 
-Instead of a ``Mm::FeatureScorer``, SearchV2 algorithms obtain scores from one or more ``Nn::LabelScorer``
+Instead of a ``Mm::FeatureScorer``, ``SearchV2`` algorithms obtain scores from one or more ``Nn::LabelScorer``
 instances, configured under the ``label-scorer`` selector (or ``label-scorer-1``, ``label-scorer-2``, ... if
 ``num-label-scorers`` is greater than one):
 
@@ -464,7 +464,7 @@ Built-in label scorer types include:
 * ``transition``: returns fixed scores per transition type, useful for e.g. modeling label-loop penalties.
 * ``prior`` / ``no-op``: pass through externally computed scores as-is, optionally subtracting a prior.
 
-Label scorer configuration is its own (large) topic. The essential thing to know for SearchV2 is only that
+Label scorer configuration is its own (large) topic. The essential thing to know for ``SearchV2`` is only that
 ``*.search-algorithm.label-scorer.type`` selects the implementation, and that ``num-label-scorers`` /
 ``max-beam-size`` / ``score-threshold`` must agree in how many scorers/stages are configured.
 
@@ -475,9 +475,9 @@ Transition types and presets
 
 Every label scorer -- not just :ref:`transition` -- decides, per transition, whether it contributes a score for
 it at all. If a transition type is not enabled for a given label scorer, that scorer is simply skipped for
-extensions of that type, so as if it contributed a score of ``0.0``. This is what lets e.g. a label scorer for an
-acoustic model stay silent at word-end transitions while a label scorer for a language mode stays silent at
-within-word  transitions, without either needing to know about the other.
+extensions of that type, as if it contributed a score of ``0.0``. This is what lets e.g. a label scorer for an
+acoustic model stay silent at word-end transitions while a label scorer for a language model stays silent at
+within-word transitions, without either needing to know about the other.
 
 Recognized transition types, grouped by the state the transition originates from:
 
@@ -620,8 +620,8 @@ scorer can match up state tensors across the three sessions even though their lo
 A common use case is an attention encoder-decoder (AED) model with cross-attention over encoder states, or a
 stateful (recurrent) language model.
 
-* ``state-initializer-model.*`` / ``state-updater-model.*`` / ``scorer-model.*`` : each configured like
-  ``onnx-model`` above (``session.file``, ``io-map``, ...).
+* ``state-initializer-model.*`` / ``state-updater-model.*`` / ``scorer-model.*`` : each following the same
+  :ref:`ONNX model configuration` pattern (``session.file``, ``io-map``, ...).
 * ``blank-updates-history`` / ``silence-updates-history`` / ``loop-updates-history`` (bool): as above, whether
   the respective label types trigger a state update. Default ``false``.
 * ``max-batch-size`` (int): maximum number of hidden states forwarded through the scorer model at once. Default unbounded.
@@ -646,9 +646,10 @@ only stores the state *slice* produced for its most recent token plus a parent p
 rather than duplicating the full prefix state per hypothesis -- this is what allows efficient transformer KV
 caches (splitting/merging/rebasing state across beam search steps) without quadratic memory growth.
 
-* ``onnx-model.*`` : the single wrapped ONNX model, configured like ``onnx-model`` above. Relevant logical I/O
-  names include ``token``, ``token-length``, ``prefix-length``, ``scores``, ``encoder-states`` and
-  ``encoder-states-size`` (the latter two only if the model attends over encoder output directly).
+* ``onnx-model.*`` : the single wrapped ONNX model, following the same :ref:`ONNX model configuration` pattern.
+  Relevant logical I/O names include ``token``, ``token-length``, ``prefix-length``, ``scores``,
+  ``encoder-states`` and ``encoder-states-size`` (the latter two only if the model attends over encoder output
+  directly).
 * ``state-manager.type`` (``lstm``/``transformer``/``transformer-16bit``/``transformer-8bit``): which state
   representation/caching strategy is used. Use ``lstm`` for simple recurrent states; the ``transformer*``
   variants implement KV-cache tree management, with the ``-16bit``/``-8bit`` variants storing the cache in
@@ -679,7 +680,7 @@ trivial pass-through decoder), used when encoder and output/CTC layer are export
 
 * ``decoder.*`` : configuration of the wrapped decoder label scorer (``encoder-decoder`` only), same
   parameters as the chosen ``decoder.type`` label scorer.
-* No :ref:`transition-preset <Transition types and presets>` of its own -- always reports whichever transition
+* No :ref:`transition-preset <Transition types and presets>` of their own -- always report whichever transition
   types the wrapped ``decoder`` label scorer enables.
 
 .. code-block:: ini
@@ -858,7 +859,7 @@ Running SearchV2 in an Flf network
 ------------------------------------
 
 The :ref:`recognizer-v2` Flf node runs a ``SearchAlgorithmV2`` over incoming speech segments and outputs Flf
-lattices, analogous to the classic ``recognizer`` node but working with SearchV2 instead of
+lattices, analogous to the classic ``recognizer`` node but working with ``SearchV2`` instead of
 ``Search::SearchAlgorithm``. See :ref:`Flf Nodes` for the general Flf network mechanism.
 
 .. code-block:: ini
@@ -1110,7 +1111,7 @@ scorer, or used as the ``decoder`` of an ``encoder-decoder`` label scorer.
 Reading results
 -----------------
 
-Regardless of how it is invoked, a SearchV2 algorithm exposes results in two forms:
+Regardless of how it is invoked, a ``SearchV2`` algorithm exposes results in two forms:
 
 * **Traceback** (``getCurrentBestTraceback``): the single-best sequence of recognized lemmas/pronunciations
   with time and score information, written to the log as an ``<traceback>`` element (and, for
@@ -1141,8 +1142,8 @@ Tuning tips
   but is normally left at its default (``on``) since recombination is "free" (it never removes the best
   hypothesis for a given state) and reduces the effective beam width needed for a given accuracy.
 * When the log shows ``Number of label scorers (...) exceeds/less than number of configured max beam sizes``,
-  the number of whitespace-separated values in ``max-beam-size``/``score-threshold`` does not match
-  ``num-label-scorers`` -- see :ref:`Multiple label scorers and per-stage parameters`.
+  the number of whitespace-separated values in ``max-beam-size`` does not match ``num-label-scorers`` -- see
+  :ref:`Multiple label scorers and per-stage parameters`.
 * ``recognizer-v2`` logs ``flf-recognizer-time`` and ``flf-recognizer-rtf`` per segment, which is the quickest
   way to check whether a parameter change affected decoding speed.
 

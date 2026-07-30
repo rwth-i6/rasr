@@ -12,7 +12,7 @@ the CN is buffered for multiple access.
 **Configuration**
 
 
-.. code-block: ini
+.. code-block:: ini
 
     [*.network.CN-archive-reader]
     type                        = CN-archive-reader
@@ -23,7 +23,7 @@ the CN is buffered for multiple access.
 
 **Port assignment**
 
-.. code-block: ini
+.. code-block:: ini
 
     input:
     1:segment | 2:string
@@ -39,7 +39,7 @@ Store CNs in archive
 **Configuration**
 
 
-.. code-block: ini
+.. code-block:: ini
 
     [*.network.cn-archive-writer]
     type                        = CN-archive-writer
@@ -50,7 +50,7 @@ Store CNs in archive
 
 **Port assignment**
 
-.. code-block: ini
+.. code-block:: ini
 
     input:
     0:CN, 1:segment | 2:string
@@ -67,7 +67,7 @@ Combine and decode incoming posterior CNs
 **Configuration**
 
 
-.. code-block: ini
+.. code-block:: ini
 
     [*.network.CN-combination]
     type                        = CN-combination
@@ -81,7 +81,7 @@ Combine and decode incoming posterior CNs
 
 **Port assignment**
 
-.. code-block: ini
+.. code-block:: ini
 
     input:
     0:normalized-CN [1:normalized-CN [...]]
@@ -102,7 +102,7 @@ is to be used for slot-wise decoding.
 **Configuration**
 
 
-.. code-block: ini
+.. code-block:: ini
 
     [*.network.CN-decoder]
     type                        = CN-decoder
@@ -110,7 +110,7 @@ is to be used for slot-wise decoding.
 
 **Port assignment**
 
-.. code-block: ini
+.. code-block:: ini
 
     input:
     0:CN | 1:sausage-lattice
@@ -146,7 +146,7 @@ defintion of "cn.posterior-key".
 **Configuration**
 
 
-.. code-block: ini
+.. code-block:: ini
 
     [*.network.CN-features]
     type                        = CN-features
@@ -166,7 +166,7 @@ defintion of "cn.posterior-key".
 
 **Port assignment**
 
-.. code-block: ini
+.. code-block:: ini
 
     input:
     0:lattice 1:CN
@@ -185,7 +185,7 @@ The CN must be normalized.
 **Configuration**
 
 
-.. code-block: ini
+.. code-block:: ini
 
     [*.network.CN-gamma-correction]
     type                        = CN-gamma-correction
@@ -194,7 +194,7 @@ The CN must be normalized.
 
 **Port assignment**
 
-.. code-block: ini
+.. code-block:: ini
 
     input:
     0:CN(normalized)
@@ -227,7 +227,7 @@ in the union lattice.
 **Configuration**
 
 
-.. code-block: ini
+.. code-block:: ini
 
     [*.network.FB-builder]
     type                        = FB-builder
@@ -283,7 +283,7 @@ in the union lattice.
 
 **Port assignment**
 
-.. code-block: ini
+.. code-block:: ini
 
     input:
     0:lattice [1:lattice [...]]
@@ -300,7 +300,7 @@ Combine and decode incoming lattices
 **Configuration**
 
 
-.. code-block: ini
+.. code-block:: ini
 
     [*.network.ROVER-combination]
     type                        = ROVER-combination
@@ -317,7 +317,7 @@ Combine and decode incoming lattices
 
 **Port assignment**
 
-.. code-block: ini
+.. code-block:: ini
 
     input:
     0:lattice [1:lattice [...]]
@@ -335,7 +335,7 @@ f(x_d) = x_d + <score>
 **Configuration**
 
 
-.. code-block: ini
+.. code-block:: ini
 
     [*.network.add]
     type                        = add
@@ -346,7 +346,7 @@ f(x_d) = x_d + <score>
 
 **Port assignment**
 
-.. code-block: ini
+.. code-block:: ini
 
     input:
     0:lattice
@@ -363,7 +363,7 @@ add-word-confidence
 **Configuration**
 
 
-.. code-block: ini
+.. code-block:: ini
 
     [*.network.add-word-confidence]
     type                        = add-word-confidence
@@ -371,7 +371,7 @@ add-word-confidence
 
 **Port assignment**
 
-.. code-block: ini
+.. code-block:: ini
 
     input:
     0:lattice [1:fCN]
@@ -397,7 +397,7 @@ If intersection is false, step 1) is skipped.
 **Configuration**
 
 
-.. code-block: ini
+.. code-block:: ini
 
     [*.network.aligner]
     type                        = aligner
@@ -407,7 +407,7 @@ If intersection is false, step 1) is skipped.
 
 **Port assignment**
 
-.. code-block: ini
+.. code-block:: ini
 
     input:
     0:hypothesis-lattice {1:reference-fCN | 2:reference-lattice}
@@ -429,14 +429,14 @@ of the two incoming semirings.
 **Configuration**
 
 
-.. code-block: ini
+.. code-block:: ini
 
     [*.network.append]
     type                        = append
 
 **Port assignment**
 
-.. code-block: ini
+.. code-block:: ini
 
     input:
     0:lattice 1:lattice
@@ -451,7 +451,7 @@ approximated-risk-scorer
 *DEPRECATED: see "local-cost-decoder*<br/>
 **Port assignment**
 
-.. code-block: ini
+.. code-block:: ini
 
     input:
     0:lattice [1:lattice [...]]
@@ -469,7 +469,7 @@ the lattice is buffered for multiple access.
 **Configuration**
 
 
-.. code-block: ini
+.. code-block:: ini
 
     [*.network.archive-reader]
     type                        = archive-reader
@@ -521,7 +521,7 @@ the lattice is buffered for multiple access.
 
 **Port assignment**
 
-.. code-block: ini
+.. code-block:: ini
 
     input:
     1:segment | 2:string
@@ -538,7 +538,7 @@ Store lattices in archive
 **Configuration**
 
 
-.. code-block: ini
+.. code-block:: ini
 
     [*.network.archive-writer]
     type                        = archive-writer
@@ -568,7 +568,7 @@ Store lattices in archive
 
 **Port assignment**
 
-.. code-block: ini
+.. code-block:: ini
 
     input:
     0:lattice, 1:segment | 2:string
@@ -588,7 +588,7 @@ Argument number x is accessed via port x.
 **Configuration**
 
 
-.. code-block: ini
+.. code-block:: ini
 
     [*.network.batch]
     type                        = batch
@@ -597,7 +597,7 @@ Argument number x is accessed via port x.
 
 **Port assignment**
 
-.. code-block: ini
+.. code-block:: ini
 
     no input
     output:
@@ -616,7 +616,7 @@ presence of negative arc scores.
 **Configuration**
 
 
-.. code-block: ini
+.. code-block:: ini
 
     [*.network.best]
     type                        = best
@@ -624,7 +624,7 @@ presence of negative arc scores.
 
 **Port assignment**
 
-.. code-block: ini
+.. code-block:: ini
 
     input:
     0:lattice
@@ -642,14 +642,14 @@ manifolded to all outgoing ports.
 **Configuration**
 
 
-.. code-block: ini
+.. code-block:: ini
 
     [*.network.buffer]
     type                        = buffer
 
 **Port assignment**
 
-.. code-block: ini
+.. code-block:: ini
 
     input:
     x:lattice (at exactly one port)
@@ -667,7 +667,7 @@ see Fsa for details.
 **Configuration**
 
 
-.. code-block: ini
+.. code-block:: ini
 
     [*.network.cache]
     type                        = cache
@@ -675,7 +675,7 @@ see Fsa for details.
 
 **Port assignment**
 
-.. code-block: ini
+.. code-block:: ini
 
     input:
     0:lattice
@@ -693,7 +693,7 @@ The algorithm is based on finding an example or prototype frame for each word.
 **Configuration**
 
 
-.. code-block: ini
+.. code-block:: ini
 
     [*.network.center-frame-CN-builder]
     type                        = frame-CN-builder
@@ -705,7 +705,7 @@ The algorithm is based on finding an example or prototype frame for each word.
 
 **Port assignment**
 
-.. code-block: ini
+.. code-block:: ini
 
     input:
     0:lattice [1:lattice [...]]
@@ -730,7 +730,7 @@ The operation does not affect the scores.
 **Configuration**
 
 
-.. code-block: ini
+.. code-block:: ini
 
     [*.network.change-semiring]
     type                        = change-semiring
@@ -744,7 +744,7 @@ The operation does not affect the scores.
 
 **Port assignment**
 
-.. code-block: ini
+.. code-block:: ini
 
     input:
     0:lattice
@@ -769,14 +769,14 @@ acyclic, trim, and zero-sum free.
 **Configuration**
 
 
-.. code-block: ini
+.. code-block:: ini
 
     [*.network.clean-up]
     type                        = clean-up
 
 **Port assignment**
 
-.. code-block: ini
+.. code-block:: ini
 
     input:
     0:lattice
@@ -792,7 +792,7 @@ cluster-CN-builder
 
 **Port assignment**
 
-.. code-block: ini
+.. code-block:: ini
 
     input:
     0:lattice [1:lattice [...]]
@@ -812,14 +812,14 @@ see compose-matchin
 **Configuration**
 
 
-.. code-block: ini
+.. code-block:: ini
 
     [*.network.compose]
     type                        = compose
 
 **Port assignment**
 
-.. code-block: ini
+.. code-block:: ini
 
     see compose-matchin
     
@@ -836,7 +836,7 @@ and its word boundaries are invalidated.
 **Configuration**
 
 
-.. code-block: ini
+.. code-block:: ini
 
     [*.network.compose-matching]
     type                        = compose-matching
@@ -845,7 +845,7 @@ and its word boundaries are invalidated.
 
 **Port assignment**
 
-.. code-block: ini
+.. code-block:: ini
 
     input:
     0:lattice, 1:lattice
@@ -862,14 +862,14 @@ Compose two lattices; for algorithm details see FSA
 **Configuration**
 
 
-.. code-block: ini
+.. code-block:: ini
 
     [*.network.compose-sequencing]
     type                        = compose-sequencing
 
 **Port assignment**
 
-.. code-block: ini
+.. code-block:: ini
 
     input:
     0:lattice, 1:lattice
@@ -887,7 +887,7 @@ Composition uses the "compose sequencing" algorithm, see FSA.
 **Configuration**
 
 
-.. code-block: ini
+.. code-block:: ini
 
     [*.network.compose-with-fsa]
     type                        = compose-with-fsa
@@ -905,7 +905,7 @@ Composition uses the "compose sequencing" algorithm, see FSA.
 
 **Port assignment**
 
-.. code-block: ini
+.. code-block:: ini
 
     input:
     0:lattice[, 1: fsa]
@@ -925,7 +925,7 @@ sentence end, regardless of any arcs labeled with the sentence end symbol.
 **Configuration**
 
 
-.. code-block: ini
+.. code-block:: ini
 
     [*.network.compose-with-lm]
     type                        = compose-with-lm
@@ -939,7 +939,7 @@ sentence end, regardless of any arcs labeled with the sentence end symbol.
 
 **Port assignment**
 
-.. code-block: ini
+.. code-block:: ini
 
     input:
     0:lattice
@@ -967,7 +967,7 @@ connected to any other node.
 **Configuration**
 
 
-.. code-block: ini
+.. code-block:: ini
 
     [*.network.concatenate-fCNs]
     type                        = concatenate-fCNs
@@ -976,7 +976,7 @@ connected to any other node.
 
 **Port assignment**
 
-.. code-block: ini
+.. code-block:: ini
 
     input:
     0:segment 1:segment
@@ -1004,7 +1004,7 @@ connected to any other node.
 **Configuration**
 
 
-.. code-block: ini
+.. code-block:: ini
 
     [*.network.concatenate-lattices]
     type                        = concatenate-lattices
@@ -1013,7 +1013,7 @@ connected to any other node.
 
 **Port assignment**
 
-.. code-block: ini
+.. code-block:: ini
 
     input:
     0:segment 1:segment
@@ -1033,7 +1033,7 @@ is supported.
 **Configuration**
 
 
-.. code-block: ini
+.. code-block:: ini
 
     [*.network.copy]
     type                        = copy
@@ -1044,7 +1044,7 @@ is supported.
 
 **Port assignment**
 
-.. code-block: ini
+.. code-block:: ini
 
     input:
     0:lattice
@@ -1074,7 +1074,7 @@ confidence.default = 1.0
 **Configuration**
 
 
-.. code-block: ini
+.. code-block:: ini
 
     [*.network.ctm-reader]
     type                        = ctm-reader
@@ -1094,7 +1094,7 @@ confidence.default = 1.0
 
 **Port assignment**
 
-.. code-block: ini
+.. code-block:: ini
 
     input:
     1:segment
@@ -1111,7 +1111,7 @@ Determinize lattice; for algorithm details see FSA
 **Configuration**
 
 
-.. code-block: ini
+.. code-block:: ini
 
     [*.network.determinize]
     type                        = determinize
@@ -1120,7 +1120,7 @@ Determinize lattice; for algorithm details see FSA
 
 **Port assignment**
 
-.. code-block: ini
+.. code-block:: ini
 
     input:
     0:lattice
@@ -1137,14 +1137,14 @@ Difference of two lattices; for algorithm details see FSA
 **Configuration**
 
 
-.. code-block: ini
+.. code-block:: ini
 
     [*.network.difference]
     type                        = difference
 
 **Port assignment**
 
-.. code-block: ini
+.. code-block:: ini
 
     input:
     0:lattice, 1:lattice
@@ -1162,7 +1162,7 @@ For filename generation see "writer".
 **Configuration**
 
 
-.. code-block: ini
+.. code-block:: ini
 
     [*.network.drawer]
     type                        = drawer
@@ -1177,7 +1177,7 @@ For filename generation see "writer".
 
 **Port assignment**
 
-.. code-block: ini
+.. code-block:: ini
 
     input:
     0:lattice[, 1:segment | 2:string]
@@ -1195,7 +1195,7 @@ Else it does nothing, ignoring any input from other ports.
 
 **Port assignment**
 
-.. code-block: ini
+.. code-block:: ini
 
     input:
     0:lattice or no input
@@ -1217,7 +1217,7 @@ to a sink.
 **Configuration**
 
 
-.. code-block: ini
+.. code-block:: ini
 
     [*.network.dump-CN]
     type                        = dump-CN
@@ -1226,7 +1226,7 @@ to a sink.
 
 **Port assignment**
 
-.. code-block: ini
+.. code-block:: ini
 
     input:
     0:CN [1:segment]
@@ -1247,7 +1247,7 @@ where the distance in time does not exceed the threshold.
 **Configuration**
 
 
-.. code-block: ini
+.. code-block:: ini
 
     [*.network.dump-all-pairs-best]
     type                        = dump-all-pairs-best
@@ -1256,7 +1256,7 @@ where the distance in time does not exceed the threshold.
 
 **Port assignment**
 
-.. code-block: ini
+.. code-block:: ini
 
     input:
     0:lattice[, 1:segment]
@@ -1280,7 +1280,7 @@ to a sink.
 **Configuration**
 
 
-.. code-block: ini
+.. code-block:: ini
 
     [*.network.dump-CN]
     type                        = dump-CN
@@ -1289,7 +1289,7 @@ to a sink.
 
 **Port assignment**
 
-.. code-block: ini
+.. code-block:: ini
 
     input:
     0:fCN [1:segment]
@@ -1306,7 +1306,7 @@ Dumps a linear or n-best-list lattice
 **Configuration**
 
 
-.. code-block: ini
+.. code-block:: ini
 
     [*.network.dump-n-best]
     type                        = dump-n-best
@@ -1315,7 +1315,7 @@ Dumps a linear or n-best-list lattice
 
 **Port assignment**
 
-.. code-block: ini
+.. code-block:: ini
 
     input:
     0:n-best-lattice[, 1:segment]
@@ -1340,7 +1340,7 @@ pronunciations.
 **Configuration**
 
 
-.. code-block: ini
+.. code-block:: ini
 
     [*.network.dump-traceback]
     type                        = dump-traceback
@@ -1362,7 +1362,7 @@ pronunciations.
 
 **Port assignment**
 
-.. code-block: ini
+.. code-block:: ini
 
     input:
     0:lattice[, 1:segment]
@@ -1380,7 +1380,7 @@ as input token in a lattice.
 **Configuration**
 
 
-.. code-block: ini
+.. code-block:: ini
 
     [*.network.dump-vocab]
     type                        = dump-vocab
@@ -1388,7 +1388,7 @@ as input token in a lattice.
 
 **Port assignment**
 
-.. code-block: ini
+.. code-block:: ini
 
     input:
     0:lattice
@@ -1405,7 +1405,7 @@ Calculate WER and/or GER
 **Configuration**
 
 
-.. code-block: ini
+.. code-block:: ini
 
     [*.network.evaluator]
     type                        = evaluator
@@ -1434,7 +1434,7 @@ Calculate WER and/or GER
 
 **Port assignment**
 
-.. code-block: ini
+.. code-block:: ini
 
     input:
     0:lattice, {1:segment | 2: reference string}
@@ -1452,7 +1452,7 @@ f(x_d) = exp(<scale> * x_d)
 **Configuration**
 
 
-.. code-block: ini
+.. code-block:: ini
 
     [*.network.exp]
     type                        = exp
@@ -1463,7 +1463,7 @@ f(x_d) = exp(<scale> * x_d)
 
 **Port assignment**
 
-.. code-block: ini
+.. code-block:: ini
 
     input:
     0:lattice
@@ -1484,7 +1484,7 @@ the decoder doesn't produce it correctly.
 **Configuration**
 
 
-.. code-block: ini
+.. code-block:: ini
 
     [*.network.expand-transits]
     type                        = expand-transits
@@ -1492,7 +1492,7 @@ the decoder doesn't produce it correctly.
 
 **Port assignment**
 
-.. code-block: ini
+.. code-block:: ini
 
     input:
       0:lattice
@@ -1512,7 +1512,7 @@ Class penalties overwrites the default penalty.
 **Configuration**
 
 
-.. code-block: ini
+.. code-block:: ini
 
     [*.network.extend-by-penalty]
     type                        = extend-by-penalty
@@ -1530,7 +1530,7 @@ Class penalties overwrites the default penalty.
 
 **Port assignment**
 
-.. code-block: ini
+.. code-block:: ini
 
     input:
     0:lattice
@@ -1548,7 +1548,7 @@ The pronunciation score is derived form the lexicon.
 **Configuration**
 
 
-.. code-block: ini
+.. code-block:: ini
 
     [*.network.extend-by-pronunciation-score]
     type                        = extend-by-pronunciation-score
@@ -1559,7 +1559,7 @@ The pronunciation score is derived form the lexicon.
 
 **Port assignment**
 
-.. code-block: ini
+.. code-block:: ini
 
     input:
     0:lattice
@@ -1578,7 +1578,7 @@ access.
 **Configuration**
 
 
-.. code-block: ini
+.. code-block:: ini
 
     [*.network.fCN-archive-reader]
     type                        = fCN-archive-reader
@@ -1591,7 +1591,7 @@ access.
 
 **Port assignment**
 
-.. code-block: ini
+.. code-block:: ini
 
     input:
     1:segment | 2:string
@@ -1608,7 +1608,7 @@ Store posterior CNs in archive
 **Configuration**
 
 
-.. code-block: ini
+.. code-block:: ini
 
     [*.network.fCN-archive-writer]
     type                        = fCN-archive-writer
@@ -1627,7 +1627,7 @@ Store posterior CNs in archive
 
 **Port assignment**
 
-.. code-block: ini
+.. code-block:: ini
 
     input:
     0:fCN, 1:segment | 2:string
@@ -1647,7 +1647,7 @@ Second, from the union the fCN is derived.
 **Configuration**
 
 
-.. code-block: ini
+.. code-block:: ini
 
     [*.network.fCN-builder]
     type                        = fCN-builder
@@ -1657,7 +1657,7 @@ Second, from the union the fCN is derived.
 
 **Port assignment**
 
-.. code-block: ini
+.. code-block:: ini
 
     input:
     0:lattice [1:lattice [...]]
@@ -1676,7 +1676,7 @@ Optionally use the word-wise maximum approximation.
 **Configuration**
 
 
-.. code-block: ini
+.. code-block:: ini
 
     [*.network.fCN-combination]
     type                        = fCN-combination
@@ -1686,7 +1686,7 @@ Optionally use the word-wise maximum approximation.
 
 **Port assignment**
 
-.. code-block: ini
+.. code-block:: ini
 
     input:
     0:fCN [1:fCN [...]]
@@ -1705,7 +1705,7 @@ frame-wise fCN for the incoming lattice.
 **Configuration**
 
 
-.. code-block: ini
+.. code-block:: ini
 
     [*.network.fCN-confidence]
     type                        = fCN-confidence
@@ -1718,7 +1718,7 @@ frame-wise fCN for the incoming lattice.
 
 **Port assignment**
 
-.. code-block: ini
+.. code-block:: ini
 
     input:
     0:lattice [1:fCN]
@@ -1756,7 +1756,7 @@ wise posterior distribution can be used.
 **Configuration**
 
 
-.. code-block: ini
+.. code-block:: ini
 
     [*.network.fCN-features]
     type                        = fCN-features
@@ -1771,7 +1771,7 @@ wise posterior distribution can be used.
 
 **Port assignment**
 
-.. code-block: ini
+.. code-block:: ini
 
     input:
     0:lattice [1:fCN] [2:lattice]
@@ -1789,7 +1789,7 @@ posterior probability distribution.
 **Configuration**
 
 
-.. code-block: ini
+.. code-block:: ini
 
     [*.network.fCN-gamma-correction]
     type                        = fCN-gamma-correction
@@ -1798,7 +1798,7 @@ posterior probability distribution.
 
 **Port assignment**
 
-.. code-block: ini
+.. code-block:: ini
 
     input:
     0:fCN
@@ -1818,7 +1818,7 @@ expected fWER; see min.fWER-decoding.
 **Configuration**
 
 
-.. code-block: ini
+.. code-block:: ini
 
     [*.network.fWER-evaluator]
     type                        = fWER-evaluator
@@ -1827,7 +1827,7 @@ expected fWER; see min.fWER-decoding.
 
 **Port assignment**
 
-.. code-block: ini
+.. code-block:: ini
 
     input:
     0:lattice 1:reference-lattice|2:reference-fCN
@@ -1844,7 +1844,7 @@ Filter lattice by input(output)
 **Configuration**
 
 
-.. code-block: ini
+.. code-block:: ini
 
     [*.network.filter]
     type                        = filter
@@ -1853,7 +1853,7 @@ Filter lattice by input(output)
 
 **Port assignment**
 
-.. code-block: ini
+.. code-block:: ini
 
     input:
     0:lattice
@@ -1883,7 +1883,7 @@ of a lattice.
 **Configuration**
 
 
-.. code-block: ini
+.. code-block:: ini
 
     [*.network.fit]
     type                        = fit
@@ -1891,7 +1891,7 @@ of a lattice.
 
 **Port assignment**
 
-.. code-block: ini
+.. code-block:: ini
 
     input:
     0:lattice [1:segment]
@@ -1907,7 +1907,7 @@ frame-CN-builder
 
 **Port assignment**
 
-.. code-block: ini
+.. code-block:: ini
 
     input:
     0:lattice [1:lattice [...]]
@@ -1932,7 +1932,7 @@ The current fsa is buffered for multiple access
 **Configuration**
 
 
-.. code-block: ini
+.. code-block:: ini
 
     [*.network.fsa-reader]
     type                        = fsa-reader
@@ -1945,7 +1945,7 @@ The current fsa is buffered for multiple access
 
 **Port assignment**
 
-.. code-block: ini
+.. code-block:: ini
 
     input:
     1:segment | 2:string
@@ -1969,7 +1969,7 @@ Attention: "extended" requires an acyclic lattice.
 **Configuration**
 
 
-.. code-block: ini
+.. code-block:: ini
 
     [*.network.info]
     type                        = info
@@ -1977,7 +1977,7 @@ Attention: "extended" requires an acyclic lattice.
 
 **Port assignment**
 
-.. code-block: ini
+.. code-block:: ini
 
     input:
     0:lattice
@@ -1994,7 +1994,7 @@ Intersection of two lattices; for algorithm details see FSA
 **Configuration**
 
 
-.. code-block: ini
+.. code-block:: ini
 
     [*.network.intersection]
     type                        = intersection
@@ -2002,7 +2002,7 @@ Intersection of two lattices; for algorithm details see FSA
 
 **Port assignment**
 
-.. code-block: ini
+.. code-block:: ini
 
     input:
     0:lattice, 1:lattice
@@ -2023,7 +2023,7 @@ arc, e.g.
 **Configuration**
 
 
-.. code-block: ini
+.. code-block:: ini
 
     [*.network.local-cost-decoder]
     type                        = approximated-risk-scorer
@@ -2046,7 +2046,7 @@ arc, e.g.
 
 **Port assignment**
 
-.. code-block: ini
+.. code-block:: ini
 
     input:
     0:lattice [1:lattice [...]]
@@ -2064,7 +2064,7 @@ f(x_d) = <scale> * log(x_d)
 **Configuration**
 
 
-.. code-block: ini
+.. code-block:: ini
 
     [*.network.log]
     type                        = log
@@ -2075,7 +2075,7 @@ f(x_d) = <scale> * log(x_d)
 
 **Port assignment**
 
-.. code-block: ini
+.. code-block:: ini
 
     input:
     0:lattice
@@ -2105,7 +2105,7 @@ All mappings have a lazy implementation.
 **Configuration**
 
 
-.. code-block: ini
+.. code-block:: ini
 
     [*.network.map-alphabet]
     type                        = map-alphabet
@@ -2117,7 +2117,7 @@ All mappings have a lazy implementation.
 
 **Port assignment**
 
-.. code-block: ini
+.. code-block:: ini
 
     input:
     0:lattice
@@ -2143,7 +2143,7 @@ have a static implementation.
 **Configuration**
 
 
-.. code-block: ini
+.. code-block:: ini
 
     [*.network.map-labels]
     type                        = map-labels
@@ -2158,7 +2158,7 @@ have a static implementation.
 
 **Port assignment**
 
-.. code-block: ini
+.. code-block:: ini
 
     input:
     0:lattice
@@ -2178,14 +2178,14 @@ time-conditioned form.
 **Configuration**
 
 
-.. code-block: ini
+.. code-block:: ini
 
     [*.network.mesh]
     type                        = mesh
 
 **Port assignment**
 
-.. code-block: ini
+.. code-block:: ini
 
     mesh-type                   = full*|time
     input:
@@ -2211,7 +2211,7 @@ a fCN is calculated over all incoming lattices.
 **Configuration**
 
 
-.. code-block: ini
+.. code-block:: ini
 
     [*.network.min-fWER-decoder]
     type                        = min-fWER-decoder
@@ -2232,7 +2232,7 @@ a fCN is calculated over all incoming lattices.
 
 **Port assignment**
 
-.. code-block: ini
+.. code-block:: ini
 
     input:
     [0:fCN] 1:lattice [2:lattice [...]]
@@ -2249,14 +2249,14 @@ Determinize and minimize lattice; for algorithm details see FSA
 **Configuration**
 
 
-.. code-block: ini
+.. code-block:: ini
 
     [*.network.minimize]
     type                        = minimize
 
 **Port assignment**
 
-.. code-block: ini
+.. code-block:: ini
 
     input:
     0:lattice
@@ -2274,7 +2274,7 @@ f(x_d) = <scale> * x_d
 **Configuration**
 
 
-.. code-block: ini
+.. code-block:: ini
 
     [*.network.multiply]
     type                        = multiply
@@ -2285,7 +2285,7 @@ f(x_d) = <scale> * x_d
 
 **Port assignment**
 
-.. code-block: ini
+.. code-block:: ini
 
     input:
     0:lattice
@@ -2314,7 +2314,7 @@ and epsilon-arcs and has correct time boundaries.
 **Configuration**
 
 
-.. code-block: ini
+.. code-block:: ini
 
     [*.network.n-best]
     type                        = n-best
@@ -2325,7 +2325,7 @@ and epsilon-arcs and has correct time boundaries.
 
 **Port assignment**
 
-.. code-block: ini
+.. code-block:: ini
 
     input:
     0:lattice
@@ -2356,14 +2356,14 @@ The implementation is static, i.e not lazy.
 **Configuration**
 
 
-.. code-block: ini
+.. code-block:: ini
 
     [*.network.non-word-closure-filter]
     type                        = non-word-closure-filter
 
 **Port assignment**
 
-.. code-block: ini
+.. code-block:: ini
 
     input:
     0:lattice
@@ -2384,14 +2384,14 @@ and word-arc times are kept w.r.t. to the given semiring.
 **Configuration**
 
 
-.. code-block: ini
+.. code-block:: ini
 
     [*.network.non-word-closure-normalization-filter]
     type                        = non-word-closure-normalization-filter
 
 **Port assignment**
 
-.. code-block: ini
+.. code-block:: ini
 
     input:
     0:lattice
@@ -2412,14 +2412,14 @@ time nedded for "crossing" the closure.
 **Configuration**
 
 
-.. code-block: ini
+.. code-block:: ini
 
     [*.network.non-word-closure-removal-filter]
     type                        = non-word-closure-removal-filter
 
 **Port assignment**
 
-.. code-block: ini
+.. code-block:: ini
 
     input:
     0:lattice
@@ -2454,14 +2454,14 @@ The implementation is static, i.e not lazy.
 **Configuration**
 
 
-.. code-block: ini
+.. code-block:: ini
 
     [*.network.non-word-closure-strong-determinization-filter]
     type                        = non-word-closure-strong-determinization-filter
 
 **Port assignment**
 
-.. code-block: ini
+.. code-block:: ini
 
     input:
     0:lattice
@@ -2492,14 +2492,14 @@ The implementation is static, i.e not lazy.
 **Configuration**
 
 
-.. code-block: ini
+.. code-block:: ini
 
     [*.network.non-word-closure-weak-determinization-filter]
     type                        = non-word-closure-weak-determinization-filter
 
 **Port assignment**
 
-.. code-block: ini
+.. code-block:: ini
 
     input:
     0:lattice
@@ -2533,7 +2533,7 @@ either a normalized CN or posterior key defined.
 **Configuration**
 
 
-.. code-block: ini
+.. code-block:: ini
 
     [*.network.oracle-alignment]
     type                        = oracle-alignment
@@ -2544,7 +2544,7 @@ either a normalized CN or posterior key defined.
 
 **Port assignment**
 
-.. code-block: ini
+.. code-block:: ini
 
     input:
     0:CN 1:lattice|2:string|3:CN|4:segment(with orthography)
@@ -2560,7 +2560,7 @@ pivot-CN-builder
 
 **Port assignment**
 
-.. code-block: ini
+.. code-block:: ini
 
     input:
     0:lattice [1:lattice [...]]
@@ -2585,7 +2585,7 @@ required for producing CN based lattice features.
 **Configuration**
 
 
-.. code-block: ini
+.. code-block:: ini
 
     [*.network.pivot-arc-CN-builder]
     type                        = pivot-arc-CN-builder
@@ -2605,7 +2605,7 @@ required for producing CN based lattice features.
 
 **Port assignment**
 
-.. code-block: ini
+.. code-block:: ini
 
     input:
     0:lattice [1:lattice [...]]
@@ -2626,7 +2626,7 @@ Change the semiring by projecting the source semiring onto the target semiring
 **Configuration**
 
 
-.. code-block: ini
+.. code-block:: ini
 
     [*.network.projection]
     type                        = project
@@ -2645,7 +2645,7 @@ Change the semiring by projecting the source semiring onto the target semiring
 
 **Port assignment**
 
-.. code-block: ini
+.. code-block:: ini
 
     input:
     0:lattice
@@ -2662,7 +2662,7 @@ Change and/or dump lattice and fsa properties
 **Configuration**
 
 
-.. code-block: ini
+.. code-block:: ini
 
     [*.network.properties]
     type                        = properties
@@ -2670,7 +2670,7 @@ Change and/or dump lattice and fsa properties
 
 **Port assignment**
 
-.. code-block: ini
+.. code-block:: ini
 
     input:
     0:lattice
@@ -2698,7 +2698,7 @@ Attention: In situ pruning is performed.
 **Configuration**
 
 
-.. code-block: ini
+.. code-block:: ini
 
     [*.network.prune-CN]
     type                        = prune-CN
@@ -2710,7 +2710,7 @@ Attention: In situ pruning is performed.
 
 **Port assignment**
 
-.. code-block: ini
+.. code-block:: ini
 
     input:
     x:CN
@@ -2738,7 +2738,7 @@ Attention: In situ pruning is performed.
 **Configuration**
 
 
-.. code-block: ini
+.. code-block:: ini
 
     [*.network.prune-fCN]
     type                        = prune-fCN
@@ -2750,7 +2750,7 @@ Attention: In situ pruning is performed.
 
 **Port assignment**
 
-.. code-block: ini
+.. code-block:: ini
 
     input:
     x:fCN
@@ -2772,7 +2772,7 @@ returned (only if trimming is activated).
 **Configuration**
 
 
-.. code-block: ini
+.. code-block:: ini
 
     [*.network.prune-posterior]
     type                        = prune-posterior
@@ -2791,7 +2791,7 @@ returned (only if trimming is activated).
 
 **Port assignment**
 
-.. code-block: ini
+.. code-block:: ini
 
     input:
     0:lattice
@@ -2811,7 +2811,7 @@ The current lattice is buffered for multiple access.
 **Configuration**
 
 
-.. code-block: ini
+.. code-block:: ini
 
     [*.network.reader]
     type                        = reader
@@ -2843,7 +2843,7 @@ The current lattice is buffered for multiple access.
 
 **Port assignment**
 
-.. code-block: ini
+.. code-block:: ini
 
     input:
     1:segment | 2:string
@@ -2871,7 +2871,7 @@ semiring is used.
 **Configuration**
 
 
-.. code-block: ini
+.. code-block:: ini
 
     [*.network.recognizer]
     type                        = recognizer
@@ -2888,7 +2888,7 @@ semiring is used.
 
 **Port assignment**
 
-.. code-block: ini
+.. code-block:: ini
 
     input:
     [0:lattice] 1:bliss-speech-segment
@@ -2909,15 +2909,14 @@ See :doc:`search_v2` for a full guide to configuring the search algorithm and la
 
 **Configuration**
 
-
-.. code-block: ini
+.. code-block:: ini
 
     [*.network.recognizer-v2]
     type                        = recognizer-v2
 
 **Port assignment**
 
-.. code-block: ini
+.. code-block:: ini
 
     input:
     0:bliss-speech-segment
@@ -2936,7 +2935,7 @@ The weighted sum of the score vector remains unchanged.
 **Configuration**
 
 
-.. code-block: ini
+.. code-block:: ini
 
     [*.network.scores-reduce-scores]
     type                        = reduce-scores
@@ -2944,7 +2943,7 @@ The weighted sum of the score vector remains unchanged.
 
 **Port assignment**
 
-.. code-block: ini
+.. code-block:: ini
 
     input:
     0:lattice
@@ -2961,7 +2960,7 @@ Those arcs are removed having epsilon as input and output
 **Configuration**
 
 
-.. code-block: ini
+.. code-block:: ini
 
     [*.network.remove-epsilons]
     type                        = remove-epsilons
@@ -2970,7 +2969,7 @@ Those arcs are removed having epsilon as input and output
 
 **Port assignment**
 
-.. code-block: ini
+.. code-block:: ini
 
     input:
     0:lattice
@@ -2987,7 +2986,7 @@ Remove arcs of length 0(regardless if input/output is eps)
 **Configuration**
 
 
-.. code-block: ini
+.. code-block:: ini
 
     [*.network.remove-null-arcs]
     type                        = remove-null-arcs
@@ -2996,7 +2995,7 @@ Remove arcs of length 0(regardless if input/output is eps)
 
 **Port assignment**
 
-.. code-block: ini
+.. code-block:: ini
 
     input:
     0:lattice
@@ -3014,7 +3013,7 @@ Technically, the semiring of the lattice is replaced by a new one.
 **Configuration**
 
 
-.. code-block: ini
+.. code-block:: ini
 
     [*.network.rescale]
     type                        = rescale
@@ -3024,7 +3023,7 @@ Technically, the semiring of the lattice is replaced by a new one.
 
 **Port assignment**
 
-.. code-block: ini
+.. code-block:: ini
 
     input:
     0:lattice
@@ -3042,7 +3041,7 @@ missing data fields are replaced by default values.
 **Configuration**
 
 
-.. code-block: ini
+.. code-block:: ini
 
     [*.network.segment-builder]
     type                        = segment-builder
@@ -3050,7 +3049,7 @@ missing data fields are replaced by default values.
 
 **Port assignment**
 
-.. code-block: ini
+.. code-block:: ini
 
     input:
     [0:bliss-speech-segment]
@@ -3078,14 +3077,14 @@ the size of the n-best list; the indexing starts from 0.
 **Configuration**
 
 
-.. code-block: ini
+.. code-block:: ini
 
     [*.network.select-n-best]
     type                        = select-n-best
 
 **Port assignment**
 
-.. code-block: ini
+.. code-block:: ini
 
     input:
     0:n-best-lattice
@@ -3102,7 +3101,7 @@ Let all incoming lattices/CNs/fCNs sink
 **Configuration**
 
 
-.. code-block: ini
+.. code-block:: ini
 
     [*.network.sink]
     type                        = sink
@@ -3112,7 +3111,7 @@ Let all incoming lattices/CNs/fCNs sink
 
 **Port assignment**
 
-.. code-block: ini
+.. code-block:: ini
 
     input:
     x:lattice/CN/fCN
@@ -3131,14 +3130,14 @@ and as Flf segment.
 **Configuration**
 
 
-.. code-block: ini
+.. code-block:: ini
 
     [*.network.speech-segment]
     type                   = speech-segment
 
 **Port assignment**
 
-.. code-block: ini
+.. code-block:: ini
 
     no input
     output:
@@ -3161,7 +3160,7 @@ only a hack, better someone fixes this in general!)
 **Configuration**
 
 
-.. code-block: ini
+.. code-block:: ini
 
     [*.network.state-cluster-CN-builder]
     type                        = cluster-CN-builder
@@ -3175,7 +3174,7 @@ only a hack, better someone fixes this in general!)
 
 **Port assignment**
 
-.. code-block: ini
+.. code-block:: ini
 
     input:
     0:lattice [1:lattice [...]]
@@ -3195,7 +3194,7 @@ Convert a string to a linear lattice
 **Configuration**
 
 
-.. code-block: ini
+.. code-block:: ini
 
     [*.network.string-to-lattice]
     type                        = string-to-lattice
@@ -3210,7 +3209,7 @@ Convert a string to a linear lattice
 
 **Port assignment**
 
-.. code-block: ini
+.. code-block:: ini
 
     input:
     0:string
@@ -3233,7 +3232,7 @@ or a new semiring is defined.
 **Configuration**
 
 
-.. code-block: ini
+.. code-block:: ini
 
     [*.network.unite]
     type                        = unite
@@ -3247,7 +3246,7 @@ or a new semiring is defined.
 
 **Port assignment**
 
-.. code-block: ini
+.. code-block:: ini
 
     input:
     0:lattice [1:lattice [2:lattice ...]]
@@ -3270,7 +3269,7 @@ if specified, else to the current directory.
 **Configuration**
 
 
-.. code-block: ini
+.. code-block:: ini
 
     [*.network.writer]
     type                        = writer
@@ -3291,7 +3290,7 @@ if specified, else to the current directory.
 
 **Port assignment**
 
-.. code-block: ini
+.. code-block:: ini
 
     input:
     0:lattice[, 1:segment | 2:string]

@@ -39,11 +39,11 @@ private:
     std::string from_node_name_, from_port_name_, to_node_name_, to_port_name_;
 
     // dynamic data
-    u32                         buffer_;
-    Queue                       queue_;
-    const Datatype*             datatype_;
-    Core::Ref<const Attributes> attributes_;
-    Data*                       fast_data_;
+    u32                               buffer_;
+    Queue                             queue_;
+    const Datatype*                   datatype_;
+    std::shared_ptr<const Attributes> attributes_;
+    Data*                             fast_data_;
 
     /** Represents the status of fast_data_.
      *  fast_data_ can be either "empty" or occupied by a data or also by a
@@ -139,8 +139,8 @@ public:
     }
     void setDatatype(const std::string& dt);
 
-    void                        setAttributes(Core::Ref<const Attributes> a);
-    Core::Ref<const Attributes> attributes() const {
+    void                              setAttributes(std::shared_ptr<const Attributes> a);
+    std::shared_ptr<const Attributes> attributes() const {
         return attributes_;
     }
     void eraseAttributes() {

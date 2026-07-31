@@ -100,7 +100,9 @@ Lookup Table
 Format per line: 
 :ref:`Allophone State` followed by Mixture-ID
 
-**Example** ::
+**Example**
+
+.. code-block:: text
 
     t{a+#}@f.1 593
     t{a+#}@f.2 796

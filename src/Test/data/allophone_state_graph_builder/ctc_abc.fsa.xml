@@ -1,0 +1,45 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<fsa type="acceptor" semiring="tropical" initial="0">
+
+<!-- Properties were (only saved in bin format) '5' -->
+
+<input-alphabet>
+<symbol index="0">a{#+#}@i@f.0</symbol>
+<symbol index="1">b{#+#}@i@f.0</symbol>
+<symbol index="2">c{#+#}@i@f.0</symbol>
+<symbol index="4">blank{#+#}@i@f.0</symbol>
+</input-alphabet>
+<state id="0">
+<arc target="1"><in>0</in></arc>
+<arc target="6"><in>4</in></arc>
+</state>
+<state id="6">
+<arc target="1"><in>0</in></arc>
+<arc target="6"><in>4</in></arc>
+</state>
+<state id="1">
+<arc target="1"><in>0</in></arc>
+<arc target="3"><in>1</in></arc>
+<arc target="7"><in>4</in></arc>
+</state>
+<state id="7">
+<arc target="3"><in>1</in></arc>
+<arc target="7"><in>4</in></arc>
+</state>
+<state id="3">
+<arc target="3"><in>1</in></arc>
+<arc target="5"><in>2</in></arc>
+<arc target="8"><in>4</in></arc>
+</state>
+<state id="8">
+<arc target="5"><in>2</in></arc>
+<arc target="8"><in>4</in></arc>
+</state>
+<state id="5"><final/>
+<arc target="5"><in>2</in></arc>
+<arc target="9"><in>4</in></arc>
+</state>
+<state id="9"><final/>
+<arc target="9"><in>4</in></arc>
+</state>
+</fsa>

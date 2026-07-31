@@ -17,6 +17,7 @@ add_executable(
     Math_LinearConjugateGradient.cc
     Math_Utilities.cc
     Registry.cc
+    Speech_AllophoneStateGraphBuilder.cc
     Test_File.cc
     Test_Lexicon.cc
     UnitTester.cc
@@ -51,13 +52,15 @@ endif()
 
 target_link_libraries(
     unit-test
-    PRIVATE RasrBliss
+    PRIVATE RasrAm
+            RasrBliss
             RasrCore
             RasrFsa
             RasrLm
             RasrMath
             RasrMm
             RasrNn
+            RasrSpeech
             cppunit
 )
 

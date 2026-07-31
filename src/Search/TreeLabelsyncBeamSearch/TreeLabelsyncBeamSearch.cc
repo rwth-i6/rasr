@@ -194,19 +194,6 @@ const Core::ParameterInt TreeLabelsyncBeamSearch::paramCacheCleanupInterval(
         10,
         1);
 
-const Core::ParameterInt TreeLabelsyncBeamSearch::paramMaximumStableDelay(
-        "maximum-stable-delay",
-        "Introduce a cutoff point at `current-time` - `delay`. Every hypothesis that disagrees with the current best anywhere before the cutoff gets pruned."
-        "This way words in the traceback become stable after at most `delay` frames.",
-        Core::Type<int>::max,
-        0);
-
-const Core::ParameterInt TreeLabelsyncBeamSearch::paramMaximumStableDelayPruningInterval(
-        "maximum-stable-delay-pruning-interval",
-        "Interval of search steps after which the maximum-stable-delay-pruning gets applied.",
-        10,
-        1);
-
 TreeLabelsyncBeamSearch::TreeLabelsyncBeamSearch(Core::Configuration const& config)
         : Core::Component(config),
           SearchAlgorithmV2(config),
@@ -218,8 +205,6 @@ TreeLabelsyncBeamSearch::TreeLabelsyncBeamSearch(Core::Configuration const& conf
           sentenceEndLemma_(),
           sentenceEndLabelIndex_(Nn::invalidLabelIndex),
           cacheCleanupInterval_(paramCacheCleanupInterval(config)),
-          maximumStableDelay_(paramMaximumStableDelay(config)),
-          maximumStableDelayPruningInterval_(paramMaximumStableDelayPruningInterval(config)),
           sentenceEndFallback_(paramSentenceEndFallBack(config)),
           recombinationEnabled_(paramRecombinationMode(config) == RecombinationModeOn),
           logStepwiseStatistics_(paramLogStepwiseStatistics(config)),
@@ -871,16 +856,6 @@ bool TreeLabelsyncBeamSearch::decodeStep() {
     }
 
     /*
-     * Apply maximum-stable-delay-pruning.
-     */
-    if (currentSearchStep_ % maximumStableDelayPruningInterval_ == 0) {
-        maximumStableDelayPruning();
-        if (logStepwiseStatistics_) {
-            clog() << Core::XmlFull("num-hyps-after-maximum-stable-delay-pruning", beam_.size());
-        }
-    }
-
-    /*
      * Log statistics about the new beam after this step.
      */
 
@@ -1333,52 +1308,6 @@ void TreeLabelsyncBeamSearch::finalizeHypotheses() {
         tempHypotheses_.push_back({baseHyp, ext, baseHyp.lmHistory, lengthNormScale_});
     }
 
-    beam_.swap(tempHypotheses_);
-}
-
-void TreeLabelsyncBeamSearch::maximumStableDelayPruning() {
-    if (currentSearchStep_ + 1 <= maximumStableDelay_) {
-        return;
-    }
-
-    auto cutoff = currentSearchStep_ + 1 - maximumStableDelay_;
-
-    // Find trace of current best hypothesis that has a recent word-end within the limit
-    Score                   bestScaledScore = Core::Type<Score>::max;
-    Core::Ref<LatticeTrace> root;
-
-    for (auto const& hyp : beam_) {
-        if (hyp.scaledScore < bestScaledScore and hyp.trace->time >= cutoff) {
-            bestScaledScore = hyp.scaledScore;
-            root            = hyp.trace;
-        }
-    }
-
-    // No Hypothesis with a recent word-end was found so just take the overall best as fallback
-    if (not root) {
-        root = getBestHypothesis(beam_, HypothesisFilter::Any)->trace;
-        warning() << "Most recent word in best hypothesis is before cutoff point for maximum-stable-delay-pruning so the limit will be surpassed";
-    }
-
-    // Determine the right predecessor of best trace for pruning. `root->time` should be after the cutoff and `root->predecessor->time` before the cutoff
-    Core::Ref<LatticeTrace> preRoot = root->predecessor;
-
-    while (preRoot and preRoot->time >= cutoff) {
-        root    = preRoot;
-        preRoot = preRoot->predecessor;
-    }
-
-    // Perform pruning on root
-    tempHypotheses_.clear();
-    for (auto const& hyp : beam_) {
-        auto curr = hyp.trace;
-        while (curr and curr != root and curr->time > root->time) {
-            curr = curr->predecessor;
-        }
-        if (curr == root) {
-            tempHypotheses_.push_back(hyp);
-        }
-    }
     beam_.swap(tempHypotheses_);
 }
 

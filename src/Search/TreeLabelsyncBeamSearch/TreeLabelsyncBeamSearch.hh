@@ -55,8 +55,6 @@ public:
     static const Core::ParameterChoice      paramRecombinationMode;
     static const Core::ParameterBool        paramSentenceEndFallBack;
     static const Core::ParameterBool        paramLogStepwiseStatistics;
-    static const Core::ParameterInt         paramMaximumStableDelay;
-    static const Core::ParameterInt         paramMaximumStableDelayPruningInterval;
 
     TreeLabelsyncBeamSearch(Core::Configuration const&);
 
@@ -171,8 +169,6 @@ private:
     Bliss::Lemma const* sentenceEndLemma_;
     Nn::LabelIndex      sentenceEndLabelIndex_;
     size_t              cacheCleanupInterval_;
-    size_t              maximumStableDelay_;
-    size_t              maximumStableDelayPruningInterval_;
 
     bool sentenceEndFallback_;
     bool recombinationEnabled_;
@@ -280,11 +276,6 @@ private:
      * the sentence-end pronunciation.
      */
     void finalizeHypotheses();
-
-    /*
-     * Apply maximum-stable-delay-pruning to beam_
-     */
-    void maximumStableDelayPruning();
 };
 
 }  // namespace Search

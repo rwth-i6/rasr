@@ -1,4 +1,4 @@
-/** Copyright 2025 RWTH Aachen University. All rights reserved.
+/** Copyright 2026 RWTH Aachen University. All rights reserved.
  *
  *  Licensed under the RWTH ASR License (the "License");
  *  you may not use this file except in compliance with the License.
@@ -217,7 +217,7 @@ private:
     Core::Statistics<u32>              numActiveHypsAfterScorePruning_;
     Core::Statistics<u32>              numActiveHypsAfterRecombination_;
     Core::Statistics<u32>              numActiveHypsAfterBeamPruning_;
-    Core::Statistics<u32>              numActiveWordEndHypsAfterIntermediatePruning_;
+    Core::Statistics<u32>              numActiveWordEndHypsAfterPruning_;
     Core::Statistics<u32>              numActiveWordEndHypsAfterScorePruning_;
     Core::Statistics<u32>              numActiveWordEndHypsAfterRecombination_;
     Core::Statistics<u32>              numActiveWordEndHypsAfterBeamPruning_;

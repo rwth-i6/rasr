@@ -1,4 +1,4 @@
-/** Copyright 2025 RWTH Aachen University. All rights reserved.
+/** Copyright 2026 RWTH Aachen University. All rights reserved.
  *
  *  Licensed under the RWTH ASR License (the "License");
  *  you may not use this file except in compliance with the License.
@@ -23,6 +23,7 @@
 #include <Core/CollapsedVector.hh>
 #include <Core/XmlStream.hh>
 #include <Lattice/LatticeAdaptor.hh>
+#include <Math/Utilities.hh>
 #include <Nn/LabelScorer/LabelScorer.hh>
 #include <Nn/LabelScorer/ScoringContext.hh>
 #include <Search/Module.hh>
@@ -105,7 +106,7 @@ TreeLabelsyncBeamSearch::LabelHypothesis::LabelHypothesis(
 
 std::string TreeLabelsyncBeamSearch::LabelHypothesis::toString() const {
     std::stringstream ss;
-    ss << "Score: " << score << ", traceback: ";
+    ss << "Score: " << score << ", scaled score: " << scaledScore << ", traceback: ";
 
     auto traceback = trace->performTraceback();
 
@@ -246,7 +247,7 @@ TreeLabelsyncBeamSearch::TreeLabelsyncBeamSearch(Core::Configuration const& conf
           numActiveHypsAfterScorePruning_("num-active-hyps-after-score-pruning"),
           numActiveHypsAfterRecombination_("num-active-hyps-after-recombination"),
           numActiveHypsAfterBeamPruning_("num-active-hyps-after-beam-pruning"),
-          numActiveWordEndHypsAfterIntermediatePruning_("num-word-end-hyps-after-intermediate-pruning"),
+          numActiveWordEndHypsAfterPruning_("num-word-end-hyps-after-pruning"),
           numActiveWordEndHypsAfterScorePruning_("num-active-word-end-hyps-after-score-pruning"),
           numActiveWordEndHypsAfterRecombination_("num-active-word-end-hyps-after-recombination"),
           numActiveWordEndHypsAfterBeamPruning_("num-active-word-end-hyps-after-beam-pruning"),
@@ -344,10 +345,8 @@ bool TreeLabelsyncBeamSearch::setModelCombination(Speech::ModelCombination const
         error() << "No sentence end lemma or pronunciation defined";
     }
 
-    for (const auto& lemma : {"silence"}) {
-        if (lexicon_->specialLemma(lemma) and (lexicon_->specialLemma(lemma)->syntacticTokenSequence()).size() != 0) {
-            warning("Special lemma \"%s\" will be scored by the language model. To prevent the LM from scoring it, set an empty syntactic token sequence for it in the lexicon.", lemma);
-        }
+    if (lexicon_->specialLemma("silence") and (lexicon_->specialLemma("silence")->syntacticTokenSequence()).size() != 0) {
+        warning("Special lemma silence will be scored by the language model. To prevent the LM from scoring it, set an empty syntactic token sequence for it in the lexicon.");
     }
 
     // Create look-ups for state successors and exits of each state
@@ -369,7 +368,7 @@ void TreeLabelsyncBeamSearch::enterSegment(Bliss::SpeechSegment const* segment) 
     numActiveHypsAfterScorePruning_.clear();
     numActiveHypsAfterRecombination_.clear();
     numActiveHypsAfterBeamPruning_.clear();
-    numActiveWordEndHypsAfterIntermediatePruning_.clear();
+    numActiveWordEndHypsAfterPruning_.clear();
     numActiveWordEndHypsAfterScorePruning_.clear();
     numActiveWordEndHypsAfterRecombination_.clear();
     numActiveWordEndHypsAfterBeamPruning_.clear();
@@ -634,6 +633,13 @@ bool TreeLabelsyncBeamSearch::decodeStep() {
             clog() << Core::XmlFull("num-hyps-after-intermediate-pruning-" + std::to_string(scorerIdx + 1), withinWordExtensions_.size());
         }
 
+        if (withinWordExtensions_.empty()) {
+            if (logStepwiseStatistics_) {
+                clog() << Core::XmlClose("search-step-stats");
+            }
+            return false;
+        }
+
         if (scorerIdx < labelScorers_.size() - 1) {
             // Prepare scoring context list for next iteration
             // Some scoring contexts from the current iteration may not have survived pruning, so we need to recreate the list
@@ -706,8 +712,8 @@ bool TreeLabelsyncBeamSearch::decodeStep() {
                 continue;
             }
 
-            Score                               lmScore = 0;
-            const Bliss::SyntacticTokenSequence sts     = lemma->syntacticTokenSequence();
+            Score       lmScore = 0;
+            auto const& sts     = lemma->syntacticTokenSequence();
             if (sts.size() != 0) {
                 require(sts.size() == 1);
                 auto const* st = sts.front();
@@ -748,9 +754,9 @@ bool TreeLabelsyncBeamSearch::decodeStep() {
      * Prune set of word-end hypotheses by max beam size and possibly also by score.
      */
     scorePruning(wordEndExtensions_, wordEndScoreThreshold_, maxWordEndBeamSize_);
-    numActiveWordEndHypsAfterIntermediatePruning_ += wordEndExtensions_.size();
+    numActiveWordEndHypsAfterPruning_ += wordEndExtensions_.size();
     if (logStepwiseStatistics_) {
-        clog() << Core::XmlFull("num-word-end-hyps-after-intermediate-pruning", wordEndExtensions_.size());
+        clog() << Core::XmlFull("num-word-end-hyps-after-pruning", wordEndExtensions_.size());
     }
 
     // Create new word-end label hypotheses from word-end extension candidates and update the LM history
@@ -822,6 +828,9 @@ bool TreeLabelsyncBeamSearch::decodeStep() {
         clog() << Core::XmlFull("num-active-word-end-hyps-after-recombination", numActiveWordEnd);
     }
 
+    /*
+     * Prune new beam by max beam size
+     */
     scorePruning(newBeam_, Core::Type<Score>::max, maxBeamSizes_.back());
 
     numActive        = numActiveHyps();
@@ -994,7 +1003,7 @@ void TreeLabelsyncBeamSearch::logStatistics() const {
     numActiveHypsAfterScorePruning_.write(clog());
     numActiveHypsAfterRecombination_.write(clog());
     numActiveHypsAfterBeamPruning_.write(clog());
-    numActiveWordEndHypsAfterIntermediatePruning_.write(clog());
+    numActiveWordEndHypsAfterPruning_.write(clog());
     numActiveWordEndHypsAfterScorePruning_.write(clog());
     numActiveWordEndHypsAfterRecombination_.write(clog());
     numActiveWordEndHypsAfterBeamPruning_.write(clog());
@@ -1003,18 +1012,27 @@ void TreeLabelsyncBeamSearch::logStatistics() const {
 
 template<typename Element>
 void TreeLabelsyncBeamSearch::scorePruning(std::vector<Element>& hypotheses, Score relativeThreshold, size_t maxBeamSize) {
-    if (hypotheses.size() <= maxBeamSize and relativeThreshold == Core::Type<Score>::max) {
-        // Neither relative score pruning nor max beam size pruning triggers
-        return;
-    }
-
     // Find ranges for score histogram and setting absolute threshold
     Score lowerScore = Core::Type<Score>::max;
     Score upperScore = Core::Type<Score>::min;
 
     for (auto const& hyp : hypotheses) {
+        if (Math::isinf(hyp.score) or hyp.score >= Core::Type<Score>::max) {
+            continue;
+        }
         lowerScore = std::min(lowerScore, hyp.pruningScore());
         upperScore = std::max(upperScore, hyp.pruningScore());
+    }
+
+    if (lowerScore > upperScore) {
+        // No hypothesis with finite score is present in the beam
+        hypotheses.clear();
+        return;
+    }
+
+    if (hypotheses.size() <= maxBeamSize and relativeThreshold == Core::Type<Score>::max) {
+        // Neither relative score pruning nor max beam size pruning triggers
+        return;
     }
 
     if (lowerScore == upperScore) {
@@ -1238,12 +1256,12 @@ void TreeLabelsyncBeamSearch::finalizeHypotheses() {
     for (size_t hypIndex = 0ul; hypIndex < tempHypotheses_.size(); ++hypIndex) {
         auto const& hyp = tempHypotheses_[hypIndex];
         withinWordExtensions_.push_back(
-                {sentenceEndLabelIndex_,
-                 hyp.currentState,
-                 hyp.trace->time,
-                 hyp.score,
-                 Nn::TransitionType::SENTENCE_END,
-                 hypIndex});
+                {.nextToken      = sentenceEndLabelIndex_,
+                 .nextState      = hyp.currentState,
+                 .timeframe      = hyp.trace->time,
+                 .score          = hyp.score,
+                 .transitionType = Nn::TransitionType::SENTENCE_END,
+                 .baseHypIndex   = hypIndex});
     }
 
     // Score sentence-end with all label scorers

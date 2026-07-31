@@ -1,8 +1,8 @@
 SearchV2 Framework
 ===================
 
-``SearchV2`` is RASR's newer decoding framework for neural, end-to-end style recognizers (CTC, RNN-T/transducer,
-Attention encoder-decoder, ...). It replaces the acoustic feature scoring of the classic
+``SearchV2`` is RASR's newer decoding framework for neural, end-to-end style recognizers (CTC, neural transducer,
+Attention encoder-decoder, Speech LLM, ...). It replaces the acoustic feature scoring of the classic
 :ref:`Decoder` (``Search::SearchAlgorithm`` + ``Mm::FeatureScorer``) with a self-contained
 :ref:`label scorer <SearchV2 Label Scorers>` abstraction, so the search algorithm itself no longer needs to know
 from which model topology the scores come from.
@@ -22,10 +22,15 @@ per use case, not globally.
 
 * **Classic search** (``Search::SearchAlgorithm``, mostly ``AdvancedTreeSearch``) drives the search with
   acoustic scores from a ``Mm::FeatureScorer`` (GMMs, hybrid NN/HMM). It is used by the :ref:`recognizer` Flf node
-  and by the ``speech-recognizer`` binary.
+  and by the ``speech-recognizer`` binary. A ``Mm::FeatureScorer`` scores purely from the acoustic feature vector
+  of the current frame, independent of hypothesis history. The same feature always yields the same score for a
+  given HMM state, regardless of which hypothesis reaches it.
 * **SearchV2** (``Search::SearchAlgorithmV2``) drives the search by pulling scores directly from one or more
   :ref:`label scorers <SearchV2 Label Scorers>` (typically wrapping an ONNX model). It is used by the
-  :ref:`recognizer-v2` Flf node and by the ``librasr`` Python bindings.
+  :ref:`recognizer-v2` Flf node and by the ``librasr`` Python bindings. Unlike a ``Mm::FeatureScorer``, an
+  ``Nn::LabelScorer`` is context-aware. Each hypothesis carries its own scoring context (e.g. label history or a
+  hidden state), which is extended as the hypothesis grows and forwarded during the search, so the same (acoustic)
+  input can score differently depending on the hypothesis it is scored for.
 
 Use ``SearchV2`` if your acoustic/language model is a neural end-to-end model (CTC, transducer, attention
 encoder-decoder).
@@ -47,9 +52,10 @@ Every ``SearchV2`` algorithm implements the ``Search::SearchAlgorithmV2`` interf
 whether it is invoked by the :ref:`recognizer-v2` node or by Python:
 
 #. Determine which parts of a :ref:`Model Combination <Common component configuration>` the algorithm needs
-   (lexicon, acoustic model, language model, label scorer(s)) and construct them accordingly.
+   (lexicon, state tying and transition model from the acoustic model, language model, label scorer(s)) and
+   construct them accordingly.
 #. Signal the start of a new segment/utterance.
-#. Feed feature vectors one at a time, or in batches, as they become available.
+#. Feed feature vectors one at a time, or in chunks, as they become available.
 #. Optionally trigger explicit decoding steps and query intermediate ("streaming") results.
 #. Signal the end of the segment, which finalizes the search for all fed features.
 #. Retrieve the final result, either as a single-best traceback or as a word lattice.
@@ -182,8 +188,8 @@ Intended for open-vocabulary decoding with CTC and neural transducer style or si
 an optional blank label (for CTC/transducer) and optional silence and sentence-end labels.
 
 * ``max-beam-size`` (int list): maximum number of hypotheses kept in the beam. Pruning is applied after every
-  label scorer in the pipeline (see :ref:`SearchV2 Label Scorers`), so one value is expected per configured
-  label scorer. Default: unset, i.e. no beam-size pruning is applied.
+  label scorer in the pipeline (see :ref:`Multiple label scorers and per-stage parameters`). No default -- required,
+  with exactly one value per configured label scorer, fewer values than label scorers is an error.
 * ``score-threshold`` (float list): prune hypotheses whose score is worse than the current best by more than
   this amount. Also applied once per label scorer. Default: unset, i.e. no score-based pruning is applied.
 * ``num-histogram-bins`` (int): number of bins used for histogram pruning (minor effect on results/speed). Default ``100``.
@@ -193,10 +199,24 @@ an optional blank label (for CTC/transducer) and optional silence and sentence-e
   Default: disabled.
 * ``sentence-end-label-index`` (int): lexicon index of the sentence-end label, inferred from
   ``special="sentence-end"``/``special="sentence-boundary"`` if unset. Default: disabled.
-* ``collapse-repeated-labels`` (bool): collapse repeated emission of the same label into a single output
-  (typical for CTC-style label loops). Default ``false``.
+* ``collapse-repeated-labels`` (bool): collapse repeated emission of the same label into a single output.
+  If enabled, a run of *immediately consecutive* frames repeating the same label is scored as a single ``label-loop``
+  transition and collapses into one output symbol. If disabled, each frame is instead scored as its own
+  ``label-to-label`` transition and produces a separate output symbol. A blank/silence frame in between always keeps
+  two occurrences separate either way. Since this changes which transition type gets scored, it matters for any label
+  scorer that scores ``label-loop``/``label-to-label`` differently (e.g. a :ref:`transition` label scorer's
+  ``label-loop-score`` only applies to repeats when this is enabled, see :ref:`Transition types and presets`).
+  Default ``false``.
+
+  Example: per-frame labels ``A A A B B B A`` (blank omitted) become ``A B A`` when enabled, or stay
+  ``A A A B B B A`` when disabled.
 * ``recombination-mode`` (``on``/``off``): recombine hypotheses that share the same label scorer state
-  (keeping only the best), like word-history recombination in the classic search. Default ``on``.
+  (keeping only the best), like word-history recombination in the classic search. Turning this off lets
+  redundant hypotheses survive in the beam instead of being merged (possibly wasting beam capacity that could otherwise
+  go to more diverse hypotheses), in exchange for saving the cost of the recombination check itself. Only worth
+  disabling if recombination would rarely/never trigger anyway (e.g. with a full alignment-level scoring
+  context) or if the check itself is the bottleneck (e.g. large vocabulary with score-pruning disabled, so many
+  extension candidates need to be compared). Default ``on``.
 * ``cache-cleanup-interval`` (int): interval (in search steps) after which cached buffered inputs that are no
   longer needed get freed. Default ``10``.
 * ``maximum-stable-delay`` (int): if set, prune away hypotheses that disagree with the current best hypothesis
@@ -225,9 +245,12 @@ transition model. Hypotheses are terminated by an explicit sentence-end symbol r
 input frames. Its main purpose is open-vocabulary search with attention encoder-decoder (AED) or similar
 models.
 
-* ``max-beam-size`` (int list), ``score-threshold`` (float list), ``num-histogram-bins`` (int),
-  ``recombination-mode``, ``log-stepwise-statistics``, ``cache-cleanup-interval``: same meaning as for
-  ``lexiconfree-timesync-beam-search`` above.
+* ``max-beam-size`` (int list), ``num-histogram-bins`` (int), ``recombination-mode``, ``log-stepwise-statistics``,
+  ``cache-cleanup-interval``: same meaning as for ``lexiconfree-timesync-beam-search`` above.
+* ``score-threshold`` (float list): same meaning as for ``lexiconfree-timesync-beam-search`` above. Always
+  expressed in un-normalized score units, regardless of ``length-norm-scale``. When comparing hypotheses of
+  different lengths (e.g. active vs. already-terminated ones), the threshold is converted into the equivalent
+  length-normalized-score gap using the current best hypothesis's length.
 * ``sentence-end-label-index`` (int): lexicon index of the sentence-end label that terminates a hypothesis.
   Inferred from ``special="sentence-end"``/``special="sentence-boundary"`` if unset.
 * ``length-norm-scale`` (float): exponent for length normalization; scaled scores are computed as
@@ -253,13 +276,15 @@ tree-timesync-beam-search
 A time-synchronous beam search that decodes over a prefix tree built from the pronunciation lexicon. Similar
 in structure to the classic tree search, but scored via label scorer(s) instead of a feature scorer. A
 language model score is added at word ends, to disable it, don't set a file or type for the LM and set its scale
-to ``0.0``. Within-word and word-end hypotheses are pruned separately.
+to ``0.0``. Note that leaving ``type`` unset does not mean no language model is used, RASR then still defaults
+to a zerogram LM (uniform probability over the vocabulary), so ``scale = 0.0`` is what actually silences its
+contribution to the score. Within-word and word-end hypotheses are pruned separately.
 
 This algorithm requires a lexicon, an acoustic model (used only to build the search tree, i.e. for allophones
 and state tying, not for scoring) and a language model, in addition to the label scorer(s).
 
-* ``max-beam-size`` (int list): maximum number of *within-word* hypotheses in the beam, one value per label scorer.
-  Default: unset, i.e. no beam-size pruning is applied.
+* ``max-beam-size`` (int list): maximum number of *within-word* hypotheses in the beam, one value per label
+  scorer. No default -- required, same as for ``lexiconfree-timesync-beam-search`` above.
 * ``max-word-end-beam-size`` (int): maximum number of *word-end* hypotheses kept. If unset, word-end
   hypotheses are pruned together with within-word hypotheses using the same global beam. Default: unset.
 * ``score-threshold`` (float list): score-based pruning of *within-word* hypotheses, one value per label scorer.
@@ -267,7 +292,12 @@ and state tying, not for scoring) and a language model, in addition to the label
 * ``word-end-score-threshold`` (float): score-based pruning of *word-end* hypotheses, relative to
   ``score-threshold``. If unset, word-end hypotheses use global score pruning. Default: unset.
 * ``num-histogram-bins`` (int): see above. Default ``100``.
-* ``collapse-repeated-labels`` (bool): see above. Default ``false``.
+* ``collapse-repeated-labels`` (bool): same meaning as above, but keep the search tree topology in mind: a
+  label can only "loop" where the tree actually has a matching self-loop edge for it (controlled by
+  ``tree-builder-type`` and the ``allow-label-loop`` parameter, see :ref:`Search tree types`), without one there is
+  nothing to collapse. When enabled, it also blocks a hypothesis from starting a new word with the same
+  (non-blank/silence) label the previous word just ended on, since a tree cannot represent that as a within-word
+  loop. Default ``false``.
 * ``sentence-end-fall-back`` (bool): if no active word-end hypothesis exists at the end of a segment (i.e. every
   surviving hypothesis is still mid-word), controls what happens instead of failing. If enabled, each
   within-word hypothesis falls back to its last completed word, discarding the incomplete final word. If
@@ -304,8 +334,16 @@ Example config:
     file                     = /path/to/lm.gz
     scale                    = 1.5
 
-The search tree is cached on disk next to the lexicon after it is built the first time, so subsequent runs
-with the same lexicon/acoustic-model configuration start up faster.
+The search tree can be cached on disk so that subsequent runs with the same lexicon/acoustic-model configuration
+start up faster. This is however not automatic, no cache file is configured by default. To enable it, point the
+``search-network.cache-archive`` selector (``global-cache`` by default) at a real file:
+
+.. code-block:: ini
+
+    [*.global-cache]
+    file = /path/to/tree-cache.bin
+
+See :ref:`Memory mapped archives` in :doc:`architecture` for this generic RASR caching mechanism.
 
 tree-labelsync-beam-search
 ^^^^^^^^^^^^^^^^^^^^^^^^^^
@@ -324,10 +362,13 @@ lexicon's ``special="sentence-end"``/``"sentence-boundary"`` lemma (which must h
 pronunciation) rather than being configurable as a separate parameter, so that it stays consistent with the label
 index used for the search tree itself.
 
-* ``max-beam-size``, ``max-word-end-beam-size``, ``score-threshold``, ``word-end-score-threshold``,
-  ``num-histogram-bins``, ``sentence-end-fall-back``, ``recombination-mode``, ``log-stepwise-statistics``,
-  ``cache-cleanup-interval``, ``maximum-stable-delay``, ``maximum-stable-delay-pruning-interval``: same meaning
-  and defaults as for ``tree-timesync-beam-search`` above.
+* ``max-beam-size``, ``max-word-end-beam-size``, ``word-end-score-threshold``, ``num-histogram-bins``,
+  ``sentence-end-fall-back``, ``recombination-mode``, ``log-stepwise-statistics``, ``cache-cleanup-interval``,
+  ``maximum-stable-delay``, ``maximum-stable-delay-pruning-interval``: same meaning and defaults as for
+  ``tree-timesync-beam-search`` above.
+* ``score-threshold``: same meaning as for ``tree-timesync-beam-search`` above. Also interacts with
+  ``length-norm-scale`` the same way as for ``lexiconfree-labelsync-beam-search`` above -- always expressed in
+  un-normalized score units.
 * ``length-norm-scale``, ``max-labels-per-timestep``: same meaning and defaults as for
   ``lexiconfree-labelsync-beam-search`` above.
 * ``tree-builder-type`` (enum): the same shared parameter as for ``tree-timesync-beam-search`` (see
@@ -355,6 +396,8 @@ index used for the search tree itself.
     type                     = ARPA
     file                     = /path/to/lm.gz
     scale                    = 0.8
+
+The same tree caching considerations as for ``tree-timesync-beam-search`` above apply here as well.
 
 Search tree types
 ^^^^^^^^^^^^^^^^^
@@ -460,7 +503,8 @@ Built-in label scorer types include:
 * ``ctc-prefix``: wraps a time-synchronous CTC scorer and derives label-synchronous prefix scores from it
   (useful with ``lexiconfree-labelsync-beam-search``).
 * ``combine``: log-linearly combines multiple sub-label-scorers into one (e.g. AM + LM), configured via nested
-  selectors.
+  selectors. However, separate ``num-label-scorers`` stages with pruning in between should usually be preferred
+  (see :ref:`combine` below for when this one is actually the better choice).
 * ``transition``: returns fixed scores per transition type, useful for e.g. modeling label-loop penalties.
 * ``prior`` / ``no-op``: pass through externally computed scores as-is, optionally subtracting a prior.
 
@@ -700,7 +744,8 @@ Wraps a time-synchronous CTC scorer (any other label scorer producing per-frame 
 ``no-context-onnx`` or ``encoder-only``) and derives label-*synchronous* prefix scores from it, by summing over
 all the time-synchronous CTC alignments consistent with a given label prefix. This lets a CTC model's scores be
 used together with a label-synchronous search such as ``lexiconfree-labelsync-beam-search``, e.g. to combine an
-AED and a CTC model at the label level.
+AED and a CTC model at the label level. Prefix scores are computed as in algorithm 2 of "Hybrid CTC/Attention
+Architecture for End-to-End Speech Recognition" (Watanabe et al., 2017).
 
 * ``blank-label-index`` (int): index of the blank label in the wrapped CTC scorer's vocabulary. Default ``0``,
   but should always be set explicitly to match your vocabulary.
@@ -727,6 +772,12 @@ label alphabet: ``combined_score = sum_i(score_i * scale_i)``. The combined time
 sub-scorers' timeframes. In this way, one can log-linearly combine e.g. an acoustic model scorer and a
 neural language model scorer inside one label-scorer "stage" (as opposed to using two separate
 ``num-label-scorers`` stages with pruning in between).
+
+Every sub-scorer here is evaluated for every hypothesis before any pruning happens, whereas separate stages
+(see :ref:`Multiple label scorers and per-stage parameters`) let cheaper/more-informative scorers prune the beam
+before the remaining, potentially more expensive, scorers run at all. ``combine`` is worth it mainly when pruning
+after a single sub-scorer would discard hypotheses that only look bad in isolation but are fine once the other
+sub-scorer's score is factored in.
 
 * ``num-scorers`` (int): number of sub-scorers to combine. Default ``1``.
 * ``scorer-<i>.*`` (for ``i`` from ``1`` to ``num-scorers``): configuration of the ``i``-th sub-scorer,
@@ -957,7 +1008,9 @@ this document -- you can build it programmatically, load it from a file, or both
 * ``config.set(name, value="true")`` : set a single configuration key, e.g. ``config.set("*.search-algorithm.type", "tree-timesync-beam-search")``.
 * ``config.set_from_file(path)`` : load a ``.ini``-style RASR config file, same as ``--config=path`` for the
   command-line tools. Returns ``True`` on success.
-* ``config[name]`` : read back a resolved value (``__getitem__``), returns ``None`` if unset.
+* ``config[name]`` : read back a resolved value (``__getitem__``), returns ``None`` if unset. Always returns a
+  plain ``str`` (or ``None``) regardless of the parameter's actual type, so int/float/bool values need to be
+  parsed by the caller, e.g. ``int(config["*.search-algorithm.max-beam-size"])``.
 * ``config.get_selection()`` / ``config.set_selection(name)`` : get/set the selection root used when resolving relative keys.
 * ``config.resolve(value)`` : resolve ``$(VAR)`` substitutions in a string the same way the config parser does.
 * ``config.enable_logging()`` : turn on RASR's normal log output (XML log to stderr) for this process.
@@ -998,12 +1051,12 @@ and intermediate results:
         search.put_feature(feature_chunk)      # single feature, shape [F] or [1, F]
         # or: search.put_features(feature_chunk)  # multiple features, shape [T, F] or [1, T, F]
 
-        # optional: peek at an intermediate (possibly unstable) result while streaming
+        # optional: peek at intermediate (possibly unstable) results while streaming
         partial = search.get_current_best_traceback()
+        stable  = search.get_common_prefix()   # stable prefix shared by all current hypotheses
     search.finish_segment()            # signal that the segment is complete
 
     best = search.get_current_best_traceback()      # final single-best result
-    stable = search.get_common_prefix()              # stable prefix shared by all current hypotheses
     n_best = search.get_current_n_best_list(10)       # list of `n` Traceback objects
 
 **SearchAlgorithm methods:**
@@ -1027,7 +1080,12 @@ and intermediate results:
 
 **Traceback / TracebackItem:** a ``Traceback`` is a plain Python list of ``TracebackItem``, each with
 read/write attributes ``lemma`` (str), ``am_score`` (float), ``lm_score`` (float), ``start_time`` (int) and
-``end_time`` (int, both in feature-frame units). ``str(item)`` gives just the lemma.
+``end_time`` (int). For the time-synchronous algorithms, ``start_time``/``end_time`` are in feature-frame units.
+For the label-synchronous ones, they instead give the item's position in the output token sequence, not a frame
+index. ``am_score``/``lm_score`` are already-scaled scores. ``lm_score`` is specifically the classic word-level
+language model's contribution (only used by the ``tree-*`` algorithms), every label scorer's contribution,
+including a neural LM configured as a label scorer, is part of ``am_score`` instead. ``str(item)`` gives just
+the lemma.
 
 **Adjusting scales at runtime** via ``model_combination()``, without touching the config or rebuilding anything:
 

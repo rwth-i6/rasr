@@ -1,15 +1,14 @@
 SearchV2 Framework
 ===================
 
-SearchV2 is RASR's newer decoding framework for neural, end-to-end style recognizers (CTC, RNN-T/transducer,
-Attention encoder-decoder, ...). It replaces the acoustic feature scoring of the classic
+``SearchV2`` is RASR's newer decoding framework for neural, end-to-end style recognizers (CTC, neural transducer,
+Attention encoder-decoder, Speech LLM, ...). It replaces the acoustic feature scoring of the classic
 :ref:`Decoder` (``Search::SearchAlgorithm`` + ``Mm::FeatureScorer``) with a self-contained
 :ref:`label scorer <SearchV2 Label Scorers>` abstraction, so the search algorithm itself no longer needs to know
 from which model topology the scores come from.
 
-This page describes SearchV2 from a user's perspective: which search algorithms and label scorers are available, how to
-configure them, and how to wire them into an Flf network or a ``librasr`` Python session. It does not require reading
-any C++ code.
+This page describes ``SearchV2`` from a user's perspective: which search algorithms and label scorers are available, how to
+configure them, and how to wire them into an Flf network or a ``librasr`` Python session.
 
 .. contents::
    :local:
@@ -23,12 +22,17 @@ per use case, not globally.
 
 * **Classic search** (``Search::SearchAlgorithm``, mostly ``AdvancedTreeSearch``) drives the search with
   acoustic scores from a ``Mm::FeatureScorer`` (GMMs, hybrid NN/HMM). It is used by the :ref:`recognizer` Flf node
-  and by ``speech-recognizer``.
+  and by the ``speech-recognizer`` binary. A ``Mm::FeatureScorer`` scores purely from the acoustic feature vector
+  of the current frame, independent of hypothesis history. The same feature always yields the same score for a
+  given HMM state, regardless of which hypothesis reaches it.
 * **SearchV2** (``Search::SearchAlgorithmV2``) drives the search by pulling scores directly from one or more
   :ref:`label scorers <SearchV2 Label Scorers>` (typically wrapping an ONNX model). It is used by the
-  :ref:`recognizer-v2` Flf node and by the ``librasr`` Python bindings.
+  :ref:`recognizer-v2` Flf node and by the ``librasr`` Python bindings. Unlike a ``Mm::FeatureScorer``, an
+  ``Nn::LabelScorer`` is context-aware. Each hypothesis carries its own scoring context (e.g. label history or a
+  hidden state), which is extended as the hypothesis grows and forwarded during the search, so the same (acoustic)
+  input can score differently depending on the hypothesis it is scored for.
 
-Use SearchV2 if your acoustic/language model is a neural end-to-end model (CTC, transducer, attention
+Use ``SearchV2`` if your acoustic/language model is a neural end-to-end model (CTC, transducer, attention
 encoder-decoder).
 Use the classic search for GMM or hybrid NN/HMM systems, or when you need one of the more specialized classic
 searches (WFST-based search, linear search, ...).
@@ -37,32 +41,33 @@ Both frameworks produce the same kind of output (a single-best traceback and/or 
 downstream lattice processing (rescoring, CTM writing, ...) works the same way regardless of which search
 produced the lattice.
 
-The SearchV2 framework is intentionally kept simple. Instead of one large monolithic search implementation with
+The ``SearchV2`` framework is intentionally kept simple. Instead of one large monolithic search implementation with
 many different configuration options, it contains smaller, more specialized search algorithms for different use-cases
 and various label scorers for different models.
 
 Core workflow
 -------------
 
-Every SearchV2 algorithm implements the ``Search::SearchAlgorithmV2`` interface and is driven the same way,
+Every ``SearchV2`` algorithm implements the ``Search::SearchAlgorithmV2`` interface and is driven the same way,
 whether it is invoked by the :ref:`recognizer-v2` node or by Python:
 
 #. Determine which parts of a :ref:`Model Combination <Common component configuration>` the algorithm needs
-   (lexicon, acoustic model, language model, label scorer(s)) and construct them accordingly.
+   (lexicon, state tying and transition model from the acoustic model, language model, label scorer(s)) and
+   construct them accordingly.
 #. Signal the start of a new segment/utterance.
-#. Feed feature vectors one at a time, or in batches, as they become available.
+#. Feed feature vectors one at a time, or in chunks, as they become available.
 #. Optionally trigger explicit decoding steps and query intermediate ("streaming") results.
 #. Signal the end of the segment, which finalizes the search for all fed features.
 #. Retrieve the final result, either as a single-best traceback or as a word lattice.
 
 Since features are pushed in and results are pulled out independently, the same algorithm implementation can
-be used both for offline decoding of a full corpus and for online/streaming decoding, without any change to
+be used both for offline/batch decoding and for online/streaming decoding, without any change to
 configuration.
 
 Search algorithms
 -----------------
 
-Four search algorithms are currently implemented on top of SearchV2. Which one to pick depends on the type of model
+Four search algorithms are currently implemented on top of ``SearchV2``. Which one to pick depends on the type of model
 and vocabulary you use:
 
 * ``lexiconfree-timesync-beam-search``: time-synchronous decoding, no pronunciation lexicon required. Typical
@@ -70,13 +75,14 @@ and vocabulary you use:
 * ``lexiconfree-labelsync-beam-search``: label-synchronous decoding, no pronunciation lexicon required. Typical
   use case: attention encoder-decoder (AED) models and Speech LLMs.
 * ``tree-timesync-beam-search``: time-synchronous decoding over a pronunciation lexicon search tree, with a
-  word-level language model. The topology of the tree itself (HMM, CTC, RNA, AED, ...) is a separate choice,
+  word-level language model. The topology of the tree itself (HMM, CTC, RNA, ...) is a separate choice,
   see :ref:`Search tree types` below.
 * ``tree-labelsync-beam-search``: label-synchronous counterpart to ``tree-timesync-beam-search``, decoding over
   a pronunciation lexicon search tree built with the ``aed`` tree builder, with a word-level language model.
 
-The "lexiconfree" searches treat every entry of the lexicon as a single output token and do not build a
-pronunciation search tree or apply a word-level transition model.
+The "lexiconfree" searches technically still require a lexicon containing the output vocabulary. However, they do
+not build a pronunciation search tree or apply a word-level transition model. For details on the lexicon,
+see :ref:`Lexicon requirements`.
 The "tree" searches (also called lexicon-constrained) build a prefix tree from the pronunciation lexicon
 and additionally scores a language model at word ends.
 
@@ -84,18 +90,19 @@ Lexicon requirements
 ^^^^^^^^^^^^^^^^^^^^^
 
 Even though the "lexiconfree" searches do not build a lexical prefix tree, a lexicon is still required.
-Each lemma is treated as one output label and the lemma's index in the lexicon must match the corresponding
-output index of the label scorer (e.g. the softmax index of a CTC/transducer/AED model). ``blank-label-index``,
-``silence-label-index`` and ``sentence-end-label-index`` (see below) are likewise resolved as the ``id()`` of the
-lemma marked ``special="blank"``/``"silence"``/``"sentence-end"``/``"sentence-boundary"`` respectively.
+Each lemma in the lexicon is treated as one output label and the lemma's index in the lexicon must match the
+corresponding output index of the label scorer (e.g. the softmax index of a CTC/transducer/AED model).
+``blank-label-index``, ``silence-label-index`` and ``sentence-end-label-index`` (see below) are likewise resolved
+from the lexicon: ``blank-label-index`` from the lemma marked ``special="blank"``, ``silence-label-index`` from
+``special="silence"``, and ``sentence-end-label-index`` from ``special="sentence-end"``/``"sentence-boundary"``.
 
 There are two ways to provide such a lexicon:
 
-* A full Bliss XML lexicon (``file = /path/to/lexicon.xml.gz``, the default ``xml`` format). Here it is the
-  responsibility of whoever writes the lexicon to declare the phoneme inventory and the lemma list in the same
-  order, so that the Nth lemma corresponds to the Nth phoneme/output label -- this correspondence is *not*
-  verified at runtime, so a mismatch will silently produce wrong labels rather than an error. For example, a
-  minimal 3-label lexicon (labels ``A``, ``B``, ``C``, at output indices 0, 1, 2 respectively) looks like this:
+* A full Bliss XML lexicon. Here it is the responsibility of whoever writes the lexicon to declare the phoneme
+  inventory and the lemma list in the same order, so that the Nth lemma corresponds to the Nth phoneme/output label
+  -- this correspondence is *not* verified at runtime, so a mismatch will silently produce wrong labels rather than
+  an error. For example, a minimal 3-label lexicon (labels ``A``, ``B``, ``C``, at output indices 0, 1, 2 respectively)
+  looks like this:
 
   .. code-block:: xml
 
@@ -154,8 +161,8 @@ There are two ways to provide such a lexicon:
   ``vocab-text``/``vocab-txt`` lexicon and must be passed explicitly as parameters to the search algorithm instead.
 
 The "tree" searches, in contrast, always need a full pronunciation lexicon (the ``xml`` format). They build the
-prefix search tree directly from its pronunciations, so the ``vocab-text``/``vocab-txt`` format does not apply
-there.
+prefix search tree directly from its pronunciations, so the ``vocab-text``/``vocab-txt`` format is not suitable
+for them.
 
 Selecting an algorithm
 ^^^^^^^^^^^^^^^^^^^^^^^
@@ -181,8 +188,8 @@ Intended for open-vocabulary decoding with CTC and neural transducer style or si
 an optional blank label (for CTC/transducer) and optional silence and sentence-end labels.
 
 * ``max-beam-size`` (int list): maximum number of hypotheses kept in the beam. Pruning is applied after every
-  label scorer in the pipeline (see :ref:`SearchV2 Label Scorers`), so one value is expected per configured
-  label scorer. Default: unset, i.e. no beam-size pruning is applied.
+  label scorer in the pipeline (see :ref:`Multiple label scorers and per-stage parameters`). No default -- required,
+  with exactly one value per configured label scorer, fewer values than label scorers is an error.
 * ``score-threshold`` (float list): prune hypotheses whose score is worse than the current best by more than
   this amount. Also applied once per label scorer. Default: unset, i.e. no score-based pruning is applied.
 * ``num-histogram-bins`` (int): number of bins used for histogram pruning (minor effect on results/speed). Default ``100``.
@@ -192,10 +199,24 @@ an optional blank label (for CTC/transducer) and optional silence and sentence-e
   Default: disabled.
 * ``sentence-end-label-index`` (int): lexicon index of the sentence-end label, inferred from
   ``special="sentence-end"``/``special="sentence-boundary"`` if unset. Default: disabled.
-* ``collapse-repeated-labels`` (bool): collapse repeated emission of the same label into a single output
-  (typical for CTC-style label loops). Default ``false``.
+* ``collapse-repeated-labels`` (bool): collapse repeated emission of the same label into a single output.
+  If enabled, a run of *immediately consecutive* frames repeating the same label is scored as a single ``label-loop``
+  transition and collapses into one output symbol. If disabled, each frame is instead scored as its own
+  ``label-to-label`` transition and produces a separate output symbol. A blank/silence frame in between always keeps
+  two occurrences separate either way. Since this changes which transition type gets scored, it matters for any label
+  scorer that scores ``label-loop``/``label-to-label`` differently (e.g. a :ref:`transition` label scorer's
+  ``label-loop-score`` only applies to repeats when this is enabled, see :ref:`Transition types and presets`).
+  Default ``false``.
+
+  Example: per-frame labels ``A A A B B B A`` (blank omitted) become ``A B A`` when enabled, or stay
+  ``A A A B B B A`` when disabled.
 * ``recombination-mode`` (``on``/``off``): recombine hypotheses that share the same label scorer state
-  (keeping only the best), like word-history recombination in the classic search. Default ``on``.
+  (keeping only the best), like word-history recombination in the classic search. Turning this off lets
+  redundant hypotheses survive in the beam instead of being merged (possibly wasting beam capacity that could otherwise
+  go to more diverse hypotheses), in exchange for saving the cost of the recombination check itself. Only worth
+  disabling if recombination would rarely/never trigger anyway (e.g. with a full alignment-level scoring
+  context) or if the check itself is the bottleneck (e.g. large vocabulary with score-pruning disabled, so many
+  extension candidates need to be compared). Default ``on``.
 * ``cache-cleanup-interval`` (int): interval (in search steps) after which cached buffered inputs that are no
   longer needed get freed. Default ``10``.
 * ``maximum-stable-delay`` (int): if set, prune away hypotheses that disagree with the current best hypothesis
@@ -224,9 +245,12 @@ transition model. Hypotheses are terminated by an explicit sentence-end symbol r
 input frames. Its main purpose is open-vocabulary search with attention encoder-decoder (AED) or similar
 models.
 
-* ``max-beam-size`` (int list), ``score-threshold`` (float list), ``num-histogram-bins`` (int),
-  ``recombination-mode``, ``log-stepwise-statistics``, ``cache-cleanup-interval``: same meaning as for
-  ``lexiconfree-timesync-beam-search`` above.
+* ``max-beam-size`` (int list), ``num-histogram-bins`` (int), ``recombination-mode``, ``log-stepwise-statistics``,
+  ``cache-cleanup-interval``: same meaning as for ``lexiconfree-timesync-beam-search`` above.
+* ``score-threshold`` (float list): same meaning as for ``lexiconfree-timesync-beam-search`` above. Always
+  expressed in un-normalized score units, regardless of ``length-norm-scale``. When comparing hypotheses of
+  different lengths (e.g. active vs. already-terminated ones), the threshold is converted into the equivalent
+  length-normalized-score gap using the current best hypothesis's length.
 * ``sentence-end-label-index`` (int): lexicon index of the sentence-end label that terminates a hypothesis.
   Inferred from ``special="sentence-end"``/``special="sentence-boundary"`` if unset.
 * ``length-norm-scale`` (float): exponent for length normalization; scaled scores are computed as
@@ -252,13 +276,15 @@ tree-timesync-beam-search
 A time-synchronous beam search that decodes over a prefix tree built from the pronunciation lexicon. Similar
 in structure to the classic tree search, but scored via label scorer(s) instead of a feature scorer. A
 language model score is added at word ends, to disable it, don't set a file or type for the LM and set its scale
-to ``0.0``. Within-word and word-end hypotheses are pruned separately.
+to ``0.0``. Note that leaving ``type`` unset does not mean no language model is used, RASR then still defaults
+to a zerogram LM (uniform probability over the vocabulary), so ``scale = 0.0`` is what actually silences its
+contribution to the score. Within-word and word-end hypotheses are pruned separately.
 
 This algorithm requires a lexicon, an acoustic model (used only to build the search tree, i.e. for allophones
 and state tying, not for scoring) and a language model, in addition to the label scorer(s).
 
-* ``max-beam-size`` (int list): maximum number of *within-word* hypotheses in the beam, one value per label scorer.
-  Default: unset, i.e. no beam-size pruning is applied.
+* ``max-beam-size`` (int list): maximum number of *within-word* hypotheses in the beam, one value per label
+  scorer. No default -- required, same as for ``lexiconfree-timesync-beam-search`` above.
 * ``max-word-end-beam-size`` (int): maximum number of *word-end* hypotheses kept. If unset, word-end
   hypotheses are pruned together with within-word hypotheses using the same global beam. Default: unset.
 * ``score-threshold`` (float list): score-based pruning of *within-word* hypotheses, one value per label scorer.
@@ -266,7 +292,12 @@ and state tying, not for scoring) and a language model, in addition to the label
 * ``word-end-score-threshold`` (float): score-based pruning of *word-end* hypotheses, relative to
   ``score-threshold``. If unset, word-end hypotheses use global score pruning. Default: unset.
 * ``num-histogram-bins`` (int): see above. Default ``100``.
-* ``collapse-repeated-labels`` (bool): see above. Default ``false``.
+* ``collapse-repeated-labels`` (bool): same meaning as above, but keep the search tree topology in mind: a
+  label can only "loop" where the tree actually has a matching self-loop edge for it (controlled by
+  ``tree-builder-type`` and the ``allow-label-loop`` parameter, see :ref:`Search tree types`), without one there is
+  nothing to collapse. When enabled, it also blocks a hypothesis from starting a new word with the same
+  (non-blank/silence) label the previous word just ended on, since a tree cannot represent that as a within-word
+  loop. Default ``false``.
 * ``sentence-end-fall-back`` (bool): if no active word-end hypothesis exists at the end of a segment (i.e. every
   surviving hypothesis is still mid-word), controls what happens instead of failing. If enabled, each
   within-word hypothesis falls back to its last completed word, discarding the incomplete final word. If
@@ -278,7 +309,7 @@ and state tying, not for scoring) and a language model, in addition to the label
   acoustic model: ``ctc``, ``rna``, ``aed`` or ``hmm`` (``classic-hmm`` and ``minimized-hmm`` only work for
   ``Search`` and are not compatible with ``SearchV2``). Choose the one matching your model's topology.
   See :ref:`Search tree types` below for a full description of each. **This must always be set explicitly**:
-  the code-level default when unset is ``minimized-hmm``, which is not compatible with SearchV2 (see below).
+  the code-level default when unset is ``minimized-hmm``, which is not compatible with ``SearchV2`` (see below).
 
 Example config:
 
@@ -303,8 +334,16 @@ Example config:
     file                     = /path/to/lm.gz
     scale                    = 1.5
 
-The search tree is cached on disk next to the lexicon after it is built the first time, so subsequent runs
-with the same lexicon/acoustic-model configuration start up faster.
+The search tree can be cached on disk so that subsequent runs with the same lexicon/acoustic-model configuration
+start up faster. This is however not automatic, no cache file is configured by default. To enable it, point the
+``search-network.cache-archive`` selector (``global-cache`` by default) at a real file:
+
+.. code-block:: ini
+
+    [*.global-cache]
+    file = /path/to/tree-cache.bin
+
+See :ref:`Memory mapped archives` in :doc:`architecture` for this generic RASR caching mechanism.
 
 tree-labelsync-beam-search
 ^^^^^^^^^^^^^^^^^^^^^^^^^^
@@ -323,10 +362,13 @@ lexicon's ``special="sentence-end"``/``"sentence-boundary"`` lemma (which must h
 pronunciation) rather than being configurable as a separate parameter, so that it stays consistent with the label
 index used for the search tree itself.
 
-* ``max-beam-size``, ``max-word-end-beam-size``, ``score-threshold``, ``word-end-score-threshold``,
-  ``num-histogram-bins``, ``sentence-end-fall-back``, ``recombination-mode``, ``log-stepwise-statistics``,
-  ``cache-cleanup-interval``, ``maximum-stable-delay``, ``maximum-stable-delay-pruning-interval``: same meaning
-  and defaults as for ``tree-timesync-beam-search`` above.
+* ``max-beam-size``, ``max-word-end-beam-size``, ``word-end-score-threshold``, ``num-histogram-bins``,
+  ``sentence-end-fall-back``, ``recombination-mode``, ``log-stepwise-statistics``, ``cache-cleanup-interval``,
+  ``maximum-stable-delay``, ``maximum-stable-delay-pruning-interval``: same meaning and defaults as for
+  ``tree-timesync-beam-search`` above.
+* ``score-threshold``: same meaning as for ``tree-timesync-beam-search`` above. Also interacts with
+  ``length-norm-scale`` the same way as for ``lexiconfree-labelsync-beam-search`` above -- always expressed in
+  un-normalized score units.
 * ``length-norm-scale``, ``max-labels-per-timestep``: same meaning and defaults as for
   ``lexiconfree-labelsync-beam-search`` above.
 * ``tree-builder-type`` (enum): the same shared parameter as for ``tree-timesync-beam-search`` (see
@@ -355,6 +397,8 @@ index used for the search tree itself.
     file                     = /path/to/lm.gz
     scale                    = 0.8
 
+The same tree caching considerations as for ``tree-timesync-beam-search`` above apply here as well.
+
 Search tree types
 ^^^^^^^^^^^^^^^^^
 
@@ -365,7 +409,7 @@ context-dependent triphones are built, etc.), so it must match the alignment top
 scorer(s) actually produce.
 
 ``classic-hmm`` and ``minimized-hmm`` are also valid ``tree-builder-type`` choices, but they are not compatible
-with SearchV2 -- they build the full/minimized cross-word triphone HMM tree used by the classic
+with ``SearchV2`` -- they build the full/minimized cross-word triphone HMM tree used by the classic
 ``Search::SearchAlgorithm``/``AdvancedTreeSearch`` and its ``Mm::FeatureScorer``-based scoring, so they are not
 listed below. Note that ``minimized-hmm``/``previousBehavior`` is still the code-level default when
 ``tree-builder-type`` is left unset, so it must always be set explicitly to one of the options below for
@@ -403,7 +447,7 @@ listed below. Note that ``minimized-hmm``/``previousBehavior`` is still the code
 Multiple label scorers and per-stage parameters
 ------------------------------------------------
 
-All three algorithms can use more than one label scorer at once (e.g. an acoustic model scorer plus a separate
+All new search algorithms can use more than one label scorer at once (e.g. an acoustic model scorer plus a separate
 language model scorer), applied one after another with pruning in between. The number of label scorers is set
 independently via ``num-label-scorers`` (see below); ``max-beam-size`` and ``score-threshold`` then take one
 value **per label scorer**, separated by whitespace, applied in the same order the label scorers are scored:
@@ -415,15 +459,18 @@ value **per label scorer**, separated by whitespace, applied in the same order t
     score-threshold = 20.0 14.0
 
 Here the beam is pruned to 2400 hypotheses (with a score threshold of 20.0) after the first label scorer, and
-further pruned to 1200 hypotheses (score threshold 14.0) after the second. If only a single value is given, it is
-used after the (only) label scorer.
+further pruned to 1200 hypotheses (score threshold 14.0) after the second. The values are *not* repeated across
+stages. ``max-beam-size`` must have exactly one value per label scorer -- fewer values than label scorers is an
+error, more is just a warning about unused trailing values. ``score-threshold`` is more lenient, any label scorer
+stage without a corresponding value gets no score-threshold pruning at all (rather than reusing the last given value).
+With a single label scorer, a single value is of course sufficient for both parameters.
 
 .. _SearchV2 Label Scorers:
 
 Label scorers
 --------------
 
-Instead of a ``Mm::FeatureScorer``, SearchV2 algorithms obtain scores from one or more ``Nn::LabelScorer``
+Instead of a ``Mm::FeatureScorer``, ``SearchV2`` algorithms obtain scores from one or more ``Nn::LabelScorer``
 instances, configured under the ``label-scorer`` selector (or ``label-scorer-1``, ``label-scorer-2``, ... if
 ``num-label-scorers`` is greater than one):
 
@@ -437,7 +484,7 @@ instances, configured under the ``label-scorer`` selector (or ``label-scorer-1``
     scale             = 1.0
     ; further label-scorer specific parameters, e.g. ONNX model file, I/O tensor names, ...
 
-Every label scorer constructed this way (whatever its ``type``) is automatically wrapped in a
+Every label scorer constructed this way (whatever its ``type``) is automatically wrapped in an
 ``Nn::ScaledLabelScorer``, so a log-linear ``scale`` (float, default ``1.0``) is always available as a
 parameter on the same selector, e.g. ``*.search-algorithm.label-scorer.scale``.
 
@@ -451,26 +498,86 @@ Built-in label scorer types include:
 
 * ``no-context-onnx``, ``fixed-context-onnx``, ``stateful-onnx``, ``state-managed-onnx``: forward
   features (and, depending on type, label history/hidden state) through an ONNX model.
-* ``encoder-decoder`` / ``encoder-only``: wrap a separate encoder (see ``encoder`` sub-selector) that
+* ``encoder-decoder`` / ``encoder-only``: wrap a separate encoder (see :ref:`Encoders` below) that
   pre-processes features, combined with a decoder label scorer (or no decoder, for encoder-only models).
 * ``ctc-prefix``: wraps a time-synchronous CTC scorer and derives label-synchronous prefix scores from it
   (useful with ``lexiconfree-labelsync-beam-search``).
 * ``combine``: log-linearly combines multiple sub-label-scorers into one (e.g. AM + LM), configured via nested
-  selectors.
+  selectors. However, separate ``num-label-scorers`` stages with pruning in between should usually be preferred
+  (see :ref:`combine` below for when this one is actually the better choice).
 * ``transition``: returns fixed scores per transition type, useful for e.g. modeling label-loop penalties.
 * ``prior`` / ``no-op``: pass through externally computed scores as-is, optionally subtracting a prior.
 
-Label scorer configuration is its own (large) topic. The essential thing to know for SearchV2 is only that
+Label scorer configuration is its own (large) topic. The essential thing to know for ``SearchV2`` is only that
 ``*.search-algorithm.label-scorer.type`` selects the implementation, and that ``num-label-scorers`` /
 ``max-beam-size`` / ``score-threshold`` must agree in how many scorers/stages are configured.
 
 The rest of this section describes each built-in label scorer type in more detail.
 
+Transition types and presets
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+Every label scorer -- not just :ref:`transition` -- decides, per transition, whether it contributes a score for
+it at all. If a transition type is not enabled for a given label scorer, that scorer is simply skipped for
+extensions of that type, as if it contributed a score of ``0.0``. This is what lets e.g. a label scorer for an
+acoustic model stay silent at word-end transitions while a label scorer for a language model stays silent at
+within-word transitions, without either needing to know about the other.
+
+Recognized transition types, grouped by the state the transition originates from:
+
+* from a regular label:
+
+  * ``label-to-label``, ``label-loop``, ``label-to-blank``, ``label-to-silence``
+
+* from blank:
+
+  * ``blank-to-label``, ``blank-loop``
+
+* from silence:
+
+  * ``silence-to-label``, ``silence-loop``
+
+* at the start of a segment, when there is no previous label yet:
+
+  * ``initial-label``, ``initial-blank``, ``initial-silence``
+
+* at a word/segment boundary:
+
+  * ``word-exit``, ``nonword-exit``, ``silence-exit``, ``sentence-end``
+
+Which of these are enabled for a given label scorer is controlled by two parameters available on every label
+scorer:
+
+* ``transition-preset`` (``none``/``all``/``ctc``/``transducer``/``aed``/``lm``/``hmm``): selects a predefined
+  set of enabled transition types, see below. Default depends on the label scorer type.
+* ``extra-transition-types`` (comma-separated list of transition type names): additional transition types
+  enabled on top of the preset. Default: unset, i.e. no additional types.
+
+There is no way to *remove* individual types from a preset -- to enable an arbitrary custom set, set
+``transition-preset = none`` and list the exact set of types via ``extra-transition-types`` instead.
+
+Available presets and the transition types each of them enables:
+
+* ``ctc``: ``label-to-label``, ``label-loop``, ``label-to-blank``, ``blank-to-label``, ``blank-loop``,
+  ``initial-label``, ``initial-blank``.
+* ``transducer``: ``label-to-label``, ``label-to-blank``, ``blank-to-label``, ``blank-loop``, ``initial-label``,
+  ``initial-blank``.
+* ``lm`` / ``aed``: ``label-to-label``, ``blank-to-label``, ``initial-label``, ``sentence-end``.
+* ``hmm``: ``label-to-label``, ``label-loop``, ``label-to-silence``, ``silence-to-label``, ``silence-loop``,
+  ``initial-label``, ``initial-silence``.
+* ``all``: every transition type.
+* ``none``: no transition types enabled.
+
+Each built-in label scorer type ships with its own default preset, chosen to match how that type is typically
+used -- noted in that type's own section below. ``encoder-decoder``/``encoder-only`` are the one exception: they
+have no ``transition-preset`` of their own and always report whichever transition types their wrapped
+``decoder`` label scorer enables.
+
 ONNX model configuration
 ^^^^^^^^^^^^^^^^^^^^^^^^^
 
-The four ``*-onnx`` label scorers below (and the ``onnx``/``chunked-onnx`` encoders used by
-``encoder-decoder``/``encoder-only``) all wrap one or more ONNX Runtime sessions and share the same
+The four ``*-onnx`` label scorers below (and the ``onnx``/``chunked-onnx`` :ref:`encoders <Encoders>` used by
+:ref:`encoder-decoder / encoder-only`) all wrap one or more ONNX Runtime sessions and share the same
 sub-configuration pattern for each wrapped model, under a model-specific selector (e.g. ``onnx-model`` for the
 single-model scorers):
 
@@ -501,6 +608,7 @@ single ``encoder-only`` label scorer instead.
 
 * ``onnx-model.io-map.input-feature`` : ONNX tensor name that receives the input feature. No default -- required.
 * ``onnx-model.io-map.scores`` : ONNX tensor name of the resulting score vector. No default -- required.
+* Default :ref:`transition-preset <Transition types and presets>`: ``ctc``.
 
 .. code-block:: ini
 
@@ -528,6 +636,7 @@ history instead of a recurrent state.
   the time step (relevant for certain transducer topologies). Default ``false``.
 * ``max-batch-size`` (int): maximum number of histories forwarded through the ONNX model in one call, hypotheses
   beyond this are split into further calls. Default unbounded.
+* Default :ref:`transition-preset <Transition types and presets>`: ``transducer``.
 
 .. code-block:: ini
 
@@ -555,13 +664,14 @@ scorer can match up state tensors across the three sessions even though their lo
 A common use case is an attention encoder-decoder (AED) model with cross-attention over encoder states, or a
 stateful (recurrent) language model.
 
-* ``state-initializer-model.*`` / ``state-updater-model.*`` / ``scorer-model.*`` : each configured like
-  ``onnx-model`` above (``session.file``, ``io-map``, ...).
+* ``state-initializer-model.*`` / ``state-updater-model.*`` / ``scorer-model.*`` : each following the same
+  :ref:`ONNX model configuration` pattern (``session.file``, ``io-map``, ...).
 * ``blank-updates-history`` / ``silence-updates-history`` / ``loop-updates-history`` (bool): as above, whether
   the respective label types trigger a state update. Default ``false``.
 * ``max-batch-size`` (int): maximum number of hidden states forwarded through the scorer model at once. Default unbounded.
 * ``max-cached-score-vectors`` (int): size of an LRU cache mapping scoring contexts to already-computed score
   vectors, to avoid recomputation and bound memory use on very long segments. Default ``1000``.
+* Default :ref:`transition-preset <Transition types and presets>`: ``lm``.
 
 .. code-block:: ini
 
@@ -580,9 +690,10 @@ only stores the state *slice* produced for its most recent token plus a parent p
 rather than duplicating the full prefix state per hypothesis -- this is what allows efficient transformer KV
 caches (splitting/merging/rebasing state across beam search steps) without quadratic memory growth.
 
-* ``onnx-model.*`` : the single wrapped ONNX model, configured like ``onnx-model`` above. Relevant logical I/O
-  names include ``token``, ``token-length``, ``prefix-length``, ``scores``, ``encoder-states`` and
-  ``encoder-states-size`` (the latter two only if the model attends over encoder output directly).
+* ``onnx-model.*`` : the single wrapped ONNX model, following the same :ref:`ONNX model configuration` pattern.
+  Relevant logical I/O names include ``token``, ``token-length``, ``prefix-length``, ``scores``,
+  ``encoder-states`` and ``encoder-states-size`` (the latter two only if the model attends over encoder output
+  directly).
 * ``state-manager.type`` (``lstm``/``transformer``/``transformer-16bit``/``transformer-8bit``): which state
   representation/caching strategy is used. Use ``lstm`` for simple recurrent states; the ``transformer*``
   variants implement KV-cache tree management, with the ``-16bit``/``-8bit`` variants storing the cache in
@@ -592,6 +703,7 @@ caches (splitting/merging/rebasing state across beam search steps) without quadr
 * ``blank-updates-history`` / ``silence-updates-history`` / ``loop-updates-history`` (bool): as above. Default ``false``.
 * ``max-batch-size`` (int): maximum number of scoring contexts forwarded through the ONNX model at once. Default unbounded.
 * ``max-cached-score-vectors`` (int): size of the score-vector cache, as for ``stateful-onnx``.
+* Default :ref:`transition-preset <Transition types and presets>`: ``lm``.
 
 .. code-block:: ini
 
@@ -610,31 +722,17 @@ encoder output. It automatically handles passing encoder output into the decoder
 ``encoder-only`` is the same idea without a "real" decoder: the encoder output *is* the score (wrapped in a
 trivial pass-through decoder), used when encoder and output/CTC layer are exported as a single ONNX graph.
 
-* ``encoder.type`` (``onnx``/``chunked-onnx``): which encoder implementation to use. Default ``onnx``.
-* ``encoder.onnx-model.*`` : the encoder's ONNX model, configured like ``onnx-model`` above.
-* ``encoder.inputs-per-output`` (int): number of input features consumed per encoder output frame (e.g. for a
-  subsampling encoder). ``0`` infers this at runtime. Default ``0``.
-* ``encoder.input-step-size`` (int): shift in input features between consecutive encoder outputs; ``0`` copies
-  the value from ``inputs-per-output``. Default ``0``.
-* For ``chunked-onnx`` additionally: ``encoder.chunk-size`` / ``step-size`` (int, in input features, default
-  ``1`` each) define how the input is split into overlapping chunks fed through the encoder separately (useful
-  to bound memory/latency for long or streaming inputs); ``left-padding`` / ``right-padding`` (int, default
-  ``0`` each) pad each chunk with additional context on either side; ``zero-padding`` (bool, default ``false``)
-  pads the first/last chunk with zeros to a uniform size; ``window-type`` (default ``triangular``) and
-  ``interpolation-mode`` (default ``no-interpolation``) control how overlapping chunk outputs are blended back
-  together.
+* ``encoder.*`` : configuration of the wrapped encoder, see :ref:`Encoders` below.
 * ``decoder.*`` : configuration of the wrapped decoder label scorer (``encoder-decoder`` only), same
   parameters as the chosen ``decoder.type`` label scorer.
+* No :ref:`transition-preset <Transition types and presets>` of their own -- always report whichever transition
+  types the wrapped ``decoder`` label scorer enables.
 
 .. code-block:: ini
 
     [*.search-algorithm.label-scorer]
     type                            = encoder-decoder
-    encoder.type                    = chunked-onnx
-    encoder.chunk-size              = 50
-    encoder.step-size               = 25
-    encoder.left-padding            = 10
-    encoder.right-padding           = 5
+    encoder.type                    = onnx
     encoder.onnx-model.session.file = /path/to/encoder.onnx
     decoder.type                    = state-managed-onnx
     decoder.onnx-model.session.file = /path/to/decoder.onnx
@@ -646,13 +744,16 @@ Wraps a time-synchronous CTC scorer (any other label scorer producing per-frame 
 ``no-context-onnx`` or ``encoder-only``) and derives label-*synchronous* prefix scores from it, by summing over
 all the time-synchronous CTC alignments consistent with a given label prefix. This lets a CTC model's scores be
 used together with a label-synchronous search such as ``lexiconfree-labelsync-beam-search``, e.g. to combine an
-AED and a CTC model at the label level.
+AED and a CTC model at the label level. Prefix scores are computed as in algorithm 2 of "Hybrid CTC/Attention
+Architecture for End-to-End Speech Recognition" (Watanabe et al., 2017).
 
 * ``blank-label-index`` (int): index of the blank label in the wrapped CTC scorer's vocabulary. Default ``0``,
   but should always be set explicitly to match your vocabulary.
 * ``vocab-size`` (int): number of labels in the wrapped CTC scorer's vocabulary. Default ``0``, but must be set
   explicitly -- a default of ``0`` produces a degenerate, empty score matrix.
-* ``label-scorer.*`` : configuration of the wrapped time-synchronous CTC label scorer (nested selector).
+* ``label-scorer.*`` : configuration of the wrapped time-synchronous CTC label scorer (nested selector), most likely
+  :ref:`no-context-onnx`, configured the same way as under a top-level ``label-scorer`` selector.
+* Default :ref:`transition-preset <Transition types and presets>`: ``lm``.
 
 .. code-block:: ini
 
@@ -668,9 +769,15 @@ combine
 
 Log-linearly combines multiple sub-label-scorers into a single one, assuming all sub-scorers share the same
 label alphabet: ``combined_score = sum_i(score_i * scale_i)``. The combined timeframe is the maximum over the
-sub-scorers' timeframes. This is the usual way to log-linearly combine e.g. an acoustic model scorer and a
+sub-scorers' timeframes. In this way, one can log-linearly combine e.g. an acoustic model scorer and a
 neural language model scorer inside one label-scorer "stage" (as opposed to using two separate
 ``num-label-scorers`` stages with pruning in between).
+
+Every sub-scorer here is evaluated for every hypothesis before any pruning happens, whereas separate stages
+(see :ref:`Multiple label scorers and per-stage parameters`) let cheaper/more-informative scorers prune the beam
+before the remaining, potentially more expensive, scorers run at all. ``combine`` is worth it mainly when pruning
+after a single sub-scorer would discard hypotheses that only look bad in isolation but are fine once the other
+sub-scorer's score is factored in.
 
 * ``num-scorers`` (int): number of sub-scorers to combine. Default ``1``.
 * ``scorer-<i>.*`` (for ``i`` from ``1`` to ``num-scorers``): configuration of the ``i``-th sub-scorer,
@@ -678,6 +785,7 @@ neural language model scorer inside one label-scorer "stage" (as opposed to usin
 * ``scorer-<i>.scale`` (float): log-linear weight of the ``i``-th sub-scorer's score. This is just the same
   implicit ``scale`` parameter every label scorer has (see :ref:`SearchV2 Label Scorers` above), applied here
   once per sub-scorer since each ``scorer-<i>`` is itself a full label scorer. Default ``1.0``.
+* Default :ref:`transition-preset <Transition types and presets>`: ``all``.
 
 .. code-block:: ini
 
@@ -696,13 +804,12 @@ transition
 
 Returns a fixed, configured score for each transition type, independent of any input features or label
 history. Useful to model e.g. label-loop penalties or blank/word/sentence-end exit penalties analogous to HMM
-transition penalties, without needing a model to produce them. Recognized transition types are
-``label-to-label``, ``label-loop``, ``label-to-blank``, ``blank-to-label``, ``blank-loop``,
-``label-to-silence``, ``silence-to-label``, ``silence-loop``, ``initial-label``, ``initial-blank``,
-``initial-silence``, ``word-exit``, ``nonword-exit``, ``silence-exit`` and ``sentence-end``.
+transition penalties, without needing a model to produce them. See :ref:`Transition types and presets` above for
+the full list of recognized types.
 
 * ``<transition-type>-score`` (float): fixed score for the given transition type, e.g. ``label-loop-score``.
   Any transition type not explicitly set defaults to a score of ``0.0``.
+* Default :ref:`transition-preset <Transition types and presets>`: ``all``.
 
 .. code-block:: ini
 
@@ -730,6 +837,7 @@ and/or subtracting a prior from it, which is useful e.g. to convert posteriors i
   this unset does *not* by itself disable the prior -- set ``priori-scale = 0.0`` explicitly to disable it without
   providing a file.
 * ``priori-scale`` (float): log-linear scale applied to the prior before subtracting it from the score. Default ``1.0``.
+* Default :ref:`transition-preset <Transition types and presets>` (both ``no-op`` and ``prior``): ``ctc``.
 
 .. code-block:: ini
 
@@ -739,11 +847,71 @@ and/or subtracting a prior from it, which is useful e.g. to convert posteriors i
     prior-file   = /path/to/prior.xml
     priori-scale = 0.3
 
+Encoders
+--------
+
+The encoder is its own class (``Nn::Encoder``), separate from ``Nn::LabelScorer``. The
+:ref:`encoder-decoder / encoder-only` label scorer types each construct their own ``Nn::Encoder`` instance,
+configured under the ``encoder`` sub-selector. Common to every encoder type:
+
+* ``encoder.type`` (enum): which encoder implementation to use, see the subsections below. Default ``onnx``.
+* ``encoder.inputs-per-output`` (int): number of input features consumed per encoder output frame (e.g. for a
+  subsampling encoder). ``0`` infers this at runtime. Default ``0``.
+* ``encoder.input-step-size`` (int): shift in input features between consecutive encoder outputs; ``0`` copies
+  the value from ``inputs-per-output``. Default ``0``.
+
+onnx encoder
+^^^^^^^^^^^^
+
+Forwards the full input sequence through a single ONNX model in one call.
+
+* ``encoder.onnx-model.*`` : the encoder's ONNX model, following the same :ref:`ONNX model configuration`
+  pattern as the ``*-onnx`` label scorers.
+
+.. code-block:: ini
+
+    [*.search-algorithm.label-scorer.encoder]
+    type                    = onnx
+    onnx-model.session.file = /path/to/encoder.onnx
+
+chunked-onnx encoder
+^^^^^^^^^^^^^^^^^^^^
+
+Like ``onnx``, but splits the input into overlapping chunks forwarded through the encoder separately, useful
+to bound memory/latency for long or streaming inputs.
+
+* ``encoder.onnx-model.*`` : as for ``onnx``.
+* ``encoder.chunk-size`` / ``step-size`` (int, in input features): size of and shift between consecutive
+  chunks. Default ``1`` each.
+* ``encoder.left-padding`` / ``right-padding`` (int): additional context padded onto each chunk on either side.
+  Default ``0`` each.
+* ``encoder.zero-padding`` (bool): whether to pad the first/last chunk with zeros to a uniform size. Default
+  ``false``.
+* ``encoder.window-type`` (``none``/``triangular``/``hamming``): weighting window used to blend overlapping
+  chunk outputs back together. Default ``triangular``.
+* ``encoder.interpolation-mode`` (``no-interpolation``/``linear``/``log-linear``/``neglog-linear``): how
+  overlapping chunk outputs are interpolated. Default ``no-interpolation``.
+
+.. code-block:: ini
+
+    [*.search-algorithm.label-scorer.encoder]
+    type                    = chunked-onnx
+    chunk-size              = 50
+    step-size               = 25
+    left-padding            = 10
+    right-padding           = 5
+    onnx-model.session.file = /path/to/encoder.onnx
+
+torch encoder
+^^^^^^^^^^^^^
+
+``encoder.type = torch``. TODO.
+
 Running SearchV2 in an Flf network
 ------------------------------------
 
 The :ref:`recognizer-v2` Flf node runs a ``SearchAlgorithmV2`` over incoming speech segments and outputs Flf
-lattices, analogous to the classic ``recognizer`` node but working with SearchV2 instead of
+lattices, analogous to the classic ``recognizer`` node but working with ``SearchV2`` instead of
 ``Search::SearchAlgorithm``. See :ref:`Flf Nodes` for the general Flf network mechanism.
 
 .. code-block:: ini
@@ -840,17 +1008,12 @@ this document -- you can build it programmatically, load it from a file, or both
 * ``config.set(name, value="true")`` : set a single configuration key, e.g. ``config.set("*.search-algorithm.type", "tree-timesync-beam-search")``.
 * ``config.set_from_file(path)`` : load a ``.ini``-style RASR config file, same as ``--config=path`` for the
   command-line tools. Returns ``True`` on success.
-* ``config[name]`` : read back a resolved value (``__getitem__``), returns ``None`` if unset.
+* ``config[name]`` : read back a resolved value (``__getitem__``), returns ``None`` if unset. Always returns a
+  plain ``str`` (or ``None``) regardless of the parameter's actual type, so int/float/bool values need to be
+  parsed by the caller, e.g. ``int(config["*.search-algorithm.max-beam-size"])``.
 * ``config.get_selection()`` / ``config.set_selection(name)`` : get/set the selection root used when resolving relative keys.
 * ``config.resolve(value)`` : resolve ``$(VAR)`` substitutions in a string the same way the config parser does.
 * ``config.enable_logging()`` : turn on RASR's normal log output (XML log to stderr) for this process.
-* ``librasr.init_logging(config)`` : initialize process-wide RASR logging from ``config``; call this after preparing
-  the logging configuration and before constructing other RASR objects. This passes the configuration to
-  ``Channel::Manager`` setup, so Python code can use the same channel options as the command-line tools, e.g.
-  redirect ``*.log.channel`` / ``*.warning.channel`` / ``*.error.channel`` to ``stderr``, ``nil`` or a named target,
-  set broad target defaults such as ``*.encoding = utf-8`` or ``*.unbuffered = yes``, or configure a named target via
-  ``*.channels.<target>.file`` / ``append`` / ``encoding``. If ``init_logging`` is not called explicitly,
-  ``librasr`` falls back to its default logging settings when logging is first opened.
 * ``Configuration(other_config)`` / ``Configuration(other_config, selection)`` : copy a configuration, optionally
   rooted at a different selection, e.g. to build a sub-config for a nested component.
 
@@ -893,12 +1056,12 @@ and intermediate results:
         search.put_feature(feature_chunk)      # single feature, shape [F] or [1, F]
         # or: search.put_features(feature_chunk)  # multiple features, shape [T, F] or [1, T, F]
 
-        # optional: peek at an intermediate (possibly unstable) result while streaming
+        # optional: peek at intermediate (possibly unstable) results while streaming
         partial = search.get_current_best_traceback()
+        stable  = search.get_common_prefix()   # stable prefix shared by all current hypotheses
     search.finish_segment()            # signal that the segment is complete
 
     best = search.get_current_best_traceback()      # final single-best result
-    stable = search.get_common_prefix()              # stable prefix shared by all current hypotheses
     n_best = search.get_current_n_best_list(10)       # list of `n` Traceback objects
 
 **SearchAlgorithm methods:**
@@ -922,7 +1085,12 @@ and intermediate results:
 
 **Traceback / TracebackItem:** a ``Traceback`` is a plain Python list of ``TracebackItem``, each with
 read/write attributes ``lemma`` (str), ``am_score`` (float), ``lm_score`` (float), ``start_time`` (int) and
-``end_time`` (int, both in feature-frame units). ``str(item)`` gives just the lemma.
+``end_time`` (int). For the time-synchronous algorithms, ``start_time``/``end_time`` are in feature-frame units.
+For the label-synchronous ones, they instead give the item's position in the output token sequence, not a frame
+index. ``am_score``/``lm_score`` are already-scaled scores. ``lm_score`` is specifically the classic word-level
+language model's contribution (only used by the ``tree-*`` algorithms), every label scorer's contribution,
+including a neural LM configured as a label scorer, is part of ``am_score`` instead. ``str(item)`` gives just
+the lemma.
 
 **Adjusting scales at runtime** via ``model_combination()``, without touching the config or rebuilding anything:
 
@@ -994,10 +1162,9 @@ scorer, or used as the ``decoder`` of an ``encoder-decoder`` label scorer.
 * ``librasr.register_label_scorer_type(name, label_scorer_cls)`` : register ``label_scorer_cls`` (a subclass of
   ``librasr.LabelScorer``) under ``name``, making it selectable via ``label-scorer.type = <name>`` in any config
   from then on, for the lifetime of the process.
-* ``librasr.TransitionType`` : enum mirroring the C++ ``Nn::TransitionType`` values used elsewhere in this
-  document (``LABEL_TO_LABEL``, ``LABEL_LOOP``, ``LABEL_TO_BLANK``, ``BLANK_TO_LABEL``, ``BLANK_LOOP``,
-  ``LABEL_TO_SILENCE``, ``SILENCE_TO_LABEL``, ``SILENCE_LOOP``, ``INITIAL_LABEL``, ``INITIAL_BLANK``,
-  ``INITIAL_SILENCE``, ``WORD_EXIT``, ``NONWORD_EXIT``, ``SILENCE_EXIT``, ``SENTENCE_END``).
+* ``librasr.TransitionType`` : enum mirroring the C++ ``Nn::TransitionType`` values, with the same transition
+  types as listed under :ref:`Transition types and presets` above, but as ``SCREAMING_SNAKE_CASE`` enum members
+  instead of hyphenated strings, e.g. ``label-to-label`` becomes ``librasr.TransitionType.LABEL_TO_LABEL``.
 * Required overrides on a ``librasr.LabelScorer`` subclass: ``reset``, ``signal_no_more_features``,
   ``get_initial_scoring_context``, ``allowed_transition_types``, ``extended_scoring_context``, ``add_inputs``,
   ``compute_scores_with_times`` (signatures shown in the example above).
@@ -1008,7 +1175,7 @@ scorer, or used as the ``decoder`` of an ``encoder-decoder`` label scorer.
 Reading results
 -----------------
 
-Regardless of how it is invoked, a SearchV2 algorithm exposes results in two forms:
+Regardless of how it is invoked, a ``SearchV2`` algorithm exposes results in two forms:
 
 * **Traceback** (``getCurrentBestTraceback``): the single-best sequence of recognized lemmas/pronunciations
   with time and score information, written to the log as an ``<traceback>`` element (and, for
@@ -1039,8 +1206,8 @@ Tuning tips
   but is normally left at its default (``on``) since recombination is "free" (it never removes the best
   hypothesis for a given state) and reduces the effective beam width needed for a given accuracy.
 * When the log shows ``Number of label scorers (...) exceeds/less than number of configured max beam sizes``,
-  the number of whitespace-separated values in ``max-beam-size``/``score-threshold`` does not match
-  ``num-label-scorers`` -- see :ref:`Multiple label scorers and per-stage parameters`.
+  the number of whitespace-separated values in ``max-beam-size`` does not match ``num-label-scorers`` -- see
+  :ref:`Multiple label scorers and per-stage parameters`.
 * ``recognizer-v2`` logs ``flf-recognizer-time`` and ``flf-recognizer-rtf`` per segment, which is the quickest
   way to check whether a parameter change affected decoding speed.
 

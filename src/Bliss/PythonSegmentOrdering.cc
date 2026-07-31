@@ -85,7 +85,7 @@ PythonSegmentOrderingVisitor::PythonSegmentOrderingVisitor(const std::string& py
         if (!withInfo_)
             owner.error("python-segment-order: python-segment-order-with-segment-info must be enabled for use-data-source");
         // See Speech::DataExtractor.
-        dataSource_ = Core::ref(Speech::Module::instance().createDataSource(owner.select("feature-extraction"), /*loadFromFile*/ true));
+        dataSource_ = std::shared_ptr<Speech::DataSource>(Speech::Module::instance().createDataSource(owner.select("feature-extraction"), /*loadFromFile*/ true));
         require(dataSource_);
         dataSource_->respondToDelayedErrors();
         dataSource_->setProgressIndication(false);

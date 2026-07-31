@@ -79,7 +79,7 @@ void ContinuousVectorTransformNode::apply(std::vector<Data>& in) {
 }
 
 bool ContinuousVectorTransformNode::configure() {
-    Core::Ref<const Flow::Attributes> attributes = getInputAttributes(0);
+    std::shared_ptr<const Flow::Attributes> attributes = getInputAttributes(0);
     if (!configureDatatype(attributes, Flow::Vector<Data>::type()))
         return false;
     setSampleRate(atof(attributes->get("sample-rate").c_str()));

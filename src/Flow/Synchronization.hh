@@ -207,7 +207,7 @@ bool SynchronizationNode<Algorithm>::configure() {
     verify(nInputs() == nOutputs());
 
     for (Flow::PortId port = 0; port < nInputs(); ++port) {
-        Core::Ref<const Attributes> attributes = getInputAttributes(port);
+        std::shared_ptr<const Attributes> attributes = getInputAttributes(port);
         if (!putOutputAttributes(port, attributes))
             return false;
     }

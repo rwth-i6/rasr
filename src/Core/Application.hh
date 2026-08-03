@@ -69,6 +69,8 @@ class MappedArchiveWriter;
  **/
 
 class Application : public Component {
+    friend class Channel;
+
 private:
     std::vector<std::string> lowLevelErrorMessages_;
 

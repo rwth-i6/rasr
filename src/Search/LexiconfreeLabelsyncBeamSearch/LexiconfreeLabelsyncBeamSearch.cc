@@ -667,10 +667,10 @@ bool LexiconfreeLabelsyncBeamSearch::decodeStep() {
                 scorePruning(newBeam_, relativeThreshold, newBeam_.size());
                 break;
             case PruningStrategySeparate: {
-                auto activeRelativeThreshold     = relativeThreshold;
-                auto terminatedRelativeThreshold = relativeThreshold;
+                auto                 activeRelativeThreshold     = relativeThreshold;
+                auto                 terminatedRelativeThreshold = relativeThreshold;
                 std::optional<Score> terminatedReferenceScore;
-                auto const* bestTerminatedHypothesis = getBestHypothesis(newBeam_, HypothesisFilter::Terminated);
+                auto const*          bestTerminatedHypothesis = getBestHypothesis(newBeam_, HypothesisFilter::Terminated);
                 if (bestTerminatedHypothesis != nullptr) {
                     terminatedReferenceScore = bestTerminatedHypothesis->pruningScore();
                 }
@@ -986,14 +986,14 @@ void LexiconfreeLabelsyncBeamSearch::separateScorePruning(
     PruningParams pruningParams[numPools] = {activePruning, terminatedPruning};
     Histogram*    histograms[numPools]    = {&activeScoreHistogram_, &terminatedScoreHistogram_};
 
-    size_t numElements[numPools]             = {0ul, 0ul};
-    size_t numFiniteScoreElements[numPools]  = {0ul, 0ul};
-    Score  lowerScores[numPools]             = {Core::Type<Score>::max, Core::Type<Score>::max};
-    Score  upperScores[numPools]             = {Core::Type<Score>::min, Core::Type<Score>::min};
-    Score  absoluteThresholds[numPools]      = {Core::Type<Score>::max, Core::Type<Score>::max};
-    bool   pruneAll[numPools]                = {false, false};
-    bool   noPruning[numPools]               = {false, false};
-    bool   allScoresEqual[numPools]            = {false, false};
+    size_t numElements[numPools]            = {0ul, 0ul};
+    size_t numFiniteScoreElements[numPools] = {0ul, 0ul};
+    Score  lowerScores[numPools]            = {Core::Type<Score>::max, Core::Type<Score>::max};
+    Score  upperScores[numPools]            = {Core::Type<Score>::min, Core::Type<Score>::min};
+    Score  absoluteThresholds[numPools]     = {Core::Type<Score>::max, Core::Type<Score>::max};
+    bool   pruneAll[numPools]               = {false, false};
+    bool   noPruning[numPools]              = {false, false};
+    bool   allScoresEqual[numPools]         = {false, false};
 
     for (auto const& element : elements) {
         size_t const poolIdx = element.isActive ? activeIdx : terminatedIdx;
@@ -1004,7 +1004,7 @@ void LexiconfreeLabelsyncBeamSearch::separateScorePruning(
         }
 
         ++numFiniteScoreElements[poolIdx];
-        auto pruningScore = element.pruningScore();
+        auto pruningScore    = element.pruningScore();
         lowerScores[poolIdx] = std::min(lowerScores[poolIdx], pruningScore);
         upperScores[poolIdx] = std::max(upperScores[poolIdx], pruningScore);
     }

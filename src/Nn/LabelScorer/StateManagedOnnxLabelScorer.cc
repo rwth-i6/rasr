@@ -359,7 +359,9 @@ void StateManagedOnnxLabelScorer::cacheStatesAndScores(std::vector<StateManagedO
 
     std::vector<std::pair<std::string, Onnx::Value>> inputs;
     std::vector<std::string>                         targets;
+    stateManagementTime_.start();
     stateManager_->mergeStates(stateVariables_, prefixLengths, prefixStates, inputs, targets);
+    stateManagementTime_.stop();
 
     Math::FastMatrix<s32> tokens(scoringContextBatch.size(), 1);
     for (size_t i = 0ul; i < scoringContextBatch.size(); ++i) {
@@ -384,7 +386,9 @@ void StateManagedOnnxLabelScorer::cacheStatesAndScores(std::vector<StateManagedO
     targets.emplace(targets.begin(), scoresName_);
 
     std::vector<Onnx::Value> outputs;
+    onnxRunTime_.start();
     onnxModel_->session.run(std::move(inputs), targets, outputs);
+    onnxRunTime_.stop();
 
     for (size_t b = 0ul; b < scoringContextBatch.size(); ++b) {
         auto scores = std::make_shared<std::vector<Score>>();
@@ -394,7 +398,9 @@ void StateManagedOnnxLabelScorer::cacheStatesAndScores(std::vector<StateManagedO
 
     std::vector<Onnx::Value> stateOutputs(std::make_move_iterator(outputs.begin() + 1), std::make_move_iterator(outputs.end()));
     std::vector<size_t>      suffixLengths(scoringContextBatch.size(), 1ul);
-    auto                     splitStates = stateManager_->splitStates(stateVariables_, suffixLengths, stateOutputs, *stateVectorFactory_);
+    stateManagementTime_.start();
+    auto splitStates = stateManager_->splitStates(stateVariables_, suffixLengths, stateOutputs, *stateVectorFactory_);
+    stateManagementTime_.stop();
     verify_eq(splitStates.size(), scoringContextBatch.size());
     for (size_t i = 0ul; i < scoringContextBatch.size(); ++i) {
         scoringContextBatch[i]->state = std::make_shared<HistoryState>(std::move(splitStates[i]));
@@ -403,6 +409,11 @@ void StateManagedOnnxLabelScorer::cacheStatesAndScores(std::vector<StateManagedO
             scoringContextBatch[i]->parent.reset();
         }
     }
+}
+
+void StateManagedOnnxLabelScorer::logTimingStatistics(Core::XmlWriter& os) const {
+    os << Core::XmlOpen("onnx-run-time") << onnxRunTime_.elapsedMilliseconds() << Core::XmlClose("onnx-run-time");
+    os << Core::XmlOpen("state-management-time") << stateManagementTime_.elapsedMilliseconds() << Core::XmlClose("state-management-time");
 }
 
 }  // namespace Nn

@@ -17,6 +17,7 @@
 #define STATE_MANAGED_ONNX_LABEL_SCORER_HH
 
 #include <Core/FIFOCache.hh>
+#include <Core/StopWatch.hh>
 #include <Onnx/Model.hh>
 
 #include "BufferedLabelScorer.hh"
@@ -82,6 +83,10 @@ public:
 protected:
     size_t getMinActiveInputIndex(Core::CollapsedVector<ScoringContextRef> const& activeContexts) const override;
 
+    // Reports the breakdown of time spent in `cacheStatesAndScores` between the ONNX session run
+    // (scoring) and the state-manager pre-/post-processing around it (state updating).
+    void logTimingStatistics(Core::XmlWriter& os) const override;
+
 private:
     void setupEncoderStatesValue();
     void setupEncoderStatesSizeValue();
@@ -113,6 +118,9 @@ private:
 
     Core::FIFOCache<StateManagedOnnxScoringContextRef, std::shared_ptr<std::vector<Score>>, ScoringContextHash, ScoringContextEq> scoreCache_;
     Core::FIFOCache<StateManagedOnnxScoringContextRef, std::shared_ptr<HistoryState>, ScoringContextHash, ScoringContextEq>       stateCache_;
+
+    Core::StopWatch onnxRunTime_;        // Time spent in the ONNX session run that computes scores (and updated states)
+    Core::StopWatch stateManagementTime_;  // Time spent merging/splitting recurrent states around the session run
 };
 
 }  // namespace Nn

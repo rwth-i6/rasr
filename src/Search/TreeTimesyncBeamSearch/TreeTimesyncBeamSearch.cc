@@ -223,7 +223,7 @@ TreeTimesyncBeamSearch::TreeTimesyncBeamSearch(Core::Configuration const& config
           finishedSegment_(false),
           initializationTime_(),
           featureProcessingTime_(),
-          scoringTime_(),
+          scoringTimes_(),
           numHypsAfterRecombination_("num-hyps-after-recombination"),
           numHypsAfterPruning_("num-hyps-after-pruning"),
           numWordEndHypsAfterScorePruning_("num-word-end-hyps-after-score-pruning"),
@@ -274,6 +274,8 @@ bool TreeTimesyncBeamSearch::setModelCombination(Speech::ModelCombination const&
     if (labelScorers_.size() < maxBeamSizes_.size()) {
         warning() << "Number of label scorers (" << labelScorers_.size() << ") is less than number of configured max beam sizes (" << maxBeamSizes_.size() << ")";
     }
+
+    scoringTimes_.resize(labelScorers_.size());
 
     nonWordLemmas_ = lexicon_->specialLemmas("nonword");
 
@@ -357,7 +359,9 @@ bool TreeTimesyncBeamSearch::setModelCombination(Speech::ModelCombination const&
 void TreeTimesyncBeamSearch::enterSegment(Bliss::SpeechSegment const* segment) {
     initializationTime_.reset();
     featureProcessingTime_.reset();
-    scoringTime_.reset();
+    for (auto& scoringTime : scoringTimes_) {
+        scoringTime.reset();
+    }
     for (auto& stat : numHypsAfterIntermediatePruning_) {
         stat.clear();
     }
@@ -495,9 +499,9 @@ bool TreeTimesyncBeamSearch::decodeStep() {
         /*
          * Perform scoring of all the scoring contexts with the label scorer.
          */
-        scoringTime_.start();
+        scoringTimes_[scorerIdx].start();
         auto scoreAccessors = labelScorer->getScoreAccessors(scoringContexts_);
-        scoringTime_.stop();
+        scoringTimes_[scorerIdx].stop();
         std::vector<std::optional<Nn::DenseScoreSpan>> denseScoreSpans(scoreAccessors.size(), std::nullopt);
         std::vector<Nn::TimeframeIndex>                scoreTimes(scoreAccessors.size(), 0);
         for (size_t accessorIdx = 0ul; accessorIdx < scoreAccessors.size(); ++accessorIdx) {
@@ -825,7 +829,11 @@ void TreeTimesyncBeamSearch::logStatistics() const {
     clog() << Core::XmlOpen("timing-statistics") + Core::XmlAttribute("unit", "milliseconds");
     clog() << Core::XmlOpen("initialization-time") << initializationTime_.elapsedMilliseconds() << Core::XmlClose("initialization-time");
     clog() << Core::XmlOpen("feature-processing-time") << featureProcessingTime_.elapsedMilliseconds() << Core::XmlClose("feature-processing-time");
-    clog() << Core::XmlOpen("scoring-time") << scoringTime_.elapsedMilliseconds() << Core::XmlClose("scoring-time");
+    for (size_t scorerIdx = 0ul; scorerIdx < labelScorers_.size(); ++scorerIdx) {
+        auto const tag = "scoring-time-" + std::to_string(scorerIdx);
+        clog() << Core::XmlOpen(tag) << scoringTimes_[scorerIdx].elapsedMilliseconds() << Core::XmlClose(tag);
+        labelScorers_[scorerIdx]->logTimingStatistics(clog());
+    }
     clog() << Core::XmlClose("timing-statistics");
     for (auto const& stat : numHypsAfterIntermediatePruning_) {
         stat.write(clog());
@@ -1118,9 +1126,9 @@ void TreeTimesyncBeamSearch::finalizeHypotheses() {
                 scoringContexts_.push_back(hyp.scoringContexts[scorerIdx]);
             }
 
-            scoringTime_.start();
+            scoringTimes_[scorerIdx].start();
             auto scoreAccessors = labelScorers_[scorerIdx]->getScoreAccessors(scoringContexts_);
-            scoringTime_.stop();
+            scoringTimes_[scorerIdx].stop();
             std::vector<std::optional<Nn::DenseScoreSpan>> denseScoreSpans(scoreAccessors.size(), std::nullopt);
             std::vector<Nn::TimeframeIndex>                scoreTimes(scoreAccessors.size(), 0);
             for (size_t accessorIdx = 0ul; accessorIdx < scoreAccessors.size(); ++accessorIdx) {

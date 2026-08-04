@@ -185,9 +185,9 @@ private:
     size_t currentSearchStep_;
     bool   finishedSegment_;
 
-    Core::StopWatch initializationTime_;
-    Core::StopWatch featureProcessingTime_;
-    Core::StopWatch scoringTime_;
+    Core::StopWatch              initializationTime_;
+    Core::StopWatch              featureProcessingTime_;
+    std::vector<Core::StopWatch> scoringTimes_;  // One StopWatch per label scorer, indexed like `labelScorers_`
 
     std::vector<Core::Statistics<u32>> numHypsAfterIntermediatePruning_;
     Core::Statistics<u32>              numHypsAfterRecombination_;

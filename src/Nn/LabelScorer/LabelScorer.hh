@@ -125,6 +125,11 @@ public:
     // Return the set of all transition types that can get scored by this label scorer
     TransitionSet enabledTransitions() const;
 
+    // Allows a concrete LabelScorer to log a more granular breakdown of the time spent in
+    // `getScoreAccessor(s)` (e.g. actual scoring vs. state updating) as additional XML elements.
+    // Default implementation logs nothing.
+    virtual void logTimingStatistics(Core::XmlWriter& os) const {}
+
 protected:
     TransitionSet enabledTransitions_;
 };

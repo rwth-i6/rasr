@@ -258,6 +258,10 @@ models.
   applied to the un-normalized score before normalization.
 * ``max-labels-per-timestep`` (float): maximum number of emitted labels per input timestep (as consumed via
   ``putFeature``/``putFeatures``), used to bound hypothesis length relative to the input length. Default ``1.0``.
+* ``pruning-strategy-type`` (enum): controls final pruning of active and terminated hypotheses. ``joint`` keeps active
+  and terminated hypotheses in one set and prunes them jointly; ``separate`` prunes active and terminated hypotheses
+  separately such that active hypotheses are pruned against the overall best and terminated hypotheses are only pruned
+  relative to each other. This avoids terminated hypotheses being disadvantaged. Default ``joint``.
 
 Example config:
 
@@ -268,6 +272,7 @@ Example config:
     max-beam-size           = 50
     score-threshold         = 5.0
     length-norm-scale       = 1.0
+    pruning-strategy-type   = separate
     max-labels-per-timestep = 1.2
 
 tree-timesync-beam-search
@@ -383,6 +388,7 @@ index used for the search tree itself.
     max-word-end-beam-size   = 20
     score-threshold          = 5.0
     word-end-score-threshold = 0.5
+    pruning-strategy-type    = separate
     length-norm-scale        = 1.0
     tree-builder-type        = aed
 

@@ -68,9 +68,9 @@ public:
     };
 
 private:
-    bool                  weightScores_;
-    Core::Ref<DataSource> weightSource_;
-    Flow::PortId          weightPort_;
+    bool                        weightScores_;
+    std::shared_ptr<DataSource> weightSource_;
+    Flow::PortId                weightPort_;
 
     Core::Ref<Bliss::CorpusKey> corpusKey_;
 
@@ -94,7 +94,7 @@ public:
     virtual void leaveSpeechSegment(Bliss::SpeechSegment*);
     virtual void processAlignedFeature(Core::Ref<const Feature>, Am::AllophoneStateIndex);
 
-    virtual void setDataSource(Core::Ref<DataSource>);
+    virtual void setDataSource(std::shared_ptr<DataSource>);
     virtual void setFeatureDescription(const Mm::FeatureDescription& description);
     virtual void setNumberOfLabels(size_t nLabels);
 

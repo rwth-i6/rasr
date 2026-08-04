@@ -17,7 +17,27 @@
 #include <cstdlib>
 #include <unistd.h>
 
+#include <Core/Application.hh>
+#include <Core/Parameter.hh>
+
 namespace Test {
+
+namespace {
+const Core::ParameterString paramDataDir(
+        "test-data-dir",
+        "Directory containing the unit-test data files. The default assumes the unit-test binary "
+        "is started from the repository root; set this when running it from a different working "
+        "directory (e.g. --test-data-dir=data when running from within src/Test).",
+        "src/Test/data");
+}  // namespace
+
+std::string dataDir() {
+    return paramDataDir(Core::Application::us()->getConfiguration());
+}
+
+std::string dataFile(const std::string& relativePath) {
+    return Core::joinPaths(dataDir(), relativePath);
+}
 
 void Directory::create() {
     char*       t = std::getenv("TMPDIR");

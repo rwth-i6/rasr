@@ -38,7 +38,7 @@ class CorpusVisitor : public Core::Component,
                       public Bliss::CorpusVisitor {
 private:
     std::vector<Core::Ref<Bliss::CorpusKey>> corpusKeys_;
-    std::vector<Core::Ref<DataSource>>       dataSources_;
+    std::vector<std::shared_ptr<DataSource>> dataSources_;
     std::vector<CorpusProcessor*>            corpusProcessors_;
 
     size_t recordingIndex_;
@@ -71,7 +71,7 @@ public:
     void signOn(CorpusProcessor* p) {
         signOn(corpusProcessors_, p);
     }
-    void signOn(Core::Ref<DataSource> d) {
+    void signOn(std::shared_ptr<DataSource> d) {
         signOn(dataSources_, d);
     }
     void signOn(Core::Ref<Bliss::CorpusKey> k) {
@@ -80,14 +80,14 @@ public:
 
     void clearRegistrations();
 
-    bool isSignedOn(Core::Ref<DataSource> d) const {
+    bool isSignedOn(std::shared_ptr<DataSource> d) const {
         return this->isSignedOn(dataSources_, d);
     }
 };
 
 // Note that recording/segment idx are not senseful here.
-void setSegmentParametersOnDataSource(Core::Ref<DataSource>, Bliss::Segment*);
-void clearSegmentParametersOnDataSource(Core::Ref<DataSource>, Bliss::Segment*);
+void setSegmentParametersOnDataSource(std::shared_ptr<DataSource>, Bliss::Segment*);
+void clearSegmentParametersOnDataSource(std::shared_ptr<DataSource>, Bliss::Segment*);
 
 }  // namespace Speech
 

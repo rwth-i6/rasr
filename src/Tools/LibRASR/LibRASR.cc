@@ -23,7 +23,6 @@ DummyApplication::DummyApplication()
         : Core::Application() {
     setTitle("lib-rasr");
     config.set("*.encoding", "utf-8");
-    openLogging();
 
     INIT_MODULE(Flf);
     INIT_MODULE(Am);
@@ -49,21 +48,15 @@ DummyApplication::~DummyApplication() {
     closeLogging();
 }
 
+void DummyApplication::initLogging(Core::Configuration const& loggingConfig) {
+    if (channelManager_) {
+        closeLogging(false);
+    }
+    config = loggingConfig;
+    setTitle("lib-rasr");
+    openLogging();
+}
+
 int DummyApplication::main(std::vector<std::string> const& arguments) {
     return EXIT_SUCCESS;
-}
-
-static const Core::Application* app = nullptr;
-
-extern "C" void initRASR() {
-    if (app == nullptr) {
-        app = new DummyApplication();
-    }
-}
-
-extern "C" void finiRASR() {
-    if (app != nullptr) {
-        delete app;
-        app = nullptr;
-    }
 }

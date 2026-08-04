@@ -352,8 +352,8 @@ void writePosteriorCnAsXml(Core::XmlWriter& xml, ConstPosteriorCnRef cn, ConstSe
 void writePosteriorCnAsFlowAlignment(Flow::Cache& cache, ConstPosteriorCnRef cn, ConstSegmentRef segment) {
     Flow::CacheWriter* cacheWriter = cache.newWriter(segment->segmentId());
     verify(cacheWriter && cacheWriter->isOpen());
-    Flow::Attributes*                 flowAttr    = new Flow::Attributes;
-    Core::Ref<const Flow::Attributes> flowAttrRef = Core::Ref<const Flow::Attributes>(flowAttr);
+    Flow::Attributes*                       flowAttr    = new Flow::Attributes;
+    std::shared_ptr<const Flow::Attributes> flowAttrRef = std::shared_ptr<const Flow::Attributes>(flowAttr);
     flowAttr->set("datatype", "flow-alignment");
     Flow::DataAdaptor<Speech::Alignment>* flowAlignment    = new Flow::DataAdaptor<Speech::Alignment>();
     Flow::DataPtr<Flow::Data>             flowAlignmentRef = Flow::DataPtr<Flow::Data>(flowAlignment);

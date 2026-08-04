@@ -401,6 +401,8 @@ An online recognizer cannot follow the same scheme as there is no corpus (yet) a
 
 General search procedure consists of repeatedly starting new search networks based on previous word end hypotheses (initially there is only one fake starting word at the beginning). Then HMM state expansion is done within each search network by applying scores from different models. Then score-based and histogram-based pruning are applied to all state hypotheses. After that, possible word end hypotheses are detected whenever we reach the last the state of a path in the tree. This leads to exiting the tree as a word end hypothesis with LM score added. Then score-based and histogram-based pruning are applied to all word end hypotheses. Word end hypotheses that have survived pruning then spawn new trees in the next frame. This procedure is repeated until the last frame and final decision can be made based on the final score.
 
+``Search::SearchAlgorithmV2`` is a newer, parallel decoder interface for neural end-to-end models (CTC, transducer, AED) that pulls scores from a ``Nn::LabelScorer`` instead of a ``Mm::FeatureScorer``, used by the ``recognizer-v2`` Flf node. See :doc:`search_v2` for a user-facing guide.
+
 **See also**
 
 * Chapter 1 in `David Nolden's PhD thesis <https://www-i6.informatik.rwth-aachen.de/publications/download/1059/Nolden--2017.pdf>`_

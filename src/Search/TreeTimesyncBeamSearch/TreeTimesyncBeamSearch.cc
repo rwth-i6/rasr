@@ -718,10 +718,15 @@ bool TreeTimesyncBeamSearch::decodeStep() {
 
         std::vector<Nn::ScoringContextRef> newScoringContexts;
         for (size_t scorerIdx = 0ul; scorerIdx < labelScorers_.size(); ++scorerIdx) {
-            newScoringContexts.push_back(labelScorers_[scorerIdx]->extendedScoringContext(
-                    baseHyp.scoringContexts[scorerIdx],
-                    extension.nextToken,
-                    extension.transitionType));
+            if (labelScorers_[scorerIdx]->scoresTransition(extension.transitionType)) {
+                newScoringContexts.push_back(labelScorers_[scorerIdx]->extendedScoringContext(
+                        baseHyp.scoringContexts[scorerIdx],
+                        extension.nextToken,
+                        extension.transitionType));
+            }
+            else {
+                newScoringContexts.push_back(baseHyp.scoringContexts[scorerIdx]);
+            }
         }
 
         newBeam_.push_back({baseHyp, extension, newScoringContexts});

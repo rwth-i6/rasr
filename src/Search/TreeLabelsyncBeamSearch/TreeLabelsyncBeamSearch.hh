@@ -182,10 +182,10 @@ private:
     Nn::LabelIndex      sentenceEndLabelIndex_;
     size_t              cacheCleanupInterval_;
 
-    bool sentenceEndFallback_;
+    bool                sentenceEndFallback_;
     Core::Choice::Value pruningStrategyType_;
-    bool recombinationEnabled_;
-    bool logStepwiseStatistics_;
+    bool                recombinationEnabled_;
+    bool                logStepwiseStatistics_;
 
     std::vector<Core::Ref<Nn::LabelScorer>>        labelScorers_;
     Bliss::LexiconRef                              lexicon_;

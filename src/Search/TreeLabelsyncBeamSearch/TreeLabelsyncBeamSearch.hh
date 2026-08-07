@@ -16,6 +16,8 @@
 #ifndef TREE_LABELSYNC_BEAM_SEARCH_HH
 #define TREE_LABELSYNC_BEAM_SEARCH_HH
 
+#include <optional>
+
 #include <Bliss/Lexicon.hh>
 #include <Core/Channel.hh>
 #include <Core/Parameter.hh>
@@ -51,6 +53,8 @@ public:
     static const Core::ParameterInt         paramCacheCleanupInterval;
     static const Core::ParameterFloat       paramLengthNormScale;
     static const Core::ParameterFloat       paramMaxLabelsPerTimestep;
+    static const Core::Choice               choicePruningStrategyType;
+    static const Core::ParameterChoice      paramPruningStrategyType;
     static const Core::Choice               choiceRecombinationMode;
     static const Core::ParameterChoice      paramRecombinationMode;
     static const Core::ParameterBool        paramSentenceEndFallBack;
@@ -164,21 +168,30 @@ private:
         Any,
     };
 
+    struct PruningParams {
+        Score                relativeThreshold;
+        size_t               maxBeamSize;
+        std::optional<Score> referenceScore = std::nullopt;
+    };
+
     std::vector<size_t> maxBeamSizes_;
     size_t              maxWordEndBeamSize_;
     std::vector<bool>   useScorePruning_;
     std::vector<Score>  scoreThresholds_;
     Score               wordEndScoreThreshold_;
     Histogram           scoreHistogram_;
+    Histogram           activeScoreHistogram_;
+    Histogram           terminatedScoreHistogram_;
     float               lengthNormScale_;
     float               maxLabelsPerTimestep_;
     Bliss::Lemma const* sentenceEndLemma_;
     Nn::LabelIndex      sentenceEndLabelIndex_;
     size_t              cacheCleanupInterval_;
 
-    bool sentenceEndFallback_;
-    bool recombinationEnabled_;
-    bool logStepwiseStatistics_;
+    bool                sentenceEndFallback_;
+    Core::Choice::Value pruningStrategyType_;
+    bool                recombinationEnabled_;
+    bool                logStepwiseStatistics_;
 
     std::vector<Core::Ref<Nn::LabelScorer>>        labelScorers_;
     Bliss::LexiconRef                              lexicon_;
@@ -243,6 +256,14 @@ private:
      */
     template<typename Element>
     void scorePruning(std::vector<Element>& hypotheses, Score relativeThreshold, size_t maxBeamSize);
+
+    /*
+     * Score pruning for separate active/terminated hypothesis pools without copying them into separate vectors.
+     */
+    void separateScorePruning(
+            std::vector<LabelHypothesis>& hypotheses,
+            PruningParams                 activePruning,
+            PruningParams                 terminatedPruning);
 
     /*
      * Helper function for recombination of hypotheses at the same point in the tree with the same

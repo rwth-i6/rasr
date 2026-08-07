@@ -35,6 +35,11 @@ enum RecombinationMode {
     RecombinationModeOn,
 };
 
+enum PruningStrategyType {
+    PruningStrategyJoint,
+    PruningStrategySeparate,
+};
+
 }  // namespace
 
 /*
@@ -61,7 +66,7 @@ LexiconfreeLabelsyncBeamSearch::LabelHypothesis::LabelHypothesis(
           currentToken(extension.nextToken),
           score(extension.score),
           trace(),
-          isActive(extension.transitionType != Nn::TransitionType::SENTENCE_END) {
+          isActive(extension.isActive) {
     switch (extension.transitionType) {
         case Nn::TransitionType::LABEL_TO_LABEL:
         case Nn::TransitionType::BLANK_TO_LABEL:
@@ -114,16 +119,20 @@ std::string LexiconfreeLabelsyncBeamSearch::LabelHypothesis::toString() const {
 
 const Core::ParameterIntVector LexiconfreeLabelsyncBeamSearch::paramMaxBeamSizes(
         "max-beam-size",
-        "Maximum number of elements in the search beam. Pruning is applied after each intermediate label scorer.",
+        "Maximum number of hypotheses in the search beam."
+        " The pruning-strategy-type determines whether active and terminated hypotheses share this limit or are limited separately."
+        " Pruning is applied after each intermediate label scorer.",
         "",
         1);
 
 const Core::ParameterFloatVector LexiconfreeLabelsyncBeamSearch::paramScoreThresholds(
         "score-threshold",
-        "Prune any hypotheses with a score that is at least this much worse than the best hypothesis."
-        "If length normalization is enabled, the score threshold is added to the raw score before normalization."
-        "Pruning is applied after each intermediate label scorer."
-        "If not set, no score pruning will be done.",
+        "Prune hypotheses with a score that is at least this much worse than the pruning reference."
+        " In joint pruning mode, the reference is the best hypothesis."
+        " In separate pruning mode, active hypotheses use the overall best hypothesis and terminated hypotheses use the best terminated hypothesis."
+        " If length normalization is enabled, the score threshold is added to the raw score before normalization."
+        " Pruning is applied after each intermediate label scorer."
+        " If not set, no score pruning will be done.",
         "",
         0,
         Core::Type<Score>::max);
@@ -148,6 +157,19 @@ const Core::ParameterFloat LexiconfreeLabelsyncBeamSearch::paramMaxLabelsPerTime
         "max-labels-per-timestep",
         "Maximum number of emitted labels per input timestep counted via `addInput`/`addInputs`.",
         1.0);
+
+const Core::Choice LexiconfreeLabelsyncBeamSearch::choicePruningStrategyType(
+        "joint", PruningStrategyJoint,
+        "separate", PruningStrategySeparate,
+        Core::Choice::endMark());
+
+const Core::ParameterChoice LexiconfreeLabelsyncBeamSearch::paramPruningStrategyType(
+        "pruning-strategy-type",
+        &choicePruningStrategyType,
+        "How active and terminated hypotheses are pruned."
+        " Joint mode prunes both pools together."
+        " Separate mode prunes terminated hypotheses against terminated hypotheses and active hypotheses against the overall best hypothesis.",
+        PruningStrategyJoint);
 
 const Core::Choice LexiconfreeLabelsyncBeamSearch::choiceRecombinationMode(
         "off", RecombinationModeOff,
@@ -175,9 +197,12 @@ LexiconfreeLabelsyncBeamSearch::LexiconfreeLabelsyncBeamSearch(Core::Configurati
         : Core::Component(config),
           SearchAlgorithmV2(config),
           scoreHistogram_(paramNumHistogramBins(config)),
+          activeScoreHistogram_(paramNumHistogramBins(config)),
+          terminatedScoreHistogram_(paramNumHistogramBins(config)),
           lengthNormScale_(paramLengthNormScale(config)),
           maxLabelsPerTimestep_(paramMaxLabelsPerTimestep(config)),
           sentenceEndLabelIndex_(paramSentenceEndLabelIndex(config)),
+          pruningStrategyType_(paramPruningStrategyType(config)),
           recombinationEnabled_(paramRecombinationMode(config) == RecombinationModeOn),
           logStepwiseStatistics_(paramLogStepwiseStatistics(config)),
           cacheCleanupInterval_(paramCacheCleanupInterval(config)),
@@ -222,6 +247,16 @@ LexiconfreeLabelsyncBeamSearch::LexiconfreeLabelsyncBeamSearch(Core::Configurati
     if (sentenceEndLabelIndex_ != Core::Type<s32>::max) {
         log() << "Use sentence-end label with index " << sentenceEndLabelIndex_;
     }
+
+    switch (pruningStrategyType_) {
+        case PruningStrategyJoint:
+            break;
+        case PruningStrategySeparate:
+            if (lengthNormScale_ == 0.0f) {
+                warning() << "pruning-strategy-type=separate with length-norm-scale=0 compares active and terminated hypotheses by raw accumulated scores. This can favor early terminated hypotheses that stay around until later.";
+            }
+            break;
+    }
 }
 
 Speech::ModelCombination::Mode LexiconfreeLabelsyncBeamSearch::requiredModelCombination() const {
@@ -238,6 +273,15 @@ bool LexiconfreeLabelsyncBeamSearch::setModelCombination(Speech::ModelCombinatio
     }
     if (labelScorers_.size() < maxBeamSizes_.size()) {
         warning() << "Number of label scorers (" << labelScorers_.size() << ") is less than number of configured max beam sizes (" << maxBeamSizes_.size() << ")";
+    }
+    switch (pruningStrategyType_) {
+        case PruningStrategyJoint:
+            break;
+        case PruningStrategySeparate:
+            if (labelScorers_.size() <= useScorePruning_.size() and not useScorePruning_[labelScorers_.size() - 1]) {
+                error() << "pruning-strategy-type=separate requires a finite final score-threshold. Otherwise, the normal stop criterion can't trigger. Use pruning-strategy-type=joint for pure max-beam-size pruning.";
+            }
+            break;
     }
 
     auto sentenceEndLemma = lexicon_->specialLemma("sentence-end");
@@ -425,7 +469,8 @@ bool LexiconfreeLabelsyncBeamSearch::decodeStep() {
 
         if (scorerIdx == 0ul) {
             // In the first iteration, create extensions while pre-pruning
-            Score currentBestScore = Core::Type<Score>::max;
+            Score currentBestScore           = Core::Type<Score>::max;
+            Score currentBestTerminatedScore = Core::Type<Score>::max;
 
             for (size_t hypIndex = 0ul; hypIndex < beam_.size(); ++hypIndex) {
                 auto const& hyp = beam_[hypIndex];
@@ -446,7 +491,8 @@ bool LexiconfreeLabelsyncBeamSearch::decodeStep() {
                 // Iterate over possible successors (all lemmas)
                 for (auto lemmaIt = lemmas.first; lemmaIt != lemmas.second; ++lemmaIt) {
                     auto const*    lemma(*lemmaIt);
-                    Nn::LabelIndex tokenIdx = lemma->id();
+                    Nn::LabelIndex tokenIdx   = lemma->id();
+                    bool           terminated = false;
 
                     auto transitionType = Nn::TransitionType::LABEL_TO_LABEL;
                     if (hyp.currentToken == Nn::invalidLabelIndex) {
@@ -454,7 +500,9 @@ bool LexiconfreeLabelsyncBeamSearch::decodeStep() {
                     }
                     if (tokenIdx == sentenceEndLabelIndex_) {
                         transitionType = Nn::TransitionType::SENTENCE_END;
+                        terminated     = true;
                     }
+
                     auto extScore = hyp.score;
                     auto extTime  = hyp.trace->time;
                     if (labelScorer->scoresTransition(transitionType)) {
@@ -465,10 +513,25 @@ bool LexiconfreeLabelsyncBeamSearch::decodeStep() {
                     }
 
                     // Pre-prune based on score before creating extension instance and appending to list
-                    if (useScorePruning_.front() and extScore > currentBestScore + scoreThresholds_.front()) {
-                        continue;
+                    if (useScorePruning_.front()) {
+                        Score referenceScore = currentBestScore;
+                        switch (pruningStrategyType_) {
+                            case PruningStrategyJoint:
+                                break;
+                            case PruningStrategySeparate:
+                                if (terminated) {
+                                    referenceScore = currentBestTerminatedScore;
+                                }
+                                break;
+                        }
+                        if (extScore > referenceScore + scoreThresholds_.front()) {
+                            continue;
+                        }
                     }
                     currentBestScore = std::min(currentBestScore, extScore);
+                    if (terminated) {
+                        currentBestTerminatedScore = std::min(currentBestTerminatedScore, extScore);
+                    }
 
                     extensions_.push_back(
                             {.nextToken      = tokenIdx,
@@ -476,7 +539,8 @@ bool LexiconfreeLabelsyncBeamSearch::decodeStep() {
                              .score          = extScore,
                              .timeframe      = extTime,
                              .transitionType = transitionType,
-                             .baseHypIndex   = hypIndex});
+                             .baseHypIndex   = hypIndex,
+                             .isActive       = not terminated});
                 }
             }
         }
@@ -516,7 +580,26 @@ bool LexiconfreeLabelsyncBeamSearch::decodeStep() {
         if (scorerIdx < labelScorers_.size() - 1) {
             maxBeamSize = maxBeamSizes_[scorerIdx];
         }
-        scorePruning(extensions_, scoreThresholds_[scorerIdx], maxBeamSize);
+        switch (pruningStrategyType_) {
+            case PruningStrategyJoint:
+                scorePruning(extensions_, scoreThresholds_[scorerIdx], maxBeamSize);
+                break;
+            case PruningStrategySeparate: {
+                auto const* bestExtension = getBestHypothesis(extensions_, HypothesisFilter::Any);
+                verify(bestExtension != nullptr);
+
+                separateScorePruning(
+                        extensions_,
+                        PruningParams{
+                                .relativeThreshold = scoreThresholds_[scorerIdx],
+                                .maxBeamSize       = maxBeamSize,
+                                .referenceScore    = bestExtension->pruningScore()},
+                        PruningParams{
+                                .relativeThreshold = scoreThresholds_[scorerIdx],
+                                .maxBeamSize       = maxBeamSize});
+                break;
+            }
+        }
         numHypsAfterIntermediatePruning_[scorerIdx] += extensions_.size();
         if (logStepwiseStatistics_) {
             clog() << Core::XmlFull("num-hyps-after-intermediate-pruning-" + std::to_string(scorerIdx + 1), extensions_.size());
@@ -569,16 +652,47 @@ bool LexiconfreeLabelsyncBeamSearch::decodeStep() {
     }
 
     /*
-     * Jointly prune terminated and active hypotheses by score
+     * Prune hypotheses by score according to the selected pruning strategy.
      */
-    if (not useScorePruning_.empty() and useScorePruning_.back()) {
-        auto relativeThreshold = scoreThresholds_.back();
-        if (lengthNormScale_ != 0) {
-            auto const* bestHypothesis = getBestHypothesis(newBeam_, HypothesisFilter::Any);
-            verify(bestHypothesis != nullptr);
-            relativeThreshold /= std::pow(bestHypothesis->length, lengthNormScale_);
+    size_t const finalScorerIdx = labelScorers_.size() - 1;
+    if (useScorePruning_[finalScorerIdx]) {
+        auto        relativeThreshold = scoreThresholds_[finalScorerIdx];
+        auto const* bestHypothesis    = getBestHypothesis(newBeam_, HypothesisFilter::Any);
+        verify(bestHypothesis != nullptr);
+        switch (pruningStrategyType_) {
+            case PruningStrategyJoint:
+                if (lengthNormScale_ != 0) {
+                    relativeThreshold /= std::pow(bestHypothesis->length, lengthNormScale_);
+                }
+                scorePruning(newBeam_, relativeThreshold, newBeam_.size());
+                break;
+            case PruningStrategySeparate: {
+                auto                 activeRelativeThreshold     = relativeThreshold;
+                auto                 terminatedRelativeThreshold = relativeThreshold;
+                std::optional<Score> terminatedReferenceScore;
+                auto const*          bestTerminatedHypothesis = getBestHypothesis(newBeam_, HypothesisFilter::Terminated);
+                if (bestTerminatedHypothesis != nullptr) {
+                    terminatedReferenceScore = bestTerminatedHypothesis->pruningScore();
+                }
+                if (lengthNormScale_ != 0) {
+                    activeRelativeThreshold /= std::pow(bestHypothesis->length, lengthNormScale_);
+                    if (bestTerminatedHypothesis) {
+                        terminatedRelativeThreshold /= std::pow(bestTerminatedHypothesis->length, lengthNormScale_);
+                    }
+                }
+                separateScorePruning(
+                        newBeam_,
+                        PruningParams{
+                                .relativeThreshold = activeRelativeThreshold,
+                                .maxBeamSize       = newBeam_.size(),
+                                .referenceScore    = bestHypothesis->pruningScore()},
+                        PruningParams{
+                                .relativeThreshold = terminatedRelativeThreshold,
+                                .maxBeamSize       = newBeam_.size(),
+                                .referenceScore    = terminatedReferenceScore});
+                break;
+            }
         }
-        scorePruning(newBeam_, relativeThreshold, newBeam_.size());
 
         size_t numActive     = numActiveHyps();
         size_t numTerminated = newBeam_.size() - numActive;
@@ -609,7 +723,23 @@ bool LexiconfreeLabelsyncBeamSearch::decodeStep() {
         clog() << Core::XmlFull("num-active-hyps-after-recombination", numActive);
     }
 
-    scorePruning(newBeam_, Core::Type<Score>::max, maxBeamSizes_[labelScorers_.size() - 1]);
+    switch (pruningStrategyType_) {
+        case PruningStrategyJoint:
+            scorePruning(newBeam_, Core::Type<Score>::max, maxBeamSizes_[finalScorerIdx]);
+            break;
+        case PruningStrategySeparate: {
+            auto finalBeamSize = maxBeamSizes_[finalScorerIdx];
+            separateScorePruning(
+                    newBeam_,
+                    PruningParams{
+                            .relativeThreshold = Core::Type<Score>::max,
+                            .maxBeamSize       = finalBeamSize},
+                    PruningParams{
+                            .relativeThreshold = Core::Type<Score>::max,
+                            .maxBeamSize       = finalBeamSize});
+            break;
+        }
+    }
 
     numActive     = numActiveHyps();
     numTerminated = newBeam_.size() - numActive;
@@ -687,30 +817,32 @@ bool LexiconfreeLabelsyncBeamSearch::decodeStep() {
     return true;
 }
 
-bool LexiconfreeLabelsyncBeamSearch::matchesHypothesisFilter(LabelHypothesis const& hypothesis, HypothesisFilter filter) const {
+template<typename Element>
+bool LexiconfreeLabelsyncBeamSearch::matchesHypothesisFilter(Element const& element, HypothesisFilter filter) const {
     switch (filter) {
         case HypothesisFilter::Any:
             return true;
         case HypothesisFilter::Active:
-            return hypothesis.isActive;
+            return element.isActive;
         case HypothesisFilter::Terminated:
-            return not hypothesis.isActive;
+            return not element.isActive;
     }
     return false;
 }
 
-LexiconfreeLabelsyncBeamSearch::LabelHypothesis const* LexiconfreeLabelsyncBeamSearch::getBestHypothesis(
-        std::vector<LabelHypothesis> const& hypotheses,
-        HypothesisFilter                    filter) const {
-    LabelHypothesis const* best = nullptr;
+template<typename Element>
+Element const* LexiconfreeLabelsyncBeamSearch::getBestHypothesis(
+        std::vector<Element> const& elements,
+        HypothesisFilter            filter) const {
+    Element const* best = nullptr;
 
-    for (auto const& hyp : hypotheses) {
-        if (not matchesHypothesisFilter(hyp, filter)) {
+    for (auto const& element : elements) {
+        if (not matchesHypothesisFilter(element, filter)) {
             continue;
         }
 
-        if (best == nullptr or hyp < *best) {
-            best = &hyp;
+        if (best == nullptr or element < *best) {
+            best = &element;
         }
     }
 
@@ -763,7 +895,11 @@ void LexiconfreeLabelsyncBeamSearch::logStatistics() const {
 }
 
 template<typename Element>
-void LexiconfreeLabelsyncBeamSearch::scorePruning(std::vector<Element>& hypotheses, Score relativeThreshold, size_t maxBeamSize) {
+void LexiconfreeLabelsyncBeamSearch::scorePruning(std::vector<Element>& hypotheses, Score relativeThreshold, size_t maxBeamSize, std::optional<Score> referenceScore) {
+    if (hypotheses.empty()) {
+        return;
+    }
+
     // Find ranges for score histogram and setting absolute threshold
     Score lowerScore = Core::Type<Score>::max;
     Score upperScore = Core::Type<Score>::min;
@@ -787,6 +923,12 @@ void LexiconfreeLabelsyncBeamSearch::scorePruning(std::vector<Element>& hypothes
         return;
     }
 
+    if (relativeThreshold != Core::Type<Score>::max and referenceScore and lowerScore > *referenceScore + relativeThreshold) {
+        // Even the lowest score is not in range of `referenceScore`, so everything will be pruned
+        hypotheses.clear();
+        return;
+    }
+
     if (lowerScore == upperScore) {
         // All scores are the same (usually only happens when exactly 1 hyp is active)
         if (hypotheses.size() > maxBeamSize) {
@@ -799,7 +941,7 @@ void LexiconfreeLabelsyncBeamSearch::scorePruning(std::vector<Element>& hypothes
 
     // Pruning by relative score threshold
     if (relativeThreshold != Core::Type<Score>::max) {
-        absoluteThreshold = lowerScore + relativeThreshold;
+        absoluteThreshold = referenceScore.value_or(lowerScore) + relativeThreshold;
     }
 
     // Pruning by max beam size
@@ -826,6 +968,136 @@ void LexiconfreeLabelsyncBeamSearch::scorePruning(std::vector<Element>& hypothes
                     hypotheses.end(),
                     [absoluteThreshold](auto const& hyp) { return hyp.pruningScore() > absoluteThreshold; }),
             hypotheses.end());
+}
+
+template<typename Element>
+void LexiconfreeLabelsyncBeamSearch::separateScorePruning(
+        std::vector<Element>& elements,
+        PruningParams         activePruning,
+        PruningParams         terminatedPruning) {
+    if (elements.empty()) {
+        return;
+    }
+
+    static constexpr size_t activeIdx     = 0ul;
+    static constexpr size_t terminatedIdx = 1ul;
+    static constexpr size_t numPools      = 2ul;
+
+    PruningParams pruningParams[numPools] = {activePruning, terminatedPruning};
+    Histogram*    histograms[numPools]    = {&activeScoreHistogram_, &terminatedScoreHistogram_};
+
+    size_t numElements[numPools]            = {0ul, 0ul};
+    size_t numFiniteScoreElements[numPools] = {0ul, 0ul};
+    Score  lowerScores[numPools]            = {Core::Type<Score>::max, Core::Type<Score>::max};
+    Score  upperScores[numPools]            = {Core::Type<Score>::min, Core::Type<Score>::min};
+    Score  absoluteThresholds[numPools]     = {Core::Type<Score>::max, Core::Type<Score>::max};
+    bool   pruneAll[numPools]               = {false, false};
+    bool   noPruning[numPools]              = {false, false};
+    bool   allScoresEqual[numPools]         = {false, false};
+
+    for (auto const& element : elements) {
+        size_t const poolIdx = element.isActive ? activeIdx : terminatedIdx;
+        ++numElements[poolIdx];
+
+        if (Math::isinf(element.score) or element.score >= Core::Type<Score>::max) {
+            continue;
+        }
+
+        ++numFiniteScoreElements[poolIdx];
+        auto pruningScore    = element.pruningScore();
+        lowerScores[poolIdx] = std::min(lowerScores[poolIdx], pruningScore);
+        upperScores[poolIdx] = std::max(upperScores[poolIdx], pruningScore);
+    }
+
+    for (size_t poolIdx = 0ul; poolIdx < numPools; ++poolIdx) {
+        auto const& params = pruningParams[poolIdx];
+        bool const  active = poolIdx == activeIdx;
+
+        if (numElements[poolIdx] == 0ul) {
+            continue;
+        }
+
+        if (numFiniteScoreElements[poolIdx] == 0ul) {
+            // No element with finite score is present in this set
+            pruneAll[poolIdx] = true;
+            continue;
+        }
+
+        if (numElements[poolIdx] <= params.maxBeamSize and params.relativeThreshold == Core::Type<Score>::max) {
+            // Neither relative score pruning nor max beam size pruning triggers
+            noPruning[poolIdx] = true;
+            continue;
+        }
+
+        absoluteThresholds[poolIdx] = upperScores[poolIdx];
+
+        if (params.relativeThreshold != Core::Type<Score>::max) {
+            absoluteThresholds[poolIdx] = params.referenceScore.value_or(lowerScores[poolIdx]) + params.relativeThreshold;
+            if (lowerScores[poolIdx] > absoluteThresholds[poolIdx]) {
+                // Even the lowest score is not in range of `referenceScore`, so everything in this pool will be pruned
+                pruneAll[poolIdx] = true;
+                continue;
+            }
+        }
+
+        if (numElements[poolIdx] > params.maxBeamSize) {
+            if (lowerScores[poolIdx] == upperScores[poolIdx]) {
+                // A score threshold cannot separate equal scores, so keep the first maxBeamSize elements in this pool.
+                allScoresEqual[poolIdx] = numFiniteScoreElements[poolIdx] > params.maxBeamSize;
+                continue;
+            }
+
+            if (numFiniteScoreElements[poolIdx] > params.maxBeamSize) {
+                histograms[poolIdx]->clear();
+                histograms[poolIdx]->setLimits(lowerScores[poolIdx], upperScores[poolIdx]);
+
+                for (auto const& element : elements) {
+                    if (element.isActive == active and
+                        not Math::isinf(element.score) and
+                        element.score < Core::Type<Score>::max) {
+                        *histograms[poolIdx] += element.pruningScore();
+                    }
+                }
+
+                absoluteThresholds[poolIdx] = std::min(
+                        absoluteThresholds[poolIdx],
+                        histograms[poolIdx]->quantile(params.maxBeamSize));
+            }
+        }
+    }
+
+    size_t numKept[numPools] = {0ul, 0ul};
+    auto   writeIt           = elements.begin();
+    for (auto readIt = elements.begin(); readIt != elements.end(); ++readIt) {
+        size_t const poolIdx = readIt->isActive ? activeIdx : terminatedIdx;
+
+        bool eraseElement;
+        if (pruneAll[poolIdx]) {
+            eraseElement = true;
+        }
+        else if (noPruning[poolIdx]) {
+            eraseElement = false;
+        }
+        else if (readIt->pruningScore() > absoluteThresholds[poolIdx]) {
+            eraseElement = true;
+        }
+        else if (allScoresEqual[poolIdx]) {
+            eraseElement = numKept[poolIdx] >= pruningParams[poolIdx].maxBeamSize;
+        }
+        else {
+            eraseElement = false;
+        }
+
+        if (not eraseElement) {
+            ++numKept[poolIdx];
+            if (writeIt != readIt) {
+                *writeIt = std::move(*readIt);
+            }
+            ++writeIt;
+        }
+    }
+
+    elements.erase(writeIt, elements.end());
 }
 
 void LexiconfreeLabelsyncBeamSearch::recombination() {

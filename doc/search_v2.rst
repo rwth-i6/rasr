@@ -258,6 +258,10 @@ models.
   applied to the un-normalized score before normalization.
 * ``max-labels-per-timestep`` (float): maximum number of emitted labels per input timestep (as consumed via
   ``putFeature``/``putFeatures``), used to bound hypothesis length relative to the input length. Default ``1.0``.
+* ``pruning-strategy-type`` (enum): controls pruning of active and terminated extension candidates/hypotheses.
+  ``joint`` keeps active and terminated items in one pruning pool. ``separate`` uses separate pools: active items
+  are pruned against the overall best item, terminated items against the best terminated item, and max-beam-size
+  limits are applied per pool. ``separate`` requires a finite final ``score-threshold``. Default ``joint``.
 
 Example config:
 
@@ -268,6 +272,7 @@ Example config:
     max-beam-size           = 50
     score-threshold         = 5.0
     length-norm-scale       = 1.0
+    pruning-strategy-type   = separate
     max-labels-per-timestep = 1.2
 
 tree-timesync-beam-search
@@ -371,6 +376,8 @@ index used for the search tree itself.
   un-normalized score units.
 * ``length-norm-scale``, ``max-labels-per-timestep``: same meaning and defaults as for
   ``lexiconfree-labelsync-beam-search`` above.
+* ``pruning-strategy-type``: same choices and default as for ``lexiconfree-labelsync-beam-search`` above, applied
+  to final score and max-beam pruning of the combined active/terminated beam.
 * ``tree-builder-type`` (enum): the same shared parameter as for ``tree-timesync-beam-search`` (see
   :ref:`Search tree types`). Should always be set to ``aed`` for this algorithm; the other tree topologies are
   built around blank/loop transitions this algorithm does not use.
@@ -383,6 +390,7 @@ index used for the search tree itself.
     max-word-end-beam-size   = 20
     score-threshold          = 5.0
     word-end-score-threshold = 0.5
+    pruning-strategy-type    = separate
     length-norm-scale        = 1.0
     tree-builder-type        = aed
 

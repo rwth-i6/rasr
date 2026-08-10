@@ -16,6 +16,7 @@
 #ifndef _PYTHON_SEARCH_HH
 #define _PYTHON_SEARCH_HH
 
+#include <Bliss/CorpusDescription.hh>
 #include <Flf/LatticeHandler.hh>
 #include <Flf/Lexicon.hh>
 #include <Search/SearchV2.hh>
@@ -46,8 +47,10 @@ public:
     // Return the model combination used by the search.
     Speech::ModelCombination& modelCombination();
 
-    // Call at the beginning of a new segment.
-    void enterSegment();
+    // Call at the beginning of a new segment. `seqTag`, if non-empty, is set as the name of an
+    // otherwise empty `Bliss::SpeechSegment` that is passed through to the search algorithm/models
+    // (e.g. picked up by segment-dependent language models).
+    void enterSegment(std::string const& seqTag = "");
 
     // Call after all features of the current segment have been passed
     void finishSegment();
@@ -68,12 +71,12 @@ public:
     std::vector<Traceback> getCurrentNBestList(size_t nBestSize);
 
     // Convenience function to recognize a full segment given all the features as a tensor of shape [T, F]
-    // Returns the recognition result
-    Traceback recognizeSegment(py::array_t<f32> const& features);
+    // and an optional segment tag. Returns the recognition result
+    Traceback recognizeSegment(py::array_t<f32> const& features, std::string const& seqTag = "");
 
     // Convenience function to recognize a full segment given all the features as a tensor of shape [T, F]
-    // Returns a n-best list of recognition results
-    std::vector<Traceback> recognizeSegmentNBest(py::array_t<f32> const& features, size_t nBestSize);
+    // and an optional segment tag. Returns a n-best list of recognition results
+    std::vector<Traceback> recognizeSegmentNBest(py::array_t<f32> const& features, size_t nBestSize, std::string const& seqTag = "");
 
 private:
     Traceback searchTracebackToPythonTraceback(Core::Ref<Search::Traceback const> traceback);
@@ -82,6 +85,12 @@ private:
     std::unique_ptr<Search::SearchAlgorithmV2> searchAlgorithm_;
     Flf::LexiconRef                            lexicon_;
     Speech::ModelCombination                   modelCombination_;
+
+    // Empty dummy corpus/recording used to construct ad-hoc `Bliss::SpeechSegment`s for `enterSegment`
+    // when only a segment tag/name is given (e.g. from Python) instead of a full corpus segment.
+    Bliss::Corpus         dummyCorpus_;
+    Bliss::Recording      dummyRecording_;
+    Bliss::SpeechSegment  dummySegment_;
 };
 
 #endif  // _PYTHON_SEARCH_HH

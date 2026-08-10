@@ -29,7 +29,10 @@ SearchAlgorithm::SearchAlgorithm(const Core::Configuration& c)
           latticeHandler_(Flf::Module::instance().createLatticeHandler(config)),
           searchAlgorithm_(Search::Module::instance().createSearchAlgorithmV2(select("search-algorithm"))),
           lexicon_(new Flf::Lexicon(select("lexicon"))),
-          modelCombination_(config, searchAlgorithm_->requiredModelCombination(), searchAlgorithm_->requiredAcousticModel(), lexicon_) {
+          modelCombination_(config, searchAlgorithm_->requiredModelCombination(), searchAlgorithm_->requiredAcousticModel(), lexicon_),
+          dummyCorpus_(nullptr),
+          dummyRecording_(&dummyCorpus_),
+          dummySegment_(&dummyRecording_) {
     latticeHandler_->setLexicon(lexicon_);
     searchAlgorithm_->setModelCombination(modelCombination_);
 }
@@ -38,8 +41,14 @@ Speech::ModelCombination& SearchAlgorithm::modelCombination() {
     return modelCombination_;
 }
 
-void SearchAlgorithm::enterSegment() {
-    searchAlgorithm_->enterSegment();
+void SearchAlgorithm::enterSegment(std::string const& seqTag) {
+    if (seqTag.empty()) {
+        searchAlgorithm_->enterSegment();
+    }
+    else {
+        dummySegment_.setName(seqTag);
+        searchAlgorithm_->enterSegment(&dummySegment_);
+    }
 }
 
 void SearchAlgorithm::finishSegment() {
@@ -185,15 +194,15 @@ std::vector<Traceback> SearchAlgorithm::getCurrentNBestList(size_t nBestSize) {
     return result;
 }
 
-Traceback SearchAlgorithm::recognizeSegment(py::array_t<f32> const& features) {
-    enterSegment();
+Traceback SearchAlgorithm::recognizeSegment(py::array_t<f32> const& features, std::string const& seqTag) {
+    enterSegment(seqTag);
     putFeatures(features);
     finishSegment();
     return getCurrentBestTraceback();
 }
 
-std::vector<Traceback> SearchAlgorithm::recognizeSegmentNBest(py::array_t<f32> const& features, size_t nBestSize) {
-    enterSegment();
+std::vector<Traceback> SearchAlgorithm::recognizeSegmentNBest(py::array_t<f32> const& features, size_t nBestSize, std::string const& seqTag) {
+    enterSegment(seqTag);
     putFeatures(features);
     finishSegment();
     return getCurrentNBestList(nBestSize);

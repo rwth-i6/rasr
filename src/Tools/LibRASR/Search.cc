@@ -145,7 +145,9 @@ void bindSearchAlgorithm(py::module_& module) {
     pySearchAlgorithm.def(
             "enter_segment",
             &SearchAlgorithm::enterSegment,
-            "Call at the beginning of a new segment.");
+            py::arg("seq_tag") = std::string(""),
+            "Call at the beginning of a new segment. Optionally pass a segment tag/name, "
+            "e.g. picked up by segment-dependent language models.");
 
     pySearchAlgorithm.def(
             "finish_segment",
@@ -184,14 +186,16 @@ void bindSearchAlgorithm(py::module_& module) {
             "recognize_segment",
             &SearchAlgorithm::recognizeSegment,
             py::arg("features"),
-            "Convenience function to start a segment, pass all the features as a numpy array of shape [T, F] or [1, T, F], finish the segment, and return the recognition result.");
+            py::arg("seq_tag") = std::string(""),
+            "Convenience function to start a segment (optionally with a segment tag/name), pass all the features as a numpy array of shape [T, F] or [1, T, F], finish the segment, and return the recognition result.");
 
     pySearchAlgorithm.def(
             "recognize_segment_n_best",
             &SearchAlgorithm::recognizeSegmentNBest,
             py::arg("features"),
             py::arg("n"),
-            "Convenience function to start a segment, pass all the features as a numpy array of shape [T, F] or [1, T, F], finish the segment, and return a n-best list of results.");
+            py::arg("seq_tag") = std::string(""),
+            "Convenience function to start a segment (optionally with a segment tag/name), pass all the features as a numpy array of shape [T, F] or [1, T, F], finish the segment, and return a n-best list of results.");
 
     pySearchAlgorithm.def(
             "model_combination",

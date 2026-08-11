@@ -68,6 +68,9 @@ public:
     // Get accessors that return score-sums of all sub-scorers
     std::vector<std::optional<ScoreAccessorRef>> getScoreAccessors(std::vector<ScoringContextRef> const& scoringContexts) override;
 
+    // Forward to all sub-scorers
+    void logTimingStatistics(Core::XmlWriter& os) const override;
+
 private:
     std::vector<Core::Ref<ScaledLabelScorer>> scorers_;
 };

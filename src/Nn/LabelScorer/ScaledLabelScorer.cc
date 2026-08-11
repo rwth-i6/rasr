@@ -129,4 +129,8 @@ std::vector<std::optional<ScoreAccessorRef>> ScaledLabelScorer::getScoreAccessor
     return result;
 }
 
+void ScaledLabelScorer::logTimingStatistics(Core::XmlWriter& os) const {
+    scorer_->logTimingStatistics(os);
+}
+
 }  // namespace Nn

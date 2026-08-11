@@ -276,4 +276,10 @@ std::vector<std::optional<ScoreAccessorRef>> CombineLabelScorer::getScoreAccesso
     return combinedAccessors;
 }
 
+void CombineLabelScorer::logTimingStatistics(Core::XmlWriter& os) const {
+    for (auto const& scorer : scorers_) {
+        scorer->logTimingStatistics(os);
+    }
+}
+
 }  // namespace Nn

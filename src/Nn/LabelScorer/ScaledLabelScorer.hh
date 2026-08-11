@@ -68,6 +68,9 @@ public:
     // Score accessor wrapper that scales the scores
     std::vector<std::optional<ScoreAccessorRef>> getScoreAccessors(std::vector<ScoringContextRef> const& scoringContexts) override;
 
+    // Forward to sub-scorer
+    void logTimingStatistics(Core::XmlWriter& os) const override;
+
 private:
     Core::Ref<LabelScorer> scorer_;
     Score                  scale_;

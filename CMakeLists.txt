@@ -19,6 +19,10 @@ if(${MODULE_ONNX})
     include(cmake_resources/Onnx.cmake)
 endif()
 
+if (${MODULE_TORCH})
+    include(cmake_resources/Torch.cmake)
+endif ()
+
 string(TOLOWER ${CMAKE_SYSTEM_NAME} SYSTEM_NAME)
 string(TOLOWER ${CMAKE_BUILD_TYPE} BUILD_TYPE)
 set(ARCH_DESCRIPTION

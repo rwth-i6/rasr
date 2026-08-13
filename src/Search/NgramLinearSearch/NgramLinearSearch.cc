@@ -6,6 +6,7 @@
 #include "NgramLinearSearch.hh"
 
 #include <algorithm>
+#include <cmath>
 #include <limits>
 #include <numeric>
 #include <sstream>
@@ -592,17 +593,22 @@ void NgramLinearSearch::scorePruning(std::vector<Element>& hypotheses, Score rel
         return;
     }
 
-    // Find ranges for score histogram and setting absolute threshold
+    // Find ranges for score histogram and setting absolute threshold.
+    // Only finite scores are considered: +inf hypotheses (e.g. from forbidden self-loops)
+    // would make upperScore = +inf, causing scale_ = 0 in the histogram and a NaN quantile.
+    // Non-finite hypotheses are pruned by any finite absolute threshold anyway.
     Score lowerScore = Core::Type<Score>::max;
     Score upperScore = Core::Type<Score>::min;
 
     for (auto const& hyp : hypotheses) {
-        lowerScore = std::min(lowerScore, hyp.score);
-        upperScore = std::max(upperScore, hyp.score);
+        if (std::isfinite(hyp.score)) {
+            lowerScore = std::min(lowerScore, hyp.score);
+            upperScore = std::max(upperScore, hyp.score);
+        }
     }
 
-    if (lowerScore == upperScore) {
-        // All scores are the same (usually only happens when exactly 1 hyp is active)
+    if (lowerScore >= upperScore) {
+        // All scores are non-finite or equal; just truncate to the beam limit.
         if (hypotheses.size() > maxBeamSize) {
             hypotheses.resize(maxBeamSize);
         }
@@ -622,7 +628,9 @@ void NgramLinearSearch::scorePruning(std::vector<Element>& hypotheses, Score rel
         scoreHistogram_.setLimits(lowerScore, upperScore);
 
         for (auto const& hyp : hypotheses) {
-            scoreHistogram_ += hyp.score;
+            if (std::isfinite(hyp.score)) {
+                scoreHistogram_ += hyp.score;
+            }
         }
 
         absoluteThreshold = std::min(absoluteThreshold, scoreHistogram_.quantile(maxBeamSize));

@@ -496,8 +496,8 @@ built-in way to do this.
 
 Built-in label scorer types include:
 
-* ``no-context-onnx``, ``fixed-context-onnx``, ``stateful-onnx``, ``state-managed-onnx``: forward
-  features (and, depending on type, label history/hidden state) through an ONNX model.
+* ``no-context-onnx``, ``fixed-context-onnx``, ``full-context-onnx``, ``stateful-onnx``, ``state-managed-onnx``:
+  forward features (and, depending on type, label history/hidden state) through an ONNX model.
 * ``encoder-decoder`` / ``encoder-only``: wrap a separate encoder (see :ref:`Encoders` below) that
   pre-processes features, combined with a decoder label scorer (or no decoder, for encoder-only models).
 * ``ctc-prefix``: wraps a time-synchronous CTC scorer and derives label-synchronous prefix scores from it
@@ -645,6 +645,47 @@ history instead of a recurrent state.
     history-length          = 1
     loop-updates-history    = true
     onnx-model.session.file = /path/to/transducer_predictor.onnx
+
+full-context-onnx
+^^^^^^^^^^^^^^^^^^
+
+Like ``fixed-context-onnx``, but forwards the *entire* label history through the ONNX model instead of a
+fixed-size window -- the history is never truncated. The acoustic input can be given to the model in one of two
+ways, depending on which inputs are mapped in the model's ONNX I/O spec (both can also be mapped at once, in
+which case the model receives both):
+
+* ``input-feature``: only the input feature at the hypothesis' current timestep is fed in, re-selected on every
+  scoring call. This works incrementally as features arrive.
+* ``encoder-states`` / ``encoder-states-size``: the complete input sequence collected so far is fed in as one
+  tensor, together with its length. Since this requires the whole sequence, scoring only starts once all
+  features of the segment have been passed (i.e. after ``signalNoMoreFeatures``/``finishSegment``), and the
+  input buffer is never trimmed.
+
+Since histories in a batch generally differ in length, the ``history`` input is always padded to the longest history
+in the batch, and the mandatory ``history-size`` input tells the model the true length of each entry, so the model
+itself is responsible for handling the padding correctly (e.g. via masking).
+
+* ``onnx-model.io-map.input-feature`` / ``encoder-states`` / ``encoder-states-size`` / ``history`` /
+  ``history-size`` / ``scores``: ONNX tensor names for the respective inputs/outputs. ``history``,
+  ``history-size`` and ``scores`` are always required; at least one of ``input-feature`` or ``encoder-states``
+  must be mapped as well.
+* ``start-label-index`` (int): label index used to seed the very first scoring context, whose history then
+  consists of this single label. Default ``0``.
+* ``blank-updates-history`` / ``silence-updates-history`` / ``loop-updates-history`` / ``vertical-label-transition``
+  / ``max-batch-size``: same meaning and defaults as for ``fixed-context-onnx`` above.
+* Default :ref:`transition-preset <Transition types and presets>`: ``aed``.
+
+.. code-block:: ini
+
+    [*.search-algorithm.label-scorer]
+    type                                   = full-context-onnx
+    start-label-index                      = 0
+    onnx-model.session.file                = /path/to/model.onnx
+    onnx-model.io-map.encoder-states       = encoder_states
+    onnx-model.io-map.encoder-states-size  = encoder_states_size
+    onnx-model.io-map.history              = history
+    onnx-model.io-map.history-size         = history_size
+    onnx-model.io-map.scores               = scores
 
 stateful-onnx
 ^^^^^^^^^^^^^^

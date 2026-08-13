@@ -18,34 +18,6 @@
 
 namespace Nn {
 
-SeqStepScoringContext::SeqStepScoringContext()
-        : labelSeq(), currentStep(0ul) {}
-
-SeqStepScoringContext::SeqStepScoringContext(std::vector<LabelIndex> const& seq, Speech::TimeframeIndex step)
-        : labelSeq(seq), currentStep(step) {}
-
-SeqStepScoringContext::SeqStepScoringContext(std::vector<LabelIndex>&& seq, Speech::TimeframeIndex step)
-        : labelSeq(std::move(seq)), currentStep(step) {}
-
-bool SeqStepScoringContext::isEqual(ScoringContextRef const& other) const {
-    auto* otherPtr = dynamic_cast<SeqStepScoringContext const*>(other.get());
-    if (otherPtr == nullptr) {
-        return false;
-    }
-
-    if (currentStep != otherPtr->currentStep) {
-        return false;
-    }
-
-    return labelSeqEqual(labelSeq, otherPtr->labelSeq);
-}
-
-size_t SeqStepScoringContext::hash() const {
-    return Core::combineHashes(currentStep, labelSeqHash(labelSeq));
-}
-
-typedef Core::Ref<SeqStepScoringContext const> SeqStepScoringContextRef;
-
 const Core::ParameterInt FixedContextOnnxLabelScorer::paramStartLabelIndex(
         "start-label-index",
         "Initial history in the first step is filled with this label index.",

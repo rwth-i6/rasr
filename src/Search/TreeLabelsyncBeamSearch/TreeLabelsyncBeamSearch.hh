@@ -255,15 +255,15 @@ private:
      * `pruningScore()` accessor.
      */
     template<typename Element>
-    void scorePruning(std::vector<Element>& hypotheses, Score relativeThreshold, size_t maxBeamSize);
+    void scorePruning(std::vector<Element>& hypotheses, PruningParams const& pruningParams);
 
     /*
-     * Score pruning for separate active/terminated hypothesis pools without copying them into separate vectors.
+     * Score pruning applied separately for active/terminated hypotheses.
      */
     void separateScorePruning(
             std::vector<LabelHypothesis>& hypotheses,
-            PruningParams                 activePruning,
-            PruningParams                 terminatedPruning);
+            PruningParams const&          activePruningParams,
+            PruningParams const&          terminatedPruningParams);
 
     /*
      * Helper function for recombination of hypotheses at the same point in the tree with the same

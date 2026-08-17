@@ -201,16 +201,16 @@ private:
      * Removes all elements worse than the absolute threshold.
      */
     template<typename Element>
-    void scorePruning(std::vector<Element>& hypotheses, Score relativeThreshold, size_t maxBeamSize, std::optional<Score> referenceScore = std::nullopt);
+    void scorePruning(std::vector<Element>& hypotheses, PruningParams const& pruningParams);
 
     /*
-     * Score pruning for separate active/terminated pools without copying them into separate vectors.
+     * Score pruning applied separately for active/terminated hypotheses.
      */
     template<typename Element>
     void separateScorePruning(
             std::vector<Element>& elements,
-            PruningParams         activePruning,
-            PruningParams         terminatedPruning);
+            PruningParams const&  activePruningParams,
+            PruningParams const&  terminatedPruningParams);
 
     /*
      * Helper function for recombination of hypotheses with the same scoring context

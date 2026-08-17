@@ -352,7 +352,7 @@ Order of operations for one time-synchronous decoding step, assuming two label s
 #. Prune within-word extensions with score-threshold ``s_2``.
 #. Recombine equivalent within-word hypotheses (if ``recombination-mode = on``).
 #. Prune within-word hypotheses with max-beam-size ``b_2``.
-#. Create word-end extension candidates for exits from the surviving within-word hypotheses.
+#. Create word-end extension candidates from the surviving within-word hypotheses that reached a tree exit.
 #. Add LM scores and word-exit label scorer contributions.
 #. Prune word-end extensions with score-threshold ``s_w``.
 #. Recombine equivalent word-end hypotheses (if ``recombination-mode = on``).
@@ -435,7 +435,7 @@ Order of operations for one label-synchronous decoding step, assuming two label 
 #. Add the ``L_2`` score contribution to the surviving within-word extensions.
 #. Prune within-word extensions with score-threshold ``s_2``.
 #. Add surviving within-word extensions to the next beam, together with hypotheses that were already terminated.
-#. Create word-end extension candidates for exits from the current next-beam hypotheses.
+#. Create word-end extension candidates from the surviving within-word hypotheses that reached a tree exit.
 #. Add LM scores and word-exit label scorer contributions for active hypotheses; add sentence-end LM scores for
    sentence-end hypotheses.
 #. Prune word-end extensions with score-threshold ``s_w`` and max-beam-size ``b_w``.

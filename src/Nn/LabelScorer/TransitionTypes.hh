@@ -37,6 +37,7 @@ enum TransitionType {
     WORD_EXIT,
     NONWORD_EXIT,
     SILENCE_EXIT,
+    BLANK_EXIT,
     SENTENCE_END,
     numTypes,  // must remain at the end
 };
@@ -56,6 +57,7 @@ inline constexpr auto TransitionTypeArray = std::to_array<std::pair<std::string_
         {"word-exit", WORD_EXIT},
         {"nonword-exit", NONWORD_EXIT},
         {"silence-exit", SILENCE_EXIT},
+        {"blank-exit", BLANK_EXIT},
         {"sentence-end", SENTENCE_END},
 });
 static_assert(TransitionTypeArray.size() == TransitionType::numTypes, "TransitionTypeArray size must match number of TransitionType values");

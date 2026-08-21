@@ -130,6 +130,12 @@ protected:
         Score                                             lookaheadScore;        // LM-lookahead score
         Core::Ref<LatticeTrace>                           trace;                 // Associated trace for traceback or lattice building of hypothesis
 
+#ifdef SEARCHV2_DEBUG
+        std::vector<Nn::LabelIndex>         tokenSequence;     // Full sequence of predicted tokens for debugging purposes
+        std::vector<Score>                  tokenScoreDeltas;  // Score contribution of each token in `tokenSequence` for debugging purposes
+        std::vector<Speech::TimeframeIndex> tokenTimeframes;   // Timeframe of each token in `tokenSequence` for debugging purposes
+#endif
+
         LabelHypothesis();
 
         // Within-word constructor from base and within-word extension

@@ -59,7 +59,15 @@ TreeTimesyncBeamSearch::LabelHypothesis::LabelHypothesis()
           timeframe(0),
           score(0.0),
           lookaheadScore(0.0),
-          trace(Core::ref(new LatticeTrace(0, {0, 0}, {}))) {}
+          trace(Core::ref(new LatticeTrace(0, {0, 0}, {})))
+#ifdef SEARCHV2_DEBUG
+          ,
+          tokenSequence(),
+          tokenScoreDeltas(),
+          tokenTimeframes()
+#endif
+{
+}
 
 TreeTimesyncBeamSearch::LabelHypothesis::LabelHypothesis(
         TreeTimesyncBeamSearch::LabelHypothesis const&              base,
@@ -75,7 +83,19 @@ TreeTimesyncBeamSearch::LabelHypothesis::LabelHypothesis(
           timeframe(extension.timeframe),
           score(extension.score),
           lookaheadScore(extension.lookaheadScore),
-          trace(base.trace) {
+          trace(base.trace)
+#ifdef SEARCHV2_DEBUG
+          ,
+          tokenSequence(base.tokenSequence),
+          tokenScoreDeltas(base.tokenScoreDeltas),
+          tokenTimeframes(base.tokenTimeframes)
+#endif
+{
+#ifdef SEARCHV2_DEBUG
+    tokenSequence.push_back(extension.nextToken);
+    tokenScoreDeltas.push_back(extension.score - base.score);
+    tokenTimeframes.push_back(extension.timeframe);
+#endif
 }
 
 TreeTimesyncBeamSearch::LabelHypothesis::LabelHypothesis(
@@ -94,7 +114,14 @@ TreeTimesyncBeamSearch::LabelHypothesis::LabelHypothesis(
           fullLookaheadHistory(base.fullLookaheadHistory),
           timeframe(base.timeframe),
           score(extension.score),
-          lookaheadScore(0.0) {
+          lookaheadScore(0.0)
+#ifdef SEARCHV2_DEBUG
+          ,
+          tokenSequence(base.tokenSequence),
+          tokenScoreDeltas(base.tokenScoreDeltas),
+          tokenTimeframes(base.tokenTimeframes)
+#endif
+{
     auto newLmScore   = score - base.score;
     auto totalLmScore = base.trace->score.lm + newLmScore;
     auto totalAmScore = score - totalLmScore;
@@ -122,6 +149,22 @@ std::string TreeTimesyncBeamSearch::LabelHypothesis::toString() const {
             ss << item.pronunciation->lemma()->symbol() << " ";
         }
     }
+
+#ifdef SEARCHV2_DEBUG
+    ss << ", tokens: ";
+    for (auto token : tokenSequence) {
+        ss << token << " ";
+    }
+    ss << ", token score deltas: ";
+    for (auto scoreDelta : tokenScoreDeltas) {
+        ss << scoreDelta << " ";
+    }
+    ss << ", token timeframes: ";
+    for (auto tf : tokenTimeframes) {
+        ss << tf << " ";
+    }
+#endif
+
     return ss.str();
 }
 

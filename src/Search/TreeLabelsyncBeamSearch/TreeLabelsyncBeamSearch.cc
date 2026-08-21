@@ -57,7 +57,15 @@ TreeLabelsyncBeamSearch::LabelHypothesis::LabelHypothesis()
           score(0.0),
           scaledScore(0.0),
           trace(Core::ref(new LatticeTrace(0, {0, 0}, {}))),
-          isActive(true) {}
+          isActive(true)
+#ifdef SEARCHV2_DEBUG
+          ,
+          tokenSequence(),
+          tokenScoreDeltas(),
+          tokenTimeframes()
+#endif
+{
+}
 
 TreeLabelsyncBeamSearch::LabelHypothesis::LabelHypothesis(
         TreeLabelsyncBeamSearch::LabelHypothesis const&              base,
@@ -73,7 +81,19 @@ TreeLabelsyncBeamSearch::LabelHypothesis::LabelHypothesis(
           score(extension.score),
           scaledScore(score / std::pow(length, lengthNormScale)),
           trace(base.trace),
-          isActive(extension.transitionType != Nn::TransitionType::SENTENCE_END) {
+          isActive(extension.transitionType != Nn::TransitionType::SENTENCE_END)
+#ifdef SEARCHV2_DEBUG
+          ,
+          tokenSequence(base.tokenSequence),
+          tokenScoreDeltas(base.tokenScoreDeltas),
+          tokenTimeframes(base.tokenTimeframes)
+#endif
+{
+#ifdef SEARCHV2_DEBUG
+    tokenSequence.push_back(extension.nextToken);
+    tokenScoreDeltas.push_back(extension.score - base.score);
+    tokenTimeframes.push_back(extension.timeframe);
+#endif
 }
 
 TreeLabelsyncBeamSearch::LabelHypothesis::LabelHypothesis(
@@ -90,7 +110,14 @@ TreeLabelsyncBeamSearch::LabelHypothesis::LabelHypothesis(
           score(extension.score),
           scaledScore(score / std::pow(length, lengthNormScale)),
           trace(),
-          isActive(base.isActive) {
+          isActive(base.isActive)
+#ifdef SEARCHV2_DEBUG
+          ,
+          tokenSequence(base.tokenSequence),
+          tokenScoreDeltas(base.tokenScoreDeltas),
+          tokenTimeframes(base.tokenTimeframes)
+#endif
+{
     auto newLmScore   = score - base.score;
     auto totalLmScore = base.trace->score.lm + newLmScore;
     auto totalAmScore = score - totalLmScore;
@@ -115,6 +142,22 @@ std::string TreeLabelsyncBeamSearch::LabelHypothesis::toString() const {
             ss << item.pronunciation->lemma()->symbol() << " ";
         }
     }
+
+#ifdef SEARCHV2_DEBUG
+    ss << ", tokens: ";
+    for (auto token : tokenSequence) {
+        ss << token << " ";
+    }
+    ss << ", token score deltas: ";
+    for (auto scoreDelta : tokenScoreDeltas) {
+        ss << scoreDelta << " ";
+    }
+    ss << ", token timeframes: ";
+    for (auto tf : tokenTimeframes) {
+        ss << tf << " ";
+    }
+#endif
+
     return ss.str();
 }
 

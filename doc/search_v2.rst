@@ -1217,6 +1217,9 @@ Tuning tips
   :ref:`Multiple label scorers and per-stage parameters`.
 * ``recognizer-v2`` logs ``flf-recognizer-time`` and ``flf-recognizer-rtf`` per segment, which is the quickest
   way to check whether a parameter change affected decoding speed.
+* For ``tree-timesync-beam-search``/``tree-labelsync-beam-search``, build with ``-DSEARCHV2_DEBUG=ON`` to have
+  each hypothesis additionally track its full token sequence, per-token score deltas and per-token timeframes.
+  This carries a per-hypothesis memory/runtime cost, so it is disabled by default and meant for debugging only.
 
 See also
 ---------

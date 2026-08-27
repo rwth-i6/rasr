@@ -16,7 +16,6 @@
 #include <Core/CacheManager.hh>
 #include <Core/Directory.hh>
 #include <Core/IoUtilities.hh>
-#include <Modules.hh>
 #include <cstdlib>
 #include "Filter.hh"
 #include "Network.hh"

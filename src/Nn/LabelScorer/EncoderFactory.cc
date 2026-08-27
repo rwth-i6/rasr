@@ -26,7 +26,12 @@ void EncoderFactory::registerEncoder(const char* name, CreationFunction creation
 }
 
 Core::Ref<Encoder> EncoderFactory::createEncoder(Core::Configuration const& config) const {
-    return registry_.at(paramEncoderType(config))(config);
+    ModelCache tempCache;
+    return registry_.at(paramEncoderType(config))(config, tempCache);
+}
+
+Core::Ref<Encoder> EncoderFactory::createEncoder(Core::Configuration const& config, ModelCache& modelCache) const {
+    return registry_.at(paramEncoderType(config))(config, modelCache);
 }
 
 }  // namespace Nn

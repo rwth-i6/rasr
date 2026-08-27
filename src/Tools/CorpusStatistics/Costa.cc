@@ -21,7 +21,6 @@
 #include <Flow/Module.hh>
 #include <Flow/Network.hh>
 #include <Lm/CorpusStatistics.hh>
-#include <Modules.hh>
 #include <Signal/Module.hh>
 #include <Speech/Module.hh>
 #ifdef MODULE_TENSORFLOW

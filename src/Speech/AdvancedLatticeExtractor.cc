@@ -15,7 +15,7 @@
 #include "AdvancedLatticeExtractor.hh"
 #include <Am/Module.hh>
 #include <Am/Utilities.hh>
-#include <Bliss/Orthography.hh>
+#include <Bliss/OrthographicParser.hh>
 #include <Core/Hash.hh>
 #include <Core/Vector.hh>
 #include <Fsa/Arithmetic.hh>
@@ -33,7 +33,6 @@
 #include <Lattice/Lattice.hh>
 #include <Lattice/Static.hh>
 #include <Lm/FsaLm.hh>
-#include <Modules.hh>
 #include <Search/AdvancedTreeSearch/AdvancedTreeSearch.hh>
 #include <Search/Module.hh>
 #include "AdvancedAccuracyFsaBuilder.hh"

@@ -15,7 +15,7 @@
 #include "AdvancedAccuracyFsaBuilder.hh"
 #include <Bliss/Evaluation.hh>
 #include <Bliss/Lexicon.hh>
-#include <Bliss/Orthography.hh>
+#include <Bliss/OrthographicParser.hh>
 #include <Fsa/Arithmetic.hh>
 #include <Fsa/Basic.hh>
 #include <Fsa/Cache.hh>

@@ -13,7 +13,6 @@
  *  limitations under the License.
  */
 #include <Core/Application.hh>
-#include <Modules.hh>
 #include "StateTree.hh"
 #ifdef MODULE_SEARCH_WFST
 #include <OpenFst/FsaMapper.hh>

@@ -18,7 +18,6 @@
 #include <Core/Choice.hh>
 #include <Lattice/Archive.hh>
 #include <Mm/Types.hh>
-#include <Modules.hh>
 #include <Search/Search.hh>
 #include "DataExtractor.hh"
 

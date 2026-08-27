@@ -18,7 +18,6 @@
 
 #include <Math/CudaVector.hh>
 #include <Math/Module.hh>
-#include <Modules.hh>
 #include <Speech/ModelCombination.hh>
 
 #include "FeedForwardTrainer.hh"
@@ -183,7 +182,7 @@ void BufferedAlignedFeatureProcessor<T>::initTrainer(const std::vector<NnMatrix>
     PrecursorBuffer::trainer_->setClassWeights(&classWeights_);
     if (PrecursorBuffer::trainer_->hasClassLabelPosteriors()) {
         require(classLabelWrapper_);
-        if (PrecursorBuffer::trainer_->getClassLabelPosteriorDimension() != classLabelWrapper_->nClassesToAccumulate()) {
+        if (static_cast<u32>(PrecursorBuffer::trainer_->getClassLabelPosteriorDimension()) != classLabelWrapper_->nClassesToAccumulate()) {
             this->warning("mismatch in number of trainer class labels (e.g. NN output layer dim) and number of classes to accumulate: ")
                     << PrecursorBuffer::trainer_->getClassLabelPosteriorDimension()
                     << " vs. "

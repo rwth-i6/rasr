@@ -26,7 +26,12 @@ void LabelScorerFactory::registerLabelScorer(const char* name, CreationFunction 
 }
 
 Core::Ref<ScaledLabelScorer> LabelScorerFactory::createLabelScorer(Core::Configuration const& config) const {
-    auto subScorer = registry_.at(paramLabelScorerType(config))(config);
+    ModelCache tempCache;
+    return createLabelScorer(config, tempCache);
+}
+
+Core::Ref<ScaledLabelScorer> LabelScorerFactory::createLabelScorer(Core::Configuration const& config, ModelCache& modelCache) const {
+    auto subScorer = registry_.at(paramLabelScorerType(config))(config, modelCache);
     return Core::ref(new ScaledLabelScorer(config, subScorer));
 }
 

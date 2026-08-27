@@ -15,8 +15,6 @@
 #ifndef _FLF_NODE_REGISTRATION_HH
 #define _FLF_NODE_REGISTRATION_HH
 
-#include <Modules.hh>
-
 #include "Archive.hh"
 #include "Best.hh"
 #include "Cache.hh"

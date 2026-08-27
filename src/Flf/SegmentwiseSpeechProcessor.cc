@@ -12,9 +12,10 @@
  *  See the License for the specific language governing permissions and
  *  limitations under the License.
  */
+#include "SegmentwiseSpeechProcessor.hh"
+
 #include <Am/Module.hh>
 #include <Lm/Module.hh>
-#include <SegmentwiseSpeechProcessor.hh>
 #include <Speech/Module.hh>
 
 namespace Flf {

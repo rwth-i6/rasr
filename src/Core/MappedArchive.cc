@@ -138,7 +138,7 @@ MappedArchiveWriter MappedArchive::getWriter(std::string name) {
 
     // Skip the header, which we will write later
     currentWriter_->itemOffset_ = currentWriter_->out_->tellp();
-    if (!currentWriter_->out_->good() || currentWriter_->itemOffset_ == -1) {
+    if (!currentWriter_->out_->good() || currentWriter_->itemOffset_ == static_cast<size_t>(-1)) {
         delete currentWriter_;
         currentWriter_ = 0;
         Core::Application::us()->log() << tempFile_ << ": creating writer failed " << name;
@@ -192,11 +192,11 @@ void MappedArchive::releaseWriter(MappedArchive::Writer* writer) {
     fwrite((char*)&nameLength, sizeof(u32), 1, f);
     fwrite((char*)&dataSize, sizeof(u64), 1, f);
 
-    verify(ftell(f) == writer->itemOffset_ + sizeof(u32) + sizeof(u64));
+    verify(ftell(f) == static_cast<long>(writer->itemOffset_ + sizeof(u32) + sizeof(u64)));
 
     fwrite(writer->name_.data(), sizeof(char), writer->name_.length(), f);
 
-    verify(ftell(f) == writer->itemOffset_ + sizeof(u32) + sizeof(u64) + nameLength);
+    verify(ftell(f) == static_cast<long>(writer->itemOffset_ + sizeof(u32) + sizeof(u64) + nameLength));
     verify(writer->dataOffset_ == writer->itemOffset_ + sizeof(u32) + sizeof(u64) + nameLength);
 
     verify((size_t)ftell(f) == writer->dataOffset_);

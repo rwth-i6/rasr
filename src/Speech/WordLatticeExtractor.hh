@@ -19,7 +19,6 @@
 #include <Fsa/Automaton.hh>
 #include <Lattice/Archive.hh>
 #include <Lattice/Lattice.hh>
-#include <Modules.hh>
 #include "CorpusProcessor.hh"
 #include "LatticeSetProcessor.hh"
 

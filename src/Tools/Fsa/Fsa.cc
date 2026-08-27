@@ -44,8 +44,6 @@
 #include <Fsa/Static.hh>
 #include <Fsa/Types.hh>
 
-#include <Modules.hh>
-
 #ifdef MODULE_OPENFST
 #include <OpenFst/Module.hh>
 #endif

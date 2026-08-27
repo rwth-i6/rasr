@@ -19,8 +19,26 @@
 #include <Onnx/Model.hh>
 
 #include "BufferedLabelScorer.hh"
+#include "ModelCache.hh"
 
 namespace Nn {
+
+/*
+ * Scoring context that describes a sequence of previously observed labels as well as the current decoding step
+ */
+struct SeqStepScoringContext : public ScoringContext {
+    std::vector<LabelIndex> labelSeq;
+    Speech::TimeframeIndex  currentStep;
+
+    SeqStepScoringContext();
+    SeqStepScoringContext(std::vector<LabelIndex> const& seq, Speech::TimeframeIndex step);
+    SeqStepScoringContext(std::vector<LabelIndex>&& seq, Speech::TimeframeIndex step);
+
+    bool   isEqual(ScoringContextRef const& other) const override;
+    size_t hash() const override;
+};
+
+typedef Core::Ref<SeqStepScoringContext const> SeqStepScoringContextRef;
 
 /*
  * Label Scorer that performs scoring by forwarding the input feature at the current timestep together
@@ -33,12 +51,13 @@ class FixedContextOnnxLabelScorer : public BufferedLabelScorer {
     static const Core::ParameterInt  paramStartLabelIndex;
     static const Core::ParameterInt  paramHistoryLength;
     static const Core::ParameterBool paramBlankUpdatesHistory;
+    static const Core::ParameterBool paramSilenceUpdatesHistory;
     static const Core::ParameterBool paramLoopUpdatesHistory;
     static const Core::ParameterBool paramVerticalLabelTransition;
     static const Core::ParameterInt  paramMaxBatchSize;
 
 public:
-    FixedContextOnnxLabelScorer(Core::Configuration const& config);
+    FixedContextOnnxLabelScorer(Core::Configuration const& config, ModelCache& modelCache);
     virtual ~FixedContextOnnxLabelScorer() = default;
 
     // Clear feature buffer and cached scores
@@ -47,44 +66,44 @@ public:
     // Initial scoring context contains step 0 and a history vector filled with the start label index
     ScoringContextRef getInitialScoringContext() override;
 
+    // May increment the step by 1 (except for vertical transitions) and may append the next token to the
+    // history label sequence depending on the transition type and whether loops/blanks update the history
+    // or not
+    ScoringContextRef extendedScoringContext(ScoringContextRef scoringContext, LabelIndex nextToken, TransitionType transitionType) override;
+
     // Clean up input buffer as well as cached score vectors that are no longer needed
     void cleanupCaches(Core::CollapsedVector<ScoringContextRef> const& activeContexts) override;
+
+    // If scores for the given scoring contexts are not yet cached, prepare and run an ONNX session to
+    // compute the scores and cache them
+    std::vector<std::optional<ScoreAccessorRef>> getScoreAccessors(std::vector<ScoringContextRef> const& scoringContexts) override;
+
+    // Uses `getScoreAccessors` internally with some wrapping for vector packing/expansion
+    std::optional<ScoreAccessorRef> getScoreAccessor(ScoringContextRef scoringContext) override;
 
 protected:
     size_t getMinActiveInputIndex(Core::CollapsedVector<ScoringContextRef> const& activeContexts) const override;
 
-    // May increment the step by 1 (except for vertical transitions) and may append the next token to the
-    // history label sequence depending on the transition type and whether loops/blanks update the history
-    // or not
-    ScoringContextRef extendedScoringContextInternal(LabelScorer::Request const& request) override;
-
-    // If scores for the given scoring contexts are not yet cached, prepare and run an ONNX session to
-    // compute the scores and cache them
-    // Then, retreive scores from cache
-    std::optional<LabelScorer::ScoresWithTimes> computeScoresWithTimesInternal(std::vector<LabelScorer::Request> const& requests) override;
-
-    // Uses `getScoresWithTimes` internally with some wrapping for vector packing/expansion
-    std::optional<LabelScorer::ScoreWithTime> computeScoreWithTimeInternal(LabelScorer::Request const& request) override;
-
 private:
     // Forward a batch of histories through the ONNX model and put the resulting scores into the score cache
     // Assumes that all histories in the batch are based on the same timestep
-    void forwardBatch(std::vector<SeqStepScoringContextRef> const& contextBatch);
+    void forwardBatch(std::vector<SeqStepScoringContextRef> const& scoringContextBatch);
 
     size_t startLabelIndex_;
     size_t historyLength_;
     bool   blankUpdatesHistory_;
+    bool   silenceUpdatesHistory_;
     bool   loopUpdatesHistory_;
     bool   verticalLabelTransition_;
     size_t maxBatchSize_;
 
-    Onnx::Model onnxModel_;
+    std::shared_ptr<Onnx::Model> onnxModel_;
 
     std::string inputFeatureName_;
     std::string historyName_;
     std::string scoresName_;
 
-    std::unordered_map<SeqStepScoringContextRef, std::vector<Score>, ScoringContextHash, ScoringContextEq> scoreCache_;
+    std::unordered_map<SeqStepScoringContextRef, std::shared_ptr<std::vector<Score>>, ScoringContextHash, ScoringContextEq> scoreCache_;
 };
 
 }  // namespace Nn

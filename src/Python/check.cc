@@ -13,7 +13,6 @@
  *  limitations under the License.
  */
 #include <Core/Application.hh>
-#include <Modules.hh>
 
 #include "Init.hh"
 #include "Numpy.hh"

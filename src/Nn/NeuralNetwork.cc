@@ -460,7 +460,7 @@ void NeuralNetwork<T>::initializeNetwork(u32 batchSize, std::vector<u32> streamS
             }
         }
     }
-    for (int k = 0; k < streamSizes.size(); ++k) {
+    for (int k = 0; k < static_cast<int>(streamSizes.size()); ++k) {
         this->log("%s", Core::form("streamSizes[%d]=%d\n", k, streamSizes[k]).c_str());
     }
     // set the size of the input activations, determined from streamSizes

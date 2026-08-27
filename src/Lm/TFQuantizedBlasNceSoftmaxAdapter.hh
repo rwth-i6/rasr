@@ -34,7 +34,7 @@ public:
     virtual ~TFQuantizedBlasNceSoftmaxAdapter() = default;
 
     virtual void  init(Tensorflow::Session& session, Tensorflow::TensorInputMap const& input_map, Tensorflow::TensorOutputMap const& output_map);
-    virtual Score get_score(Lm::CompressedVectorPtr<float> const& nn_out, size_t output_idx);
+    virtual Score get_score(Nn::CompressedVectorPtr<float> const& nn_out, size_t output_idx);
 
 private:
     const float nnOutputEpsilon_;

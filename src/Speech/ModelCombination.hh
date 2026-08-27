@@ -50,13 +50,14 @@ public:
     static const Mode useLabelScorer;
 
     static const Core::ParameterFloat paramPronunciationScale;
+    static const Core::ParameterInt   paramNumLabelScorers;
 
 protected:
-    Bliss::LexiconRef                  lexicon_;
-    Mm::Score                          pronunciationScale_;
-    Core::Ref<Am::AcousticModel>       acousticModel_;
-    Core::Ref<Lm::ScaledLanguageModel> languageModel_;
-    Core::Ref<Nn::LabelScorer>         labelScorer_;
+    Bliss::LexiconRef                       lexicon_;
+    Mm::Score                               pronunciationScale_;
+    Core::Ref<Am::AcousticModel>            acousticModel_;
+    Core::Ref<Lm::ScaledLanguageModel>      languageModel_;
+    std::vector<Core::Ref<Nn::LabelScorer>> labelScorers_;
 
 private:
     void setPronunciationScale(Mm::Score scale) {
@@ -101,10 +102,15 @@ public:
         return languageModel_;
     }
 
-    void setLabelScorer(Core::Ref<Nn::LabelScorer> ls);
+    void setLabelScorer(Core::Ref<Nn::LabelScorer> ls, size_t index = 0ul);
 
-    Core::Ref<Nn::LabelScorer> labelScorer() const {
-        return labelScorer_;
+    Core::Ref<Nn::LabelScorer> labelScorer(size_t index = 0ul) const {
+        verify(index < labelScorers_.size());
+        return labelScorers_[index];
+    }
+
+    std::vector<Core::Ref<Nn::LabelScorer>> labelScorers() const {
+        return labelScorers_;
     }
 
     void getDependencies(Core::DependencySet&) const;

@@ -53,7 +53,7 @@ public:
         while (lower > 0 && recorded[lower].count == 0)
             --lower;
 
-        while (higher < recorded.size() - 1 && recorded[higher].count == 0)
+        while (!recorded.empty() && higher < static_cast<int>(recorded.size() - 1) && recorded[higher].count == 0)
             ++higher;
 
         if (recorded[higher].count != 0 && recorded[lower].count != 0 && higher != lower) {

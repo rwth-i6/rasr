@@ -16,7 +16,6 @@
 #define _TOOLS_NN_TRAINER_NN_TRAINER_HH
 
 #include <Core/Parameter.hh>
-#include <Modules.hh>
 #include <Nn/NeuralNetworkTrainer.hh>
 #include <Speech/AlignedFeatureProcessor.hh>
 

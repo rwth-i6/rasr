@@ -30,9 +30,9 @@ Node::Node(const Core::Configuration& c)
 /******************************************************************************/
 
 bool Node::configure() {
-    Core::Ref<Attributes> a(new Attributes());
+    auto a = std::make_shared<Attributes>();
     for (PortId i = 0; i < nInputs(); i++) {
-        Core::Ref<const Attributes> b = getInputAttributes(i);
+        std::shared_ptr<const Attributes> b = getInputAttributes(i);
         ensure(b);
         if (b)
             a->merge(*b);
@@ -45,7 +45,7 @@ bool Node::configure() {
 
 /******************************************************************************/
 
-bool Node::configureDatatype(Core::Ref<const Attributes> a, const Datatype* d) {
+bool Node::configureDatatype(std::shared_ptr<const Attributes> a, const Datatype* d) {
     if (!a)
         return false;
     std::string dtn(a->get("datatype"));
@@ -170,34 +170,35 @@ bool Node::putData(PortId out, Data* d) {
 
     if (dataChannel_.isOpen()) {
         dataChannel_ << Core::XmlOpen("dump-data") + Core::XmlAttribute("node", fullName());
-        if (nOutputLinks(out) > 0)
+        if (nOutputLinks(out) > 0) {
             d->dump(dataChannel_);
-        else
+        }
+        else {
             dataChannel_ << Core::XmlEmpty("dropped");
+        }
         dataChannel_ << Core::XmlClose("dump-data");
     }
 
     if (nOutputLinks(out) == 0) {
-        d->lock();
-        if (d->refCount() == 0)
+        if (d->refCount() == 0) {
             d->free();
-        else
-            d->release();
+        }
         return false;
     }
 
     for (size_t i = 0; i < nOutputLinks(out); i++) {
-        if (!outputs_[out][i]->putData(d))
+        if (!outputs_[out][i]->putData(d)) {
             return false;
+        }
     }
     return true;
 }
 
 /******************************************************************************/
 
-Core::Ref<const Attributes> Node::getInputAttributes(PortId in) {
-    Core::Ref<const Attributes> result;
-    Link*                       inputLink = inputs_[in];
+std::shared_ptr<const Attributes> Node::getInputAttributes(PortId in) {
+    std::shared_ptr<const Attributes> result;
+    Link*                             inputLink = inputs_[in];
     if (inputLink != 0) {
         if (inputLink->areAttributesAvailable()) {
             result = inputLink->attributes();
@@ -213,13 +214,13 @@ Core::Ref<const Attributes> Node::getInputAttributes(PortId in) {
             }
             else {
                 error() << "Configuration of node '" << predecessorNode->name() << "' failed.";
-                result = Core::ref(new Attributes());
+                result = std::make_shared<Attributes>();
             }
         }
     }
     else {
         warning("Dead input port: %d.", in);
-        result = Core::ref(new Attributes());
+        result = std::make_shared<Attributes>();
     }
     return result;
 }
@@ -227,14 +228,14 @@ Core::Ref<const Attributes> Node::getInputAttributes(PortId in) {
 /******************************************************************************/
 
 void Node::getInputAttributes(PortId in, Attributes& attributes) {
-    Core::Ref<const Attributes> result = getInputAttributes(in);
+    std::shared_ptr<const Attributes> result = getInputAttributes(in);
     if (result)
         attributes = *result;
 }
 
 /******************************************************************************/
 
-bool Node::putOutputAttributes(PortId out, Core::Ref<const Attributes> a) {
+bool Node::putOutputAttributes(PortId out, std::shared_ptr<const Attributes> a) {
     require(validOutputPort(out));
     require(a);
 

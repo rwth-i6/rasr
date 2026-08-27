@@ -15,18 +15,71 @@
 
 #include "ScaledLabelScorer.hh"
 
+namespace {
+
+using namespace Nn;
+
+/*
+ * Score accessor that wraps a sub-accessor and scales all its scores by a given factor
+ */
+class ScaledScoreAccessor : public ScoreAccessor {
+public:
+    ScaledScoreAccessor(ScoreAccessorRef base, Score scale)
+            : base_(base),
+              scale_(scale) {}
+
+    Score getScore(TransitionType transitionType, LabelIndex labelIndex = invalidLabelIndex) const override {
+        return base_->getScore(transitionType, labelIndex) * scale_;
+    }
+
+    std::optional<DenseScoreSpan> getDenseScores() const override {
+        auto denseScores = base_->getDenseScores();
+        if (scale_ == 1.0 or not denseScores) {
+            return denseScores;
+        }
+
+        for (auto& term : denseScores->terms) {
+            term.scale *= scale_;
+        }
+        return denseScores;
+    }
+
+    TimeframeIndex getTime() const override {
+        return base_->getTime();
+    }
+
+private:
+    ScoreAccessorRef base_;
+    Score            scale_;
+};
+
+}  // namespace
+
 namespace Nn {
 
 const Core::ParameterFloat ScaledLabelScorer::paramScale(
         "scale",
-        "Scale to multiply the scores of the sub-scorer by.",
+        "Scale used to multiply the sub-scorer scores.",
         1.0);
 
 ScaledLabelScorer::ScaledLabelScorer(Core::Configuration const& config, Core::Ref<LabelScorer> const& scorer)
         : Core::Component(config),
-          LabelScorer(config, TransitionPresetType::ALL),
+          LabelScorer(config),
           scorer_(scorer),
           scale_(paramScale(config)) {
+    enabledTransitions_ = scorer->enabledTransitions();
+}
+
+Core::Ref<LabelScorer> ScaledLabelScorer::labelScorer() const {
+    return scorer_;
+}
+
+Score ScaledLabelScorer::scale() const {
+    return scale_;
+}
+
+void ScaledLabelScorer::setScale(Score scale) {
+    scale_ = scale;
 }
 
 void ScaledLabelScorer::reset() {
@@ -41,6 +94,10 @@ ScoringContextRef ScaledLabelScorer::getInitialScoringContext() {
     return scorer_->getInitialScoringContext();
 }
 
+ScoringContextRef ScaledLabelScorer::extendedScoringContext(ScoringContextRef context, LabelIndex nextToken, TransitionType transitionType) {
+    return scorer_->extendedScoringContext(context, nextToken, transitionType);
+}
+
 void ScaledLabelScorer::cleanupCaches(Core::CollapsedVector<ScoringContextRef> const& activeContexts) {
     scorer_->cleanupCaches(activeContexts);
 }
@@ -53,23 +110,20 @@ void ScaledLabelScorer::addInputs(DataView const& input, size_t nTimesteps) {
     scorer_->addInputs(input, nTimesteps);
 }
 
-ScoringContextRef ScaledLabelScorer::extendedScoringContextInternal(Request const& request) {
-    return scorer_->extendedScoringContext(request);
-}
-
-std::optional<LabelScorer::ScoreWithTime> ScaledLabelScorer::computeScoreWithTimeInternal(Request const& request) {
-    auto result = scorer_->computeScoreWithTime(request);
-    if (result and scale_ != 1) {
-        result->score *= scale_;
+std::optional<ScoreAccessorRef> ScaledLabelScorer::getScoreAccessor(ScoringContextRef scoringContext) {
+    auto subAccessor = scorer_->getScoreAccessor(scoringContext);
+    if (subAccessor) {
+        return Core::ref(new ScaledScoreAccessor(*subAccessor, scale_));
     }
-    return result;
+    return {};
 }
 
-std::optional<LabelScorer::ScoresWithTimes> ScaledLabelScorer::computeScoresWithTimesInternal(std::vector<LabelScorer::Request> const& requests) {
-    auto result = scorer_->computeScoresWithTimes(requests);
-    if (result and scale_ != 1) {
-        for (auto& score : result->scores) {
-            score *= scale_;
+std::vector<std::optional<ScoreAccessorRef>> ScaledLabelScorer::getScoreAccessors(std::vector<ScoringContextRef> const& scoringContexts) {
+    auto                                         subAccessors = scorer_->getScoreAccessors(scoringContexts);
+    std::vector<std::optional<ScoreAccessorRef>> result(subAccessors.size(), std::nullopt);
+    for (size_t i = 0ul; i < subAccessors.size(); ++i) {
+        if (subAccessors[i]) {
+            result[i] = Core::ref(new ScaledScoreAccessor(*subAccessors[i], scale_));
         }
     }
     return result;

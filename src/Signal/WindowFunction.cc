@@ -13,7 +13,6 @@
  *  limitations under the License.
  */
 #include "WindowFunction.hh"
-#include <Modules.hh>
 #if defined(MODULE_MATH_NR) && defined(MODULE_SIGNAL_ADVANCED)
 #include "KaiserWindowFunction.hh"
 #endif

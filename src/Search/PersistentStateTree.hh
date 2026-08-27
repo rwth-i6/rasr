@@ -71,7 +71,7 @@ public:
     void dumpDotGraph(std::string file, const std::vector<int>& nodeDepths = {});
 
     bool isRoot(StateId node) const {
-        return node == rootState || node == ciRootState || coarticulatedRootStates.count(node);
+        return node == rootState || node == ciRootState || coarticulatedRootStates.count(node) || otherRootStates.find(node) != otherRootStates.end();
     }
 
     Core::DependencySet getDependencies();

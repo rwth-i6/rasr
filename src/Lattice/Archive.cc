@@ -21,7 +21,6 @@
 #include <Fsa/Semiring.hh>
 #include <Fsa/Sort.hh>
 #include <Fsa/Static.hh>
-#include <Modules.hh>
 
 #include "Archive.hh"
 #ifdef MODULE_LATTICE_HTK

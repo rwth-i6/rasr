@@ -13,7 +13,7 @@
  *  limitations under the License.
  */
 #include "Merge.hh"
-#include <Bliss/Orthography.hh>
+#include <Bliss/OrthographicParser.hh>
 #include <Core/Hash.hh>
 #include <Core/StringUtilities.hh>
 #include <Core/Vector.hh>

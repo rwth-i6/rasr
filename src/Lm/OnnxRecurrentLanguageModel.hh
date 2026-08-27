@@ -24,7 +24,7 @@ protected:
     virtual void                     getOutputs(std::vector<std::pair<std::string, Onnx::Value>>& inputs, std::vector<Onnx::Value>& outputs, std::vector<std::string> const& targets) const;
     virtual std::vector<Onnx::Value> fetchStates(std::vector<Onnx::Value>& outputs) const;
 
-    virtual Score transformOutput(Lm::CompressedVectorPtr<float> const& nn_output, size_t index) const;
+    virtual Score transformOutput(Nn::CompressedVectorPtr<float> const& nn_output, size_t index) const;
 
 private:
     mutable Onnx::Session              session_;

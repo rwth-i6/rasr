@@ -73,8 +73,8 @@ public:
     class Boundary;
 
 private:
-    FilterBuilder*                 builder_;
-    Boundary*                      boundary_;
+    std::unique_ptr<FilterBuilder> builder_;
+    std::unique_ptr<Boundary>      boundary_;
     Frequency                      filterWidth_;
     Frequency                      spacing_;
     Frequency                      minimumFrequency_;
@@ -94,7 +94,7 @@ private:
 
 public:
     FilterBank(const Core::Configuration&);
-    virtual ~FilterBank();
+    virtual ~FilterBank() = default;
 
     void setFilterWidth(Frequency width) {
         if (filterWidth_ != width) {

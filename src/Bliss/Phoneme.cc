@@ -103,7 +103,7 @@ Core::Ref<const PhonemeAlphabet> PhonemeInventory::phonemeAlphabet() const {
 std::set<Phoneme::Id> PhonemeInventory::parseSelection(std::string selector) const {
     std::set<Bliss::Phoneme::Id> selection;
     if (!selector.empty()) {
-        for (Bliss::Token::Id phone = 1; phone < nPhonemes(); ++phone) {
+        for (Bliss::Token::Id phone = 1; phone < static_cast<Bliss::Token::Id>(nPhonemes()); ++phone) {
             std::string phoneName(phoneme(phone)->symbol());
             if ((selector[0] == '*' && selector[selector.length() - 1] == '*' && phoneName.find(selector.substr(1, selector.length() - 2)) != std::string::npos) ||
                 (selector[0] == '*' && phoneName.rfind(selector.substr(1)) == phoneName.length() - (selector.length() - 1)) ||

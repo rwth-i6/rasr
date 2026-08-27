@@ -15,13 +15,12 @@
 #include "Module.hh"
 
 #include <Core/Application.hh>
-#include <Modules.hh>
+#include <Nn/DummyCompressedVectorFactory.hh>
+#include <Nn/FixedQuantizationCompressedVectorFactory.hh>
+#include <Nn/QuantizedCompressedVectorFactory.hh>
+#include <Nn/ReducedPrecisionCompressedVectorFactory.hh>
 #include "ClassLm.hh"
 #include "CombineLm.hh"
-#include "DummyCompressedVectorFactory.hh"
-#include "FixedQuantizationCompressedVectorFactory.hh"
-#include "QuantizedCompressedVectorFactory.hh"
-#include "ReducedPrecisionCompressedVectorFactory.hh"
 #include "SimpleHistoryLm.hh"
 
 #ifdef MODULE_LM_ARPA
@@ -39,7 +38,10 @@
 #endif
 #ifdef MODULE_LM_ONNX
 #include "OnnxRecurrentLanguageModel.hh"
+#include "OnnxStatelessLanguageModel.hh"
 #endif
+
+#include "SimpleHistoryLm.hh"
 
 using namespace Lm;
 
@@ -53,7 +55,8 @@ enum LanguageModelType {
     lmTypeTFRNN,
     lmTypeOnnx,
     lmTypeCheatingSegment,
-    lmTypeSimpleHistory
+    lmTypeSimpleHistory,
+    lmTypeOnnxStateless
 };
 }  // namespace Lm
 
@@ -67,6 +70,7 @@ const Core::Choice Module_::lmTypeChoice(
         "onnx", lmTypeOnnx,
         "cheating-segment", lmTypeCheatingSegment,
         "simple-history", lmTypeSimpleHistory,
+        "onnx-stateless", lmTypeOnnxStateless,
         Core::Choice::endMark());
 
 const Core::ParameterChoice Module_::lmTypeParam(
@@ -95,6 +99,7 @@ Core::Ref<LanguageModel> Module_::createLanguageModel(
 #endif
 #ifdef MODULE_LM_ONNX
         case lmTypeOnnx: result = Core::ref(new OnnxRecurrentLanguageModel(c, l)); break;
+        case lmTypeOnnxStateless: result = Core::ref(new OnnxStatelessLm(c, l)); break;
 #endif
         case lmTypeSimpleHistory: result = Core::ref(new SimpleHistoryLm(c, l)); break;
         default:
@@ -109,33 +114,4 @@ Core::Ref<LanguageModel> Module_::createLanguageModel(
 Core::Ref<ScaledLanguageModel> Module_::createScaledLanguageModel(
         const Core::Configuration& c, Core::Ref<LanguageModel> languageModel) {
     return languageModel ? Core::Ref<ScaledLanguageModel>(new LanguageModelScaling(c, languageModel)) : Core::Ref<ScaledLanguageModel>();
-}
-
-enum CompressedVectorFactoryType {
-    DummyCompressedVectorFactoryType,
-    FixedQuantizationCompressedVectorFactoryType,
-    QuantizedCompressedVectorFactoryType,
-    ReducedPrecisionCompressedVectorFactoryType
-};
-
-const Core::Choice Module_::compressedVectorFactoryTypeChoice(
-        "dummy", DummyCompressedVectorFactoryType,
-        "fixed-quantization", FixedQuantizationCompressedVectorFactoryType,
-        "quantized", QuantizedCompressedVectorFactoryType,
-        "reduced-precision", ReducedPrecisionCompressedVectorFactoryType,
-        Core::Choice::endMark());
-
-const Core::ParameterChoice Module_::compressedVectorFactoryTypeParam(
-        "type", &Module_::compressedVectorFactoryTypeChoice,
-        "type of compressed vector factory",
-        DummyCompressedVectorFactoryType);
-
-Lm::CompressedVectorFactoryPtr<float> Module_::createCompressedVectorFactory(Core::Configuration const& config) {
-    switch (compressedVectorFactoryTypeParam(config)) {
-        case DummyCompressedVectorFactoryType: return CompressedVectorFactoryPtr<float>(new Lm::DummyCompressedVectorFactory<float>(config));
-        case FixedQuantizationCompressedVectorFactoryType: return CompressedVectorFactoryPtr<float>(new Lm::FixedQuantizationCompressedVectorFactory(config));
-        case QuantizedCompressedVectorFactoryType: return CompressedVectorFactoryPtr<float>(new Lm::QuantizedCompressedVectorFactory(config));
-        case ReducedPrecisionCompressedVectorFactoryType: return CompressedVectorFactoryPtr<float>(new Lm::ReducedPrecisionCompressedVectorFactory(config));
-        default: defect();
-    }
 }

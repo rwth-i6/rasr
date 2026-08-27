@@ -12,9 +12,10 @@
  *  See the License for the specific language governing permissions and
  *  limitations under the License.
  */
+#include "GammaCorrection.hh"
+
 #include <Core/Application.hh>
 #include <Core/Parameter.hh>
-#include <GammaCorrection.hh>
 
 namespace Flf {
 

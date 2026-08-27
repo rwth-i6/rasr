@@ -21,7 +21,6 @@
 #include <sstream>
 #include <string>
 
-#include <Core/ReferenceCounting.hh>
 #include <Core/Types.hh>
 #include <Core/Utility.hh>
 #include <Core/XmlBuilder.hh>
@@ -40,7 +39,7 @@
 namespace Flow {
 
 /** Set of Flow network attributes.  */
-class Attributes : public Core::ReferenceCounted {
+class Attributes {
     class Attribute {
     private:
         std::string name_;

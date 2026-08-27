@@ -16,7 +16,6 @@
 #define _SPEECH_MODULE_HH
 
 #include <Core/Singleton.hh>
-#include <Modules.hh>
 #include <Speech/Recognizer.hh>
 
 namespace Search {

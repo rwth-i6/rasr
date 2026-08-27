@@ -15,7 +15,6 @@
 #ifndef _TOOLS_ACOUSTIC_MODEL_TRAINER_ACOUSTIC_MODEL_TRAINER_HH
 #define _TOOLS_ACOUSTIC_MODEL_TRAINER_ACOUSTIC_MODEL_TRAINER_HH
 
-#include <Modules.hh>
 #include <Signal/ScatterEstimator.hh>
 #include <Speech/AlignedFeatureProcessor.hh>
 #include <Speech/LabeledFeatureProcessor.hh>

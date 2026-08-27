@@ -22,12 +22,12 @@ void TFNceSoftmaxAdapter::init(Tensorflow::Session& session, Tensorflow::TensorI
     output_map_ = &output_map;
 }
 
-Score TFNceSoftmaxAdapter::get_score(Lm::CompressedVectorPtr<float> const& nn_out, size_t output_idx) {
+Score TFNceSoftmaxAdapter::get_score(Nn::CompressedVectorPtr<float> const& nn_out, size_t output_idx) {
     std::vector<size_t> output_idxs(1, output_idx);
     return get_scores(nn_out, output_idxs)[0];
 }
 
-std::vector<Score> TFNceSoftmaxAdapter::get_scores(Lm::CompressedVectorPtr<float> const& nn_out, std::vector<size_t> const& output_idxs) {
+std::vector<Score> TFNceSoftmaxAdapter::get_scores(Nn::CompressedVectorPtr<float> const& nn_out, std::vector<size_t> const& output_idxs) {
     auto const& output_idx_tensor_info = input_map_->get_info("output_idxs");
     auto const& nn_output_tensor_info  = input_map_->get_info("nn_output");
     auto const& softmax_tensor_info    = output_map_->get_info("nce_softmax");

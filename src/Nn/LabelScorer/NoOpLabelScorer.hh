@@ -31,19 +31,19 @@ class StepwiseNoOpLabelScorer : public BufferedLabelScorer {
 public:
     using Precursor = BufferedLabelScorer;
 
-    StepwiseNoOpLabelScorer(const Core::Configuration& config);
+    StepwiseNoOpLabelScorer(Core::Configuration const& config);
 
     // Initial scoring context just contains step 0.
     ScoringContextRef getInitialScoringContext() override;
 
+    // Scoring context with step incremented by 1.
+    ScoringContextRef extendedScoringContext(ScoringContextRef scoringContext, LabelIndex nextToken, TransitionType transitionType) override;
+
+    // Gets an accessor for the buffered scores at the requested step
+    std::optional<ScoreAccessorRef> getScoreAccessor(ScoringContextRef scoringContext) override;
+
 protected:
     size_t getMinActiveInputIndex(Core::CollapsedVector<ScoringContextRef> const& activeContexts) const override;
-
-    // Scoring context with step incremented by 1.
-    ScoringContextRef extendedScoringContextInternal(LabelScorer::Request const& request) override;
-
-    // Gets the buffered score for the requested token at the requested step
-    std::optional<LabelScorer::ScoreWithTime> computeScoreWithTimeInternal(LabelScorer::Request const& request) override;
 };
 
 }  // namespace Nn

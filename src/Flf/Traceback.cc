@@ -18,7 +18,6 @@
 #include <Core/Parameter.hh>
 #include <Core/StringUtilities.hh>
 #include <Core/XmlStream.hh>
-#include <Modules.hh>
 #include <Search/Search.hh>
 
 #include "Best.hh"

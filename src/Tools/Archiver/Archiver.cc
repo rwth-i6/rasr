@@ -529,7 +529,7 @@ public:
             return;
         const u32 max_states = 6;  // TODO: should be increased for non-speech
         for (state = 0; state < max_states; ++state) {
-            if (emission >= allophones_.size())
+            if (static_cast<size_t>(emission) >= allophones_.size())
                 emission -= (1 << 26);
             else
                 break;

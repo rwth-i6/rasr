@@ -15,8 +15,6 @@
 #ifndef FAST_VECTOR_OPERATIONS_HH_
 #define FAST_VECTOR_OPERATIONS_HH_
 
-#include <Modules.hh>
-
 #include <Core/OpenMPWrapper.hh>
 #include <Math/MultithreadingHelper.hh>
 #include <cmath>

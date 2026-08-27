@@ -1,8 +1,6 @@
 #ifndef _CORE_CACHE_MANAGER
 #define _CORE_CACHE_MANAGER
 
-#include <Modules.hh>
-
 #ifdef MODULE_CORE_CACHE_MANAGER
 
 #include <string>

@@ -15,7 +15,6 @@
 #include "MixtureSetReader.hh"
 #include <Core/Directory.hh>
 #include <Core/FormatSet.hh>
-#include <Modules.hh>
 #include "Module.hh"
 namespace Mm {
 class LogLinearMixtureSet : public Core::ReferenceCounted {};

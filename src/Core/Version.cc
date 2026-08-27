@@ -24,6 +24,6 @@ VersionRegistry::~VersionRegistry() {}
 
 void VersionRegistry::reportVersion(XmlWriter& os) const {
     os << XmlOpen("version") <<
-#include "../SourceVersion.cc"
+#include "SourceVersion.cc"
        << XmlClose("version");
 }

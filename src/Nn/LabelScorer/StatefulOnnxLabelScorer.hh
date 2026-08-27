@@ -35,18 +35,6 @@
 namespace Nn {
 
 /*
- * Hidden state represented by a dictionary of named ONNX values
- */
-struct OnnxHiddenState : public Core::ReferenceCounted {
-    std::unordered_map<std::string, Onnx::Value> stateValueMap;
-
-    OnnxHiddenState();
-    OnnxHiddenState(std::vector<std::string>&& names, std::vector<Onnx::Value>&& values);
-};
-
-typedef Core::Ref<OnnxHiddenState const> OnnxHiddenStateRef;
-
-/*
  * Scoring context consisting of a hidden state.
  * Assumes that two hidden states are equal if and only if they were created
  * from the same label history.

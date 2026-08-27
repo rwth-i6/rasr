@@ -13,7 +13,7 @@
  *  limitations under the License.
  */
 #include "AbstractSegmentwiseTrainer.hh"
-#include <Bliss/Orthography.hh>
+#include <Bliss/OrthographicParser.hh>
 #include <Fsa/Cache.hh>
 #include <Fsa/Compose.hh>
 #include <Fsa/Project.hh>

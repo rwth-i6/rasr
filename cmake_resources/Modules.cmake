@@ -100,6 +100,9 @@ add_module_option(MODULE_SPEECH_LATTICE_RESCORING ON)
 # ****** Unit Tests ******
 add_module_option(MODULE_TEST OFF)
 
+# ****** Debugging for SearchV2 ******
+add_module_option(SEARCHV2_DEBUG OFF)
+
 # ****** Intel Threading Building Blocks ******
 add_module_option(MODULE_TBB OFF)
 

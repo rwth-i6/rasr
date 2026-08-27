@@ -33,6 +33,7 @@ enum TreeBuilderType {
     ctc,
     rna,
     aed,
+    hmm,
 };
 
 enum SearchType {
@@ -44,6 +45,7 @@ enum SearchType {
 enum SearchTypeV2 {
     LexiconfreeLabelsyncBeamSearchType,
     LexiconfreeTimesyncBeamSearchType,
+    TreeLabelsyncBeamSearchType,
     TreeTimesyncBeamSearchType
 };
 

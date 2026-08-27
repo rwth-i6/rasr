@@ -24,14 +24,14 @@ Module_::Module_() {
     // Forward encoder inputs through an onnx model
     Nn::Module::instance().encoderFactory().registerEncoder(
             "onnx",
-            [](Core::Configuration const& config, Nn::EncoderModelCache& modelCache) {
+            [](Core::Configuration const& config, Nn::ModelCache& modelCache) {
                 return Core::ref(new OnnxEncoder(config, modelCache));
             });
 
     // Forward encoder inputs through an onnx model in a chunk-wise manner
     Nn::Module::instance().encoderFactory().registerEncoder(
             "chunked-onnx",
-            [](Core::Configuration const& config, Nn::EncoderModelCache& modelCache) {
+            [](Core::Configuration const& config, Nn::ModelCache& modelCache) {
                 return Core::ref(new ChunkedOnnxEncoder(config, modelCache));
             });
 }

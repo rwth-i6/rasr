@@ -17,8 +17,40 @@
 #define CTC_PREFIX_LABEL_SCORER_HH
 
 #include "LabelScorer.hh"
+#include "ModelCache.hh"
+#include "ScaledLabelScorer.hh"
 
 namespace Nn {
+
+/*
+ * Scoring context for computation of CTC prefix scores.
+ * Contains the label sequence, a parent pointer for lazy computation of the prefix score,
+ * time-wise prefix scores and a cache for the score of extended prefixes.
+ * Hash and equality operators are based on the label sequence.
+ */
+struct CtcPrefixScoringContext : public ScoringContext {
+    struct PrefixScore {
+        Score blankEndingScore    = std::numeric_limits<Score>::infinity();
+        Score nonBlankEndingScore = std::numeric_limits<Score>::infinity();
+
+        Score totalScore() const;
+    };
+
+    std::vector<LabelIndex>                           labelSeq;
+    ScoringContextRef                                 parent;            // Parent prefix without the last label, used to finalize lazily
+    mutable std::shared_ptr<std::vector<PrefixScore>> timePrefixScores;  // Represents neg-log-probabilities of emitting `labelSeq` ending in blank or nonblank after each real CTC frame t = 0, ..., T - 1
+    mutable std::optional<Score>                      prefixScore;       // Cached score of the prefix -log P(prefix), computed on demand from the parent; needed to compute score-delta for next token
+    mutable std::unordered_map<LabelIndex, Score>     extScores;         // Cache for -log P(prefix + token, ...) to avoid repeated computation
+    mutable bool                                      requiresFinalize;  // Check whether the mutable members have been set
+
+    CtcPrefixScoringContext();
+    CtcPrefixScoringContext(std::vector<LabelIndex>&& seq, ScoringContextRef const& parent);
+
+    bool   isEqual(ScoringContextRef const& other) const override;
+    size_t hash() const override;
+};
+
+typedef Core::Ref<const CtcPrefixScoringContext> CtcPrefixScoringContextRef;
 
 class CtcPrefixScoreAccessor : public ScoreAccessor {
 public:
@@ -50,8 +82,11 @@ class CtcPrefixLabelScorer : public LabelScorer {
     static const Core::ParameterInt paramVocabSize;
 
 public:
-    CtcPrefixLabelScorer(Core::Configuration const& config);
+    CtcPrefixLabelScorer(Core::Configuration const& config, ModelCache& modelCache);
     virtual ~CtcPrefixLabelScorer() = default;
+
+    // Return the CTC label scorer
+    Core::Ref<ScaledLabelScorer> getCtcLabelScorer() const;
 
     void reset() override;
     void signalNoMoreFeatures() override;
@@ -63,10 +98,10 @@ public:
     std::optional<ScoreAccessorRef> getScoreAccessor(ScoringContextRef scoringContext) override;
 
 private:
-    LabelIndex             blankIndex_;
-    size_t                 vocabSize_;
-    Core::Ref<LabelScorer> ctcScorer_;
-    bool                   expectMoreFeatures_;
+    LabelIndex                   blankIndex_;
+    size_t                       vocabSize_;
+    Core::Ref<ScaledLabelScorer> ctcScorer_;
+    bool                         expectMoreFeatures_;
 
     std::shared_ptr<Math::FastMatrix<Score>> ctcScores_;  // Cached T x V matrix of scores
 

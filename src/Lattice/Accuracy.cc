@@ -15,7 +15,7 @@
 #include "Accuracy.hh"
 #include <Am/AcousticModel.hh>
 #include <Bliss/Evaluation.hh>
-#include <Bliss/Orthography.hh>
+#include <Bliss/OrthographicParser.hh>
 #include <Core/Assertions.hh>
 #include <Core/Hash.hh>
 #include <Core/Types.hh>

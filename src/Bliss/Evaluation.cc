@@ -17,7 +17,7 @@
 #include "Evaluation.hh"
 #include <Bliss/EditDistance.hh>
 #include <Bliss/Fsa.hh>
-#include <Bliss/Orthography.hh>
+#include <Bliss/OrthographicParser.hh>
 #include <Bliss/Unknown.hh>
 #include <Core/Assertions.hh>
 #include <Fsa/Arithmetic.hh>

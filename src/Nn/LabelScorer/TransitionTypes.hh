@@ -28,8 +28,12 @@ enum TransitionType {
     LABEL_TO_BLANK,
     BLANK_TO_LABEL,
     BLANK_LOOP,
+    LABEL_TO_SILENCE,
+    SILENCE_TO_LABEL,
+    SILENCE_LOOP,
     INITIAL_LABEL,
     INITIAL_BLANK,
+    INITIAL_SILENCE,
     WORD_EXIT,
     NONWORD_EXIT,
     SILENCE_EXIT,
@@ -43,14 +47,27 @@ inline constexpr auto TransitionTypeArray = std::to_array<std::pair<std::string_
         {"label-to-blank", LABEL_TO_BLANK},
         {"blank-to-label", BLANK_TO_LABEL},
         {"blank-loop", BLANK_LOOP},
+        {"label-to-silence", LABEL_TO_SILENCE},
+        {"silence-to-label", SILENCE_TO_LABEL},
+        {"silence-loop", SILENCE_LOOP},
         {"initial-label", INITIAL_LABEL},
         {"initial-blank", INITIAL_BLANK},
+        {"initial-silence", INITIAL_SILENCE},
         {"word-exit", WORD_EXIT},
         {"nonword-exit", NONWORD_EXIT},
         {"silence-exit", SILENCE_EXIT},
         {"sentence-end", SENTENCE_END},
 });
 static_assert(TransitionTypeArray.size() == TransitionType::numTypes, "TransitionTypeArray size must match number of TransitionType values");
+
+inline constexpr std::string_view toString(TransitionType type) noexcept {
+    for (const auto& [name, value] : TransitionTypeArray) {
+        if (value == type) {
+            return name;
+        }
+    }
+    return "<unknown-transition-type>";
+}
 
 enum TransitionPresetType {
     NONE,
@@ -59,6 +76,7 @@ enum TransitionPresetType {
     TRANSDUCER,
     AED,
     LM,
+    HMM,
 };
 
 /*

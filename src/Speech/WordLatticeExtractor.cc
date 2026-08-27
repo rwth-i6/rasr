@@ -14,7 +14,7 @@
  */
 #include "WordLatticeExtractor.hh"
 #include <Bliss/Lexicon.hh>
-#include <Bliss/Orthography.hh>
+#include <Bliss/OrthographicParser.hh>
 #include <Fsa/Cache.hh>
 #include <Fsa/Compose.hh>
 #include <Fsa/Linear.hh>

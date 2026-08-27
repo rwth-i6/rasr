@@ -34,6 +34,10 @@ SearchAlgorithm::SearchAlgorithm(const Core::Configuration& c)
     searchAlgorithm_->setModelCombination(modelCombination_);
 }
 
+Speech::ModelCombination& SearchAlgorithm::modelCombination() {
+    return modelCombination_;
+}
+
 void SearchAlgorithm::enterSegment() {
     searchAlgorithm_->enterSegment();
 }

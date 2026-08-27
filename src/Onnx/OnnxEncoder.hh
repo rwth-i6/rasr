@@ -34,7 +34,7 @@ public:
     static const Core::ParameterInt paramInputsPerOutput;
     static const Core::ParameterInt paramInputStepSize;
 
-    OnnxEncoder(Core::Configuration const& config, Nn::EncoderModelCache& cachedModel);
+    OnnxEncoder(Core::Configuration const& config, Nn::ModelCache& modelCache);
     virtual ~OnnxEncoder() = default;
 
     // Clear buffers and reset segment end flag.
@@ -91,7 +91,7 @@ public:
     static const Core::Choice          interpolationModeChoice;
     static const Core::ParameterChoice paramInterpolationMode;
 
-    ChunkedOnnxEncoder(Core::Configuration const& config, Nn::EncoderModelCache& cachedModel);
+    ChunkedOnnxEncoder(Core::Configuration const& config, Nn::ModelCache& modelCache);
 
     virtual void reset() override;
 

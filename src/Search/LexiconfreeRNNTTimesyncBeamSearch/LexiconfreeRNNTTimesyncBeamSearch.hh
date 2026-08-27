@@ -61,7 +61,6 @@ public:
 
     Speech::ModelCombination::Mode requiredModelCombination() const override;
     bool                           setModelCombination(Speech::ModelCombination const& modelCombination) override;
-    void                           reset() override;
     void                           enterSegment(Bliss::SpeechSegment const* = nullptr) override;
     void                           finishSegment() override;
     void                           putFeature(Nn::DataView const& feature) override;
@@ -83,7 +82,7 @@ protected:
         const Bliss::LemmaPronunciation* pron;            // Pronunciation of lemma corresponding to `nextToken` for traceback
         Score                            score;           // Would-be score of full hypothesis after extension
         Search::TimeframeIndex           timeframe;       // Timestamp of `nextToken` for traceback
-        Nn::LabelScorer::TransitionType  transitionType;  // Type of transition toward `nextToken`
+        Nn::TransitionType               transitionType;  // Type of transition toward `nextToken`
         size_t                           baseHypIndex;    // Index of base hypothesis in global beam
 
         bool operator<(ExtensionCandidate const& other) const {
@@ -145,10 +144,10 @@ private:
     std::vector<LabelHypothesis> outerHyps_;  // Hyps that are finished for this timestep are waiting for the next timestep (ended with blank)
 
     // Pre-allocated intermediate vectors
-    std::vector<ExtensionCandidate>       extensions_;
-    std::vector<LabelHypothesis>          newBeam_;
-    std::vector<Nn::LabelScorer::Request> requests_;
-    std::vector<LabelHypothesis>          tempHypotheses_;
+    std::vector<ExtensionCandidate>    extensions_;
+    std::vector<LabelHypothesis>       newBeam_;
+    std::vector<Nn::ScoringContextRef> scoringContexts_;
+    std::vector<LabelHypothesis>       tempHypotheses_;
 
     Core::StopWatch initializationTime_;
     Core::StopWatch featureProcessingTime_;
@@ -173,7 +172,7 @@ private:
      * Infer type of transition between two tokens based on whether each of them is blank
      * and/or whether they are the same
      */
-    Nn::LabelScorer::TransitionType inferTransitionType(Nn::LabelIndex prevLabel, Nn::LabelIndex nextLabel) const;
+    Nn::TransitionType inferTransitionType(Nn::LabelIndex prevLabel, Nn::LabelIndex nextLabel) const;
 
     /*
      * Helper functions for pruning to maxBeamSize_

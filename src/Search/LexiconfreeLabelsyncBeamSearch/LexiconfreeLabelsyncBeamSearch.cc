@@ -274,11 +274,25 @@ bool LexiconfreeLabelsyncBeamSearch::setModelCombination(Speech::ModelCombinatio
     if (labelScorers_.size() < maxBeamSizes_.size()) {
         warning() << "Number of label scorers (" << labelScorers_.size() << ") is less than number of configured max beam sizes (" << maxBeamSizes_.size() << ")";
     }
+    if (labelScorers_.size() < scoreThresholds_.size()) {
+        warning() << "Number of label scorers (" << labelScorers_.size() << ") is less than number of configured score thresholds (" << scoreThresholds_.size() << "); the surplus thresholds are ignored";
+    }
+
+    // The final pruning stage is indexed by the last label scorer, so make sure the pruning parameter
+    // vectors are long enough even if the size mismatch reported above is configured to be ignored
+    for (size_t i = maxBeamSizes_.size(); i < labelScorers_.size(); ++i) {
+        maxBeamSizes_.push_back(Core::Type<size_t>::max);
+    }
+    for (size_t i = scoreThresholds_.size(); i < labelScorers_.size(); ++i) {
+        scoreThresholds_.push_back(Core::Type<Score>::max);
+        useScorePruning_.push_back(false);
+    }
+
     switch (pruningStrategyType_) {
         case PruningStrategyJoint:
             break;
         case PruningStrategySeparate:
-            if (labelScorers_.size() <= useScorePruning_.size() and not useScorePruning_[labelScorers_.size() - 1]) {
+            if (not useScorePruning_[labelScorers_.size() - 1]) {
                 error() << "pruning-strategy-type=separate requires a finite final score-threshold. Otherwise, the normal stop criterion can't trigger. Use pruning-strategy-type=joint for pure max-beam-size pruning.";
             }
             break;
@@ -960,6 +974,9 @@ void LexiconfreeLabelsyncBeamSearch::scorePruning(std::vector<Element>& hypothes
         scoreHistogram_.setLimits(lowerScore, upperScore);
 
         for (auto const& hyp : hypotheses) {
+            if (Math::isinf(hyp.score) or hyp.score >= Core::Type<Score>::max) {
+                continue;
+            }
             scoreHistogram_ += hyp.pruningScore();
         }
 

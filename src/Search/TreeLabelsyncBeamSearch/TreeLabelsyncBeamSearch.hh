@@ -93,7 +93,7 @@ protected:
             return score;
         }
 
-        bool operator<(WithinWordExtensionCandidate const& other) {
+        bool operator<(WithinWordExtensionCandidate const& other) const {
             return score < other.score;
         }
     };
@@ -105,12 +105,13 @@ protected:
         Search::TimeframeIndex           timeframe;       // Timestamp of `nextToken` for traceback
         Nn::TransitionType               transitionType;  // Type of transition towward `rootState`
         size_t                           baseHypIndex;    // Index of base hypothesis in beam
+        bool                             isActive;        // Indicates whether the base hypothesis has not produced a sentence-end label yet
 
         inline Score pruningScore() const {
             return score;
         }
 
-        bool operator<(WordEndExtensionCandidate const& other) {
+        bool operator<(WordEndExtensionCandidate const& other) const {
             return score < other.score;
         }
     };
@@ -168,6 +169,11 @@ private:
         Any,
     };
 
+    /*
+     * `referenceScore` is the score that `relativeThreshold` is applied relative to.
+     * If unset, the best score within the pruned set is used. In `separateScorePruning`
+     * this is the best score within the respective pool.
+     */
     struct PruningParams {
         Score                relativeThreshold;
         size_t               maxBeamSize;
@@ -238,8 +244,12 @@ private:
     Core::Statistics<u32>              numActiveWordEndHypsAfterBeamPruning_;
     Core::Statistics<u32>              numActiveTrees_;
 
-    bool                   matchesHypothesisFilter(LabelHypothesis const& hypothesis, HypothesisFilter filter) const;
-    LabelHypothesis const* getBestHypothesis(std::vector<LabelHypothesis> const& hypotheses, HypothesisFilter filter) const;
+    template<typename Element>
+    bool matchesHypothesisFilter(Element const& element, HypothesisFilter filter) const;
+
+    template<typename Element>
+    Element const* getBestHypothesis(std::vector<Element> const& elements, HypothesisFilter filter) const;
+
     LabelHypothesis const* getWorstHypothesis(std::vector<LabelHypothesis> const& hypotheses, HypothesisFilter filter) const;
 
     // Overall best while preferring terminated over active hypotheses if any terminated ones exist
@@ -249,8 +259,9 @@ private:
 
     /*
      * Helper function for joint pruning of extensions/hypotheses by a relative score threshold
-     * and by max beam size. Calculates an absolute threshold based on best score + relative
-     * threshold and a score histogram, then removes everything below it. Works generically on
+     * and by max beam size. Calculates an absolute threshold based on the reference score
+     * (`referenceScore` if given, otherwise the best score in `hypotheses`) + relative threshold
+     * and a score histogram, then removes everything below it. Works generically on
      * WithinWordExtensionCandidate, WordEndExtensionCandidate and LabelHypothesis via their
      * `pruningScore()` accessor.
      */
@@ -258,12 +269,15 @@ private:
     void scorePruning(std::vector<Element>& hypotheses, PruningParams const& pruningParams);
 
     /*
-     * Score pruning applied separately for active/terminated hypotheses.
+     * Score pruning applied separately for active/terminated extensions/hypotheses.
+     * Works generically on WordEndExtensionCandidate and LabelHypothesis via their
+     * `pruningScore()` accessor and their `isActive` flag.
      */
+    template<typename Element>
     void separateScorePruning(
-            std::vector<LabelHypothesis>& hypotheses,
-            PruningParams const&          activePruningParams,
-            PruningParams const&          terminatedPruningParams);
+            std::vector<Element>& hypotheses,
+            PruningParams const&  activePruningParams,
+            PruningParams const&  terminatedPruningParams);
 
     /*
      * Helper function for recombination of hypotheses at the same point in the tree with the same

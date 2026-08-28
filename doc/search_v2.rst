@@ -274,6 +274,17 @@ models.
   ``joint`` keeps active and terminated items in one pruning pool. ``separate`` uses separate pools: active items
   are pruned against the overall best item, terminated items against the best terminated item, and max-beam-size
   limits are applied per pool. ``separate`` requires a finite final ``score-threshold``. Default ``joint``.
+  Two consequences of ``separate`` worth planning for:
+
+  * Because every max-beam-size limit is applied per pool, the beam (and each intermediate extension list) can
+    hold up to twice ``max-beam-size`` items, so decoding is correspondingly slower at an unchanged setting.
+  * Because terminated hypotheses can no longer displace active ones, the search no longer ends by the beam
+    filling up with terminated hypotheses; it ends once ``score-threshold`` retires the last active hypothesis
+    (or at the ``max-labels-per-timestep`` cap). A loose ``score-threshold`` therefore runs considerably longer
+    than in ``joint`` mode, and an unset one is rejected for this reason.
+
+  With ``length-norm-scale = 0`` (the default), ``separate`` compares the two pools by raw accumulated score,
+  which favors early terminated hypotheses; the algorithm warns about this combination at startup.
 
 Order of operations for one label-synchronous decoding step, assuming two label scorers ``L_1`` and ``L_2`` with
 ``max-beam-size = b_1 b_2`` and ``score-threshold = s_1 s_2``:
@@ -419,8 +430,11 @@ index used for the search tree itself.
   un-normalized score units.
 * ``length-norm-scale``, ``max-labels-per-timestep``: same meaning and defaults as for
   ``lexiconfree-labelsync-beam-search`` above.
-* ``pruning-strategy-type``: same choices and default as for ``lexiconfree-labelsync-beam-search`` above, applied
-  to final score and max-beam pruning of the combined active/terminated beam.
+* ``pruning-strategy-type``: same choices, default and caveats as for ``lexiconfree-labelsync-beam-search``
+  above (including the requirement of a finite final ``score-threshold`` for ``separate``), applied to
+  word-end pruning and to final score and max-beam pruning of the beam. Within-word extensions are always
+  pruned jointly: a within-word extension to the sentence-end label has not received its sentence-end LM score
+  yet, so it is directly comparable to the other within-word extensions of the same step.
 * ``tree-builder-type`` (enum): the same shared parameter as for ``tree-timesync-beam-search`` (see
   :ref:`Search tree types`). Should always be set to ``aed`` for this algorithm; the other tree topologies are
   built around blank/loop transitions this algorithm does not use.
@@ -438,7 +452,8 @@ Order of operations for one label-synchronous decoding step, assuming two label 
 #. Create word-end extension candidates from the surviving within-word hypotheses that reached a tree exit.
 #. Add LM scores and word-exit label scorer contributions for active hypotheses; add sentence-end LM scores for
    sentence-end hypotheses.
-#. Prune word-end extensions with score-threshold ``s_w`` and max-beam-size ``b_w``.
+#. Prune word-end extensions with score-threshold ``s_w`` and max-beam-size ``b_w`` according to
+   ``pruning-strategy-type``.
 #. Add surviving word-end extensions to the next beam.
 #. Prune active and terminated hypotheses with score-threshold ``s_2`` according to ``pruning-strategy-type``.
 #. Recombine equivalent hypotheses (if ``recombination-mode = on``).

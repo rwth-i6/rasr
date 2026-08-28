@@ -16,6 +16,8 @@
 #ifndef LEXICONFREE_LABELSYNC_BEAM_SEARCH_HH
 #define LEXICONFREE_LABELSYNC_BEAM_SEARCH_HH
 
+#include <optional>
+
 #include <Bliss/Lexicon.hh>
 #include <Core/Channel.hh>
 #include <Core/Parameter.hh>
@@ -133,6 +135,11 @@ private:
         Any,
     };
 
+    /*
+     * `referenceScore` is the score that `relativeThreshold` is applied relative to.
+     * If unset, the best score within the pruned set is used. In `separateScorePruning`
+     * this is the best score within the respective pool.
+     */
     struct PruningParams {
         Score                relativeThreshold;
         size_t               maxBeamSize;

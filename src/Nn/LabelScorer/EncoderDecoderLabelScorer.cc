@@ -17,12 +17,16 @@
 
 namespace Nn {
 
-EncoderDecoderLabelScorer::EncoderDecoderLabelScorer(Core::Configuration const& config, Core::Ref<Encoder> const& encoder, Core::Ref<LabelScorer> const& decoder)
+EncoderDecoderLabelScorer::EncoderDecoderLabelScorer(Core::Configuration const& config, Core::Ref<Encoder> const& encoder, Core::Ref<ScaledLabelScorer> const& decoder)
         : Core::Component(config),
           LabelScorer(config),
           encoder_(encoder),
           decoder_(decoder) {
     enabledTransitions_ = decoder_->enabledTransitions();
+}
+
+Core::Ref<ScaledLabelScorer> EncoderDecoderLabelScorer::getDecoderLabelScorer() const {
+    return decoder_;
 }
 
 void EncoderDecoderLabelScorer ::reset() {

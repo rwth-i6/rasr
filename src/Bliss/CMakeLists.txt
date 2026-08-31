@@ -9,6 +9,7 @@ add_library(
     Fsa.cc
     Lexicon.cc
     LexiconParser.cc
+    OrthographicParser.cc
     Orthography.cc
     Phoneme.cc
     Phonology.cc

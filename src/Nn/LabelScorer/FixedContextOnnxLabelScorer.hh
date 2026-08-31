@@ -19,8 +19,26 @@
 #include <Onnx/Model.hh>
 
 #include "BufferedLabelScorer.hh"
+#include "ModelCache.hh"
 
 namespace Nn {
+
+/*
+ * Scoring context that describes a sequence of previously observed labels as well as the current decoding step
+ */
+struct SeqStepScoringContext : public ScoringContext {
+    std::vector<LabelIndex> labelSeq;
+    Speech::TimeframeIndex  currentStep;
+
+    SeqStepScoringContext();
+    SeqStepScoringContext(std::vector<LabelIndex> const& seq, Speech::TimeframeIndex step);
+    SeqStepScoringContext(std::vector<LabelIndex>&& seq, Speech::TimeframeIndex step);
+
+    bool   isEqual(ScoringContextRef const& other) const override;
+    size_t hash() const override;
+};
+
+typedef Core::Ref<SeqStepScoringContext const> SeqStepScoringContextRef;
 
 /*
  * Label Scorer that performs scoring by forwarding the input feature at the current timestep together
@@ -33,12 +51,13 @@ class FixedContextOnnxLabelScorer : public BufferedLabelScorer {
     static const Core::ParameterInt  paramStartLabelIndex;
     static const Core::ParameterInt  paramHistoryLength;
     static const Core::ParameterBool paramBlankUpdatesHistory;
+    static const Core::ParameterBool paramSilenceUpdatesHistory;
     static const Core::ParameterBool paramLoopUpdatesHistory;
     static const Core::ParameterBool paramVerticalLabelTransition;
     static const Core::ParameterInt  paramMaxBatchSize;
 
 public:
-    FixedContextOnnxLabelScorer(Core::Configuration const& config);
+    FixedContextOnnxLabelScorer(Core::Configuration const& config, ModelCache& modelCache);
     virtual ~FixedContextOnnxLabelScorer() = default;
 
     // Clear feature buffer and cached scores
@@ -73,11 +92,12 @@ private:
     size_t startLabelIndex_;
     size_t historyLength_;
     bool   blankUpdatesHistory_;
+    bool   silenceUpdatesHistory_;
     bool   loopUpdatesHistory_;
     bool   verticalLabelTransition_;
     size_t maxBatchSize_;
 
-    Onnx::Model onnxModel_;
+    std::shared_ptr<Onnx::Model> onnxModel_;
 
     std::string inputFeatureName_;
     std::string historyName_;

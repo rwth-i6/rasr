@@ -15,10 +15,27 @@
 
 #include "ScoreAccessor.hh"
 
-#include <numeric>
 #include "Types.hh"
 
 namespace Nn {
+
+/*
+ * =======================
+ * ==== ScoreAccessor ====
+ * =======================
+ */
+
+Score ScoreAccessor::getScore(TransitionType transitionType, LabelIndex labelIndex) const {
+    return 0.0;
+}
+
+std::optional<DenseScoreSpan> ScoreAccessor::getDenseScores() const {
+    return std::nullopt;
+}
+
+TimeframeIndex ScoreAccessor::getTime() const {
+    return 0;
+}
 
 /*
  * =============================
@@ -32,6 +49,10 @@ VectorScoreAccessor::VectorScoreAccessor(std::shared_ptr<std::vector<Score>> sco
 
 Score VectorScoreAccessor::getScore(TransitionType transitionType, LabelIndex labelIndex) const {
     return scores_->at(labelIndex);
+}
+
+std::optional<DenseScoreSpan> VectorScoreAccessor::getDenseScores() const {
+    return DenseScoreSpan(DenseScoreTerm{.scores = std::span<Score const>(*scores_)});
 }
 
 TimeframeIndex VectorScoreAccessor::getTime() const {
@@ -50,6 +71,10 @@ DataViewScoreAccessor::DataViewScoreAccessor(DataView const& dataView, Timeframe
 
 Score DataViewScoreAccessor::getScore(TransitionType transitionType, LabelIndex labelIndex) const {
     return dataView_[labelIndex];
+}
+
+std::optional<DenseScoreSpan> DataViewScoreAccessor::getDenseScores() const {
+    return DenseScoreSpan(DenseScoreTerm{.scores = std::span<Score const>(dataView_.data(), dataView_.size())});
 }
 
 TimeframeIndex DataViewScoreAccessor::getTime() const {

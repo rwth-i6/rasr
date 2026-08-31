@@ -22,6 +22,44 @@ namespace {
 using namespace Nn;
 
 /*
+ * Combines multiple scoring contexts at once
+ */
+struct CombineScoringContext : public ScoringContext {
+    std::vector<ScoringContextRef> scoringContexts;
+
+    CombineScoringContext()
+            : scoringContexts() {}
+
+    CombineScoringContext(std::vector<ScoringContextRef>&& scoringContexts)
+            : scoringContexts(scoringContexts) {}
+
+    bool isEqual(ScoringContextRef const& other) const {
+        auto* otherPtr = dynamic_cast<CombineScoringContext const*>(other.get());
+
+        if (otherPtr == nullptr) {
+            return false;
+        }
+
+        return std::equal(
+                scoringContexts.begin(),
+                scoringContexts.end(),
+                otherPtr->scoringContexts.begin(),
+                otherPtr->scoringContexts.end(),
+                [](auto const& sc1, auto const& sc2) {
+                    return sc1->isEqual(sc2);
+                });
+    }
+
+    size_t hash() const {
+        size_t value = 0ul;
+        for (auto const& scoringContext : scoringContexts) {
+            value = Core::combineHashes(value, scoringContext->hash());
+        }
+        return value;
+    }
+};
+
+/*
  * Score accessor that contains a list of sub-accessors and adds up the scores they return
  */
 class CombinedScoreAccessor : public ScoreAccessor {
@@ -38,6 +76,30 @@ public:
         return std::accumulate(subAccessors_.begin(), subAccessors_.end(), 0.0, [transitionType, labelIndex](Score acc, ScoreAccessorRef subAccessor) {
             return acc + subAccessor->getScore(transitionType, labelIndex);
         });
+    }
+
+    std::optional<DenseScoreSpan> getDenseScores() const override {
+        if (subAccessors_.empty()) {
+            return std::nullopt;
+        }
+
+        std::vector<DenseScoreTerm> denseScoreTerms;
+        size_t                      denseSize = 0ul;
+        for (auto const& subAccessor : subAccessors_) {
+            auto denseScores = subAccessor->getDenseScores();
+            if (not denseScores) {
+                return std::nullopt;
+            }
+            if (denseScoreTerms.empty()) {
+                denseSize = denseScores->size();
+            }
+            else if (denseScores->size() != denseSize) {
+                return std::nullopt;
+            }
+            denseScoreTerms.insert(denseScoreTerms.end(), denseScores->terms.begin(), denseScores->terms.end());
+        }
+
+        return DenseScoreSpan(std::move(denseScoreTerms));
     }
 
     // Max of timeframes from sub-scorers
@@ -58,15 +120,20 @@ namespace Nn {
 Core::ParameterInt CombineLabelScorer::paramNumLabelScorers(
         "num-scorers", "Number of label scorers to combine", 1, 1);
 
-CombineLabelScorer::CombineLabelScorer(Core::Configuration const& config)
+CombineLabelScorer::CombineLabelScorer(Core::Configuration const& config, ModelCache& modelCache)
         : Core::Component(config),
           Precursor(config, TransitionPresetType::ALL) {
     size_t numLabelScorers = paramNumLabelScorers(config);
     for (size_t i = 0ul; i < numLabelScorers; ++i) {
         Core::Configuration subConfig = select(std::string("scorer-") + std::to_string(i + 1));
-        scorers_.push_back(Nn::Module::instance().labelScorerFactory().createLabelScorer(subConfig));
+        scorers_.push_back(Nn::Module::instance().labelScorerFactory().createLabelScorer(subConfig, modelCache));
         enabledTransitions_.enableIntersection(scorers_.back()->enabledTransitions());
     }
+}
+
+Core::Ref<ScaledLabelScorer> CombineLabelScorer::getSubScorer(size_t index) const {
+    require(index < scorers_.size());
+    return scorers_[index];
 }
 
 void CombineLabelScorer::reset() {

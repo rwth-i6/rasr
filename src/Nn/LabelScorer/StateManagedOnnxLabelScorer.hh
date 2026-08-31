@@ -20,9 +20,33 @@
 #include <Onnx/Model.hh>
 
 #include "BufferedLabelScorer.hh"
+#include "ModelCache.hh"
 #include "ScoringContext.hh"
 
 namespace Nn {
+
+/*
+ * Scoring context for ONNX models with state managed by a StateManager.
+ * The state stores only the slice produced for the most recent token.
+ */
+struct StateManagedOnnxScoringContext : public ScoringContext {
+    using StateManager = AbstractStateManager<Onnx::Value, Onnx::OnnxStateVariable>;
+    using HistoryState = StateManager::HistoryState;
+
+    std::vector<LabelIndex>                                 labelSeq;
+    mutable Core::Ref<StateManagedOnnxScoringContext const> parent;
+
+    mutable std::shared_ptr<HistoryState> state;
+
+    StateManagedOnnxScoringContext(HistoryState&& initialState);
+    StateManagedOnnxScoringContext(std::vector<LabelIndex>&&                       labelSeq,
+                                   Core::Ref<StateManagedOnnxScoringContext const> parent);
+
+    bool   isEqual(ScoringContextRef const& other) const override;
+    size_t hash() const override;
+};
+
+typedef Core::Ref<StateManagedOnnxScoringContext const> StateManagedOnnxScoringContextRef;
 
 /*
  * LabelScorer for ONNX models whose hidden-state management is done by a RASR StateManager.
@@ -37,12 +61,13 @@ class StateManagedOnnxLabelScorer : public BufferedLabelScorer {
 
     static const Core::ParameterIntVector paramStartLabels;
     static const Core::ParameterBool      paramBlankUpdatesHistory;
+    static const Core::ParameterBool      paramSilenceUpdatesHistory;
     static const Core::ParameterBool      paramLoopUpdatesHistory;
     static const Core::ParameterInt       paramMaxBatchSize;
     static const Core::ParameterInt       paramMaxCachedScores;
 
 public:
-    StateManagedOnnxLabelScorer(Core::Configuration const& config);
+    StateManagedOnnxLabelScorer(Core::Configuration const& config, ModelCache& modelCache);
     virtual ~StateManagedOnnxLabelScorer() = default;
 
     void reset() override;
@@ -66,10 +91,11 @@ private:
 
     std::vector<size_t> startLabels_;
     bool                blankUpdatesHistory_;
+    bool                silenceUpdatesHistory_;
     bool                loopUpdatesHistory_;
     size_t              maxBatchSize_;
 
-    Onnx::Model onnxModel_;
+    std::shared_ptr<Onnx::Model> onnxModel_;
 
     std::unique_ptr<StateManager>        stateManager_;
     std::vector<Onnx::OnnxStateVariable> stateVariables_;

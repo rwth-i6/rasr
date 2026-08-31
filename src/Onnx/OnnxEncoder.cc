@@ -49,15 +49,13 @@ const std::vector<IOSpecification> encoderIoSpec = {
 const Core::ParameterInt OnnxEncoder::paramInputsPerOutput("inputs-per-output", "The number of input features needed to produce one output. Set to 0 to infer at runtime.", 0, 0);
 const Core::ParameterInt OnnxEncoder::paramInputStepSize("input-step-size", "The difference in the number of input features between the first features corresponding to two consecutive outputs. Set to 0 to copy value from inputs-per-output.", 0, 0);
 
-OnnxEncoder::OnnxEncoder(Core::Configuration const& config, Nn::EncoderModelCache& cachedModel)
+OnnxEncoder::OnnxEncoder(Core::Configuration const& config, Nn::ModelCache& modelCache)
         : Core::Component(config),
           Precursor(config),
           inputsPerOutput_(paramInputsPerOutput(config)),
           inputStepSize_(paramInputStepSize(config)) {
-    if (cachedModel.empty()) {
-        cachedModel.put(std::make_shared<Model>(select("onnx-model"), encoderIoSpec));
-    }
-    onnxModel_        = cachedModel.get<Model>();
+    Core::Configuration modelConfig(config, "onnx-model");
+    onnxModel_        = modelCache.getOrCreate<Model>(modelConfig.getSelection(), modelConfig, encoderIoSpec);
     featuresName_     = onnxModel_->mapping.getOnnxName("features");
     featuresSizeName_ = onnxModel_->mapping.getOnnxName("features-size");
     outputName_       = onnxModel_->mapping.getOnnxName("outputs");
@@ -205,9 +203,9 @@ const Core::ParameterChoice ChunkedOnnxEncoder::paramInterpolationMode(
         "How overlapping chunk outputs are interpolated.",
         InterpolationMode::NoInterpolation);
 
-ChunkedOnnxEncoder::ChunkedOnnxEncoder(Core::Configuration const& config, Nn::EncoderModelCache& cachedModel)
+ChunkedOnnxEncoder::ChunkedOnnxEncoder(Core::Configuration const& config, Nn::ModelCache& modelCache)
         : Core::Component(config),
-          Precursor(config, cachedModel),
+          Precursor(config, modelCache),
           chunkSize_(paramChunkSize(config)),
           stepSize_(paramStepSize(config)),
           leftPadding_(paramLeftPadding(config)),

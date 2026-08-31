@@ -60,9 +60,11 @@ public:
     static const Core::ParameterBool        paramSparseLmLookAhead;
     static const Core::ParameterBool        paramSentenceEndFallBack;
     static const Core::ParameterBool        paramLogStepwiseStatistics;
-    static const Core::ParameterBool        paramCacheCleanupInterval;
+    static const Core::ParameterInt         paramCacheCleanupInterval;
     static const Core::ParameterInt         paramMaximumStableDelay;
     static const Core::ParameterInt         paramMaximumStableDelayPruningInterval;
+    static const Core::Choice               choiceRecombinationMode;
+    static const Core::ParameterChoice      paramRecombinationMode;
 
     TreeTimesyncBeamSearch(Core::Configuration const&);
 
@@ -131,6 +133,12 @@ protected:
         Score                                             lookaheadBackOff;  // Accumulated back-off score paid to descend from `lookaheadHistory` to `lookahead`
         Core::Ref<LatticeTrace>                           trace;             // Associated trace for traceback or lattice building of hypothesis
 
+#ifdef SEARCHV2_DEBUG
+        std::vector<Nn::LabelIndex>         tokenSequence;     // Full sequence of predicted tokens for debugging purposes
+        std::vector<Score>                  tokenScoreDeltas;  // Score contribution of each token in `tokenSequence` for debugging purposes
+        std::vector<Speech::TimeframeIndex> tokenTimeframes;   // Timeframe of each token in `tokenSequence` for debugging purposes
+#endif
+
         LabelHypothesis();
 
         // Within-word constructor from base and within-word extension
@@ -156,6 +164,7 @@ private:
     Score               wordEndScoreThreshold_;
     Histogram           scoreHistogram_;
     Nn::LabelIndex      blankLabelIndex_;
+    Nn::LabelIndex      silenceLabelIndex_;
     Bliss::Lemma const* sentenceEndLemma_;
     Nn::LabelIndex      sentenceEndLabelIndex_;
     size_t              cacheCleanupInterval_;
@@ -163,8 +172,10 @@ private:
     size_t              maximumStableDelayPruningInterval_;
 
     bool useBlank_;
+    bool useSilence_;
     bool collapseRepeatedLabels_;
     bool sentenceEndFallback_;
+    bool recombinationEnabled_;
     bool logStepwiseStatistics_;
 
     std::vector<Core::Ref<Nn::LabelScorer>>        labelScorers_;
@@ -219,10 +230,10 @@ private:
     void logStatistics() const;
 
     /*
-     * Infer type of transition between two tokens based on whether each of them is blank
-     * and/or whether they are the same
+     * Infer type of transition between two tokens based on whether each of them is blank or silence,
+     * and/or whether the state in the search tree changed
      */
-    Nn::TransitionType inferTransitionType(Nn::LabelIndex prevLabel, Nn::LabelIndex nextLabel) const;
+    Nn::TransitionType inferTransitionType(Nn::LabelIndex prevLabel, Nn::LabelIndex nextLabel, bool isSameState) const;
 
     /*
      * Helper function for pruning. Calculates an absolute threshold based on best score + relative threshold and

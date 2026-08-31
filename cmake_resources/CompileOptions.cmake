@@ -96,8 +96,8 @@ if(${MODULE_OPENMP})
 endif()
 
 if(${MODULE_CUDA})
-    enable_language(CUDA)
     set(CMAKE_CUDA_ARCHITECTURES native)
+    enable_language(CUDA)
 endif()
 
 if(${MODULE_AUDIO_FLAC})

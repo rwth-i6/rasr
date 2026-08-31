@@ -17,6 +17,8 @@
 #define COMBINE_LABEL_SCORER_HH
 
 #include "LabelScorer.hh"
+#include "ModelCache.hh"
+#include "ScaledLabelScorer.hh"
 
 namespace Nn {
 
@@ -33,8 +35,11 @@ class CombineLabelScorer : public LabelScorer {
 public:
     static Core::ParameterInt paramNumLabelScorers;
 
-    CombineLabelScorer(Core::Configuration const& config);
+    CombineLabelScorer(Core::Configuration const& config, ModelCache& modelCache);
     virtual ~CombineLabelScorer() = default;
+
+    // Return the sub-scorer at `index`
+    Core::Ref<ScaledLabelScorer> getSubScorer(size_t index) const;
 
     // Reset all sub-scorers
     void reset() override;
@@ -64,7 +69,7 @@ public:
     std::vector<std::optional<ScoreAccessorRef>> getScoreAccessors(std::vector<ScoringContextRef> const& scoringContexts) override;
 
 private:
-    std::vector<Core::Ref<LabelScorer>> scorers_;
+    std::vector<Core::Ref<ScaledLabelScorer>> scorers_;
 };
 
 }  // namespace Nn

@@ -723,7 +723,10 @@ bool TreeTimesyncBeamSearch::decodeStep() {
 
             Score              penalty               = 0.0;
             Nn::TransitionType wordEndtransitionType = Nn::TransitionType::WORD_EXIT;
-            if (lemma == lexicon_->specialLemma("silence")) {
+            if (lemma == lexicon_->specialLemma("blank")) {
+                wordEndtransitionType = Nn::TransitionType::BLANK_EXIT;
+            }
+            else if (lemma == lexicon_->specialLemma("silence")) {
                 wordEndtransitionType = Nn::TransitionType::SILENCE_EXIT;
             }
             else if (nonWordLemmas_.contains(lemma)) {

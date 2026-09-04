@@ -16,6 +16,8 @@
 #ifndef LEXICONFREE_LABELSYNC_BEAM_SEARCH_HH
 #define LEXICONFREE_LABELSYNC_BEAM_SEARCH_HH
 
+#include <optional>
+
 #include <Bliss/Lexicon.hh>
 #include <Core/Channel.hh>
 #include <Core/Parameter.hh>
@@ -49,6 +51,8 @@ public:
     static const Core::ParameterInt         paramCacheCleanupInterval;
     static const Core::ParameterFloat       paramLengthNormScale;
     static const Core::ParameterFloat       paramMaxLabelsPerTimestep;
+    static const Core::Choice               choicePruningStrategyType;
+    static const Core::ParameterChoice      paramPruningStrategyType;
     static const Core::Choice               choiceRecombinationMode;
     static const Core::ParameterChoice      paramRecombinationMode;
     static const Core::ParameterBool        paramLogStepwiseStatistics;
@@ -80,6 +84,7 @@ protected:
         Search::TimeframeIndex           timeframe;       // Timestamp of `nextToken` for traceback
         Nn::TransitionType               transitionType;  // Type of transition toward `nextToken`
         size_t                           baseHypIndex;    // Index of base hypothesis in global beam
+        bool                             isActive;        // Indicates whether the extension has not produced a sentence-end label yet
 
         inline Score pruningScore() const {
             return score;
@@ -130,13 +135,27 @@ private:
         Any,
     };
 
+    /*
+     * `referenceScore` is the score that `relativeThreshold` is applied relative to.
+     * If unset, the best score within the pruned set is used. In `separateScorePruning`
+     * this is the best score within the respective pool.
+     */
+    struct PruningParams {
+        Score                relativeThreshold;
+        size_t               maxBeamSize;
+        std::optional<Score> referenceScore = std::nullopt;
+    };
+
     std::vector<size_t> maxBeamSizes_;
     std::vector<bool>   useScorePruning_;
     std::vector<Score>  scoreThresholds_;
     Histogram           scoreHistogram_;
+    Histogram           activeScoreHistogram_;
+    Histogram           terminatedScoreHistogram_;
     float               lengthNormScale_;
     float               maxLabelsPerTimestep_;
     Nn::LabelIndex      sentenceEndLabelIndex_;
+    Core::Choice::Value pruningStrategyType_;
     bool                recombinationEnabled_;
     bool                logStepwiseStatistics_;
     size_t              cacheCleanupInterval_;
@@ -170,8 +189,12 @@ private:
     size_t totalTimesteps_;
     bool   finishedSegment_;
 
-    bool                   matchesHypothesisFilter(LabelHypothesis const& hypothesis, HypothesisFilter filter) const;
-    LabelHypothesis const* getBestHypothesis(std::vector<LabelHypothesis> const& hypotheses, HypothesisFilter filter) const;
+    template<typename Element>
+    bool matchesHypothesisFilter(Element const& element, HypothesisFilter filter) const;
+
+    template<typename Element>
+    Element const* getBestHypothesis(std::vector<Element> const& elements, HypothesisFilter filter) const;
+
     LabelHypothesis const* getWorstHypothesis(std::vector<LabelHypothesis> const& hypotheses, HypothesisFilter filter) const;
 
     // Overall best while preferring terminated over active hypotheses if any terminated ones exist
@@ -181,10 +204,20 @@ private:
 
     /*
      * Helper function for acoustic pruning of hypotheses. Calculates an absolute threshold based on best score + relative threshold and
-     * score histogram. Removes all extensions worse than the absolute threshold.
+     * score histogram. If given, referenceScore is used instead of the best score in hypotheses for relative pruning.
+     * Removes all elements worse than the absolute threshold.
      */
     template<typename Element>
-    void scorePruning(std::vector<Element>& hypotheses, Score relativeThreshold, size_t maxBeamSize);
+    void scorePruning(std::vector<Element>& hypotheses, PruningParams const& pruningParams);
+
+    /*
+     * Score pruning applied separately for active/terminated hypotheses.
+     */
+    template<typename Element>
+    void separateScorePruning(
+            std::vector<Element>& elements,
+            PruningParams const&  activePruningParams,
+            PruningParams const&  terminatedPruningParams);
 
     /*
      * Helper function for recombination of hypotheses with the same scoring context

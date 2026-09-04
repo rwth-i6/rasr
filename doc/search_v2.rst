@@ -225,6 +225,18 @@ an optional blank label (for CTC/transducer) and optional silence and sentence-e
 * ``maximum-stable-delay-pruning-interval`` (int): how often (in search steps) the above pruning is applied. Default ``10``.
 * ``log-stepwise-statistics`` (bool): log beam statistics at every search step, useful for tuning and debugging. Default ``false``.
 
+Order of operations for one time-synchronous decoding step, assuming two label scorers ``L_1`` and ``L_2`` with
+``max-beam-size = b_1 b_2`` and ``score-threshold = s_1 s_2``:
+
+#. From the current beam, create one extension candidate for each hypothesis and vocab token (excluding sentence-end).
+#. Add the ``L_1`` score contribution for each extension.
+#. Prune extensions with score-threshold ``s_1`` and max-beam-size ``b_1``.
+#. Add the ``L_2`` score contribution to the surviving extensions.
+#. Prune extensions with score-threshold ``s_2``.
+#. Recombine equivalent hypotheses (if ``recombination-mode = on``).
+#. Prune hypotheses with max-beam-size ``b_2``.
+
+
 Example config:
 
 .. code-block:: ini
@@ -258,6 +270,34 @@ models.
   applied to the un-normalized score before normalization.
 * ``max-labels-per-timestep`` (float): maximum number of emitted labels per input timestep (as consumed via
   ``putFeature``/``putFeatures``), used to bound hypothesis length relative to the input length. Default ``1.0``.
+* ``pruning-strategy-type`` (enum): controls pruning of active and terminated extension candidates/hypotheses.
+  ``joint`` keeps active and terminated items in one pruning pool. ``separate`` uses separate pools: active items
+  are pruned against the overall best item, terminated items against the best terminated item, and max-beam-size
+  limits are applied per pool. ``separate`` requires a finite final ``score-threshold``. Default ``joint``.
+  Two consequences of ``separate`` worth planning for:
+
+  * Because every max-beam-size limit is applied per pool, the beam (and each intermediate extension list) can
+    hold up to twice ``max-beam-size`` items, so decoding is correspondingly slower at an unchanged setting.
+  * Because terminated hypotheses can no longer displace active ones, the search no longer ends by the beam
+    filling up with terminated hypotheses; it ends once ``score-threshold`` retires the last active hypothesis
+    (or at the ``max-labels-per-timestep`` cap). A loose ``score-threshold`` therefore runs considerably longer
+    than in ``joint`` mode, and an unset one is rejected for this reason.
+
+  With ``length-norm-scale = 0`` (the default), ``separate`` compares the two pools by raw accumulated score,
+  which favors early terminated hypotheses; the algorithm warns about this combination at startup.
+
+Order of operations for one label-synchronous decoding step, assuming two label scorers ``L_1`` and ``L_2`` with
+``max-beam-size = b_1 b_2`` and ``score-threshold = s_1 s_2``:
+
+#. From the current beam, create one extension candidate for each active hypothesis and vocab token.
+#. Add the ``L_1`` score contribution for each extension.
+#. Prune extensions with score-threshold ``s_1`` and max-beam-size ``b_1`` according to ``pruning-strategy-type``.
+#. Add the ``L_2`` score contribution to the surviving extensions.
+#. Prune extensions with score-threshold ``s_2`` according to ``pruning-strategy-type``.
+#. Add surviving extensions to the next beam, together with hypotheses that were already terminated.
+#. Prune active and terminated hypotheses with score-threshold ``s_2`` according to ``pruning-strategy-type``.
+#. Recombine equivalent hypotheses (if ``recombination-mode = on``).
+#. Prune hypotheses with max-beam-size ``b_2`` according to ``pruning-strategy-type``.
 
 Example config:
 
@@ -268,6 +308,7 @@ Example config:
     max-beam-size           = 50
     score-threshold         = 5.0
     length-norm-scale       = 1.0
+    pruning-strategy-type   = separate
     max-labels-per-timestep = 1.2
 
 tree-timesync-beam-search
@@ -310,6 +351,24 @@ and state tying, not for scoring) and a language model, in addition to the label
   ``Search`` and are not compatible with ``SearchV2``). Choose the one matching your model's topology.
   See :ref:`Search tree types` below for a full description of each. **This must always be set explicitly**:
   the code-level default when unset is ``minimized-hmm``, which is not compatible with ``SearchV2`` (see below).
+
+Order of operations for one time-synchronous decoding step, assuming two label scorers ``L_1`` and ``L_2`` with
+``max-beam-size = b_1 b_2``, ``score-threshold = s_1 s_2``, ``max-word-end-beam-size = b_w`` and
+``word-end-score-threshold = s_w``:
+
+#. From the current beam, create one within-word extension candidate for each hypothesis and search-tree successor.
+#. Add the ``L_1`` score contribution for each within-word extension.
+#. Prune within-word extensions with score-threshold ``s_1`` and max-beam-size ``b_1``.
+#. Add the ``L_2`` score contribution to the surviving within-word extensions.
+#. Prune within-word extensions with score-threshold ``s_2``.
+#. Recombine equivalent within-word hypotheses (if ``recombination-mode = on``).
+#. Prune within-word hypotheses with max-beam-size ``b_2``.
+#. Create word-end extension candidates from the surviving within-word hypotheses that reached a tree exit.
+#. Add LM scores and word-exit label scorer contributions.
+#. Prune word-end extensions with score-threshold ``s_w``.
+#. Recombine equivalent word-end hypotheses (if ``recombination-mode = on``).
+#. Prune word-end hypotheses with max-beam-size ``b_w``.
+#. Add surviving word-end hypotheses to the pruned within-word beam.
 
 Example config:
 
@@ -371,9 +430,34 @@ index used for the search tree itself.
   un-normalized score units.
 * ``length-norm-scale``, ``max-labels-per-timestep``: same meaning and defaults as for
   ``lexiconfree-labelsync-beam-search`` above.
+* ``pruning-strategy-type``: same choices, default and caveats as for ``lexiconfree-labelsync-beam-search``
+  above (including the requirement of a finite final ``score-threshold`` for ``separate``), applied to
+  word-end pruning and to final score and max-beam pruning of the beam. Within-word extensions are always
+  pruned jointly: a within-word extension to the sentence-end label has not received its sentence-end LM score
+  yet, so it is directly comparable to the other within-word extensions of the same step.
 * ``tree-builder-type`` (enum): the same shared parameter as for ``tree-timesync-beam-search`` (see
   :ref:`Search tree types`). Should always be set to ``aed`` for this algorithm; the other tree topologies are
   built around blank/loop transitions this algorithm does not use.
+
+Order of operations for one label-synchronous decoding step, assuming two label scorers ``L_1`` and ``L_2`` with
+``max-beam-size = b_1 b_2``, ``score-threshold = s_1 s_2``, ``max-word-end-beam-size = b_w`` and
+``word-end-score-threshold = s_w``:
+
+#. From active hypotheses in the current beam, create one within-word extension candidate for each search-tree successor.
+#. Add the ``L_1`` score contribution for each within-word extension.
+#. Prune within-word extensions with score-threshold ``s_1`` and max-beam-size ``b_1``.
+#. Add the ``L_2`` score contribution to the surviving within-word extensions.
+#. Prune within-word extensions with score-threshold ``s_2``.
+#. Add surviving within-word extensions to the next beam, together with hypotheses that were already terminated.
+#. Create word-end extension candidates from the surviving within-word hypotheses that reached a tree exit.
+#. Add LM scores and word-exit label scorer contributions for active hypotheses; add sentence-end LM scores for
+   sentence-end hypotheses.
+#. Prune word-end extensions with score-threshold ``s_w`` and max-beam-size ``b_w`` according to
+   ``pruning-strategy-type``.
+#. Add surviving word-end extensions to the next beam.
+#. Prune active and terminated hypotheses with score-threshold ``s_2`` according to ``pruning-strategy-type``.
+#. Recombine equivalent hypotheses (if ``recombination-mode = on``).
+#. Prune hypotheses with max-beam-size ``b_2`` according to ``pruning-strategy-type``.
 
 .. code-block:: ini
 
@@ -383,6 +467,7 @@ index used for the search tree itself.
     max-word-end-beam-size   = 20
     score-threshold          = 5.0
     word-end-score-threshold = 0.5
+    pruning-strategy-type    = separate
     length-norm-scale        = 1.0
     tree-builder-type        = aed
 

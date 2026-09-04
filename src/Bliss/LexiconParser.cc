@@ -244,7 +244,12 @@ void LexiconElement::addOrth(const std::string& _orth) {
         }
         verify(lemma_);
         if (!specialLemmaName_.empty()) {
-            if (product_->specialLemma(specialLemmaName_))
+            // OOV subword pieces are represented by one lemma per piece so
+            // that each piece keeps its own orthography. These two categories
+            // are intentionally multi-valued; all other special names remain
+            // unique as before.
+            bool multiValued = specialLemmaName_ == "unknown-continuation" || specialLemmaName_ == "unknown-final";
+            if (product_->specialLemma(specialLemmaName_) && !multiValued)
                 parser()->error("Special lemma \"%s\" already defined", specialLemmaName_.c_str());
             else
                 product_->defineSpecialLemma(specialLemmaName_, lemma_);

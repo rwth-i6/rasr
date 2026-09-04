@@ -243,11 +243,15 @@ public:
     virtual ~SharedBaseClassTreeBuilder() = default;
 
 protected:
-    // If present, these two special lemmas define an open-vocabulary sub-tree:
-    // pronunciations of "unknown-continuation" keep the search inside the
-    // unknown word, while pronunciations of "unknown" finish it.
-    Bliss::Lemma const* unknownLemma_;
-    Bliss::Lemma const* unknownContinuationLemma_;
+    // If present, these special lemma groups define an open-vocabulary
+    // sub-tree. The conventional unknown lemma remains available for the
+    // orthographic parser; unknown-final lemmata provide piece-specific
+    // orthographies for the search tree.
+    Bliss::Lemma const*              unknownLemma_;
+    std::vector<Bliss::Lemma const*> unknownFinalLemmas_;
+    std::vector<Bliss::Lemma const*> unknownContinuationLemmas_;
+
+    bool isUnknownWordLemma(Bliss::Lemma const* lemma) const;
 
     // Create a node with invalid AM and TM indices which serves as a root
     StateId createRoot();
@@ -295,8 +299,9 @@ protected:
     void addWordBoundaryStates();
 
     // Build the sub-tree for sequences of unknown-word pieces. This is enabled
-    // by a special lemma named "unknown-continuation"; the existing "unknown"
-    // lemma supplies the pronunciations which finish an unknown word.
+    // by the multi-valued special lemma groups "unknown-continuation" and
+    // "unknown-final". A singleton "unknown" lemma is accepted as a legacy
+    // source of final-piece pronunciations.
     void addUnknownWordStates();
 
     Bliss::Lemma const* getSentenceEndLemma() const;

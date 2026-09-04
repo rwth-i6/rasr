@@ -1208,24 +1208,48 @@ SharedBaseClassTreeBuilder::SharedBaseClassTreeBuilder(Core::Configuration      
                                                        Search::PersistentStateTree& network)
         : AbstractTreeBuilder(config, lexicon, acousticModel, network),
           unknownLemma_(lexicon.specialLemma("unknown")),
-          unknownContinuationLemma_(lexicon.specialLemma("unknown-continuation")) {
-    if (unknownContinuationLemma_) {
+          unknownFinalLemmas_(),
+          unknownContinuationLemmas_() {
+    auto continuationLemmas = lexicon.specialLemmas("unknown-continuation");
+    unknownContinuationLemmas_.assign(continuationLemmas.begin(), continuationLemmas.end());
+    if (unknownContinuationLemmas_.empty()) {
+        return;
+    }
+
+    auto finalLemmas = lexicon.specialLemmas("unknown-final");
+    unknownFinalLemmas_.assign(finalLemmas.begin(), finalLemmas.end());
+    if (unknownFinalLemmas_.empty()) {
         if (!unknownLemma_) {
-            criticalError("Special lemma \"unknown-continuation\" requires a special lemma named \"unknown\".");
+            criticalError("Special lemma \"unknown-continuation\" requires a special lemma named \"unknown\" or \"unknown-final\".");
         }
-        if (unknownContinuationLemma_->syntacticTokenSequence().size() != 0) {
+        unknownFinalLemmas_.push_back(unknownLemma_);
+    }
+
+    for (auto const* lemma : unknownContinuationLemmas_) {
+        if (lemma->syntacticTokenSequence().size() != 0) {
             criticalError("Special lemma \"unknown-continuation\" must have an empty syntactic token sequence.");
         }
-        if (unknownContinuationLemma_->nPronunciations() == 0) {
+        if (lemma->nPronunciations() == 0) {
             criticalError("Special lemma \"unknown-continuation\" must have at least one pronunciation.");
         }
-        if (unknownLemma_->syntacticTokenSequence().size() != 1) {
-            criticalError("Special lemma \"unknown\" must have exactly one syntactic token when used with \"unknown-continuation\".");
+    }
+    for (auto const* lemma : unknownFinalLemmas_) {
+        if (lemma->syntacticTokenSequence().size() != 1) {
+            criticalError("Special lemma \"unknown-final\"/\"unknown\" must have exactly one syntactic token.");
         }
-        if (unknownLemma_->nPronunciations() == 0) {
-            criticalError("Special lemma \"unknown\" must have at least one pronunciation when used with \"unknown-continuation\".");
+        if (lemma->nPronunciations() == 0) {
+            criticalError("Special lemma \"unknown-final\"/\"unknown\" must have at least one pronunciation.");
         }
     }
+}
+
+bool SharedBaseClassTreeBuilder::isUnknownWordLemma(Bliss::Lemma const* lemma) const {
+    if (unknownContinuationLemmas_.empty()) {
+        return false;
+    }
+    return lemma == unknownLemma_ ||
+           std::find(unknownContinuationLemmas_.begin(), unknownContinuationLemmas_.end(), lemma) != unknownContinuationLemmas_.end() ||
+           std::find(unknownFinalLemmas_.begin(), unknownFinalLemmas_.end(), lemma) != unknownFinalLemmas_.end();
 }
 
 StateId SharedBaseClassTreeBuilder::createRoot() {
@@ -1337,7 +1361,7 @@ CtcTreeBuilder::CtcTreeBuilder(Core::Configuration config, Bliss::Lexicon const&
 
         // Unlike ordinary roots, this state deliberately is not final: after a
         // continuation piece, an unknown-word-final piece must still be seen.
-        if (unknownContinuationLemma_) {
+        if (!unknownContinuationLemmas_.empty()) {
             unknownWordRoot_ = createRoot();
             network_.otherRootStates.insert(unknownWordRoot_);
         }
@@ -1366,7 +1390,7 @@ void CtcTreeBuilder::build() {
     // Iterate over the lemmata and add them to the tree
     for (auto it = iters.first; it != iters.second; ++it) {
         if ((*it)->lemma() == wordBoundaryLemma or (*it)->lemma() == sentenceEndLemma or (*it)->lemma() == sentenceBeginLemma or
-            (unknownContinuationLemma_ and ((*it)->lemma() == unknownContinuationLemma_ or (*it)->lemma() == unknownLemma_))) {
+            isUnknownWordLemma((*it)->lemma())) {
             // The wordBoundaryLemma should be a successor of the wordBoundaryRoot_, this is handled separately in addWordBoundaryStates()
             // Sentence-end and sentence-begin should not be part of the tree, they are handled in the search algorithms
             continue;
@@ -1387,7 +1411,7 @@ void CtcTreeBuilder::build() {
 }
 
 void CtcTreeBuilder::addUnknownWordStates() {
-    if (!unknownContinuationLemma_) {
+    if (unknownContinuationLemmas_.empty()) {
         return;
     }
 
@@ -1398,18 +1422,22 @@ void CtcTreeBuilder::addUnknownWordStates() {
     // An unknown word may begin at the normal root, but after its first
     // continuation piece only unknown-word pieces are reachable.
     for (StateId startState : {network_.rootState, unknownWordRoot_}) {
-        auto continuationProns = unknownContinuationLemma_->pronunciations();
-        for (auto pron = continuationProns.first; pron != continuationProns.second; ++pron) {
-            require(pron->pronunciation()->length() > 0);
-            StateId lastState = extendPronunciation(startState, pron->pronunciation());
-            addExit(lastState, unknownWordRoot_, pron->id());
+        for (auto const* lemma : unknownContinuationLemmas_) {
+            auto continuationProns = lemma->pronunciations();
+            for (auto pron = continuationProns.first; pron != continuationProns.second; ++pron) {
+                require(pron->pronunciation()->length() > 0);
+                StateId lastState = extendPronunciation(startState, pron->pronunciation());
+                addExit(lastState, unknownWordRoot_, pron->id());
+            }
         }
 
-        auto finalProns = unknownLemma_->pronunciations();
-        for (auto pron = finalProns.first; pron != finalProns.second; ++pron) {
-            require(pron->pronunciation()->length() > 0);
-            StateId lastState = extendPronunciation(startState, pron->pronunciation());
-            addExit(lastState, wordEndRoot, pron->id());
+        for (auto const* lemma : unknownFinalLemmas_) {
+            auto finalProns = lemma->pronunciations();
+            for (auto pron = finalProns.first; pron != finalProns.second; ++pron) {
+                require(pron->pronunciation()->length() > 0);
+                StateId lastState = extendPronunciation(startState, pron->pronunciation());
+                addExit(lastState, wordEndRoot, pron->id());
+            }
         }
     }
 
@@ -1425,8 +1453,8 @@ void CtcTreeBuilder::addUnknownWordStates() {
         }
     }
 
-    log() << "Added unknown-word sub-tree with " << unknownContinuationLemma_->nPronunciations()
-          << " continuation and " << unknownLemma_->nPronunciations() << " final pronunciations";
+    log() << "Added unknown-word sub-tree with " << unknownContinuationLemmas_.size()
+          << " continuation and " << unknownFinalLemmas_.size() << " final lemmata";
 }
 
 StateId CtcTreeBuilder::extendPronunciation(StateId startState, Bliss::Pronunciation const* pron) {
@@ -1589,7 +1617,7 @@ AedTreeBuilder::AedTreeBuilder(Core::Configuration config, Bliss::Lexicon const&
 
         // This root represents an unfinished unknown word and therefore must
         // not be a valid segment-final state.
-        if (unknownContinuationLemma_) {
+        if (!unknownContinuationLemmas_.empty()) {
             unknownWordRoot_ = createRoot();
             network_.otherRootStates.insert(unknownWordRoot_);
         }
@@ -1615,8 +1643,7 @@ void AedTreeBuilder::build() {
 
     // Iterate over the lemmata and add them to the tree
     for (auto it = iters.first; it != iters.second; ++it) {
-        if ((*it)->lemma() == wordBoundaryLemma or
-            (unknownContinuationLemma_ and ((*it)->lemma() == unknownContinuationLemma_ or (*it)->lemma() == unknownLemma_))) {
+        if ((*it)->lemma() == wordBoundaryLemma or isUnknownWordLemma((*it)->lemma())) {
             // The wordBoundaryLemma should be a successor of the wordBoundaryRoot_
             // This is handled separately in addWordBoundaryStates()
             continue;
@@ -1635,7 +1662,7 @@ void AedTreeBuilder::build() {
 }
 
 void AedTreeBuilder::addUnknownWordStates() {
-    if (!unknownContinuationLemma_) {
+    if (unknownContinuationLemmas_.empty()) {
         return;
     }
 
@@ -1644,23 +1671,27 @@ void AedTreeBuilder::addUnknownWordStates() {
     StateId wordEndRoot = lexicon_.specialLemma("word-boundary") ? wordBoundaryRoot_ : network_.rootState;
 
     for (StateId startState : {network_.rootState, unknownWordRoot_}) {
-        auto continuationProns = unknownContinuationLemma_->pronunciations();
-        for (auto pron = continuationProns.first; pron != continuationProns.second; ++pron) {
-            require(pron->pronunciation()->length() > 0);
-            StateId lastState = extendPronunciation(startState, pron->pronunciation());
-            addExit(lastState, unknownWordRoot_, pron->id());
+        for (auto const* lemma : unknownContinuationLemmas_) {
+            auto continuationProns = lemma->pronunciations();
+            for (auto pron = continuationProns.first; pron != continuationProns.second; ++pron) {
+                require(pron->pronunciation()->length() > 0);
+                StateId lastState = extendPronunciation(startState, pron->pronunciation());
+                addExit(lastState, unknownWordRoot_, pron->id());
+            }
         }
 
-        auto finalProns = unknownLemma_->pronunciations();
-        for (auto pron = finalProns.first; pron != finalProns.second; ++pron) {
-            require(pron->pronunciation()->length() > 0);
-            StateId lastState = extendPronunciation(startState, pron->pronunciation());
-            addExit(lastState, wordEndRoot, pron->id());
+        for (auto const* lemma : unknownFinalLemmas_) {
+            auto finalProns = lemma->pronunciations();
+            for (auto pron = finalProns.first; pron != finalProns.second; ++pron) {
+                require(pron->pronunciation()->length() > 0);
+                StateId lastState = extendPronunciation(startState, pron->pronunciation());
+                addExit(lastState, wordEndRoot, pron->id());
+            }
         }
     }
 
-    log() << "Added unknown-word sub-tree with " << unknownContinuationLemma_->nPronunciations()
-          << " continuation and " << unknownLemma_->nPronunciations() << " final pronunciations";
+    log() << "Added unknown-word sub-tree with " << unknownContinuationLemmas_.size()
+          << " continuation and " << unknownFinalLemmas_.size() << " final lemmata";
 }
 
 StateId AedTreeBuilder::extendPronunciation(StateId startState, Bliss::Pronunciation const* pron) {

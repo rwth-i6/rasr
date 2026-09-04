@@ -39,11 +39,16 @@ protected:
                         Bliss::Lexicon const&              lexicon,
                         Search::StateId                    root,
                         Bliss::Lemma const*                lemma,
+                        std::string const&                 pronunciation,
                         Search::StateId                    transitState);
 
     Core::Ref<Test::Lexicon>               lexicon_;
     Core::Ref<const Am::AcousticModel>     acousticModel_;
     Core::Ref<Search::PersistentStateTree> network_;
+    Bliss::Lemma const*                    continuationRa_;
+    Bliss::Lemma const*                    continuationRe_;
+    Bliss::Lemma const*                    finalWord_;
+    Bliss::Lemma const*                    finalPiece_;
 };
 
 Bliss::Lemma* UnknownWordTreeBuilderTest::addLemma(Test::Lexicon&                  lexicon,
@@ -72,6 +77,7 @@ bool UnknownWordTreeBuilderTest::hasExit(Search::PersistentStateTree const& netw
                                          Bliss::Lexicon const&              lexicon,
                                          Search::StateId                    root,
                                          Bliss::Lemma const*                lemma,
+                                         std::string const&                 pronunciation,
                                          Search::StateId                    transitState) {
     for (auto successor = network.structure.successors(root); successor; ++successor) {
         if (successor.isLabel()) {
@@ -81,8 +87,10 @@ bool UnknownWordTreeBuilderTest::hasExit(Search::PersistentStateTree const& netw
             if (!target.isLabel()) {
                 continue;
             }
-            auto const& exit = network.exits[target.label()];
-            if (exit.transitState == transitState && lexicon.lemmaPronunciation(exit.pronunciation)->lemma() == lemma) {
+            auto const& exit      = network.exits[target.label()];
+            auto const* lemmaPron = lexicon.lemmaPronunciation(exit.pronunciation);
+            if (exit.transitState == transitState && lemmaPron->lemma() == lemma &&
+                lemmaPron->pronunciation()->format(lexicon.phonemeInventory()) == pronunciation) {
                 return true;
             }
         }
@@ -97,8 +105,11 @@ void UnknownWordTreeBuilderTest::setUp() {
     }
 
     addLemma(*lexicon_, "KNOWN", {"known"}, "", {"KNOWN"});
-    addLemma(*lexicon_, "[UNKNOWN]", {"word", "piece"}, "unknown", {"[UNKNOWN]"});
-    addLemma(*lexicon_, "[UNKNOWN-CONTINUATION]", {"ra@@", "re@@"}, "unknown-continuation", {});
+    addLemma(*lexicon_, "[UNKNOWN]", {"word"}, "unknown", {"[UNKNOWN]"});
+    finalWord_      = addLemma(*lexicon_, "word", {"word"}, "unknown-final", {"[UNKNOWN]"});
+    finalPiece_     = addLemma(*lexicon_, "piece", {"piece"}, "unknown-final", {"[UNKNOWN]"});
+    continuationRa_ = addLemma(*lexicon_, "ra@@", {"ra@@"}, "unknown-continuation", {});
+    continuationRe_ = addLemma(*lexicon_, "re@@", {"re@@"}, "unknown-continuation", {});
     addLemma(*lexicon_, "[SILENCE]", {"si"}, "silence", {});
     addLemma(*lexicon_, "[BLANK]", {"blank"}, "blank", {});
 
@@ -127,15 +138,13 @@ TEST_F(Search, UnknownWordTreeBuilderTest, ConstrainsUnknownPieceSequences) {
     Search::StateId unknownWordRoot = *network_->otherRootStates.begin();
     EXPECT_FALSE(network_->finalStates.contains(unknownWordRoot));
 
-    Bliss::Lemma const* continuationLemma = lexicon_->specialLemma("unknown-continuation");
-    Bliss::Lemma const* unknownLemma      = lexicon_->specialLemma("unknown");
-    Bliss::Lemma const* blankLemma        = lexicon_->specialLemma("blank");
-    Bliss::Lemma const* knownLemma        = lexicon_->lemma("KNOWN");
+    Bliss::Lemma const* blankLemma = lexicon_->specialLemma("blank");
+    Bliss::Lemma const* knownLemma = lexicon_->lemma("KNOWN");
 
-    EXPECT_TRUE(hasExit(*network_, *lexicon_, network_->rootState, continuationLemma, unknownWordRoot));
-    EXPECT_TRUE(hasExit(*network_, *lexicon_, unknownWordRoot, continuationLemma, unknownWordRoot));
-    EXPECT_TRUE(hasExit(*network_, *lexicon_, network_->rootState, unknownLemma, network_->rootState));
-    EXPECT_TRUE(hasExit(*network_, *lexicon_, unknownWordRoot, unknownLemma, network_->rootState));
-    EXPECT_TRUE(hasExit(*network_, *lexicon_, unknownWordRoot, blankLemma, unknownWordRoot));
-    EXPECT_FALSE(hasExit(*network_, *lexicon_, unknownWordRoot, knownLemma, network_->rootState));
+    EXPECT_TRUE(hasExit(*network_, *lexicon_, network_->rootState, continuationRa_, "ra@@", unknownWordRoot));
+    EXPECT_TRUE(hasExit(*network_, *lexicon_, unknownWordRoot, continuationRe_, "re@@", unknownWordRoot));
+    EXPECT_TRUE(hasExit(*network_, *lexicon_, network_->rootState, finalWord_, "word", network_->rootState));
+    EXPECT_TRUE(hasExit(*network_, *lexicon_, unknownWordRoot, finalPiece_, "piece", network_->rootState));
+    EXPECT_TRUE(hasExit(*network_, *lexicon_, unknownWordRoot, blankLemma, "blank", unknownWordRoot));
+    EXPECT_FALSE(hasExit(*network_, *lexicon_, unknownWordRoot, knownLemma, "known", network_->rootState));
 }

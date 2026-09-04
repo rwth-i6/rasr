@@ -287,10 +287,10 @@ bool PersistentStateTree::read(Core::MappedArchiveReader in) {
         return false;
     }
 
-    // Version 15 introduced the dedicated unknown-word continuation root. An
+    // Version 15 introduced the dedicated unknown-word fallback root. An
     // older image for the same lexicon would otherwise silently retain the
     // former unconstrained exit-to-root behavior.
-    if (lexicon_ && lexicon_->specialLemma("unknown-continuation") && v < 15) {
+    if (lexicon_ && (lexicon_->specialLemma("unknown-continuation") || lexicon_->specialLemma("unknown-final")) && v < 15) {
         Core::Application::us()->log() << "Persistent network format " << v
                                        << " predates unknown-word continuation support; rebuilding the network";
         return false;

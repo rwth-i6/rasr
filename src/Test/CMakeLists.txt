@@ -17,6 +17,7 @@ add_executable(
     Math_LinearConjugateGradient.cc
     Math_Utilities.cc
     Registry.cc
+    Search_TreeBuilder.cc
     Speech_AllophoneStateGraphBuilder.cc
     Test_File.cc
     Test_Lexicon.cc
@@ -60,6 +61,7 @@ target_link_libraries(
             RasrMath
             RasrMm
             RasrNn
+            RasrSearch
             RasrSpeech
             cppunit
 )

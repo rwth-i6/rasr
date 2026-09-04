@@ -36,7 +36,7 @@ static const Core::ParameterString paramCacheArchive(
         "cache archive in which the persistent state-network should be cached",
         "global-cache");
 
-static u32 formatVersion = 14;
+static u32 formatVersion = 15;
 
 namespace Search {
 struct ConvertTree {
@@ -284,6 +284,15 @@ bool PersistentStateTree::read(Core::MappedArchiveReader in) {
 
     if (v < 13) {
         Core::Application::us()->log() << "Wrong compressed network format, need version >= 13 got " << v;
+        return false;
+    }
+
+    // Version 15 introduced the dedicated unknown-word continuation root. An
+    // older image for the same lexicon would otherwise silently retain the
+    // former unconstrained exit-to-root behavior.
+    if (lexicon_ && lexicon_->specialLemma("unknown-continuation") && v < 15) {
+        Core::Application::us()->log() << "Persistent network format " << v
+                                       << " predates unknown-word continuation support; rebuilding the network";
         return false;
     }
 

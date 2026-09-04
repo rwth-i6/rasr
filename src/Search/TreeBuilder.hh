@@ -243,6 +243,12 @@ public:
     virtual ~SharedBaseClassTreeBuilder() = default;
 
 protected:
+    // If present, these two special lemmas define an open-vocabulary sub-tree:
+    // pronunciations of "unknown-continuation" keep the search inside the
+    // unknown word, while pronunciations of "unknown" finish it.
+    Bliss::Lemma const* unknownLemma_;
+    Bliss::Lemma const* unknownContinuationLemma_;
+
     // Create a node with invalid AM and TM indices which serves as a root
     StateId createRoot();
     // Check if a node with StateDesc `desc` is already a successor of the state with ID `predecessor` and add it if not.
@@ -277,6 +283,7 @@ protected:
     bool forceBlank_;
 
     StateId                      wordBoundaryRoot_;
+    StateId                      unknownWordRoot_;
     Search::StateTree::StateDesc blankDesc_;
     Am::AllophoneStateIndex      blankAllophoneStateIndex_;
 
@@ -286,6 +293,11 @@ protected:
 
     // Build the sub-tree with the word-boundary lemma plus optional blank starting from `wordBoundaryRoot_`.
     void addWordBoundaryStates();
+
+    // Build the sub-tree for sequences of unknown-word pieces. This is enabled
+    // by a special lemma named "unknown-continuation"; the existing "unknown"
+    // lemma supplies the pronunciations which finish an unknown word.
+    void addUnknownWordStates();
 
     Bliss::Lemma const* getSentenceEndLemma() const;
 };
@@ -313,6 +325,7 @@ public:
 
 protected:
     StateId wordBoundaryRoot_;
+    StateId unknownWordRoot_;
 
     // Starting in `startState` (usually a root), include the lemma with pronunciation `pron` in the tree
     // Returns the last state corresponding to `pron`.
@@ -320,6 +333,9 @@ protected:
 
     // Build the sub-tree with the word-boundary lemma starting from `wordBoundaryRoot_`.
     void addWordBoundaryStates();
+
+    // AED counterpart of CtcTreeBuilder::addUnknownWordStates().
+    void addUnknownWordStates();
 };
 
 class HmmTreeBuilder : public SharedBaseClassTreeBuilder {

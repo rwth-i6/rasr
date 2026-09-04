@@ -109,7 +109,7 @@ public:
     // Context-independent root node
     StateId ciRootState;
 
-    // Other root nodes (currently used for the wordBoundaryRoot in CtcTreeBuilder)
+    // Other root nodes (e.g. word-boundary and unfinished-unknown-word roots)
     std::set<StateId> otherRootStates;
 
     // Valid nodes that the search can end in

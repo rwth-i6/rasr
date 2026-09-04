@@ -55,4 +55,20 @@ bool StepScoringContext::isEqual(ScoringContextRef const& other) const {
     return o != nullptr and currentStep == o->currentStep;
 }
 
+/*
+ * ============================
+ * ===== OnnxHiddenState ======
+ * ============================
+ */
+OnnxHiddenState::OnnxHiddenState()
+        : stateValueMap() {}
+
+OnnxHiddenState::OnnxHiddenState(std::vector<std::string>&& names, std::vector<Onnx::Value>&& values) {
+    verify(names.size() == values.size());
+    stateValueMap.reserve(names.size());
+    for (size_t i = 0ul; i < names.size(); ++i) {
+        stateValueMap.emplace(std::move(names[i]), std::move(values[i]));
+    }
+}
+
 }  // namespace Nn

@@ -263,7 +263,8 @@ TreeLabelsyncBeamSearch::TreeLabelsyncBeamSearch(Core::Configuration const& conf
         : Core::Component(config),
           SearchAlgorithmV2(config),
           maxWordEndBeamSize_(paramMaxWordEndBeamSize(config)),
-          wordEndScoreThreshold_(paramWordEndScoreThreshold(config)),
+          wordEndScoreThresholdFactor_(paramWordEndScoreThreshold(config)),
+          wordEndScoreThreshold_(Core::Type<Score>::max),
           scoreHistogram_(paramNumHistogramBins(config)),
           activeScoreHistogram_(paramNumHistogramBins(config)),
           terminatedScoreHistogram_(paramNumHistogramBins(config)),
@@ -317,18 +318,6 @@ TreeLabelsyncBeamSearch::TreeLabelsyncBeamSearch(Core::Configuration const& conf
         useScorePruning_.push_back(scoreThresholds_[i] != Core::Type<Score>::max);
     }
 
-    if (wordEndScoreThreshold_ != Core::Type<Score>::max) {
-        // The word-end threshold is configured as a factor relative to the final within-word threshold
-        Score const withinWordScoreThreshold = scoreThresholds_.empty() ? Core::Type<Score>::max : scoreThresholds_.back();
-        if (withinWordScoreThreshold == Core::Type<Score>::max) {
-            error() << "Word-end score-threshold which is relative to the score-threshold is set, but score-threshold is not set";
-        }
-        else {
-            log() << "Use absolute word-end score-threshold of " << wordEndScoreThreshold_ * withinWordScoreThreshold << "; computed relative to within-word threshold " << withinWordScoreThreshold << " with factor " << wordEndScoreThreshold_;
-            wordEndScoreThreshold_ *= withinWordScoreThreshold;
-        }
-    }
-
     switch (pruningStrategyType_) {
         case PruningStrategyJoint:
             break;
@@ -357,6 +346,7 @@ bool TreeLabelsyncBeamSearch::setModelCombination(Speech::ModelCombination const
     labelScorers_  = modelCombination.labelScorers();
     acousticModel_ = modelCombination.acousticModel();
     languageModel_ = modelCombination.languageModel();
+    verify(not labelScorers_.empty());
 
     if (labelScorers_.size() > maxBeamSizes_.size()) {
         error() << "Number of label scorers (" << labelScorers_.size() << ") exceeds number of configured max beam sizes (" << maxBeamSizes_.size() << ")";
@@ -387,6 +377,22 @@ bool TreeLabelsyncBeamSearch::setModelCombination(Speech::ModelCombination const
                 error() << "pruning-strategy-type=separate requires a finite final score-threshold. Otherwise, the normal stop criterion can't trigger. Use pruning-strategy-type=joint for pure max-beam-size pruning.";
             }
             break;
+    }
+
+    // The word-end threshold is configured as a factor relative to the within-word threshold of the final
+    // label scorer, i.e. the same threshold the final pruning stage applies. It is derived here rather than
+    // in the constructor because that index is only known once `labelScorers_` is available; taking the last
+    // configured threshold instead would scale it off an entry that is otherwise ignored.
+    if (wordEndScoreThresholdFactor_ != Core::Type<Score>::max) {
+        Score const withinWordScoreThreshold = scoreThresholds_[finalScorerIdx];
+        if (withinWordScoreThreshold == Core::Type<Score>::max) {
+            error() << "Word-end score-threshold is relative to the score-threshold, but no score-threshold is set for the final label scorer";
+            wordEndScoreThreshold_ = Core::Type<Score>::max;
+        }
+        else {
+            wordEndScoreThreshold_ = wordEndScoreThresholdFactor_ * withinWordScoreThreshold;
+            log() << "Use absolute word-end score-threshold of " << wordEndScoreThreshold_ << "; computed relative to within-word threshold " << withinWordScoreThreshold << " with factor " << wordEndScoreThresholdFactor_;
+        }
     }
 
     nonWordLemmas_ = lexicon_->specialLemmas("nonword");

@@ -184,7 +184,8 @@ private:
     size_t              maxWordEndBeamSize_;
     std::vector<bool>   useScorePruning_;
     std::vector<Score>  scoreThresholds_;
-    Score               wordEndScoreThreshold_;
+    Score               wordEndScoreThresholdFactor_;  // Configured factor, relative to the final within-word threshold
+    Score               wordEndScoreThreshold_;        // Absolute threshold derived from the factor in `setModelCombination`
     Histogram           scoreHistogram_;
     Histogram           activeScoreHistogram_;
     Histogram           terminatedScoreHistogram_;

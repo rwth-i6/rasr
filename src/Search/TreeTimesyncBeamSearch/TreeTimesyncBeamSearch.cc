@@ -1195,7 +1195,7 @@ void TreeTimesyncBeamSearch::recombination(std::vector<TreeTimesyncBeamSearch::L
             }
 
             auto* existingHyp = it->second;
-            if (hyp.score < existingHyp->score) {
+            if (hyp.score - hyp.lookaheadScore < existingHyp->score - existingHyp->lookaheadScore) {
                 // New hyp is better
                 if (createTraceSiblings) {
                     hyp.trace->sibling = existingHyp->trace;

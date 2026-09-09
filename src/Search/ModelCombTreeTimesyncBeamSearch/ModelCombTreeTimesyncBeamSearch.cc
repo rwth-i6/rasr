@@ -509,9 +509,12 @@ Core::Ref<const LatticeAdaptor> ModelCombTreeTimesyncBeamSearch::getCurrentBestW
     auto&        bestHypothesis = getBestHypothesis();
     LatticeTrace endTrace(bestHypothesis.trace, 0, bestHypothesis.trace->time + 1, bestHypothesis.trace->score, {});
 
-    for (size_t hypIdx = 1ul; hypIdx < finalBeam_.size(); ++hypIdx) {
-        auto& hyp          = finalBeam_[hypIdx];
-        auto  siblingTrace = Core::ref(new LatticeTrace(hyp.trace, 0, hyp.trace->time, hyp.trace->score, {}));
+    for (auto const& hyp : finalBeam_) {
+        // The best hypothesis is already represented in endTrace
+        if (&hyp == &bestHypothesis) {
+            continue;
+        }
+        auto siblingTrace = Core::ref(new LatticeTrace(hyp.trace, 0, hyp.trace->time, hyp.trace->score, {}));
         endTrace.appendSiblingToChain(siblingTrace);
     }
 
@@ -1290,7 +1293,7 @@ void ModelCombTreeTimesyncBeamSearch::recombinationPrevious(std::vector<ModelCom
                 : state(state), scoringContext(scoringContext), lmHistory(lmHistory), pron(pron) {}
 
         bool operator==(const RecombinationContext& other) const {
-            return state == other.state && Nn::ScoringContextEq{}(scoringContext, other.scoringContext) && lmHistory == other.lmHistory && std::string{pron->lemma()->symbol().str()} == std::string{other.pron->lemma()->symbol().str()};
+            return state == other.state && Nn::ScoringContextEq{}(scoringContext, other.scoringContext) && lmHistory == other.lmHistory && pron->id() == other.pron->id();
         }
     };
     struct RecombinationContextHash {
@@ -1468,13 +1471,20 @@ void ModelCombTreeTimesyncBeamSearch::finalizeHypotheses() {
         }
     }
     else {
+        // Construct an empty hypothesis with a lattice containing only one empty pronunciation from start to end
+        finalBeam_.push_back(LabelHypothesis());
+
+        // Retrieve the timeframe from any hyp in the old beam
+        Speech::TimeframeIndex endTime = 0;
         for (size_t i = 0ul; i < numModels_; ++i) {
-            // Construct an empty hypothesis with a lattice containing only one empty pronunciation from start to end
-            finalBeam_.push_back(LabelHypothesis());
-            finalBeam_.front().trace->time          = models_[i].beam.front().trace->time;  // Retrieve the timeframe from any hyp in the old beam
-            finalBeam_.front().trace->pronunciation = nullptr;
-            finalBeam_.front().trace->predecessor   = Core::ref(new LatticeTrace(0, {0, 0}, {}));
+            if (not models_[i].beam.empty()) {
+                endTime = models_[i].beam.front().trace->time;
+                break;
+            }
         }
+        finalBeam_.front().trace->time          = endTime;
+        finalBeam_.front().trace->pronunciation = nullptr;
+        finalBeam_.front().trace->predecessor   = Core::ref(new LatticeTrace(0, {0, 0}, {}));
     }
 }
 

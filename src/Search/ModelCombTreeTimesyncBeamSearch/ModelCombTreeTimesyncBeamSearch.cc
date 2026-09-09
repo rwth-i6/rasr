@@ -24,6 +24,7 @@
 #include <Lm/BackingOff.hh>
 #include <Lm/Module.hh>
 #include <Nn/LabelScorer/LabelScorer.hh>
+#include <Nn/LabelScorer/ScoreAccessor.hh>
 #include <Nn/LabelScorer/ScoringContext.hh>
 #include <Search/TracebackHelper.hh>
 #include "Search/Module.hh"
@@ -593,7 +594,7 @@ bool ModelCombTreeTimesyncBeamSearch::decodeStep() {
                          0,
                          transitionType,
                          hypIndex});
-                models_[i].requests.push_back({models_[i].beam[hypIndex].scoringContext, tokenIdx, transitionType});
+                models_[i].requests.push_back(models_[i].beam[hypIndex].scoringContext);
 
                 // If we predict the blank lemma from the root, also keep it as a within-word extension so that we can start from the root in the next step
                 // Otherwise there is the edge case that only one hypothesis is left in the beam in this state in one model
@@ -606,7 +607,7 @@ bool ModelCombTreeTimesyncBeamSearch::decodeStep() {
                              0,
                              transitionType,
                              hypIndex});
-                    models_[i].requests.push_back({models_[i].beam[hypIndex].scoringContext, tokenIdx, transitionType});
+                    models_[i].requests.push_back(models_[i].beam[hypIndex].scoringContext);
                 }
             }
         }
@@ -617,7 +618,7 @@ bool ModelCombTreeTimesyncBeamSearch::decodeStep() {
         for (size_t extensionIdx = 0ul; extensionIdx < models_[i].previousWordEndHyps.size(); ++extensionIdx) {
             auto& previousHyp = models_[i].previousWordEndHyps[extensionIdx];
 
-            auto transitionType = previousHyp.currentToken == models_[i].blankLabelIndex ? Nn::LabelScorer::TransitionType::BLANK_LOOP : Nn::LabelScorer::TransitionType::LABEL_TO_BLANK;
+            auto transitionType = previousHyp.currentToken == models_[i].blankLabelIndex ? Nn::TransitionType::BLANK_LOOP : Nn::TransitionType::LABEL_TO_BLANK;
 
             models_[i].newBeam.push_back(previousHyp);
 
@@ -636,7 +637,7 @@ bool ModelCombTreeTimesyncBeamSearch::decodeStep() {
                      true,
                      previousHyp.lastWordEndScore,
                      models_[i].newBeam.size() - 1});
-            models_[i].requestsForPreviousExtensions.push_back({previousHyp.scoringContext, models_[i].blankLabelIndex, transitionType});
+            models_[i].requestsForPreviousExtensions.push_back(previousHyp.scoringContext);
         }
     }
 
@@ -647,18 +648,22 @@ bool ModelCombTreeTimesyncBeamSearch::decodeStep() {
     /*
      * Perform scoring of all the requests with the label scorer in all models.
      */
+    // `requests` / `requestsForPreviousExtensions` are built 1:1 with the corresponding
+    // extension candidate vectors, so the returned score accessors line up by index.
     scoringTime_.start();
-    std::vector<std::optional<Nn::LabelScorer::ScoresWithTimes>> results(numModels_);
-    std::vector<std::optional<Nn::LabelScorer::ScoresWithTimes>> resultsForPreviousExtensions(numModels_);
+    std::vector<std::vector<std::optional<Nn::ScoreAccessorRef>>> results(numModels_);
+    std::vector<std::vector<std::optional<Nn::ScoreAccessorRef>>> resultsForPreviousExtensions(numModels_);
     for (size_t i = 0ul; i < numModels_; ++i) {
-        auto result                     = models_[i].labelScorer->computeScoresWithTimes(models_[i].requests);
-        results[i]                      = result;
-        auto resultForPrevious          = models_[i].labelScorer->computeScoresWithTimes(models_[i].requestsForPreviousExtensions);
-        resultsForPreviousExtensions[i] = resultForPrevious;
+        results[i]                      = models_[i].labelScorer->getScoreAccessors(models_[i].requests);
+        resultsForPreviousExtensions[i] = models_[i].labelScorer->getScoreAccessors(models_[i].requestsForPreviousExtensions);
     }
     scoringTime_.stop();
 
-    if (std::all_of(results.begin(), results.end(), [](const std::optional<Nn::LabelScorer::ScoresWithTimes>& result) { return not result; })) {
+    auto anyScored = [](std::vector<std::optional<Nn::ScoreAccessorRef>> const& accessors) {
+        return std::any_of(accessors.begin(), accessors.end(), [](auto const& accessor) { return accessor.has_value(); });
+    };
+
+    if (std::none_of(results.begin(), results.end(), anyScored)) {
         // LabelScorer of all models could not compute scores -> no search step can be made.
         if (logStepwiseStatistics_) {
             clog() << Core::XmlClose("search-step-stats");
@@ -667,18 +672,24 @@ bool ModelCombTreeTimesyncBeamSearch::decodeStep() {
     }
 
     for (size_t i = 0ul; i < numModels_; ++i) {
-        if (results[i]) {
-            for (size_t requestIdx = 0ul; requestIdx < models_[i].withinWordExtensions.size(); ++requestIdx) {
-                models_[i].withinWordExtensions[requestIdx].score += results[i]->scores[requestIdx];
-                models_[i].withinWordExtensions[requestIdx].timeframe = results[i]->timeframes[requestIdx];
+        for (size_t requestIdx = 0ul; requestIdx < models_[i].withinWordExtensions.size(); ++requestIdx) {
+            auto const& accessor = results[i][requestIdx];
+            if (not accessor) {
+                continue;
             }
+            auto& extension = models_[i].withinWordExtensions[requestIdx];
+            extension.score += (*accessor)->getScore(extension.transitionType, extension.nextToken);
+            extension.timeframe = (*accessor)->getTime();
         }
 
-        if (resultsForPreviousExtensions[i]) {
-            for (size_t requestIdx = 0ul; requestIdx < models_[i].previousWordEndExtensions.size(); ++requestIdx) {
-                models_[i].previousWordEndExtensions[requestIdx].score += resultsForPreviousExtensions[i]->scores[requestIdx];
-                models_[i].previousWordEndExtensions[requestIdx].timeframe = resultsForPreviousExtensions[i]->timeframes[requestIdx];
+        for (size_t requestIdx = 0ul; requestIdx < models_[i].previousWordEndExtensions.size(); ++requestIdx) {
+            auto const& accessor = resultsForPreviousExtensions[i][requestIdx];
+            if (not accessor) {
+                continue;
             }
+            auto& extension = models_[i].previousWordEndExtensions[requestIdx];
+            extension.score += (*accessor)->getScore(extension.transitionType, extension.nextToken);
+            extension.timeframe = (*accessor)->getTime();
         }
     }
 
@@ -691,9 +702,9 @@ bool ModelCombTreeTimesyncBeamSearch::decodeStep() {
             auto const& baseHyp = models_[i].beam[extension.baseHypIndex];
 
             auto newScoringContext = models_[i].labelScorer->extendedScoringContext(
-                    {baseHyp.scoringContext,
-                     extension.nextToken,
-                     extension.transitionType});
+                    baseHyp.scoringContext,
+                    extension.nextToken,
+                    extension.transitionType);
 
             models_[i].withinWordHyps.push_back({baseHyp, extension, newScoringContext});
         }
@@ -738,17 +749,19 @@ bool ModelCombTreeTimesyncBeamSearch::decodeStep() {
                 const Bliss::LemmaPronunciation* lemmaPron = models_[i].lexicon->lemmaPronunciation(exit.pronunciation);
                 const Bliss::Lemma*              lemma     = lemmaPron->lemma();
 
-                Score                           penalty               = 0.0;
-                Nn::LabelScorer::TransitionType wordEndtransitionType = Nn::LabelScorer::WORD_EXIT;
+                Score              penalty               = 0.0;
+                Nn::TransitionType wordEndtransitionType = Nn::WORD_EXIT;
                 if (lemma == models_[i].lexicon->specialLemma("silence")) {
-                    wordEndtransitionType = Nn::LabelScorer::SILENCE_EXIT;
+                    wordEndtransitionType = Nn::SILENCE_EXIT;
                 }
                 else if (models_[i].nonWordLemmas.contains(lemma)) {
-                    wordEndtransitionType = Nn::LabelScorer::NONWORD_EXIT;
+                    wordEndtransitionType = Nn::NONWORD_EXIT;
                 }
-                auto result = models_[i].labelScorer->computeScoreWithTime({hyp.scoringContext, Nn::invalidLabelIndex, wordEndtransitionType});
-                if (result) {
-                    penalty += result->score;
+                if (models_[i].labelScorer->scoresTransition(wordEndtransitionType)) {
+                    auto scoreAccessor = models_[i].labelScorer->getScoreAccessor(hyp.scoringContext);
+                    if (scoreAccessor) {
+                        penalty += (*scoreAccessor)->getScore(wordEndtransitionType);
+                    }
                 }
 
                 WordEndExtensionCandidate wordEndExtension{hyp.currentToken,
@@ -815,9 +828,9 @@ bool ModelCombTreeTimesyncBeamSearch::decodeStep() {
             auto newScoringContext = baseHyp.scoringContext;  // The scoring context was already updated
             if (extension.previousWordEndHyp) {
                 newScoringContext = models_[i].labelScorer->extendedScoringContext(
-                        {baseHyp.scoringContext,
-                         extension.nextToken,
-                         extension.transitionType});
+                        baseHyp.scoringContext,
+                        extension.nextToken,
+                        extension.transitionType);
             }
             models_[i].wordEndHyps.push_back({baseHyp, extension, newScoringContext});
         }
@@ -830,9 +843,9 @@ bool ModelCombTreeTimesyncBeamSearch::decodeStep() {
             auto newScoringContext = baseHyp.scoringContext;
             if (extension.previousWordEndHyp) {
                 newScoringContext = models_[i].labelScorer->extendedScoringContext(
-                        {baseHyp.scoringContext,
-                         extension.nextToken,
-                         extension.transitionType});
+                        baseHyp.scoringContext,
+                        extension.nextToken,
+                        extension.transitionType);
             }
             models_[i].previousWordEndHyps.push_back({baseHyp, extension, newScoringContext});
         }
@@ -1137,36 +1150,36 @@ void ModelCombTreeTimesyncBeamSearch::wordEndExtensionHandling() {
     }
 }
 
-Nn::LabelScorer::TransitionType ModelCombTreeTimesyncBeamSearch::inferTransitionType(Nn::LabelIndex prevLabel, Nn::LabelIndex nextLabel, bool collapseRepeatedLabels, Nn::LabelIndex blankLabelIndex) const {
+Nn::TransitionType ModelCombTreeTimesyncBeamSearch::inferTransitionType(Nn::LabelIndex prevLabel, Nn::LabelIndex nextLabel, bool collapseRepeatedLabels, Nn::LabelIndex blankLabelIndex) const {
     bool prevIsBlank = blankLabelIndex != Nn::invalidLabelIndex and prevLabel == blankLabelIndex;
     bool nextIsBlank = blankLabelIndex != Nn::invalidLabelIndex and nextLabel == blankLabelIndex;
 
     if (prevLabel == Nn::invalidLabelIndex) {
         if (nextIsBlank) {
-            return Nn::LabelScorer::TransitionType::INITIAL_BLANK;
+            return Nn::TransitionType::INITIAL_BLANK;
         }
         else {
-            return Nn::LabelScorer::TransitionType::INITIAL_LABEL;
+            return Nn::TransitionType::INITIAL_LABEL;
         }
     }
 
     if (prevIsBlank) {
         if (nextIsBlank) {
-            return Nn::LabelScorer::TransitionType::BLANK_LOOP;
+            return Nn::TransitionType::BLANK_LOOP;
         }
         else {
-            return Nn::LabelScorer::TransitionType::BLANK_TO_LABEL;
+            return Nn::TransitionType::BLANK_TO_LABEL;
         }
     }
     else {
         if (nextIsBlank) {
-            return Nn::LabelScorer::TransitionType::LABEL_TO_BLANK;
+            return Nn::TransitionType::LABEL_TO_BLANK;
         }
         else if (collapseRepeatedLabels and prevLabel == nextLabel) {
-            return Nn::LabelScorer::TransitionType::LABEL_LOOP;
+            return Nn::TransitionType::LABEL_LOOP;
         }
         else {
-            return Nn::LabelScorer::TransitionType::LABEL_TO_LABEL;
+            return Nn::TransitionType::LABEL_TO_LABEL;
         }
     }
 }
@@ -1386,26 +1399,30 @@ void ModelCombTreeTimesyncBeamSearch::finalizeHypotheses() {
                              hyp.currentState,
                              hyp.score,
                              hyp.trace->time,
-                             Nn::LabelScorer::TransitionType::SENTENCE_END,
+                             Nn::TransitionType::SENTENCE_END,
                              hypIndex});
                 }
                 models_[i].requests.clear();
                 for (auto const& ext : models_[i].withinWordExtensions) {
-                    models_[i].requests.push_back({models_[i].tempHypotheses[ext.baseHypIndex].scoringContext, ext.nextToken, ext.transitionType});
+                    models_[i].requests.push_back(models_[i].tempHypotheses[ext.baseHypIndex].scoringContext);
                 }
 
                 scoringTime_.start();
-                auto result = models_[i].labelScorer->computeScoresWithTimes(models_[i].requests);
+                auto scoreAccessors = models_[i].labelScorer->getScoreAccessors(models_[i].requests);
                 scoringTime_.stop();
 
-                if (not result) {
+                if (std::none_of(scoreAccessors.begin(), scoreAccessors.end(), [](auto const& accessor) { return accessor.has_value(); })) {
                     continue;
                 }
 
                 for (size_t extensionIdx = 0ul; extensionIdx < models_[i].withinWordExtensions.size(); ++extensionIdx) {
+                    auto const& accessor = scoreAccessors[extensionIdx];
+                    if (not accessor) {
+                        continue;
+                    }
                     auto& ext = models_[i].withinWordExtensions[extensionIdx];
-                    ext.score += result->scores[extensionIdx];
-                    ext.timeframe = std::max(ext.timeframe, result->timeframes[extensionIdx]);
+                    ext.score += (*accessor)->getScore(ext.transitionType, ext.nextToken);
+                    ext.timeframe = std::max(ext.timeframe, (*accessor)->getTime());
                 }
 
                 models_[i].newBeam.clear();
@@ -1431,7 +1448,7 @@ void ModelCombTreeTimesyncBeamSearch::finalizeHypotheses() {
                                                                hyp.score + sentenceEndScore,
                                                                0.0,
                                                                static_cast<TimeframeIndex>(currentSearchStep_),
-                                                               Nn::LabelScorer::TransitionType::SENTENCE_END,
+                                                               Nn::TransitionType::SENTENCE_END,
                                                                0,
                                                                false,
                                                                hyp.score,

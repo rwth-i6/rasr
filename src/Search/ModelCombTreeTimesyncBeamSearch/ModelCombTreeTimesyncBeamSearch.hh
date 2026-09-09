@@ -96,12 +96,12 @@ protected:
      * Possible extension for some label hypothesis in the beam
      */
     struct WithinWordExtensionCandidate {
-        Nn::LabelIndex                  nextToken;       // Proposed token to extend the hypothesis with
-        StateId                         state;           // State in the search tree of this extension
-        Score                           score;           // Would-be total score of the full hypothesis after extension
-        Search::TimeframeIndex          timeframe;       // Timestamp of `nextToken` for traceback
-        Nn::LabelScorer::TransitionType transitionType;  // Type of transition toward `nextToken`
-        size_t                          baseHypIndex;    // Index of base hypothesis in global beam
+        Nn::LabelIndex         nextToken;       // Proposed token to extend the hypothesis with
+        StateId                state;           // State in the search tree of this extension
+        Score                  score;           // Would-be total score of the full hypothesis after extension
+        Search::TimeframeIndex timeframe;       // Timestamp of `nextToken` for traceback
+        Nn::TransitionType     transitionType;  // Type of transition toward `nextToken`
+        size_t                 baseHypIndex;    // Index of base hypothesis in global beam
 
         bool operator<(WithinWordExtensionCandidate const& other) const {
             return score < other.score;
@@ -118,7 +118,7 @@ protected:
         Score                            score;               // Would-be total score of the full hypothesis after extension (incl. LM score)
         Score                            lmScore;             // Would-be LM score of a word-end hypothesis after extension
         Search::TimeframeIndex           timeframe;           // Timestamp of `nextToken` for traceback
-        Nn::LabelScorer::TransitionType  transitionType;      // Type of transition toward `nextToken`
+        Nn::TransitionType               transitionType;      // Type of transition toward `nextToken`
         size_t                           lifetime;            // Number of timeframes the (previous) word end already exists uncombined
         bool                             previousWordEndHyp;  // Whether this word end is a previous word-end hypothesis which waits for combination
         Score                            lastWordEndScore;    // For previous word-end hypotheses, the actual score of the word end
@@ -201,10 +201,10 @@ protected:
         std::vector<WordEndExtensionCandidate>    wordEndExtensions;
         std::vector<LabelHypothesis>              beam;
         std::vector<LabelHypothesis>              newBeam;
-        std::vector<Nn::LabelScorer::Request>     requests;
+        std::vector<Nn::ScoringContextRef>        requests;
         std::vector<WordEndExtensionCandidate>    previousWordEndExtensions;
         std::vector<LabelHypothesis>              previousWordEndHyps;
-        std::vector<Nn::LabelScorer::Request>     requestsForPreviousExtensions;
+        std::vector<Nn::ScoringContextRef>        requestsForPreviousExtensions;
         std::vector<LabelHypothesis>              withinWordHyps;
         std::vector<LabelHypothesis>              wordEndHyps;
         std::vector<LabelHypothesis>              tempHypotheses;
@@ -277,7 +277,7 @@ private:
      * Infer type of transition between two tokens based on whether each of them is blank
      * and/or whether they are the same
      */
-    Nn::LabelScorer::TransitionType inferTransitionType(Nn::LabelIndex prevLabel, Nn::LabelIndex nextLabel, bool collapseRepeatedLabels, Nn::LabelIndex blankLabelIndex) const;
+    Nn::TransitionType inferTransitionType(Nn::LabelIndex prevLabel, Nn::LabelIndex nextLabel, bool collapseRepeatedLabels, Nn::LabelIndex blankLabelIndex) const;
 
     /*
      * Helper function for pruning to maxBeamSize

@@ -95,7 +95,7 @@ protected:
         Search::TimeframeIndex                            timeframe;         // Timestamp of `nextToken` for traceback
         Score                                             score;             // Would-be total score of the full hypothesis after extension
         Score                                             lookaheadScore;    // LM-lookahead score, i.e. `lookahead`'s entry for `nextState` plus `lookaheadBackOff`
-        LanguageModelLookahead::ContextLookaheadReference lookahead;         // LM-lookahead table `nextState` was scored from. Of lower order than the base hypothesis' history if this state had to back off. Owning, because no hypothesis holds this table until the candidate is promoted.
+        LanguageModelLookahead::ContextLookaheadReference lookahead;         // LM-lookahead table `nextState` was scored from; of lower order than the base hypothesis' history if this state had to back off
         Score                                             lookaheadBackOff;  // Accumulated back-off score paid to descend to `lookahead`
         Nn::TransitionType                                transitionType;    // Type of transition toward `nextToken`
         size_t                                            baseHypIndex;      // Index of base hypothesis in beam
@@ -124,9 +124,9 @@ protected:
         std::vector<Nn::ScoringContextRef>                scoringContexts;   // Context to compute scores based on this hypothesis
         Nn::LabelIndex                                    currentToken;      // Most recent token in associated label sequence (useful to infer transition type)
         StateId                                           currentState;      // Current state in the search tree
-        LanguageModelLookahead::ContextLookaheadReference lookahead;         // LM-lookahead table in use. Of lower order than `lookaheadHistory` if this hypothesis had to back off.
+        LanguageModelLookahead::ContextLookaheadReference lookahead;         // LM-lookahead table in use; of lower order than `lookaheadHistory` if this hypothesis had to back off
         Lm::History                                       lmHistory;         // Language model history
-        Lm::History                                       lookaheadHistory;  // LM history of this hypothesis for the lookahead. Changes only at word ends, never within a word.
+        Lm::History                                       lookaheadHistory;  // LM history of this hypothesis for the lookahead; changes only at word ends, never within a word
         Speech::TimeframeIndex                            timeframe;         // Timeframe of current token
         Score                                             score;             // Full score of the hypothesis
         Score                                             lookaheadScore;    // LM-lookahead score

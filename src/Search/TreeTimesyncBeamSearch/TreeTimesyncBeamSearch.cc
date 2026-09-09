@@ -501,13 +501,8 @@ void TreeTimesyncBeamSearch::enterSegment(Bliss::SpeechSegment const* segment) {
     initializationTime_.stop();
     if (segment != nullptr) {
         languageModel_->setSegment(segment);
-        /*
-         * Only a separately configured lookahead LM needs this. In the other two cases the
-         * lookahead LM either is `languageModel_` itself or is one of its sub-LMs, and
-         * `Lm::CombineLanguageModel::setSegment` already forwards to all of them. Setting the
-         * segment twice is not harmless: `Lm::CheatingSegmentLm::setSegment` rebuilds its
-         * automaton from the orthography and increments its segment counter.
-         */
+        // Only set the segment if the lookahead LM is configured separately
+        // Otherwise the segment counter is increased
         if (enableLmLookahead_ and separateLookaheadLm_) {
             lookaheadLm_->setSegment(segment);
         }
@@ -1374,13 +1369,8 @@ void TreeTimesyncBeamSearch::getLmLookahead(LanguageModelLookahead::ContextLooka
 }
 
 Score TreeTimesyncBeamSearch::getLmLookaheadScore(TreeTimesyncBeamSearch::WithinWordExtensionCandidate& extension) {
-    /*
-     * The back-off state resolved here belongs to `extension.nextState`, not to the base
-     * hypothesis: whether a state is present in a table is a property of that state's subtree,
-     * and sibling states of the same base do not share it. The base hypothesis is therefore only
-     * read, and the resolved table and accumulated back-off are stored on the candidate, from
-     * where the within-word constructor installs them on the hypothesis created for this state.
-     */
+    // The resolved table/back-off belong to `extension.nextState`, not the base hypothesis, so
+    // they're stored on the candidate rather than written back to `baseHyp`
     auto const& baseHyp = beam_[extension.baseHypIndex];
 
     extension.lookahead        = baseHyp.lookahead;
@@ -1405,19 +1395,10 @@ Score TreeTimesyncBeamSearch::getLmLookaheadScore(TreeTimesyncBeamSearch::Within
 
         if (!scoreFound) {  // No lookahead table entry, use back-off
             const Lm::BackingOffLm* lm = dynamic_cast<const Lm::BackingOffLm*>(lookaheadLm_->unscaled().get());
-            /*
-             * The accumulated back-off has to be kept out of `lookaheadScore`: a successful table
-             * lookup assigns to it instead of adding to it, so anything accumulated there before
-             * the lookup succeeds would be overwritten.
-             */
+            // Accumulated separately from lookaheadScore, since a successful lookup assigns rather than adds to it
             extension.lookaheadBackOff += extension.lookahead->backOffScore();
-            /*
-             * Reduce the history of the table actually in use rather than the base hypothesis'
-             * history. With a configured `history-limit` the two differ, and reducing the longer
-             * one would select the same table again and charge its back-off more than once.
-             */
-            // A copy, not a reference: `extension.lookahead` is reassigned below, which may release
-            // the table this history belongs to.
+            // Reduce the active table's history (not the base hypothesis' one, which may differ
+            // under history-limit) to avoid re-selecting the same table and double-charging its back-off
             Lm::History tableHistory   = extension.lookahead->history();
             u32         lengthLimit    = std::max(lm->historyLength(tableHistory), 1u) - 1u;
             auto        reducedHistory = lm->reducedHistory(tableHistory, lengthLimit);

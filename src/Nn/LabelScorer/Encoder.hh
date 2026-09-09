@@ -20,6 +20,7 @@
 #include <optional>
 
 #include <Core/Component.hh>
+#include <Core/StopWatch.hh>
 
 #include "DataView.hh"
 
@@ -43,7 +44,7 @@ class Encoder : public virtual Core::Component,
                 public Core::ReferenceCounted {
 public:
     Encoder(Core::Configuration const& config);
-    virtual ~Encoder() = default;
+    virtual ~Encoder();
 
     // Clear buffers and reset segment end flag.
     virtual void reset();
@@ -67,6 +68,8 @@ protected:
     std::deque<EncodedSpan> outputBuffer_;
 
     bool expectMoreFeatures_;
+
+    Core::StopWatch encodeTime_;
 
     // Encode features inside the input buffer and put the results into the output buffer
     virtual void encode() = 0;

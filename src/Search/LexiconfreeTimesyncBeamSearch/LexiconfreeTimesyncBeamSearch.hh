@@ -145,10 +145,17 @@ private:
     std::vector<Nn::ScoringContextRef> scoringContexts_;
     std::vector<LabelHypothesis>       tempHypotheses_;
 
-    Core::StopWatch initializationTime_;
-    Core::StopWatch featureProcessingTime_;
-    Core::StopWatch scoringTime_;
+    Core::StopWatch              initializationTime_;
+    Core::StopWatch              featureProcessingTime_;
+    Core::StopWatch              scoringTime_;
+    Core::StopWatch              decodeStepTime_;
+    std::vector<Core::StopWatch> scoreAndPruneExtensionsTimes_;
+    Core::StopWatch              buildNewBeamTime_;
+    Core::StopWatch              recombinationTime_;
+    Core::StopWatch              pruningTime_;
 
+    Core::Statistics<u32>              numInputHyps_;
+    Core::Statistics<u32>              numExtensionsBeforeFirstPruning_;
     std::vector<Core::Statistics<u32>> numHypsAfterIntermediatePruning_;
     Core::Statistics<u32>              numHypsAfterRecombination_;
     Core::Statistics<u32>              numHypsAfterPruning_;
@@ -179,6 +186,24 @@ private:
      * Helper function for recombination of hypotheses with the same scoring context
      */
     void recombination(std::vector<LabelHypothesis>& hypotheses);
+
+    /*
+     * Run the multi-scorer loop: create extensions from the first scorer, update scores with
+     * subsequent scorers, apply intermediate pruning after each scorer.
+     * Populates `extensions_`. Returns false if no extensions survive (decode step should abort).
+     */
+    bool scoreAndPruneExtensions();
+
+    /*
+     * Create new beam hypotheses from the surviving extensions in `extensions_`.
+     * Populates `newBeam_`.
+     */
+    void buildNewBeamFromExtensions();
+
+    /*
+     * Write debug channel output and stepwise statistics for the current beam, then close the XML tag.
+     */
+    void logStepStatistics();
 
     /*
      * Score sentence-end with all label scores for all hypotheses in the beam

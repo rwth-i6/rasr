@@ -14,6 +14,9 @@
  */
 
 #include "FixedContextOnnxLabelScorer.hh"
+
+#include <Core/XmlStream.hh>
+
 #include "ScoreAccessor.hh"
 
 namespace Nn {
@@ -123,6 +126,15 @@ FixedContextOnnxLabelScorer::FixedContextOnnxLabelScorer(Core::Configuration con
     scoresName_             = onnxModel_->mapping.getOnnxName("scores");
 }
 
+FixedContextOnnxLabelScorer::~FixedContextOnnxLabelScorer() {
+    if (onnxSessionTime_.elapsedMilliseconds() > 0 or contextPreparationTime_.elapsedMilliseconds() > 0) {
+        clog() << Core::XmlOpen("label-scorer-timing") + Core::XmlAttribute("unit", "milliseconds") + Core::XmlAttribute("component", fullName());
+        clog() << Core::XmlOpen("onnx-session-time") << onnxSessionTime_.elapsedMilliseconds() << Core::XmlClose("onnx-session-time");
+        clog() << Core::XmlOpen("context-preparation-time") << contextPreparationTime_.elapsedMilliseconds() << Core::XmlClose("context-preparation-time");
+        clog() << Core::XmlClose("label-scorer-timing");
+    }
+}
+
 void FixedContextOnnxLabelScorer::reset() {
     Precursor::reset();
     scoreCache_.clear();
@@ -222,6 +234,11 @@ std::vector<std::optional<ScoreAccessorRef>> FixedContextOnnxLabelScorer::getSco
         return {};
     }
 
+    scoringTime_.start();
+    contextPreparationTime_.start();
+
+    numScoreAccessorsRequested_ += scoringContexts.size();
+
     // Cast scoring contexts to concrete types
     std::vector<SeqStepScoringContextRef> seqStepScoringContexts;
     seqStepScoringContexts.reserve(scoringContexts.size());
@@ -249,6 +266,8 @@ std::vector<std::optional<ScoreAccessorRef>> FixedContextOnnxLabelScorer::getSco
         it->second.push_back(contextIndex);
     }
 
+    contextPreparationTime_.stop();
+
     std::vector<std::optional<ScoreAccessorRef>> scoreAccessors(scoringContexts.size(), std::nullopt);
 
     /*
@@ -258,6 +277,7 @@ std::vector<std::optional<ScoreAccessorRef>> FixedContextOnnxLabelScorer::getSco
         /*
          * Identify unique histories that still need session runs
          */
+        contextPreparationTime_.start();
         std::unordered_set<SeqStepScoringContextRef, ScoringContextHash, ScoringContextEq> uniqueUncachedContexts;
 
         for (auto contextIndex : contextIndices) {
@@ -266,10 +286,13 @@ std::vector<std::optional<ScoreAccessorRef>> FixedContextOnnxLabelScorer::getSco
                 uniqueUncachedContexts.emplace(seqStepScoringContexts[contextIndex]);
             }
         }
+        contextPreparationTime_.stop();
 
         if (uniqueUncachedContexts.empty()) {
             continue;
         }
+
+        numScoreAccessorsComputed_ += uniqueUncachedContexts.size();
 
         std::vector<SeqStepScoringContextRef> contextBatch;
         contextBatch.reserve(std::min(uniqueUncachedContexts.size(), maxBatchSize_));
@@ -284,12 +307,15 @@ std::vector<std::optional<ScoreAccessorRef>> FixedContextOnnxLabelScorer::getSco
         forwardBatch(contextBatch);  // Forward remaining histories
 
         // Create score accessors from cache
+        contextPreparationTime_.start();
         for (auto const& contextIndex : contextIndices) {
             auto const& scoreVec         = scoreCache_.at(seqStepScoringContexts[contextIndex]);
             scoreAccessors[contextIndex] = Core::ref(new VectorScoreAccessor(scoreVec, timestep));
         }
+        contextPreparationTime_.stop();
     }
 
+    scoringTime_.stop();
     return scoreAccessors;
 }
 
@@ -326,7 +352,9 @@ void FixedContextOnnxLabelScorer::forwardBatch(std::vector<SeqStepScoringContext
      * Run session
      */
     std::vector<Onnx::Value> sessionOutputs;
+    onnxSessionTime_.start();
     onnxModel_->session.run(std::move(sessionInputs), {scoresName_}, sessionOutputs);
+    onnxSessionTime_.stop();
 
     /*
      * Put resulting scores into cache map

@@ -191,10 +191,18 @@ private:
     size_t currentSearchStep_;
     bool   finishedSegment_;
 
-    Core::StopWatch initializationTime_;
-    Core::StopWatch featureProcessingTime_;
-    Core::StopWatch scoringTime_;
+    Core::StopWatch              initializationTime_;
+    Core::StopWatch              featureProcessingTime_;
+    Core::StopWatch              scoringTime_;
+    Core::StopWatch              decodeStepTime_;
+    std::vector<Core::StopWatch> scoreAndPruneExtensionsTimes_;
+    Core::StopWatch              buildNewBeamTime_;
+    Core::StopWatch              recombinationTime_;
+    Core::StopWatch              pruningTime_;
+    Core::StopWatch              wordEndExpansionTime_;
 
+    Core::Statistics<u32>              numInputHyps_;
+    Core::Statistics<u32>              numExtensionsBeforeFirstPruning_;
     std::vector<Core::Statistics<u32>> numHypsAfterIntermediatePruning_;
     Core::Statistics<u32>              numHypsAfterRecombination_;
     Core::Statistics<u32>              numHypsAfterPruning_;
@@ -227,6 +235,31 @@ private:
      * With `createTraceSiblings` the traces of the recombined hypotheses will be added as siblings (for word-end recombination).
      */
     void recombination(std::vector<LabelHypothesis>& hypotheses, bool createTraceSiblings);
+
+    /*
+     * Run the multi-scorer loop: create within-word extensions from the first scorer, update scores
+     * with subsequent scorers, apply intermediate pruning after each scorer.
+     * Populates `withinWordExtensions_`. Returns false if no extensions survive (decode step should abort).
+     */
+    bool scoreAndPruneExtensions();
+
+    /*
+     * Create new beam hypotheses from the surviving within-word extensions.
+     * Populates `newBeam_`.
+     */
+    void buildNewBeamFromExtensions();
+
+    /*
+     * Expand within-word hypotheses in `newBeam_` to word-end hypotheses by applying
+     * the language model. Prune and recombine the word-end hypotheses.
+     * Populates `wordEndHypotheses_`.
+     */
+    void expandAndPruneWordEndHypotheses();
+
+    /*
+     * Write debug channel output and stepwise statistics for the current beam, then close the XML tag.
+     */
+    void logStepStatistics();
 
     /*
      * Precompute successor and exit lookups for each state to avoid traversing the network structure during decoding.

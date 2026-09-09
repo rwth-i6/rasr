@@ -35,7 +35,7 @@ public:
     static const Core::ParameterInt paramInputStepSize;
 
     OnnxEncoder(Core::Configuration const& config, Nn::ModelCache& modelCache);
-    virtual ~OnnxEncoder() = default;
+    virtual ~OnnxEncoder();
 
     // Clear buffers and reset segment end flag.
     virtual void reset() override;
@@ -64,6 +64,8 @@ protected:
 
     std::unique_ptr<StateManager>  stateManager_;
     std::vector<OnnxStateVariable> stateVariables_;
+
+    Core::StopWatch onnxSessionTime_;
 };
 
 /*

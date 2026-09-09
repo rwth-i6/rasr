@@ -21,9 +21,11 @@
 #include <Core/CollapsedVector.hh>
 #include <Core/Component.hh>
 #include <Core/Configuration.hh>
+#include <Core/StopWatch.hh>
 #include <Core/Parameter.hh>
 #include <Core/ReferenceCounting.hh>
 #include <Core/Types.hh>
+#include <Core/XmlStream.hh>
 #include <Flow/Timestamp.hh>
 #include <Flow/Vector.hh>
 #include <Mm/FeatureScorer.hh>
@@ -79,7 +81,7 @@ class LabelScorer : public virtual Core::Component,
                     public Core::ReferenceCounted {
 public:
     LabelScorer(Core::Configuration const& config, TransitionPresetType defaultPreset = TransitionPresetType::NONE);
-    virtual ~LabelScorer() = default;
+    virtual ~LabelScorer();
 
     // Prepares the LabelScorer to receive new inputs
     // e.g. by resetting input buffers and segmentEnd flags
@@ -126,7 +128,10 @@ public:
     TransitionSet enabledTransitions() const;
 
 protected:
-    TransitionSet enabledTransitions_;
+    Core::StopWatch scoringTime_;
+    size_t numScoreAccessorsRequested_ = 0;
+    size_t numScoreAccessorsComputed_  = 0;
+    TransitionSet   enabledTransitions_;
 };
 
 }  // namespace Nn

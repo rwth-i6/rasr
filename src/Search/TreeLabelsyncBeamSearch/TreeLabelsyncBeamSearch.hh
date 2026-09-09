@@ -208,10 +208,18 @@ private:
     size_t totalTimesteps_;
     bool   finishedSegment_;
 
-    Core::StopWatch initializationTime_;
-    Core::StopWatch featureProcessingTime_;
-    Core::StopWatch scoringTime_;
+    Core::StopWatch              initializationTime_;
+    Core::StopWatch              featureProcessingTime_;
+    Core::StopWatch              scoringTime_;
+    Core::StopWatch              decodeStepTime_;
+    std::vector<Core::StopWatch> scoreAndPruneExtensionsTimes_;
+    Core::StopWatch              buildNewBeamTime_;
+    Core::StopWatch              recombinationTime_;
+    Core::StopWatch              pruningTime_;
+    Core::StopWatch              wordEndExpansionTime_;
 
+    Core::Statistics<u32>              numInputHyps_;
+    Core::Statistics<u32>              numExtensionsBeforeFirstPruning_;
     std::vector<Core::Statistics<u32>> numHypsAfterIntermediatePruning_;
     Core::Statistics<u32>              numTerminatedHypsAfterScorePruning_;
     Core::Statistics<u32>              numTerminatedHypsAfterRecombination_;
@@ -233,6 +241,32 @@ private:
     LabelHypothesis const& getOutputHypothesis(std::vector<LabelHypothesis> const& hypotheses) const;
 
     void logStatistics() const;
+
+    /*
+     * Run the multi-scorer loop: create within-word extensions from the first scorer, update scores
+     * with subsequent scorers, apply intermediate pruning after each scorer.
+     * Populates `withinWordExtensions_`. Returns false if no extensions survive (decode step should abort).
+     */
+    bool scoreAndPruneExtensions();
+
+    /*
+     * Create new beam hypotheses from the surviving within-word extensions.
+     * Carries over terminated hypotheses from the current beam and adds new ones from extensions.
+     * Populates `newBeam_`.
+     */
+    void buildNewBeamFromExtensions();
+
+    /*
+     * Expand within-word hypotheses in `newBeam_` to word-end hypotheses by applying
+     * the language model. Prune word-end hypotheses, create word-end label hypotheses,
+     * and merge them back into `newBeam_`.
+     */
+    void expandAndPruneWordEndHypotheses();
+
+    /*
+     * Write debug channel output and stepwise statistics for the current beam, then close the XML tag.
+     */
+    void logStepStatistics();
 
     /*
      * Helper function for joint pruning of extensions/hypotheses by a relative score threshold

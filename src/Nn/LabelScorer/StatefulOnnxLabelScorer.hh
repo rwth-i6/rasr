@@ -23,13 +23,11 @@
 #include <Core/FIFOCache.hh>
 #include <Core/ReferenceCounting.hh>
 #include <Mm/FeatureScorer.hh>
-#include <Onnx/IOSpecification.hh>
-#include <Onnx/Model.hh>
-#include <Onnx/Session.hh>
 #include <Speech/Feature.hh>
 
 #include "BufferedLabelScorer.hh"
 #include "ModelCache.hh"
+#include "OnnxHiddenStateModel.hh"
 #include "ScoringContext.hh"
 
 namespace Nn {
@@ -60,19 +58,8 @@ typedef Core::Ref<OnnxHiddenStateScoringContext const> OnnxHiddenStateScoringCon
  *  - A State Updater which produces updated hidden states based on the previous hidden states and optionally also the input sequence and the next token
  *  - A Scorer which computes scores based on the hidden states
  *
- * The hidden states can be any number of ONNX tensors of any shape and type.
- * Each ONNX model must have metadata that specifies the mapping of its input and output names to the corresponding state names.
- * These state names need to be consistent over all three models.
- *
- * For example:
- *   - The State Initializer has output called "lstm_c" and {"lstm_c": "LSTM_C"} in its metadata
- *   - The State Updater has input "lstm_c_in", output "lstm_c_out" and {"lstm_c_in": "LSTM_C", "lstm_c_out": "LSTM_C"} in its metadata
- *   - The Scorer has input "lstm_c" and {"lstm_c": "LSTM_C"} in its metadata
- * Here, "LSTM_C" is the state name and the same across all three models while the specific input/output names are arbitrary.
- *
- * The State Initializer must have all states as output.
- * The State Updater must have a subset of states as input and all states as output.
- * The Scorer must have a subset of states as input.
+ * The models themselves as well as the mapping between their inputs/outputs and the hidden states are
+ * handled by `OnnxHiddenStateModel`; see there for the metadata convention that the models have to follow.
  *
  * A common use case for this Label Scorer would be an AED model with cross-attention over the encoder output.
  * Since the encoder state inputs are optional, it can also be used for stateful language models without acoustic input.
@@ -137,19 +124,9 @@ private:
     bool   loopUpdatesHistory_;
     size_t maxBatchSize_;
 
-    std::shared_ptr<Onnx::Model> scorerOnnxModel_;
-    std::shared_ptr<Onnx::Model> stateInitializerOnnxModel_;
-    std::shared_ptr<Onnx::Model> stateUpdaterOnnxModel_;
+    OnnxHiddenStateModel hiddenStateModel_;
 
     OnnxHiddenStateRef initialHiddenState_;
-
-    // Map input/output names of onnx models to hidden state names
-    std::unordered_map<std::string, std::string> initializerOutputToStateNameMap_;
-    std::unordered_map<std::string, std::string> updaterInputToStateNameMap_;
-    std::unordered_map<std::string, std::string> updaterOutputToStateNameMap_;
-    std::unordered_map<std::string, std::string> scorerInputToStateNameMap_;
-
-    std::string scorerScoresName_;
 
     std::string initializerEncoderStatesName_;
     std::string initializerEncoderStatesSizeName_;

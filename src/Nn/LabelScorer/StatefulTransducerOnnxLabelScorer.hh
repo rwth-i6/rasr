@@ -23,13 +23,11 @@
 #include <Core/FIFOCache.hh>
 #include <Core/ReferenceCounting.hh>
 #include <Mm/FeatureScorer.hh>
-#include <Onnx/IOSpecification.hh>
-#include <Onnx/Model.hh>
-#include <Onnx/Session.hh>
 #include <Speech/Feature.hh>
 
 #include "BufferedLabelScorer.hh"
 #include "ModelCache.hh"
+#include "OnnxHiddenStateModel.hh"
 #include "ScoringContext.hh"
 
 namespace Nn {
@@ -61,19 +59,8 @@ typedef Core::Ref<const StepOnnxHiddenStateScoringContext> StepOnnxHiddenStateSc
  *  - A State Updater which produces updated hidden states based on the previous hidden states and the next token
  *  - A Scorer which computes scores based on the current input feature and the hidden states
  *
- * The hidden states can be any number of ONNX tensors of any shape and type.
- * Each ONNX model must have metadata that specifies the mapping of its input and output names to the corresponding state names.
- * These state names need to be consistent over all three models.
- *
- * For example:
- *   - The State Initializer has output called "lstm_c" and {"lstm_c": "LSTM_C"} in its metadata
- *   - The State Updater has input "lstm_c_in", output "lstm_c_out" and {"lstm_c_in": "LSTM_C", "lstm_c_out": "LSTM_C"} in its metadata
- *   - The Scorer has input "lstm_c" and {"lstm_c": "LSTM_C"} in its metadata
- * Here, "LSTM_C" is the state name and the same across all three models while the specific input/output names are arbitrary.
- *
- * The State Initializer must have all states as output.
- * The State Updater must have a subset of states as input and all states as output.
- * The Scorer must have a subset of states and a feature as input.
+ * The models themselves as well as the mapping between their inputs/outputs and the hidden states are
+ * handled by `OnnxHiddenStateModel`; see there for the metadata convention that the models have to follow.
  *
  * A common use case for this Label Scorer would be a Transducer model with unlimited context.
  *
@@ -85,6 +72,7 @@ class StatefulTransducerOnnxLabelScorer : public BufferedLabelScorer {
     using Precursor = BufferedLabelScorer;
 
     static const Core::ParameterBool paramBlankUpdatesHistory;
+    static const Core::ParameterBool paramSilenceUpdatesHistory;
     static const Core::ParameterBool paramLoopUpdatesHistory;
     static const Core::ParameterBool paramVerticalLabelTransition;
     static const Core::ParameterInt  paramMaxBatchSize;
@@ -121,29 +109,17 @@ private:
     // Compute updated states for all non-finalized scoring contexts and put them into the state cache
     void cacheStates(std::vector<StepOnnxHiddenStateScoringContextRef> const& scoringContextBatch);
 
-    void setupEncoderStatesValue();
-    void setupEncoderStatesSizeValue();
-
     bool   blankUpdatesHistory_;
+    bool   silenceUpdatesHistory_;
     bool   loopUpdatesHistory_;
     bool   verticalLabelTransition_;
     size_t maxBatchSize_;
 
-    std::shared_ptr<Onnx::Model> scorerOnnxModel_;
-    std::shared_ptr<Onnx::Model> stateInitializerOnnxModel_;
-    std::shared_ptr<Onnx::Model> stateUpdaterOnnxModel_;
+    OnnxHiddenStateModel hiddenStateModel_;
 
     StepOnnxHiddenStateScoringContextRef initialScoringContext_;
 
-    // Map input/output names of onnx models to hidden state names
-    std::unordered_map<std::string, std::string> initializerOutputToStateNameMap_;
-    std::unordered_map<std::string, std::string> updaterInputToStateNameMap_;
-    std::unordered_map<std::string, std::string> updaterOutputToStateNameMap_;
-    std::unordered_map<std::string, std::string> scorerInputToStateNameMap_;
-
     std::string scorerInputFeatureName_;
-    std::string scorerScoresName_;
-
     std::string updaterTokenName_;
 
     Core::FIFOCache<StepOnnxHiddenStateScoringContextRef, std::shared_ptr<std::vector<Score>>, ScoringContextHash, ScoringContextEq> scoreCache_;

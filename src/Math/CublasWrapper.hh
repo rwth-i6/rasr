@@ -17,7 +17,6 @@
 
 #include <Core/Application.hh>
 #include <Core/Component.hh>
-#include <Modules.hh>
 
 #include <Math/CudaWrapper.hh>
 

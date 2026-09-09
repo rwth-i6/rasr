@@ -23,6 +23,7 @@
 #include <Core/ReferenceCounting.hh>
 
 #include "LabelScorer.hh"
+#include "ModelCache.hh"
 #include "ScaledLabelScorer.hh"
 
 namespace Nn {
@@ -38,7 +39,7 @@ private:
     Core::Choice choices_;
 
 public:
-    typedef std::function<Core::Ref<LabelScorer>(Core::Configuration const&)> CreationFunction;
+    typedef std::function<Core::Ref<LabelScorer>(Core::Configuration const&, ModelCache&)> CreationFunction;
 
     Core::ParameterChoice paramLabelScorerType;
 
@@ -50,9 +51,12 @@ public:
     void registerLabelScorer(const char* name, CreationFunction creationFunction);
 
     /*
-     * Create a ScaledLabelScorer instance of the type given by `paramLabelScorerType` using the config object
+     * Create a ScaledLabelScorer instance of the type given by `paramLabelScorerType` using the config object.
+     * Optionally supply a cache for encoder and label scorer models. If cache entries are present, they are reused by
+     * the LabelScorer constructors.
      */
     Core::Ref<ScaledLabelScorer> createLabelScorer(Core::Configuration const& config) const;
+    Core::Ref<ScaledLabelScorer> createLabelScorer(Core::Configuration const& config, ModelCache& modelCache) const;
 
 private:
     typedef std::vector<CreationFunction> Registry;

@@ -17,7 +17,6 @@
 
 #include <Core/Application.hh>
 #include <Core/Component.hh>
-#include <Modules.hh>
 
 #ifdef MODULE_CUDA
 #include <cuda_runtime.h>

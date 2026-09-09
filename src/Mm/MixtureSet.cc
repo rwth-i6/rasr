@@ -15,7 +15,6 @@
 #include "MixtureSet.hh"
 #include <Core/Application.hh>
 #include <Core/Statistics.hh>
-#include <Modules.hh>
 #include <typeinfo>
 
 using namespace Mm;

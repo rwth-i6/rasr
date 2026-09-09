@@ -15,6 +15,7 @@ the HMM structure used by the recognizer). The first selector is always the name
 
 The request for the value of a parameter ``<name>`` w.r.t. to a given selection ``<selector1>.<selector2>. ... .<selectorM>``
 is resolved as follows:
+
 * The selection ``<selector1>.<selector2>. ... .<selectorM>.<name>`` is matched against the key part of each resource.
 * If matching resources exist, the value of the best matching resource is returned.
 
@@ -75,7 +76,8 @@ Configuration files can include other configuration files by a ``include`` direc
 The referenced file is included at exactly this position. If the included file does not contain a group selector, the preceding group selector is used.
 
 **Example**
-::
+
+.. code-block:: ini
 
     [*.output-channel]
     file   = logfile.log

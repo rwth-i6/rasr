@@ -92,7 +92,7 @@ void MeanEstimator::reset() {
 bool MeanEstimatorNode::configure() {
     if (!Precursor::configure())
         return false;
-    Core::Ref<Flow::Attributes> a(new Flow::Attributes());
+    auto a = std::make_shared<Flow::Attributes>();
     getInputAttributes(0, *a);
 
     if (!configureDatatype(a, Flow::Vector<f32>::type())) {

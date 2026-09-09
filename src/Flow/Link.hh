@@ -15,7 +15,6 @@
 #ifndef _FLOW_LINK_HH
 #define _FLOW_LINK_HH
 
-// #include <ostream.h>
 #include <ostream>
 
 #include <Core/Assertions.hh>
@@ -40,11 +39,11 @@ private:
     std::string from_node_name_, from_port_name_, to_node_name_, to_port_name_;
 
     // dynamic data
-    u32                         buffer_;
-    Queue                       queue_;
-    const Datatype*             datatype_;
-    Core::Ref<const Attributes> attributes_;
-    Data*                       fast_data_;
+    u32                               buffer_;
+    Queue                             queue_;
+    const Datatype*                   datatype_;
+    std::shared_ptr<const Attributes> attributes_;
+    Data*                             fast_data_;
 
     /** Represents the status of fast_data_.
      *  fast_data_ can be either "empty" or occupied by a data or also by a
@@ -106,16 +105,31 @@ public:
                     fast_data_ = d;
                     return true;
                 }
-                else {
+                else if (fast_data_ == Data::ood()) {
+                    // override OOD with fresh data
+                    d->increment();
                     fast_data_->decrement();
+                    fast_data_ = d;
+                    return true;
+                }
+                else {
                     queue_.put(fast_data_);
+                    fast_data_->decrement();
                     fast_data_ = sentinelEmpty();
                 }
             }
-            queue_.put(d);
+            if (d != Data::ood()) {
+                // don't push OOD into the queue when we already have data in it
+                queue_.put(d);
+            }
+            require(!isEmpty(fast_data_) or !queue_.isEmpty());
             return true;
         }
-        queue_.putAtomar(d);
+        if (d != Data::ood() or queue_.isEmpty()) {
+            queue_.putAtomar(d);
+        }
+
+        require(!isEmpty(fast_data_) or !queue_.isEmpty());
         return true;
     }
 
@@ -125,8 +139,8 @@ public:
     }
     void setDatatype(const std::string& dt);
 
-    void                        setAttributes(Core::Ref<const Attributes> a);
-    Core::Ref<const Attributes> attributes() const {
+    void                              setAttributes(std::shared_ptr<const Attributes> a);
+    std::shared_ptr<const Attributes> attributes() const {
         return attributes_;
     }
     void eraseAttributes() {

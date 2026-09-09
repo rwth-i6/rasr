@@ -14,7 +14,6 @@
  */
 #include "Module.hh"
 #include <Flow/Registry.hh>
-#include <Modules.hh>
 
 // predefined filter
 #ifdef MODULE_AUDIO_RAW

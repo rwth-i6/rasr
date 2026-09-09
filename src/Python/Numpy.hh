@@ -22,7 +22,6 @@
 #include <Core/Types.hh>
 #include <Math/CudaMatrix.hh>
 #include <Math/CudaVector.hh>
-#include <Modules.hh>
 #include <Python/Utilities.hh>
 #include <Python.h>
 

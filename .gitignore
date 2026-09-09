@@ -17,12 +17,15 @@
 /src/Core/stack.hh
 
 # From build.
-.build
+.build*
+build*
+cmake-*
 *.a
 *.pyc
 *.o
 *.so
 /RASR.egg-info
+compile_commands.json
 
 # For exec-files, the postfix is ".$(OS)-$(PROC)-$(COMPILE)[-$(SUFFIX)]".
 *.*-*-*
@@ -49,7 +52,6 @@
 /Sprint.includes
 # CLion
 /.idea
-/CMakeLists.txt
 # Other
 .history*
 *.autosave

@@ -12,7 +12,7 @@
  *  See the License for the specific language governing permissions and
  *  limitations under the License.
  */
-#include <RandomVector.hh>
+#include "RandomVector.hh"
 
 using namespace Signal;
 
@@ -47,7 +47,7 @@ RandomVectorNode::~RandomVectorNode() {
 
 bool RandomVectorNode::configure() {
     reset();
-    Core::Ref<Flow::Attributes> attributes(new Flow::Attributes());
+    auto attributes = std::make_shared<Flow::Attributes>();
     attributes->set("datatype", Flow::Vector<Data>::type()->name());
     attributes->set("sample-rate", sampleRate_);
     attributes->set("frame-shift", frameShift_);

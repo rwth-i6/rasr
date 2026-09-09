@@ -54,12 +54,6 @@ private:
 protected:
     virtual void free() const;
 
-    void lock() const {
-        Precursor::lock();
-    }
-    void release() const {
-        Precursor::release();
-    }
     void increment() const {
         Precursor::increment();
     }
@@ -241,7 +235,6 @@ public:
     void makePrivate() {
         if (Object::isSentinel(Precursor::object_))
             return;
-        Precursor::object_->lock();
         Object* o = Precursor::object_;
         if (o->refCount() > 1) {
             Precursor::object_ = dynamic_cast<Object*>(o->clone());
@@ -249,7 +242,6 @@ public:
             Precursor::object_->increment();
             o->decrement();
         }
-        o->release();
     }
 };
 

@@ -318,13 +318,13 @@ BayesClassificationNode::BayesClassificationNode(const Core::Configuration& c)
 bool BayesClassificationNode::configure() {
     reset();
 
-    Core::Ref<Flow::Attributes> attributes(new Flow::Attributes());
+    auto attributes = std::make_shared<Flow::Attributes>();
     getInputAttributes(0, *attributes);
     if (!configureDatatype(attributes, Flow::Vector<f32>::type()))
         return false;
 
     if (nInputs() >= 2) {
-        Core::Ref<const Flow::Attributes> weightAttributes = getInputAttributes(1);
+        std::shared_ptr<const Flow::Attributes> weightAttributes = getInputAttributes(1);
         if (!configureDatatype(weightAttributes, Flow::Float32::type()))
             return false;
         attributes->merge(*weightAttributes);

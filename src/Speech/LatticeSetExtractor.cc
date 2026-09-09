@@ -16,7 +16,6 @@
 
 #include <Core/Utility.hh>
 #include <Math/CudaDataStructure.hh>
-#include <Modules.hh>
 #include <sstream>
 #include <sys/time.h>
 

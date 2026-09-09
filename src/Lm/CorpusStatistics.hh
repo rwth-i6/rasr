@@ -19,7 +19,7 @@
 
 #include <Bliss/CorpusStatistics.hh>
 #include <Bliss/Lexicon.hh>
-#include <Bliss/Orthography.hh>
+#include <Bliss/OrthographicParser.hh>
 #include <Core/Parameter.hh>
 #include <Core/Version.hh>
 #include "ClassLm.hh"

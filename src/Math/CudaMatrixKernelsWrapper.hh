@@ -15,8 +15,6 @@
 #ifndef CUDAMATRIXKERNELSWRAPPER_HH_
 #define CUDAMATRIXKERNELSWRAPPER_HH_
 
-#include <Modules.hh>
-
 /**
  * Macro CUDACALL inserts the first parameter, if MODULE_CUDA is enabled.
  * Otherwise, a critical error is raised.

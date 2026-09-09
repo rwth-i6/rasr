@@ -228,7 +228,7 @@ void BatchFloatFeatureScorer::fillScoreCacheTpl(EmissionIndex e, u32 featureInde
             const f32* feature = features_ + (rp * paddedDimension_);
             s1                 = c;
             s2                 = _mm_setzero_ps();
-            for (int d = 0; d < paddedDimension_; d += BlockSize) {
+            for (int d = 0; d < static_cast<int>(paddedDimension_); d += BlockSize) {
                 x1 = _mm_sub_ps(_mm_load_ps(mean + d), _mm_load_ps(feature + d));
                 s1 = _mm_add_ps(s1, _mm_mul_ps(x1, x1));
                 x2 = _mm_sub_ps(_mm_load_ps(mean + d + 4), _mm_load_ps(feature + d + 4));
@@ -416,7 +416,7 @@ void BatchIntFeatureScorer::init(const MixtureSet& mixtureSet) {
 }
 
 void BatchIntFeatureScorer::setFeature(size_t pos, const FeatureVector& f) const {
-    verify(pos < bufferSize_);
+    verify(pos < static_cast<size_t>(bufferSize_));
     QuantizedType* feature = features_ + (pos * paddedDimension_);
     memset(feature, 0, sizeof(QuantizedType) * paddedDimension_);
     std::transform(f.begin(), f.end(), variance_,
@@ -480,7 +480,7 @@ void BatchIntFeatureScorer::fillScoreCacheTpl(EmissionIndex e, u32 featureIndex,
         for (size_t dns = startDns; dns < endDns; ++dns) {
             if (selector.value()) {
                 __m128i sum = _mm_setzero_si128();
-                for (int d = 0; d < paddedDimension_; d += BlockSize) {
+                for (int d = 0; d < static_cast<int>(paddedDimension_); d += BlockSize) {
                     __m128i m, x;
                     m = _mm_load_si128(reinterpret_cast<const __m128i*>(mean + d));
                     // m = mean[d .. d+15]

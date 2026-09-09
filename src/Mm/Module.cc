@@ -15,7 +15,6 @@
 #include "Module.hh"
 #include <Core/Application.hh>
 #include <Core/FormatSet.hh>
-#include <Modules.hh>
 #include "FeatureScorerFactory.hh"
 #include "GaussDiagonalMaximumFeatureScorer.hh"
 #include "MixtureSet.hh"

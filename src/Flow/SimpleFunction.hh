@@ -478,7 +478,7 @@ SimpleFunctionNode<Function>::SimpleFunctionNode(const Core::Configuration& c)
 
 template<class Function>
 bool SimpleFunctionNode<Function>::configure() {
-    Core::Ref<const Attributes> attributes = getInputAttributes(0);
+    std::shared_ptr<const Attributes> attributes = getInputAttributes(0);
     if (!configureDatatype(attributes, ArgumentType::type()))
         return false;
     return putOutputAttributes(0, attributes);

@@ -23,7 +23,6 @@
 #include <Core/ProgressIndicator.hh>
 #include <Core/StringUtilities.hh>
 #include <Core/TextStream.hh>
-#include <Modules.hh>
 #include <iomanip>
 
 #ifdef MODULE_PYTHON

@@ -22,31 +22,29 @@
 using namespace Math;
 
 Module_::Module_()
-        : formats_(0) {}
+        : formats_(new Core::FormatSet(Core::Configuration(Core::Application::us()->getConfiguration(), "file-format-set"))) {
+    formats_->registerFormat("bin", new Core::BinaryFormat<Vector<f32>>());
+    formats_->registerFormat("xml", new Core::XmlFormat<Vector<s32>, Core::XmlVectorDocument<s32>>(), true);
+    formats_->registerFormat("bin", new Core::BinaryFormat<Vector<u32>>());
+    formats_->registerFormat("xml", new Core::XmlFormat<Vector<u32>, Core::XmlVectorDocument<u32>>(), true);
+    formats_->registerFormat("xml", new Core::XmlFormat<Vector<f32>, Core::XmlVectorDocument<f32>>(), true);
+    formats_->registerFormat("bin", new Core::BinaryFormat<Vector<f64>>());
+    formats_->registerFormat("xml", new Core::XmlFormat<Vector<f64>, Core::XmlVectorDocument<f64>>(), true);
+    formats_->registerFormat("bin", new Core::BinaryFormat<Matrix<f32>>());
+    formats_->registerFormat("xml", new Core::XmlFormat<Matrix<f32>, Core::XmlMatrixDocument<f32>>(), true);
+    formats_->registerFormat("bin", new Core::BinaryFormat<Matrix<f64>>());
+    formats_->registerFormat("xml", new Core::XmlFormat<Matrix<f64>, Core::XmlMatrixDocument<f64>>(), true);
+    formats_->registerFormat("bin", new Core::BinaryFormat<RefernceCountedMatrix<f32>>());
+    formats_->registerFormat("xml", new Core::XmlFormat<RefernceCountedMatrix<f32>, Core::XmlMatrixDocument<f32>>(), true);
+    formats_->registerFormat("bin", new Core::BinaryFormat<RefernceCountedMatrix<f64>>());
+    formats_->registerFormat("xml", new Core::XmlFormat<RefernceCountedMatrix<f64>, Core::XmlMatrixDocument<f64>>(), true);
+}
 
 Module_::~Module_() {
     delete formats_;
 }
 
 Core::FormatSet& Module_::formats() {
-    if (!formats_) {
-        formats_ = new Core::FormatSet(Core::Configuration(Core::Application::us()->getConfiguration(), "file-format-set"));
-        formats_->registerFormat("bin", new Core::BinaryFormat<Vector<f32>>());
-        formats_->registerFormat("xml", new Core::XmlFormat<Vector<s32>, Core::XmlVectorDocument<s32>>(), true);
-        formats_->registerFormat("bin", new Core::BinaryFormat<Vector<u32>>());
-        formats_->registerFormat("xml", new Core::XmlFormat<Vector<u32>, Core::XmlVectorDocument<u32>>(), true);
-        formats_->registerFormat("xml", new Core::XmlFormat<Vector<f32>, Core::XmlVectorDocument<f32>>(), true);
-        formats_->registerFormat("bin", new Core::BinaryFormat<Vector<f64>>());
-        formats_->registerFormat("xml", new Core::XmlFormat<Vector<f64>, Core::XmlVectorDocument<f64>>(), true);
-        formats_->registerFormat("bin", new Core::BinaryFormat<Matrix<f32>>());
-        formats_->registerFormat("xml", new Core::XmlFormat<Matrix<f32>, Core::XmlMatrixDocument<f32>>(), true);
-        formats_->registerFormat("bin", new Core::BinaryFormat<Matrix<f64>>());
-        formats_->registerFormat("xml", new Core::XmlFormat<Matrix<f64>, Core::XmlMatrixDocument<f64>>(), true);
-        formats_->registerFormat("bin", new Core::BinaryFormat<RefernceCountedMatrix<f32>>());
-        formats_->registerFormat("xml", new Core::XmlFormat<RefernceCountedMatrix<f32>, Core::XmlMatrixDocument<f32>>(), true);
-        formats_->registerFormat("bin", new Core::BinaryFormat<RefernceCountedMatrix<f64>>());
-        formats_->registerFormat("xml", new Core::XmlFormat<RefernceCountedMatrix<f64>, Core::XmlMatrixDocument<f64>>(), true);
-    }
     return *formats_;
 }
 

@@ -21,9 +21,26 @@
 namespace Nn {
 
 /*
+ * Score accessor with fixed score values for each transition type
+ */
+class FixedTransitionScoreAccessor : public ScoreAccessor {
+public:
+    FixedTransitionScoreAccessor();
+
+    void setScore(TransitionType transitionType, Score score);
+
+    Score getScore(TransitionType transitionType, LabelIndex labelIndex = invalidLabelIndex) const override;
+
+    TimeframeIndex getTime() const override;
+
+private:
+    std::array<Score, TransitionType::numTypes> transitionScores_;
+};
+
+/*
  * This LabelScorer returns predefined transition scores depending on the transition type of each request.
  * The transition scores are all individually specified as config parameters.
- * It should be used together with a main LabelScorer within the CombineLabelScorer
+ * It should be used together with a main LabelScorer
  */
 class TransitionLabelScorer : public LabelScorer {
 public:
@@ -41,21 +58,17 @@ public:
     // Return dummy-context
     ScoringContextRef getInitialScoringContext() override;
 
+    // Return dummy-context
+    ScoringContextRef extendedScoringContext(ScoringContextRef scoringContext, LabelIndex nextToken, TransitionType transitionType) override;
+
     // No op
     void addInput(DataView const& input) override;
 
-protected:
-    // Return dummy-context
-    ScoringContextRef extendedScoringContextInternal(Request const& request) override;
-
     // Return transition score based on transition type of the request
-    std::optional<ScoreWithTime> computeScoreWithTimeInternal(Request const& request) override;
-
-    // Return transition scores based on transition types of the requests
-    std::optional<ScoresWithTimes> computeScoresWithTimesInternal(std::vector<Request> const& requests) override;
+    std::optional<ScoreAccessorRef> getScoreAccessor(ScoringContextRef scoringContext) override;
 
 private:
-    std::unordered_map<TransitionType, Score> transitionScores_;
+    Core::Ref<FixedTransitionScoreAccessor> transitionScoreAccessor_;
 };
 
 }  // namespace Nn

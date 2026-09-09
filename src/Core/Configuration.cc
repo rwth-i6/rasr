@@ -64,7 +64,8 @@ s32 Configuration::Resource::match(const std::vector<std::string>& components) c
 }
 
 void Configuration::Resource::writeUsage(XmlWriter& os) const {
-    for (std::vector<Usage>::const_iterator u = usage.begin(); u != usage.end(); ++u) {
+    auto sync_usage = usage.synchronize();
+    for (std::vector<Usage>::const_iterator u = sync_usage->begin(); u != sync_usage->end(); ++u) {
         os << "! used as: " << u->fullParameterName
            << " = " << u->effectiveValue;
         if (u->parameter) {
@@ -659,27 +660,31 @@ const Configuration::Resource* Configuration::find(
     return res;
 }
 
-std::string Configuration::getResolvedValue(const Resource* res) const {
+std::string Configuration::getResolvedValue(const Resource* res, std::unordered_set<Resource const*>& resolvingValues) const {
     std::string result;
 
-    if (res->isBeingResolved()) {
+    if (resolvingValues.find(res) != resolvingValues.end()) {
         std::cerr << "configuration error: "
                   << "circular references encountered in resource \""
                   << res->getName() << "\"" << std::endl;
         result = "(" + res->getName() + ")";
     }
     else {
-        res->beginResolution();  // protect against infinite recursion
-        result = resolve(res->getValue());
-        res->endResolution();
+        resolvingValues.insert(res);
+        result = resolve(res->getValue(), resolvingValues);
     }
 
     return result;
 }
 
 std::string Configuration::resolve(const std::string& value) const {
+    std::unordered_set<Resource const*> resolvingValues;
+    return resolve(value, resolvingValues);
+}
+
+std::string Configuration::resolve(const std::string& value, std::unordered_set<Resource const*>& resolvingValues) const {
     std::string result;
-    result = resolveReferences(value);
+    result = resolveReferences(value, resolvingValues);
     result = resolveArithmeticExpressions(result);
 #ifdef MODULE_CORE_CACHE_MANAGER
     result = resolveCacheManagerCommands(result);
@@ -687,7 +692,7 @@ std::string Configuration::resolve(const std::string& value) const {
     return result;
 }
 
-std::string Configuration::resolveReferences(const std::string& value) const {
+std::string Configuration::resolveReferences(const std::string& value, std::unordered_set<Resource const*>& resolvingValues) const {
     std::string            result;
     std::string::size_type begin, pos = 0;
 
@@ -718,7 +723,7 @@ std::string Configuration::resolveReferences(const std::string& value) const {
             }
 
             if (resource) {
-                result += getResolvedValue(resource);
+                result += getResolvedValue(resource, resolvingValues);
             }
             else {
                 // if not still not resolved -> warn
@@ -809,7 +814,8 @@ bool Configuration::get(const std::string& parameter, std::string& value) const 
     // get value for parameter
     const Resource* resource = find(query);
     if (resource) {
-        value = getResolvedValue(resource);
+        std::unordered_set<Resource const*> resolvingValues;
+        value = getResolvedValue(resource, resolvingValues);
         resource->registerUsage(query, 0, value);
         return true;
     }
@@ -840,7 +846,8 @@ void Configuration::writeResolvedResources(XmlWriter& os) const {
     for (std::set<Resource>::const_iterator itResource = db_->getResources().begin();
          itResource != db_->getResources().end();
          ++itResource) {
-        std::string value = getResolvedValue(&*itResource);
+        std::unordered_set<Resource const*> resolvingValues;
+        std::string                         value = getResolvedValue(&*itResource, resolvingValues);
         os << itResource->getName() << " = " << value
            << "\n";
     }

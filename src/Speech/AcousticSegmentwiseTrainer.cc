@@ -14,7 +14,6 @@
  */
 #include "AcousticSegmentwiseTrainer.hh"
 
-#include <Modules.hh>
 #include "SegmentwiseGmmTrainer.hh"
 #ifdef MODULE_NN_SEQUENCE_TRAINING
 #include <Nn/SegmentwiseNnTrainer.hh>

@@ -112,7 +112,7 @@ bool LinearWarpingNode::configure() {
 
     Flow::Attributes warpingFactorAttributes;
     if (nInputs() >= 2) {
-        Core::Ref<const Flow::Attributes> a = getInputAttributes(1);
+        std::shared_ptr<const Flow::Attributes> a = getInputAttributes(1);
         if (configureDatatype(a, Flow::Float64::type()))
             warpingFactorAttributes.merge(*a);
         else

@@ -1,12 +1,12 @@
 #include "TFRecurrentLanguageModel.hh"
 
+#include <Tensorflow/TFLstmStateManager.hh>
+#include <Tensorflow/TFTransformerStateManager.hh>
 #include "TFBlasNceSoftmaxAdapter.hh"
-#include "TFLstmStateManager.hh"
 #include "TFNceSoftmaxAdapter.hh"
 #include "TFPassthroughSoftmaxAdapter.hh"
 #include "TFQuantizedBlasNceSoftmaxAdapter.hh"
 #include "TFSoftmaxAdapter.hh"
-#include "TFTransformerStateManager.hh"
 
 namespace Lm {
 
@@ -35,19 +35,19 @@ const Core::ParameterChoice stateManagerTypeParam(
         "type of the state manager",
         LstmStateManagerType);
 
-std::unique_ptr<TFStateManager> createStateManager(Core::Configuration const& config) {
-    TFStateManager* res = nullptr;
+std::unique_ptr<Nn::AbstractStateManager<Tensorflow::Tensor, Tensorflow::Variable>> createStateManager(Core::Configuration const& config) {
+    Nn::AbstractStateManager<Tensorflow::Tensor, Tensorflow::Variable>* res = nullptr;
     switch (stateManagerTypeParam(config)) {
-        case LstmStateManagerType: res = new Lm::TFLstmStateManager(config); break;
-        case TransformerStateManagerType: res = new Lm::TFTransformerStateManager<float>(config); break;
-        case TransformerStateManager16BitType: res = new Lm::TFTransformerStateManager<int16_t>(config); break;
-        case TransformerStateManager8BitType: res = new Lm::TFTransformerStateManager<int8_t>(config); break;
-        case TransformerStateManagerWithCommonPrefixType: res = new Lm::TFTransformerStateManagerWithCommonPrefix<float>(config); break;
-        case TransformerStateManagerWithCommonPrefix16BitType: res = new Lm::TFTransformerStateManagerWithCommonPrefix<int16_t>(config); break;
-        case TransformerStateManagerWithCommonPrefix8BitType: res = new Lm::TFTransformerStateManagerWithCommonPrefix<int8_t>(config); break;
+        case LstmStateManagerType: res = new Tensorflow::TFLstmStateManager(config); break;
+        case TransformerStateManagerType: res = new Tensorflow::TFTransformerStateManager<float>(config); break;
+        case TransformerStateManager16BitType: res = new Tensorflow::TFTransformerStateManager<int16_t>(config); break;
+        case TransformerStateManager8BitType: res = new Tensorflow::TFTransformerStateManager<int8_t>(config); break;
+        case TransformerStateManagerWithCommonPrefixType: res = new Tensorflow::TFTransformerStateManagerWithCommonPrefix<float>(config); break;
+        case TransformerStateManagerWithCommonPrefix16BitType: res = new Tensorflow::TFTransformerStateManagerWithCommonPrefix<int16_t>(config); break;
+        case TransformerStateManagerWithCommonPrefix8BitType: res = new Tensorflow::TFTransformerStateManagerWithCommonPrefix<int8_t>(config); break;
         default: defect();
     }
-    return std::unique_ptr<TFStateManager>(res);
+    return std::unique_ptr<Nn::AbstractStateManager<Tensorflow::Tensor, Tensorflow::Variable>>(res);
 }
 
 enum SoftmaxAdapterType {
@@ -140,7 +140,7 @@ std::vector<Tensorflow::Tensor> TFRecurrentLanguageModel::fetchStates(std::vecto
     return outputs;
 }
 
-Score TFRecurrentLanguageModel::transformOutput(Lm::CompressedVectorPtr<float> const& nn_output, size_t index) const {
+Score TFRecurrentLanguageModel::transformOutput(Nn::CompressedVectorPtr<float> const& nn_output, size_t index) const {
     return softmax_adapter_->get_score(nn_output, index);
 }
 

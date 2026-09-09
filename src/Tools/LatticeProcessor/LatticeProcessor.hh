@@ -23,7 +23,6 @@
 #include <Lm/Module.hh>
 #include <Math/Module.hh>
 #include <Mm/Module.hh>
-#include <Modules.hh>
 #include <Signal/Module.hh>
 #include <Speech/AbstractSegmentwiseTrainer.hh>
 #include <Speech/AcousticSegmentwiseTrainer.hh>

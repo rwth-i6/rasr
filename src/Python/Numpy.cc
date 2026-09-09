@@ -101,8 +101,8 @@ void numpy2rawMat(PyArrayObject* nparr, ContainerT& nnmat) {
     require_eq(PyArray_TYPE(nparr), NumpyType<NumpyT>::type());
     require_eq(PyArray_NDIM(nparr), 2);
     if (std::is_same<decltype(nnmat.at(0, 0)), NumpyT&>::value &&
-        PyArray_STRIDES(nparr)[0] == sizeof(NumpyT) &&
-        PyArray_STRIDES(nparr)[1] == sizeof(NumpyT) * nnmat.nRows()) {
+        PyArray_STRIDES(nparr)[0] == static_cast<npy_intp>(sizeof(NumpyT)) &&
+        PyArray_STRIDES(nparr)[1] == static_cast<npy_intp>(sizeof(NumpyT) * nnmat.nRows())) {
         // fast version. we can just use memcpy
         memcpy(&nnmat.at(0, 0), PyArray_BYTES(nparr), nnmat.nRows() * nnmat.nColumns() * sizeof(NumpyT));
     }
@@ -136,8 +136,8 @@ void rawMat2numpy(PyArrayObject* nparr, const ContainerT& nnmat) {
     require_eq(PyArray_TYPE(nparr), NumpyType<NumpyT>::type());
     require_eq(PyArray_NDIM(nparr), 2);
     if (std::is_same<decltype(nnmat.at(0, 0)), const NumpyT&>::value &&
-        PyArray_STRIDES(nparr)[0] == sizeof(NumpyT) &&
-        PyArray_STRIDES(nparr)[1] == sizeof(NumpyT) * nnmat.nRows()) {
+        PyArray_STRIDES(nparr)[0] == static_cast<npy_intp>(sizeof(NumpyT)) &&
+        PyArray_STRIDES(nparr)[1] == static_cast<npy_intp>(sizeof(NumpyT) * nnmat.nRows())) {
         // fast version. we can just use memcpy
         memcpy(PyArray_BYTES(nparr), &nnmat.at(0, 0), nnmat.nRows() * nnmat.nColumns() * sizeof(NumpyT));
     }
@@ -233,8 +233,8 @@ bool numpy2nnMatrix(CriticalErrorFunc criticalErrorFunc, PyObject* nparr, Math::
 
     Python::ObjRef _nparr;
     if (PyArray_TYPE((PyArrayObject*)nparr) != NumpyType<T>::type() ||
-        PyArray_STRIDES((PyArrayObject*)nparr)[0] != sizeof(T) ||
-        PyArray_STRIDES((PyArrayObject*)nparr)[1] != sizeof(T) * nnmat.nRows()) {
+        PyArray_STRIDES((PyArrayObject*)nparr)[0] != static_cast<npy_intp>(sizeof(T)) ||
+        PyArray_STRIDES((PyArrayObject*)nparr)[1] != static_cast<npy_intp>(sizeof(T) * nnmat.nRows())) {
         // numpy2rawMat has a slow fallback which works in all cases.
         // However, we can speed it up by converting it to our prefered format which we can handle much faster.
         // So we ultimatively hope that Numpy can do that faster than our slow fallback would be.

@@ -69,6 +69,7 @@ Speakers
 --------
 
 In the context of Bliss the term “speaker” always refers to the original producer of a speech signal, which is usually a human being. A speaker is described using a ``<speaker-description>`` element. Usually there is a one-to-one correspondence between speaker description elements and speaking persons in the corpus. A ``<speaker>`` element is used to reference a previously defined speaker. Speech segments may have a speaker associated with them via the <speaker> element. Corpora and recordings may have default speakers. The contents of a speaker description are not fully specified. (See for a description of which elements are understood by the current implementation.) The idea is that each corpus may have its own extensions, so that all information available is preserved. The following list suggests element names to use for typically relevant information:
+
 * ``<gender>`` (“male” or “female”)
 * ``<name>`` real name
 * ``<age>`` or ``<date-of-birth>`` (The latter is preferred.)
@@ -120,6 +121,7 @@ File Format Specification
 
 <include>
 """""""""
+
 * Description: include another corpus description file as part of the current corpus
 * Allowed contexts: ``<corpus>``, ``<subcorpus>``
 * Attributes:

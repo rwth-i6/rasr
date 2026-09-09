@@ -71,7 +71,7 @@ public:
         return true;
     }
     virtual bool configure() {
-        Core::Ref<const Attributes> a = getInputAttributes(0);
+        std::shared_ptr<const Attributes> a = getInputAttributes(0);
         if (!configureDatatype(a, Vector<T>::type()))
             return false;
         bool status = true;

@@ -80,7 +80,6 @@ public:
     Speech::ModelCombination::Mode  requiredModelCombination() const override;
     Am::AcousticModel::Mode         requiredAcousticModel() const override;
     bool                            setModelCombination(Speech::ModelCombination const& modelCombination) override;
-    void                            reset() override;
     void                            enterSegment(Bliss::SpeechSegment const* = nullptr) override;
     void                            finishSegment() override;
     void                            putFeature(Nn::DataView const& feature) override;

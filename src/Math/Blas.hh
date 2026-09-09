@@ -16,7 +16,6 @@
 #define MATH_BLAS_HH_
 
 // ACML is included with cblas.h and linking to correct cblas library
-#include <Modules.hh>
 #include <complex>
 #include <string>
 #ifdef MODULE_INTEL_MKL

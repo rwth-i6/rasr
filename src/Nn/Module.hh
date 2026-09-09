@@ -15,6 +15,8 @@
 #ifndef _NN_MODULE_HH
 #define _NN_MODULE_HH
 
+#include <memory>
+
 #include <Core/Configuration.hh>
 #include <Core/Factory.hh>
 #include <Core/Parameter.hh>
@@ -22,8 +24,13 @@
 #include <Core/Singleton.hh>
 #include <Flow/Module.hh>
 
+#include "AbstractStateManager.hh"
+#include "CompressedVector.hh"
 #include "LabelScorer/EncoderFactory.hh"
 #include "LabelScorer/LabelScorerFactory.hh"
+
+#include <Onnx/OnnxStateVariable.hh>
+#include <Onnx/Value.hh>
 
 namespace Core {
 class FormatSet;
@@ -32,6 +39,13 @@ class FormatSet;
 namespace Nn {
 
 class Module_ {
+private:
+    static const Core::Choice          compressedVectorFactoryTypeChoice;
+    static const Core::ParameterChoice compressedVectorFactoryTypeParam;
+
+    static const Core::Choice          stateManagerTypeChoice;
+    static const Core::ParameterChoice stateManagerTypeParam;
+
 public:
     Module_();
     ~Module_();
@@ -61,6 +75,18 @@ public:
      * Access instance of LabelScorerFactory for registering and creating LabelScorers.
      */
     LabelScorerFactory& labelScorerFactory();
+
+    /*
+     * Create a compressed vector factory used for storing neural network
+     * outputs and recurrent state slices.
+     */
+    CompressedVectorFactoryPtr<float> createCompressedVectorFactory(Core::Configuration const& config);
+
+    /*
+     * Create an ONNX recurrent state manager for LSTM and transformer-style
+     * autoregressive models.
+     */
+    std::unique_ptr<AbstractStateManager<Onnx::Value, Onnx::OnnxStateVariable>> createStateManager(Core::Configuration const& config);
 
 private:
     Core::FormatSet*   formats_;

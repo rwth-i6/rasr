@@ -272,7 +272,7 @@ bool DcDetectionNode::setParameter(const std::string& name, const std::string& v
 }
 
 bool DcDetectionNode::configure() {
-    Core::Ref<const Flow::Attributes> a = getInputAttributes(0);
+    std::shared_ptr<const Flow::Attributes> a = getInputAttributes(0);
     if (!configureDatatype(a, Flow::Vector<f32>::type()))
         return false;
 

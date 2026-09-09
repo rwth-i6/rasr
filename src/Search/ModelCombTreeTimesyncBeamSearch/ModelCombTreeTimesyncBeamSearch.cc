@@ -430,12 +430,11 @@ bool ModelCombTreeTimesyncBeamSearch::setModelCombination(Speech::ModelCombinati
     // Create look-ups for state successors and exits of each state
     createSuccessorLookups();
 
-    reset();
-
     return true;
 }
 
-void ModelCombTreeTimesyncBeamSearch::reset() {
+void ModelCombTreeTimesyncBeamSearch::enterSegment(Bliss::SpeechSegment const* segment) {
+    resetStatistics();
     initializationTime_.start();
 
     for (size_t i = 0ul; i < numModels_; ++i) {
@@ -459,22 +458,15 @@ void ModelCombTreeTimesyncBeamSearch::reset() {
     finishedSegment_   = false;
 
     initializationTime_.stop();
-}
 
-void ModelCombTreeTimesyncBeamSearch::enterSegment(Bliss::SpeechSegment const* segment) {
-    initializationTime_.start();
-    for (size_t i = 0ul; i < numModels_; ++i) {
-        models_[i].labelScorer->reset();
-        if (segment != nullptr) {
-            globalLanguageModel_->setSegment(segment);
+    if (segment != nullptr) {
+        globalLanguageModel_->setSegment(segment);
+        for (size_t i = 0ul; i < numModels_; ++i) {
             for (auto& hyp : models_[i].beam) {
                 hyp.lmHistory = globalLanguageModel_->startHistory();
             }
         }
     }
-    resetStatistics();
-    initializationTime_.stop();
-    finishedSegment_ = false;
 }
 
 void ModelCombTreeTimesyncBeamSearch::finishSegment() {

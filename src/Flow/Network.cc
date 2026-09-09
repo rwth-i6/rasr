@@ -471,7 +471,7 @@ bool Network::putData(PortId in, Data* d) {
 
 /******************************************************************************/
 
-bool Network::putAttributes(PortId in, Core::Ref<const Attributes> attributes) {
+bool Network::putAttributes(PortId in, std::shared_ptr<const Attributes> attributes) {
     require(validInputPort(in));
     require(attributes);
     Port& port = inputs_[in];
@@ -657,7 +657,7 @@ bool Network::configure() {
     for (std::vector<Port>::iterator port = inputs_.begin(); port != inputs_.end(); ++port) {
         if (port->linkConnected() && !port->link()->areAttributesAvailable()) {
             warning("Unconfigured input port: '%s'.", port->name().c_str());
-            port->link()->setAttributes(Core::ref(new Attributes()));
+            port->link()->setAttributes(std::make_shared<Attributes>());
         }
     }
     return true;

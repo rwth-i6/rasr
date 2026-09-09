@@ -45,7 +45,7 @@ bool StringExpressionNode::configure(Attributes& result) {
 
     Core::StringHashMap<InputPort>::iterator i;
     for (i = inputPorts_.begin(); i != inputPorts_.end(); ++i) {
-        Core::Ref<const Attributes> attributes = getInputAttributes(i->second.portId_);
+        std::shared_ptr<const Attributes> attributes = getInputAttributes(i->second.portId_);
         if (!configureDatatype(attributes, String::type()))
             return false;
         result.merge(*attributes);

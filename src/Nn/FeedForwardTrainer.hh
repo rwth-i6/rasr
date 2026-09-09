@@ -18,7 +18,6 @@
 #include <Core/Component.hh>
 #include <Math/CudaMatrix.hh>
 #include <Math/CudaVector.hh>
-#include <Modules.hh>
 #include <cstring>
 
 #include "BufferedAlignedFeatureProcessor.hh"

@@ -98,7 +98,7 @@ struct ConvertTree {
         for (std::unordered_map<StateTree::StateId, StateId>::const_iterator it = nodesForStates.begin(); it != nodesForStates.end(); ++it) {
             StateId            node  = (*it).second;
             StateTree::StateId state = (*it).first;
-            verify(node == state + 1);
+            verify(node == static_cast<Search::StateId>(state + 1));
 
             std::set<u32>           exitIndices;
             const StateTree::State& realState(tree->state(state));
@@ -145,7 +145,7 @@ private:
             return;
         }
 
-        verify(stateId + 1 == node);
+        verify(static_cast<Search::StateId>(stateId + 1) == node);
 
         nodesForStates[stateId] = node;
 

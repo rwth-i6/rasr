@@ -409,22 +409,22 @@ struct ForwardBackwardAlignment {
                 }
             }
             if (!badForWords.count(*it + 1)) {
-                if (*it == forWords.size() - 1) {
+                if (static_cast<size_t>(*it) == forWords.size() - 1) {
                     currentRange.endTime = segmentLength_ - 1;
                 }
                 else {
                     currentRange.lastForWord = *it + 1;
-                    verify(currentRange.lastForWord >= 0 && currentRange.lastForWord < forWords.size());
+                    verify(currentRange.lastForWord >= 0 && static_cast<size_t>(currentRange.lastForWord) < forWords.size());
                     currentRange.endTime      = forWords[currentRange.lastForWord].end;
                     currentRange.lastBackWord = forWordAlignment[currentRange.lastForWord];
-                    verify(currentRange.lastBackWord >= 0 && currentRange.lastBackWord < backWords.size());
-                    verify(currentRange.endTime == backWords[currentRange.lastBackWord].end);
+                    verify(currentRange.lastBackWord >= 0 && static_cast<size_t>(currentRange.lastBackWord) < backWords.size());
+                    verify(static_cast<u32>(currentRange.endTime) == backWords[currentRange.lastBackWord].end);
                     currentRange.backwardCoarticulation = backward_->boundary(backWords[currentRange.lastBackWord].originState).transit();
                     verify(forward_->getState(forWords[currentRange.lastForWord].originState)->nArcs() == 1);
                     currentRange.finalCoarticulation = forward_->boundary(forward_->getState(forWords[currentRange.lastForWord].originState)->getArc(0)->target()).transit();
                     for (u32 q = currentRange.lastForWord + 1; q < forWords.size(); ++q)
                         currentRange.suffix.push_back(forWords[q].pron->lemma());
-                    if (currentRange.lastForWord + 1 < forWords.size()) {
+                    if (static_cast<size_t>(currentRange.lastForWord + 1) < forWords.size()) {
                         const Bliss::LemmaPronunciation* pron = forWords[currentRange.lastForWord + 1].pron;
                         if (pron && pron->pronunciation()->length())
                             currentRange.sufPhon = pron->pronunciation()->operator[](0);
@@ -437,7 +437,7 @@ struct ForwardBackwardAlignment {
                     currentRange.firstForWord = -1;
                 }
 
-                if (currentRange.lastForWord == forWords.size() - 1) {
+                if (static_cast<size_t>(currentRange.lastForWord) == forWords.size() - 1) {
                     // Lift unneeded constraints
                     currentRange.endTime     = segmentLength_ - 1;
                     currentRange.lastForWord = -1;
@@ -454,15 +454,15 @@ struct ForwardBackwardAlignment {
                 }
                 else {
                     currentRange.firstBackWord = *it - 1;
-                    verify(currentRange.firstBackWord >= 0 && currentRange.firstBackWord < backWords.size());
+                    verify(currentRange.firstBackWord >= 0 && static_cast<size_t>(currentRange.firstBackWord) < backWords.size());
                     currentRange.startTime = backWords[currentRange.firstBackWord].start;
                     verify(backWordAlignment.count(currentRange.firstBackWord));
                     currentRange.firstForWord = backWordAlignment[currentRange.firstBackWord];
-                    verify(currentRange.firstForWord >= 0 && currentRange.firstForWord < forWords.size());
+                    verify(currentRange.firstForWord >= 0 && static_cast<size_t>(currentRange.firstForWord) < forWords.size());
                     currentRange.coarticulation = forward_->boundary(forWords[currentRange.firstForWord].originState).transit();
                     verify(backward_->getState(backWords[currentRange.firstBackWord].originState)->nArcs() == 1);
                     currentRange.finalBackwardCoarticulation = backward_->boundary(backward_->getState(backWords[currentRange.firstBackWord].originState)->getArc(0)->target()).transit();
-                    verify(forWords[currentRange.firstForWord].start == currentRange.startTime);
+                    verify(forWords[currentRange.firstForWord].start == static_cast<u32>(currentRange.startTime));
 
                     for (s32 q = 0; q < currentRange.firstBackWord; ++q)
                         currentRange.prefix.push_back(backWords[q].pron->lemma());
@@ -474,22 +474,22 @@ struct ForwardBackwardAlignment {
                 }
             }
             if (!badBackWords.count(*it + 1)) {
-                if (*it == backWords.size() - 1) {
+                if (static_cast<size_t>(*it) == backWords.size() - 1) {
                     currentRange.endTime = segmentLength_ - 1;
                 }
                 else {
                     currentRange.lastBackWord = *it + 1;
                     currentRange.endTime      = backWords[currentRange.lastBackWord].end;
-                    verify(currentRange.lastBackWord >= 0 && currentRange.lastBackWord < backWords.size());
+                    verify(currentRange.lastBackWord >= 0 && static_cast<size_t>(currentRange.lastBackWord) < backWords.size());
                     currentRange.lastForWord = backWordAlignment[*it + 1];
-                    verify(currentRange.lastForWord >= 0 && currentRange.lastForWord < forWords.size());
-                    verify(currentRange.endTime == forWords[currentRange.lastForWord].end);
+                    verify(currentRange.lastForWord >= 0 && static_cast<size_t>(currentRange.lastForWord) < forWords.size());
+                    verify(static_cast<u32>(currentRange.endTime) == forWords[currentRange.lastForWord].end);
                     currentRange.backwardCoarticulation = backward_->boundary(backWords[currentRange.lastBackWord].originState).transit();
                     verify(forward_->getState(forWords[currentRange.lastForWord].originState)->nArcs() == 1);
                     currentRange.finalCoarticulation = forward_->boundary(forward_->getState(forWords[currentRange.lastForWord].originState)->getArc(0)->target()).transit();
                     for (u32 q = currentRange.lastBackWord + 1; q < backWords.size(); ++q)
                         currentRange.suffix.push_back(backWords[q].pron->lemma());
-                    if (currentRange.lastBackWord + 1 < backWords.size()) {
+                    if (static_cast<size_t>(currentRange.lastBackWord) + 1 < backWords.size()) {
                         const Bliss::LemmaPronunciation* pron = backWords[currentRange.lastBackWord + 1].pron;
                         if (pron && pron->pronunciation()->length())
                             currentRange.sufPhon = pron->pronunciation()->operator[](0);
@@ -502,7 +502,7 @@ struct ForwardBackwardAlignment {
                     currentRange.firstForWord = -1;
                 }
 
-                if (currentRange.lastForWord == forWords.size() - 1) {
+                if (static_cast<size_t>(currentRange.lastForWord) == forWords.size() - 1) {
                     // Lift unneeded constraints
                     currentRange.endTime     = segmentLength_ - 1;
                     currentRange.lastForWord = -1;
@@ -1109,14 +1109,14 @@ protected:
                     std::cout << "good count: " << good << " out of " << secondOrderCorrectionHistory_.size() << std::endl;
 
                 if (secondOrderCorrectionHistory_.size() == 10) {
-                    if (good > adaptCorrectionRatio_ && alignment.errorRate() == 0) {
+                    if (good > static_cast<u32>(adaptCorrectionRatio_) && alignment.errorRate() == 0) {
                         // Tighten more
                         relaxPruningFactor_ = 1.0 + (relaxPruningFactor_ - 1.0) / adaptPruningFactor_;
                         relaxPruningOffset_ /= adaptPruningFactor_;
                         if (verboseRefinement_)
                             std::cout << "Tightened relax-pruning-factor to " << relaxPruningFactor_ << " and relax-pruning-offset to " << relaxPruningOffset_ << std::endl;
                     }
-                    else if (good < adaptCorrectionRatio_ && alignment.errorRate() > 0) {
+                    else if (good < static_cast<u32>(adaptCorrectionRatio_) && alignment.errorRate() > 0) {
                         // Relax more
                         relaxPruningFactor_ = 1.0 + (relaxPruningFactor_ - 1.0) * adaptPruningFactor_;
                         relaxPruningOffset_ *= adaptPruningFactor_;
@@ -1218,7 +1218,7 @@ protected:
             for (std::set<ForwardBackwardAlignment::Range>::iterator rangeIt = ranges.begin(); rangeIt != ranges.end(); ++rangeIt) {
                 if (verboseRefinement_)
                     std::cout << "updating subrange " << rangeIt->startTime << " -> " << rangeIt->endTime << std::endl;
-                verify(rangeIt->startTime >= 0 && rangeIt->endTime < features.size());
+                verify(rangeIt->startTime >= 0 && static_cast<size_t>(rangeIt->endTime) < features.size());
 
                 if (refinements.count(*rangeIt)) {
                     if (verboseRefinement_)
@@ -1294,7 +1294,7 @@ protected:
                         }
                     }
                     if (refined.extension & ExtendRight) {
-                        if (rangeIt->lastForWord == -1 || (rangeIt->lastForWord == alignment.forWords.size() - 1 && forceLastWord)) {
+                        if (rangeIt->lastForWord == -1 || (static_cast<size_t>(rangeIt->lastForWord) == alignment.forWords.size() - 1 && forceLastWord)) {
                             ret.extension = Extension(ret.extension | ExtendRight);
                         }
                         else {
@@ -1360,10 +1360,10 @@ protected:
                 if (insertIt != refinements.end()) {
                     // Insert new lattice
                     Speech::TimeframeIndex timeOffset = newBoundaries->get(currentState->id()).time();
-                    if (timeOffset != insertIt->first.startTime) {
+                    if (timeOffset != static_cast<Speech::TimeframeIndex>(insertIt->first.startTime)) {
                         std::cout << "Time-offset mismatch " << timeOffset << " " << insertIt->first.startTime << std::endl;
                     }
-                    verify(timeOffset == insertIt->first.startTime);
+                    verify(timeOffset == static_cast<Speech::TimeframeIndex>(insertIt->first.startTime));
                     Flf::ConstLatticeRef        insertLattice = insertIt->second;
                     Flf::Lattice::ConstStateRef insertState   = insertLattice->getState(insertLattice->initialStateId());
                     verify(insertState->nArcs() == 1);
@@ -1948,7 +1948,7 @@ public:
                             LatticeCounts counts  = count(ret.first);
                             f32           minArcs = (minArcsPerSecond_ * features.size()) / 100.0;
                             if (counts.nArcs_ < minArcs) {
-                                if (i > maxLatticeRegenerations_) {
+                                if (i > static_cast<u32>(maxLatticeRegenerations_)) {
                                     log() << "not enough arcs: "
                                           << counts.nArcs_
                                           << " need at least "

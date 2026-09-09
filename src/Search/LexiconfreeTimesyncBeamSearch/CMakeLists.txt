@@ -1,0 +1,1 @@
+target_sources(RasrSearch PRIVATE LexiconfreeTimesyncBeamSearch.cc)

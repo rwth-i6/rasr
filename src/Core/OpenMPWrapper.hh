@@ -16,7 +16,6 @@
 #define OPENMP_WRAPPER_HH_
 
 #include <Core/Types.hh>
-#include <Modules.hh>
 
 #ifdef MODULE_OPENMP
 #include <omp.h>

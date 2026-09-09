@@ -17,7 +17,6 @@
 #include <Fsa/Dfs.hh>
 #include <Fsa/Static.hh>
 #include <Math/Utilities.hh>
-#include <Modules.hh>
 #include <stack>
 
 // implementation details for the TransitionModel::apply function

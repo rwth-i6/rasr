@@ -16,7 +16,7 @@
 #include <Core/Extensions.hh>
 #include <Core/Utility.hh>
 #include "Lexicon.hh"
-#include "Orthography.hh"
+#include "OrthographicParser.hh"
 
 using namespace Bliss;
 

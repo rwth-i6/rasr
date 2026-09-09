@@ -230,7 +230,7 @@ inline const Am::Allophone* StateTree::getAllophone(const PronunciationSuffix& s
         phonology.appendHistory(allophone, s.predecessorPhoneme_);
     }
     if (s.successorPhoneme_ != Bliss::Phoneme::term) {
-        verify(s.phoneme == s.pronunciation_->length() - 1);
+        verify(static_cast<u32>(s.phoneme) == s.pronunciation_->length() - 1);
         phonology.appendFuture(allophone, s.successorPhoneme_);
     }
 
@@ -250,7 +250,7 @@ inline s16 StateTree::boundary(const PronunciationSuffix& s) const {
     s16 result = 0;
     if (s.phoneme == 0)
         result |= Am::Allophone::isInitialPhone;
-    if (s.phoneme == s.pronunciation_->length() - 1)
+    if (static_cast<u32>(s.phoneme) == s.pronunciation_->length() - 1)
         result |= Am::Allophone::isFinalPhone;
     return result;
 }
@@ -307,7 +307,7 @@ void StateTree::advancePronunciationSuffix(const PronunciationSuffix&           
             // next phoneme reached
             ++s.phoneme;
             s.isHashValid_ = false;
-            if (s.phoneme >= s.pronunciation_->length()) {
+            if (static_cast<u32>(s.phoneme) >= s.pronunciation_->length()) {
                 // end of pronunciation reached.
                 s.isEmpty_ = true;
                 *ends++    = s;
@@ -319,7 +319,7 @@ void StateTree::advancePronunciationSuffix(const PronunciationSuffix&           
         }
 
         if (acousticModel_->isAcrossWordModelEnabled() &&
-            mustAdvancePhoneme && s.phoneme == s.pronunciation_->length() - 1) {
+            mustAdvancePhoneme && static_cast<u32>(s.phoneme) == s.pronunciation_->length() - 1) {
             // last phoneme in the pronunciation
             // create fan-out suffixes, i.e. create pronuncation alternatives
             // using all initial phonemes as successor phoneme
@@ -338,7 +338,7 @@ void StateTree::advancePronunciationSuffix(const PronunciationSuffix&           
 u32 StateTree::nStatesRemaining(const PronunciationSuffix& _s) const {
     u32                 result = 0;
     PronunciationSuffix s(_s);
-    while (s.phoneme < s.pronunciation_->length()) {
+    while (static_cast<u32>(s.phoneme) < s.pronunciation_->length()) {
         if (advanceSubState(s))
             if (advancePhoneState(s))
                 ++s.phoneme;
@@ -633,7 +633,7 @@ std::pair<Bliss::Phoneme::Id, Bliss::Phoneme::Id> StateTree::describeRootState(S
         final = initial = Bliss::Phoneme::term;
     }
     else {
-        if (s < coarticulationStructure_->boundaryPhonemes.size()) {
+        if (static_cast<size_t>(s) < coarticulationStructure_->boundaryPhonemes.size()) {
             final   = coarticulationStructure_->boundaryPhonemes[s].final;
             initial = coarticulationStructure_->boundaryPhonemes[s].initial;
         }
@@ -1074,7 +1074,7 @@ void StateTree::buildCoarticulatedRootStates(Bliss::LexiconRef lexicon) {
             criticalError("Failed to determine silence phoneme.");
         }
         boundaryPhonemes.final = Bliss::Phoneme::term;
-        verify(cs.boundaryPhonemes.size() == ciRoot_);
+        verify(cs.boundaryPhonemes.size() == static_cast<size_t>(ciRoot_));
         cs.boundaryPhonemes.push_back(boundaryPhonemes);
         BatchRequest* request = new BatchRequest(this, ciRoot_);
         SuffixSet&    suffixes(request->suffixes);
@@ -1102,7 +1102,7 @@ void StateTree::buildCoarticulatedRootStates(Bliss::LexiconRef lexicon) {
             boundaryPhonemes.initial = cs.initialPhonemes[r];
             StateId root             = states_.size();
             cs.roots[l][r]           = root;
-            verify(cs.boundaryPhonemes.size() == root);
+            verify(cs.boundaryPhonemes.size() == static_cast<size_t>(root));
             cs.boundaryPhonemes.push_back(boundaryPhonemes);
             BatchRequest* request = new BatchRequest(this, root);
             SuffixSet&    suffixes(request->suffixes);

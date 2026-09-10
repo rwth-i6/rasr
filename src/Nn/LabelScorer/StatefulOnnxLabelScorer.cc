@@ -324,7 +324,7 @@ OnnxHiddenStateRef StatefulOnnxLabelScorer::computeInitialHiddenState() {
     verify(not expectMoreFeatures_ or (initializerEncoderStatesName_ == "" and initializerEncoderStatesSizeName_ == ""));
 
     if (not initialHiddenState_) {  // initialHiddenState_ is still sentinel value -> compute it
-        OnnxHiddenStateModel::ExtraInputs sessionInputs;
+        OnnxHiddenStateModel::SessionInputs sessionInputs;
 
         if (initializerEncoderStatesName_ != "") {
             setupEncoderStatesValue();
@@ -342,7 +342,7 @@ OnnxHiddenStateRef StatefulOnnxLabelScorer::computeInitialHiddenState() {
 }
 
 std::vector<OnnxHiddenStateRef> StatefulOnnxLabelScorer::updatedHiddenStates(std::vector<OnnxHiddenStateRef> const& hiddenStatesBatch, std::vector<s32> nextTokensBatch) {
-    OnnxHiddenStateModel::ExtraInputs sessionInputs;
+    OnnxHiddenStateModel::SessionInputs sessionInputs;
 
     if (updaterEncoderStatesName_ != "") {
         setupEncoderStatesValue();

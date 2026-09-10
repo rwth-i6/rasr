@@ -139,7 +139,7 @@ std::string OnnxHiddenStateModel::scorerOnnxName(std::string const& key) const {
 
 void OnnxHiddenStateModel::addStateInputs(StateNameMap const&                    inputToStateNameMap,
                                           std::vector<OnnxHiddenStateRef> const& hiddenStatesBatch,
-                                          ExtraInputs&                           sessionInputs) const {
+                                          SessionInputs&                         sessionInputs) const {
     for (auto const& [inputName, stateName] : inputToStateNameMap) {
         // Collect a vector of individual state values of shape [1, *] and afterwards concatenate
         // them to a batched state tensor of shape [B, *]
@@ -165,7 +165,7 @@ void OnnxHiddenStateModel::collectStateOutputs(StateNameMap const&       outputT
     }
 }
 
-OnnxHiddenStateRef OnnxHiddenStateModel::initialHiddenState(ExtraInputs extraInputs) {
+OnnxHiddenStateRef OnnxHiddenStateModel::initialHiddenState(SessionInputs extraInputs) {
     std::vector<std::string> sessionOutputNames;
     std::vector<std::string> stateNames;
     collectStateOutputs(initializerOutputToStateNameMap_, sessionOutputNames, stateNames);
@@ -177,7 +177,7 @@ OnnxHiddenStateRef OnnxHiddenStateModel::initialHiddenState(ExtraInputs extraInp
 }
 
 std::vector<OnnxHiddenStateRef> OnnxHiddenStateModel::updatedHiddenStates(std::vector<OnnxHiddenStateRef> const& hiddenStatesBatch,
-                                                                          ExtraInputs                            extraInputs) {
+                                                                          SessionInputs                          extraInputs) {
     if (hiddenStatesBatch.empty()) {
         return {};
     }
@@ -215,7 +215,7 @@ std::vector<OnnxHiddenStateRef> OnnxHiddenStateModel::updatedHiddenStates(std::v
 }
 
 std::vector<std::shared_ptr<std::vector<Score>>> OnnxHiddenStateModel::scores(std::vector<OnnxHiddenStateRef> const& hiddenStatesBatch,
-                                                                              ExtraInputs                            extraInputs) {
+                                                                              SessionInputs                          extraInputs) {
     if (hiddenStatesBatch.empty()) {
         return {};
     }

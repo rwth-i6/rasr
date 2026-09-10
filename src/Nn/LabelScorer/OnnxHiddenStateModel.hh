@@ -72,7 +72,7 @@ namespace Nn {
 class OnnxHiddenStateModel : public Core::Component {
 public:
     // Session inputs that are not hidden states and thus prepared by the owner
-    using ExtraInputs = std::vector<std::pair<std::string, Onnx::Value>>;
+    using SessionInputs = std::vector<std::pair<std::string, Onnx::Value>>;
 
     // The models are read from the sub-configurations "state-initializer-model", "state-updater-model"
     // and "scorer-model" of the given config
@@ -88,15 +88,15 @@ public:
     std::string scorerOnnxName(std::string const& key) const;
 
     // Run the state initializer to obtain the hidden state for the first step
-    OnnxHiddenStateRef initialHiddenState(ExtraInputs extraInputs = {});
+    OnnxHiddenStateRef initialHiddenState(SessionInputs extraInputs = {});
 
     // Run the state updater on a batch of hidden states to obtain one updated hidden state per batch entry
     std::vector<OnnxHiddenStateRef> updatedHiddenStates(std::vector<OnnxHiddenStateRef> const& hiddenStatesBatch,
-                                                        ExtraInputs                            extraInputs = {});
+                                                        SessionInputs                          extraInputs = {});
 
     // Run the scorer on a batch of hidden states to obtain one score vector per batch entry
     std::vector<std::shared_ptr<std::vector<Score>>> scores(std::vector<OnnxHiddenStateRef> const& hiddenStatesBatch,
-                                                            ExtraInputs                            extraInputs = {});
+                                                            SessionInputs                          extraInputs = {});
 
 private:
     using StateNameMap = std::unordered_map<std::string, std::string>;
@@ -108,7 +108,7 @@ private:
     // state values of all hidden states in the batch along the batch axis
     void addStateInputs(StateNameMap const&                    inputToStateNameMap,
                         std::vector<OnnxHiddenStateRef> const& hiddenStatesBatch,
-                        ExtraInputs&                           sessionInputs) const;
+                        SessionInputs&                         sessionInputs) const;
 
     // Split the given map into the output names to request from a session run and the state names
     // that the corresponding outputs belong to

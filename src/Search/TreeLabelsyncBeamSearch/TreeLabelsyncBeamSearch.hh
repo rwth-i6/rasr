@@ -228,10 +228,19 @@ private:
     size_t totalTimesteps_;
     bool   finishedSegment_;
 
-    Core::StopWatch initializationTime_;
-    Core::StopWatch featureProcessingTime_;
-    Core::StopWatch scoringTime_;
+    Core::StopWatch              initializationTime_;
+    Core::StopWatch              featureProcessingTime_;
+    Core::StopWatch              scoringTime_;
+    Core::StopWatch              decodeStepTime_;
+    std::vector<Core::StopWatch> scoreAndPruneExtensionsTimes_;
+    Core::StopWatch              buildNewBeamTime_;
+    Core::StopWatch              recombinationTime_;
+    Core::StopWatch              beamPruningTime_;
+    Core::StopWatch              wordEndExpansionTime_;
+    Core::StopWatch              finalizeHypothesesTime_;
 
+    Core::Statistics<u32>              numInputHyps_;
+    Core::Statistics<u32>              numExtensionsBeforeFirstPruning_;
     std::vector<Core::Statistics<u32>> numHypsAfterIntermediatePruning_;
     Core::Statistics<u32>              numTerminatedHypsAfterScorePruning_;
     Core::Statistics<u32>              numTerminatedHypsAfterRecombination_;
@@ -239,6 +248,7 @@ private:
     Core::Statistics<u32>              numActiveHypsAfterScorePruning_;
     Core::Statistics<u32>              numActiveHypsAfterRecombination_;
     Core::Statistics<u32>              numActiveHypsAfterBeamPruning_;
+    Core::Statistics<u32>              numWordEndExtensionsBeforePruning_;
     Core::Statistics<u32>              numActiveWordEndHypsAfterPruning_;
     Core::Statistics<u32>              numActiveWordEndHypsAfterScorePruning_;
     Core::Statistics<u32>              numActiveWordEndHypsAfterRecombination_;
@@ -257,6 +267,45 @@ private:
     LabelHypothesis const& getOutputHypothesis(std::vector<LabelHypothesis> const& hypotheses) const;
 
     void logStatistics() const;
+
+    /*
+     * Run the multi-scorer loop: create within-word extensions from the first scorer, update scores
+     * with subsequent scorers, apply intermediate pruning after each scorer.
+     * Populates `withinWordExtensions_`. Returns false if no extensions survive (decode step should abort).
+     */
+    bool scoreAndPruneExtensions();
+
+    /*
+     * Create new beam hypotheses from the surviving within-word extensions.
+     * Carries over terminated hypotheses from the current beam and adds new ones from extensions.
+     * Populates `newBeam_`.
+     */
+    void buildNewBeamFromExtensions();
+
+    /*
+     * Expand within-word hypotheses in `newBeam_` to word-end hypotheses by applying
+     * the language model. Prune word-end hypotheses, create word-end label hypotheses,
+     * and merge them back into `newBeam_`.
+     */
+    void expandAndPruneWordEndHypotheses();
+
+    /*
+     * Write debug channel output and stepwise statistics for the current beam, then close the XML tag.
+     */
+    void logStepStatistics();
+
+    /*
+     * Apply the final score-pruning stage to `newBeam_` according to the configured pruning strategy.
+     * In `joint` mode active and terminated hypotheses are pruned against the overall best hypothesis;
+     * in `separate` mode terminated ones are pruned against the best terminated hypothesis.
+     */
+    void pruneNewBeamByScore();
+
+    /*
+     * Apply the final max-beam-size pruning stage to `newBeam_` according to the configured pruning
+     * strategy. In `separate` mode active and terminated hypotheses each get their own beam size.
+     */
+    void pruneNewBeamBySize();
 
     /*
      * Helper function for joint pruning of extensions/hypotheses by a relative score threshold

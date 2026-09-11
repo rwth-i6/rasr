@@ -16,6 +16,9 @@
 #include "NoContextOnnxLabelScorer.hh"
 
 #include <unordered_set>
+
+#include <Core/XmlStream.hh>
+
 #include "ScoreAccessor.hh"
 
 namespace Nn {
@@ -45,6 +48,14 @@ NoContextOnnxLabelScorer::NoContextOnnxLabelScorer(Core::Configuration const& co
     onnxModel_              = modelCache.getOrCreate<Onnx::Model>(key, modelConfig, ioSpec);
     inputFeatureName_       = onnxModel_->mapping.getOnnxName("input-feature");
     scoresName_             = onnxModel_->mapping.getOnnxName("scores");
+}
+
+NoContextOnnxLabelScorer::~NoContextOnnxLabelScorer() {
+    if (onnxSessionTime_.elapsedMilliseconds() > 0) {
+        clog() << Core::XmlOpen("label-scorer-timing") + Core::XmlAttribute("unit", "milliseconds") + Core::XmlAttribute("component", fullName());
+        clog() << Core::XmlOpen("onnx-session-time") << onnxSessionTime_.elapsedMilliseconds() << Core::XmlClose("onnx-session-time");
+        clog() << Core::XmlClose("label-scorer-timing");
+    }
 }
 
 void NoContextOnnxLabelScorer::reset() {
@@ -91,6 +102,10 @@ std::vector<std::optional<ScoreAccessorRef>> NoContextOnnxLabelScorer::getScoreA
         return {};
     }
 
+    scoringTime_.start();
+
+    numScoreAccessorsRequested_ += scoringContexts.size();
+
     std::vector<std::optional<ScoreAccessorRef>> scoreAccessors(scoringContexts.size(), std::nullopt);
 
     for (size_t contextIndex = 0ul; contextIndex < scoringContexts.size(); ++contextIndex) {
@@ -101,11 +116,13 @@ std::vector<std::optional<ScoreAccessorRef>> NoContextOnnxLabelScorer::getScoreA
         }
         if (scoreCache_.find(stepScoringContext) == scoreCache_.end()) {
             forwardContext(stepScoringContext);
+            ++numScoreAccessorsComputed_;
         }
 
         scoreAccessors[contextIndex] = Core::ref(new VectorScoreAccessor(scoreCache_.at(stepScoringContext), stepScoringContext->currentStep));
     }
 
+    scoringTime_.stop();
     return scoreAccessors;
 }
 
@@ -128,7 +145,9 @@ void NoContextOnnxLabelScorer::forwardContext(StepScoringContextRef const& scori
      * Run session
      */
     std::vector<Onnx::Value> sessionOutputs;
+    onnxSessionTime_.start();
     onnxModel_->session.run(std::move(sessionInputs), {scoresName_}, sessionOutputs);
+    onnxSessionTime_.stop();
 
     /*
      * Put resulting scores into cache map

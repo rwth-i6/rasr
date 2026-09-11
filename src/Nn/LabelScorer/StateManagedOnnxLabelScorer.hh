@@ -68,7 +68,7 @@ class StateManagedOnnxLabelScorer : public BufferedLabelScorer {
 
 public:
     StateManagedOnnxLabelScorer(Core::Configuration const& config, ModelCache& modelCache);
-    virtual ~StateManagedOnnxLabelScorer() = default;
+    virtual ~StateManagedOnnxLabelScorer();
 
     void reset() override;
     void addInput(DataView const& input) override;
@@ -110,6 +110,9 @@ private:
 
     Onnx::Value encoderStatesValue_;
     Onnx::Value encoderStatesSizeValue_;
+
+    Core::StopWatch onnxSessionTime_;
+    Core::StopWatch contextPreparationTime_;
 
     Core::FIFOCache<StateManagedOnnxScoringContextRef, std::shared_ptr<std::vector<Score>>, ScoringContextHash, ScoringContextEq> scoreCache_;
     Core::FIFOCache<StateManagedOnnxScoringContextRef, std::shared_ptr<HistoryState>, ScoringContextHash, ScoringContextEq>       stateCache_;

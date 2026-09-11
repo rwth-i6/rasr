@@ -15,7 +15,18 @@
 
 #include "Encoder.hh"
 
+#include <Core/XmlStream.hh>
+
 namespace Nn {
+
+Encoder::~Encoder() {
+    if (encodeTime_.elapsedMilliseconds() > 0 or numEncodedFeatures_ > 0ul) {
+        clog() << Core::XmlOpen("encoder-timing") + Core::XmlAttribute("unit", "milliseconds") + Core::XmlAttribute("component", fullName());
+        clog() << Core::XmlOpen("encode-time") << encodeTime_.elapsedMilliseconds() << Core::XmlClose("encode-time");
+        clog() << Core::XmlFull("num-encoded-features", numEncodedFeatures_);
+        clog() << Core::XmlClose("encoder-timing");
+    }
+}
 
 Encoder::Encoder(Core::Configuration const& config)
         : Core::Component(config),
@@ -36,6 +47,7 @@ void Encoder::signalNoMoreFeatures() {
 
 void Encoder::addInput(DataView const& input) {
     inputBuffer_.push_back(input);
+    ++numEncodedFeatures_;
 }
 
 void Encoder::addInputs(DataView const& input, size_t nTimesteps) {
@@ -63,7 +75,9 @@ std::optional<EncodedSpan> Encoder::getNextOutput() {
     }
 
     // Encoder is ready to run, so run it and try fetching an output again.
+    encodeTime_.start();
     encode();
+    encodeTime_.stop();
     postEncodeCleanup();
 
     // If there are still no outputs after encoding, return None to avoid recursive call

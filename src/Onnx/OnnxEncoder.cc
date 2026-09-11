@@ -15,6 +15,8 @@
 
 #include "OnnxEncoder.hh"
 
+#include <Core/XmlStream.hh>
+
 namespace Onnx {
 
 /*
@@ -48,6 +50,14 @@ const std::vector<IOSpecification> encoderIoSpec = {
 
 const Core::ParameterInt OnnxEncoder::paramInputsPerOutput("inputs-per-output", "The number of input features needed to produce one output. Set to 0 to infer at runtime.", 0, 0);
 const Core::ParameterInt OnnxEncoder::paramInputStepSize("input-step-size", "The difference in the number of input features between the first features corresponding to two consecutive outputs. Set to 0 to copy value from inputs-per-output.", 0, 0);
+
+OnnxEncoder::~OnnxEncoder() {
+    if (onnxSessionTime_.elapsedMilliseconds() > 0) {
+        clog() << Core::XmlOpen("encoder-timing") + Core::XmlAttribute("unit", "milliseconds") + Core::XmlAttribute("component", fullName());
+        clog() << Core::XmlOpen("onnx-session-time") << onnxSessionTime_.elapsedMilliseconds() << Core::XmlClose("onnx-session-time");
+        clog() << Core::XmlClose("encoder-timing");
+    }
+}
 
 OnnxEncoder::OnnxEncoder(Core::Configuration const& config, Nn::ModelCache& modelCache)
         : Core::Component(config),
@@ -102,7 +112,9 @@ OnnxEncoder::SessionRunResult OnnxEncoder::runSession(size_t inputStartIndex, si
 
     // Run session
     std::vector<Value> sessionOutputs;
+    onnxSessionTime_.start();
     onnxModel_->session.run(std::move(sessionInputs), outputNames, sessionOutputs);
+    onnxSessionTime_.stop();
 
     // Retrieve outputs
     size_t T_out      = sessionOutputs.front().dimSize(1);

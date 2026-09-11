@@ -21,6 +21,7 @@
 
 #include <Core/Assertions.hh>
 #include <Core/ReferenceCounting.hh>
+#include <Core/XmlStream.hh>
 #include <Flow/Timestamp.hh>
 #include <Math/FastMatrix.hh>
 #include <Mm/Module.hh>
@@ -242,6 +243,16 @@ StatefulOnnxLabelScorer::StatefulOnnxLabelScorer(Core::Configuration const& conf
     }
 }
 
+StatefulOnnxLabelScorer::~StatefulOnnxLabelScorer() {
+    if (stateUpdateSessionTime_.elapsedMilliseconds() > 0 or scorerSessionTime_.elapsedMilliseconds() > 0 or contextPreparationTime_.elapsedMilliseconds() > 0) {
+        clog() << Core::XmlOpen("label-scorer-timing") + Core::XmlAttribute("unit", "milliseconds") + Core::XmlAttribute("component", fullName());
+        clog() << Core::XmlOpen("state-update-session-time") << stateUpdateSessionTime_.elapsedMilliseconds() << Core::XmlClose("state-update-session-time");
+        clog() << Core::XmlOpen("scorer-session-time") << scorerSessionTime_.elapsedMilliseconds() << Core::XmlClose("scorer-session-time");
+        clog() << Core::XmlOpen("context-preparation-time") << contextPreparationTime_.elapsedMilliseconds() << Core::XmlClose("context-preparation-time");
+        clog() << Core::XmlClose("label-scorer-timing");
+    }
+}
+
 void StatefulOnnxLabelScorer::reset() {
     Precursor::reset();
     stateCache_.clear();
@@ -324,16 +335,22 @@ std::vector<std::optional<ScoreAccessorRef>> StatefulOnnxLabelScorer::getScoreAc
         return {};
     }
 
+    scoringTime_.start();
+
+    numScoreAccessorsRequested_ += scoringContexts.size();
+
     std::vector<std::optional<ScoreAccessorRef>> scoreAccessors(scoringContexts.size(), std::nullopt);
 
     if ((initializerEncoderStatesName_ != "" or initializerEncoderStatesSizeName_ != "" or updaterEncoderStatesName_ != "" or updaterEncoderStatesSizeName_ != "") and (expectMoreFeatures_ or bufferSize() == 0)) {
         // Only allow scoring once all encoder states have been passed
+        scoringTime_.stop();
         return scoreAccessors;
     }
 
     /*
      * Identify unique scoring contexts that still need session runs
      */
+    contextPreparationTime_.start();
     std::unordered_set<OnnxHiddenStateScoringContextRef, ScoringContextHash, ScoringContextEq> uniqueUncachedScoringContexts;
 
     for (auto const& scoringContext : scoringContexts) {
@@ -345,6 +362,9 @@ std::vector<std::optional<ScoreAccessorRef>> StatefulOnnxLabelScorer::getScoreAc
             uniqueUncachedScoringContexts.emplace(onnxHiddenStateScoringContext);
         }
     }
+    contextPreparationTime_.stop();
+
+    numScoreAccessorsComputed_ += uniqueUncachedScoringContexts.size();
 
     /*
      * Fill state and score caches for all uncached scoring contexts
@@ -367,6 +387,7 @@ std::vector<std::optional<ScoreAccessorRef>> StatefulOnnxLabelScorer::getScoreAc
     /*
      * Assign states from cache to scoring contexts and scores from cache to result vector
      */
+    contextPreparationTime_.start();
     for (size_t contextIndex = 0ul; contextIndex < scoringContexts.size(); ++contextIndex) {
         OnnxHiddenStateScoringContextRef onnxHiddenStateScoringContext(dynamic_cast<OnnxHiddenStateScoringContext const*>(scoringContexts[contextIndex].get()));
 
@@ -382,7 +403,9 @@ std::vector<std::optional<ScoreAccessorRef>> StatefulOnnxLabelScorer::getScoreAc
         auto const  timeframe        = onnxHiddenStateScoringContext->labelSeq.size();
         scoreAccessors[contextIndex] = Core::ref(new VectorScoreAccessor(scoreVec, timeframe));
     }
+    contextPreparationTime_.stop();
 
+    scoringTime_.stop();
     return scoreAccessors;
 }
 
@@ -445,7 +468,9 @@ OnnxHiddenStateRef StatefulOnnxLabelScorer::computeInitialHiddenState() {
          * Run session
          */
         std::vector<Onnx::Value> sessionOutputs;
+        stateUpdateSessionTime_.start();
         stateInitializerOnnxModel_->session.run(std::move(sessionInputs), sessionOutputNames, sessionOutputs);
+        stateUpdateSessionTime_.stop();
 
         /*
          * Return resulting hidden state
@@ -494,7 +519,9 @@ std::vector<OnnxHiddenStateRef> StatefulOnnxLabelScorer::updatedHiddenStates(std
     }
 
     std::vector<Onnx::Value> sessionOutputs;
+    stateUpdateSessionTime_.start();
     stateUpdaterOnnxModel_->session.run(std::move(sessionInputs), sessionOutputNames, sessionOutputs);
+    stateUpdateSessionTime_.stop();
 
     /*
      * Return resulting hidden states
@@ -580,7 +607,9 @@ void StatefulOnnxLabelScorer::cacheScores(std::vector<OnnxHiddenStateScoringCont
      * Run session
      */
     std::vector<Onnx::Value> sessionOutputs;
+    scorerSessionTime_.start();
     scorerOnnxModel_->session.run(std::move(sessionInputs), {scorerScoresName_}, sessionOutputs);
+    scorerSessionTime_.stop();
 
     /*
      * Put resulting scores into cache map

@@ -100,7 +100,7 @@ class StatefulOnnxLabelScorer : public BufferedLabelScorer {
 
 public:
     StatefulOnnxLabelScorer(Core::Configuration const& config, ModelCache& modelCache);
-    virtual ~StatefulOnnxLabelScorer() = default;
+    virtual ~StatefulOnnxLabelScorer();
 
     void reset() override;
 
@@ -169,6 +169,10 @@ private:
     // Store the onnx values with all encoder states and lengths inside so that it doesn't have to be recomputed every time
     Onnx::Value encoderStatesValue_;
     Onnx::Value encoderStatesSizeValue_;
+
+    Core::StopWatch stateUpdateSessionTime_;
+    Core::StopWatch scorerSessionTime_;
+    Core::StopWatch contextPreparationTime_;
 
     Core::FIFOCache<OnnxHiddenStateScoringContextRef, std::shared_ptr<std::vector<Score>>, ScoringContextHash, ScoringContextEq> scoreCache_;
     Core::FIFOCache<OnnxHiddenStateScoringContextRef, OnnxHiddenStateRef, ScoringContextHash, ScoringContextEq>                  stateCache_;

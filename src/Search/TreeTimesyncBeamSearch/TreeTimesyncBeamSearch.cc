@@ -267,8 +267,11 @@ TreeTimesyncBeamSearch::TreeTimesyncBeamSearch(Core::Configuration const& config
           initializationTime_(),
           featureProcessingTime_(),
           scoringTime_(),
+          numInputHyps_("num-input-hyps"),
+          numExtensionsBeforeFirstPruning_("num-extensions-before-first-pruning"),
           numHypsAfterRecombination_("num-hyps-after-recombination"),
           numHypsAfterPruning_("num-hyps-after-pruning"),
+          numWordEndExtensionsBeforePruning_("num-word-end-extensions-before-pruning"),
           numWordEndHypsAfterScorePruning_("num-word-end-hyps-after-score-pruning"),
           numWordEndHypsAfterRecombination_("num-word-end-hyps-after-recombination"),
           numWordEndHypsAfterBeamPruning_("num-word-end-hyps-after-beam-pruning"),
@@ -295,6 +298,8 @@ TreeTimesyncBeamSearch::TreeTimesyncBeamSearch(Core::Configuration const& config
     for (size_t i = 1ul; i <= maxBeamSizes_.size(); ++i) {
         numHypsAfterIntermediatePruning_.push_back({"num-hyps-after-intermediate-pruning-" + std::to_string(i)});
     }
+
+    scoreAndPruneExtensionsTimes_.resize(maxBeamSizes_.size());
 }
 
 Speech::ModelCombination::Mode TreeTimesyncBeamSearch::requiredModelCombination() const {
@@ -316,6 +321,15 @@ bool TreeTimesyncBeamSearch::setModelCombination(Speech::ModelCombination const&
     }
     if (labelScorers_.size() < maxBeamSizes_.size()) {
         warning() << "Number of label scorers (" << labelScorers_.size() << ") is less than number of configured max beam sizes (" << maxBeamSizes_.size() << ")";
+    }
+
+    // Per-scorer timers and statistics are indexed by label scorer, so make sure they are long
+    // enough even if the size mismatch reported above is configured to be ignored
+    for (size_t i = numHypsAfterIntermediatePruning_.size(); i < labelScorers_.size(); ++i) {
+        numHypsAfterIntermediatePruning_.push_back({"num-hyps-after-intermediate-pruning-" + std::to_string(i + 1)});
+    }
+    if (scoreAndPruneExtensionsTimes_.size() < labelScorers_.size()) {
+        scoreAndPruneExtensionsTimes_.resize(labelScorers_.size());
     }
 
     nonWordLemmas_ = lexicon_->specialLemmas("nonword");
@@ -401,11 +415,23 @@ void TreeTimesyncBeamSearch::enterSegment(Bliss::SpeechSegment const* segment) {
     initializationTime_.reset();
     featureProcessingTime_.reset();
     scoringTime_.reset();
+    decodeStepTime_.reset();
+    for (auto& timer : scoreAndPruneExtensionsTimes_) {
+        timer.reset();
+    }
+    buildNewBeamTime_.reset();
+    recombinationTime_.reset();
+    beamPruningTime_.reset();
+    wordEndExpansionTime_.reset();
+    finalizeHypothesesTime_.reset();
     for (auto& stat : numHypsAfterIntermediatePruning_) {
         stat.clear();
     }
+    numInputHyps_.clear();
+    numExtensionsBeforeFirstPruning_.clear();
     numHypsAfterRecombination_.clear();
     numHypsAfterPruning_.clear();
+    numWordEndExtensionsBeforePruning_.clear();
     numWordEndHypsAfterScorePruning_.clear();
     numWordEndHypsAfterRecombination_.clear();
     numWordEndHypsAfterBeamPruning_.clear();
@@ -447,7 +473,9 @@ void TreeTimesyncBeamSearch::finishSegment() {
     }
     featureProcessingTime_.stop();
     decodeManySteps();
+    finalizeHypothesesTime_.start();
     finalizeHypotheses();
+    finalizeHypothesesTime_.stop();
     finishedSegment_ = true;
     logStatistics();
 }
@@ -511,6 +539,81 @@ bool TreeTimesyncBeamSearch::decodeStep() {
         return false;
     }
 
+    decodeStepTime_.start();
+
+    if (logStepwiseStatistics_) {
+        clog() << Core::XmlOpen("search-step-stats");
+    }
+
+    bool hasExtensions = scoreAndPruneExtensions();
+
+    if (not hasExtensions) {
+        if (logStepwiseStatistics_) {
+            clog() << Core::XmlClose("search-step-stats");
+        }
+        decodeStepTime_.stop();
+        return false;
+    }
+
+    buildNewBeamTime_.start();
+    buildNewBeamFromExtensions();
+    buildNewBeamTime_.stop();
+
+    // Recombine hypotheses at the same state with the same scoring context and LM history
+    recombinationTime_.start();
+    recombination(newBeam_, false);
+    recombinationTime_.stop();
+    numHypsAfterRecombination_ += newBeam_.size();
+    if (logStepwiseStatistics_) {
+        clog() << Core::XmlFull("num-hyps-after-recombination", newBeam_.size());
+    }
+
+    beamPruningTime_.start();
+    scorePruning(newBeam_, Core::Type<Score>::max, maxBeamSizes_[labelScorers_.size() - 1]);
+    beamPruningTime_.stop();
+    numHypsAfterPruning_ += newBeam_.size();
+    if (logStepwiseStatistics_) {
+        clog() << Core::XmlFull("num-hyps-after-pruning-" + std::to_string(labelScorers_.size()), newBeam_.size());
+    }
+
+    wordEndExpansionTime_.start();
+    expandAndPruneWordEndHypotheses();
+    wordEndExpansionTime_.stop();
+
+    beam_.swap(newBeam_);
+    beam_.insert(beam_.end(), wordEndHypotheses_.begin(), wordEndHypotheses_.end());
+
+    ++currentSearchStep_;
+
+    if (currentSearchStep_ % cacheCleanupInterval_ == 0) {
+        for (size_t scorerIdx = 0ul; scorerIdx < labelScorers_.size(); ++scorerIdx) {
+            Core::CollapsedVector<Nn::ScoringContextRef> activeContexts;
+            for (auto const& hyp : beam_) {
+                activeContexts.push_back(hyp.scoringContexts[scorerIdx]);
+            }
+            labelScorers_[scorerIdx]->cleanupCaches(activeContexts);
+        }
+    }
+
+    if (currentSearchStep_ % maximumStableDelayPruningInterval_ == 0) {
+        beamPruningTime_.start();
+        maximumStableDelayPruning();
+        beamPruningTime_.stop();
+        if (logStepwiseStatistics_) {
+            clog() << Core::XmlFull("num-hyps-after-maximum-stable-delay-pruning", beam_.size());
+        }
+    }
+
+    // Counted once all pruning stages of this step, including maximum-stable-delay pruning, have been applied
+    numActiveHyps_ += beam_.size();
+
+    decodeStepTime_.stop();
+
+    logStepStatistics();
+    return true;
+}
+
+bool TreeTimesyncBeamSearch::scoreAndPruneExtensions() {
     /*
      * Collect all possible extensions for all hypotheses in the beam.
      * We build a list of all scoring contexts that need to be passed to the LabelScorer for scoring scored inside `scoringContexts_`.
@@ -528,11 +631,10 @@ bool TreeTimesyncBeamSearch::decodeStep() {
         scoringContexts_.push_back(beam_[hypIndex].scoringContexts.front());
     }
 
-    if (logStepwiseStatistics_) {
-        clog() << Core::XmlOpen("search-step-stats");
-    }
+    numInputHyps_ += beam_.size();
 
     for (size_t scorerIdx = 0ul; scorerIdx < labelScorers_.size(); ++scorerIdx) {
+        scoreAndPruneExtensionsTimes_[scorerIdx].start();
         auto const& labelScorer = labelScorers_[scorerIdx];
 
         /*
@@ -632,8 +734,12 @@ bool TreeTimesyncBeamSearch::decodeStep() {
         }
 
         if (withinWordExtensions_.empty()) {
-            clog() << Core::XmlClose("search-step-stats");
+            scoreAndPruneExtensionsTimes_[scorerIdx].stop();
             return false;
+        }
+
+        if (scorerIdx == 0ul) {
+            numExtensionsBeforeFirstPruning_ += withinWordExtensions_.size();
         }
 
         /*
@@ -649,9 +755,7 @@ bool TreeTimesyncBeamSearch::decodeStep() {
             clog() << Core::XmlFull("num-hyps-after-intermediate-pruning-" + std::to_string(scorerIdx + 1), withinWordExtensions_.size());
         }
         if (withinWordExtensions_.empty()) {
-            if (logStepwiseStatistics_) {
-                clog() << Core::XmlClose("search-step-stats");
-            }
+            scoreAndPruneExtensionsTimes_[scorerIdx].stop();
             return false;
         }
 
@@ -668,9 +772,13 @@ bool TreeTimesyncBeamSearch::decodeStep() {
                 }
             }
         }
+        scoreAndPruneExtensionsTimes_[scorerIdx].stop();
     }
 
-    // Create new label hypotheses from extension candidates
+    return not withinWordExtensions_.empty();
+}
+
+void TreeTimesyncBeamSearch::buildNewBeamFromExtensions() {
     newBeam_.clear();
     for (auto const& extension : withinWordExtensions_) {
         auto const& baseHyp = beam_[extension.baseHypIndex];
@@ -685,21 +793,9 @@ bool TreeTimesyncBeamSearch::decodeStep() {
 
         newBeam_.push_back({baseHyp, extension, newScoringContexts});
     }
+}
 
-    // For all hypotheses at the same state and with the same scoring context and LM history
-    // keep only the best since they will all develop in the same way
-    recombination(newBeam_, false);
-    numHypsAfterRecombination_ += newBeam_.size();
-    if (logStepwiseStatistics_) {
-        clog() << Core::XmlFull("num-hyps-after-recombination", newBeam_.size());
-    }
-
-    scorePruning(newBeam_, Core::Type<Score>::max, maxBeamSizes_[labelScorers_.size() - 1]);
-    numHypsAfterPruning_ += newBeam_.size();
-    if (logStepwiseStatistics_) {
-        clog() << Core::XmlFull("num-hyps-after-pruning-" + std::to_string(labelScorers_.size()), newBeam_.size());
-    }
-
+void TreeTimesyncBeamSearch::expandAndPruneWordEndHypotheses() {
     /*
      * Expand hypotheses to word-end hypotheses and incorporate the language model
      */
@@ -750,6 +846,11 @@ bool TreeTimesyncBeamSearch::decodeStep() {
         }
     }
 
+    numWordEndExtensionsBeforePruning_ += wordEndExtensions_.size();
+    if (logStepwiseStatistics_) {
+        clog() << Core::XmlFull("num-word-end-extensions-before-pruning", wordEndExtensions_.size());
+    }
+
     /*
      * Prune set of word-end extensions by score.
      */
@@ -788,51 +889,9 @@ bool TreeTimesyncBeamSearch::decodeStep() {
     if (logStepwiseStatistics_) {
         clog() << Core::XmlFull("num-word-end-hyps-after-beam-pruning", wordEndHypotheses_.size());
     }
+}
 
-    beam_.swap(newBeam_);
-    beam_.insert(beam_.end(), wordEndHypotheses_.begin(), wordEndHypotheses_.end());
-
-    numActiveHyps_ += beam_.size();
-
-    ++currentSearchStep_;
-
-    /*
-     * Clean up label scorer caches and calculate number of active trees
-     */
-    std::vector<Lm::History> seenHistories;
-    for (auto const& hyp : beam_) {
-        if (std::find(seenHistories.begin(), seenHistories.end(), hyp.lmHistory) == seenHistories.end()) {
-            seenHistories.push_back(hyp.lmHistory);
-        }
-    }
-    if (currentSearchStep_ % cacheCleanupInterval_ == 0) {
-        for (size_t scorerIdx = 0ul; scorerIdx < labelScorers_.size(); ++scorerIdx) {
-            Core::CollapsedVector<Nn::ScoringContextRef> activeContexts;
-            for (auto const& hyp : beam_) {
-                activeContexts.push_back(hyp.scoringContexts[scorerIdx]);
-            }
-            labelScorers_[scorerIdx]->cleanupCaches(activeContexts);
-        }
-    }
-    numActiveTrees_ += seenHistories.size();
-    if (logStepwiseStatistics_) {
-        clog() << Core::XmlFull("num-active-trees", seenHistories.size());
-    }
-
-    /*
-     * Apply maximum-stable-delay-pruning.
-     */
-    if (currentSearchStep_ % maximumStableDelayPruningInterval_ == 0) {
-        maximumStableDelayPruning();
-        if (logStepwiseStatistics_) {
-            clog() << Core::XmlFull("num-hyps-after-maximum-stable-delay-pruning", beam_.size());
-        }
-    }
-
-    /*
-     * Log statistics about the new beam.
-     */
-
+void TreeTimesyncBeamSearch::logStepStatistics() {
     if (debugChannel_.isOpen()) {
         std::stringstream ss;
         for (size_t hypIdx = 0ul; hypIdx < beam_.size(); ++hypIdx) {
@@ -842,14 +901,21 @@ bool TreeTimesyncBeamSearch::decodeStep() {
         debugChannel_ << ss.str();
     }
 
+    std::vector<Lm::History> seenHistories;
+    for (auto const& hyp : beam_) {
+        if (std::find(seenHistories.begin(), seenHistories.end(), hyp.lmHistory) == seenHistories.end()) {
+            seenHistories.push_back(hyp.lmHistory);
+        }
+    }
+    numActiveTrees_ += seenHistories.size();
+
     if (logStepwiseStatistics_) {
         clog() << Core::XmlFull("active-hyps", beam_.size());
+        clog() << Core::XmlFull("num-active-trees", seenHistories.size());
         clog() << Core::XmlFull("best-hyp-score", getBestHypothesis().score);
         clog() << Core::XmlFull("worst-hyp-score", getWorstHypothesis().score);
         clog() << Core::XmlClose("search-step-stats");
     }
-
-    return true;
 }
 
 TreeTimesyncBeamSearch::LabelHypothesis const& TreeTimesyncBeamSearch::getBestHypothesis() const {
@@ -869,12 +935,24 @@ void TreeTimesyncBeamSearch::logStatistics() const {
     clog() << Core::XmlOpen("initialization-time") << initializationTime_.elapsedMilliseconds() << Core::XmlClose("initialization-time");
     clog() << Core::XmlOpen("feature-processing-time") << featureProcessingTime_.elapsedMilliseconds() << Core::XmlClose("feature-processing-time");
     clog() << Core::XmlOpen("scoring-time") << scoringTime_.elapsedMilliseconds() << Core::XmlClose("scoring-time");
+    clog() << Core::XmlOpen("decode-step-time") << decodeStepTime_.elapsedMilliseconds() << Core::XmlClose("decode-step-time");
+    for (size_t i = 0ul; i < scoreAndPruneExtensionsTimes_.size(); ++i) {
+        clog() << Core::XmlOpen("score-and-prune-extensions-time-" + std::to_string(i + 1)) << scoreAndPruneExtensionsTimes_[i].elapsedMilliseconds() << Core::XmlClose("score-and-prune-extensions-time-" + std::to_string(i + 1));
+    }
+    clog() << Core::XmlOpen("build-new-beam-time") << buildNewBeamTime_.elapsedMilliseconds() << Core::XmlClose("build-new-beam-time");
+    clog() << Core::XmlOpen("recombination-time") << recombinationTime_.elapsedMilliseconds() << Core::XmlClose("recombination-time");
+    clog() << Core::XmlOpen("beam-pruning-time") << beamPruningTime_.elapsedMilliseconds() << Core::XmlClose("beam-pruning-time");
+    clog() << Core::XmlOpen("word-end-expansion-time") << wordEndExpansionTime_.elapsedMilliseconds() << Core::XmlClose("word-end-expansion-time");
+    clog() << Core::XmlOpen("finalize-hypotheses-time") << finalizeHypothesesTime_.elapsedMilliseconds() << Core::XmlClose("finalize-hypotheses-time");
     clog() << Core::XmlClose("timing-statistics");
+    numInputHyps_.write(clog());
+    numExtensionsBeforeFirstPruning_.write(clog());
     for (auto const& stat : numHypsAfterIntermediatePruning_) {
         stat.write(clog());
     }
     numHypsAfterRecombination_.write(clog());
     numHypsAfterPruning_.write(clog());
+    numWordEndExtensionsBeforePruning_.write(clog());
     numWordEndHypsAfterScorePruning_.write(clog());
     numWordEndHypsAfterRecombination_.write(clog());
     numWordEndHypsAfterBeamPruning_.write(clog());

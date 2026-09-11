@@ -198,14 +198,16 @@ private:
     std::vector<Core::StopWatch> scoreAndPruneExtensionsTimes_;
     Core::StopWatch              buildNewBeamTime_;
     Core::StopWatch              recombinationTime_;
-    Core::StopWatch              pruningTime_;
+    Core::StopWatch              beamPruningTime_;
     Core::StopWatch              wordEndExpansionTime_;
+    Core::StopWatch              finalizeHypothesesTime_;
 
     Core::Statistics<u32>              numInputHyps_;
     Core::Statistics<u32>              numExtensionsBeforeFirstPruning_;
     std::vector<Core::Statistics<u32>> numHypsAfterIntermediatePruning_;
     Core::Statistics<u32>              numHypsAfterRecombination_;
     Core::Statistics<u32>              numHypsAfterPruning_;
+    Core::Statistics<u32>              numWordEndExtensionsBeforePruning_;
     Core::Statistics<u32>              numWordEndHypsAfterScorePruning_;
     Core::Statistics<u32>              numWordEndHypsAfterRecombination_;
     Core::Statistics<u32>              numWordEndHypsAfterBeamPruning_;

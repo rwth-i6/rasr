@@ -20,9 +20,10 @@
 namespace Nn {
 
 Encoder::~Encoder() {
-    if (encodeTime_.elapsedMilliseconds() > 0) {
+    if (encodeTime_.elapsedMilliseconds() > 0 or numEncodedFeatures_ > 0ul) {
         clog() << Core::XmlOpen("encoder-timing") + Core::XmlAttribute("unit", "milliseconds") + Core::XmlAttribute("component", fullName());
         clog() << Core::XmlOpen("encode-time") << encodeTime_.elapsedMilliseconds() << Core::XmlClose("encode-time");
+        clog() << Core::XmlFull("num-encoded-features", numEncodedFeatures_);
         clog() << Core::XmlClose("encoder-timing");
     }
 }
@@ -46,6 +47,7 @@ void Encoder::signalNoMoreFeatures() {
 
 void Encoder::addInput(DataView const& input) {
     inputBuffer_.push_back(input);
+    ++numEncodedFeatures_;
 }
 
 void Encoder::addInputs(DataView const& input, size_t nTimesteps) {

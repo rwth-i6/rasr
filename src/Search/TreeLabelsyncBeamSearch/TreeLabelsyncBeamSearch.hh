@@ -235,8 +235,9 @@ private:
     std::vector<Core::StopWatch> scoreAndPruneExtensionsTimes_;
     Core::StopWatch              buildNewBeamTime_;
     Core::StopWatch              recombinationTime_;
-    Core::StopWatch              pruningTime_;
+    Core::StopWatch              beamPruningTime_;
     Core::StopWatch              wordEndExpansionTime_;
+    Core::StopWatch              finalizeHypothesesTime_;
 
     Core::Statistics<u32>              numInputHyps_;
     Core::Statistics<u32>              numExtensionsBeforeFirstPruning_;
@@ -247,6 +248,7 @@ private:
     Core::Statistics<u32>              numActiveHypsAfterScorePruning_;
     Core::Statistics<u32>              numActiveHypsAfterRecombination_;
     Core::Statistics<u32>              numActiveHypsAfterBeamPruning_;
+    Core::Statistics<u32>              numWordEndExtensionsBeforePruning_;
     Core::Statistics<u32>              numActiveWordEndHypsAfterPruning_;
     Core::Statistics<u32>              numActiveWordEndHypsAfterScorePruning_;
     Core::Statistics<u32>              numActiveWordEndHypsAfterRecombination_;
@@ -291,6 +293,19 @@ private:
      * Write debug channel output and stepwise statistics for the current beam, then close the XML tag.
      */
     void logStepStatistics();
+
+    /*
+     * Apply the final score-pruning stage to `newBeam_` according to the configured pruning strategy.
+     * In `joint` mode active and terminated hypotheses are pruned against the overall best hypothesis;
+     * in `separate` mode terminated ones are pruned against the best terminated hypothesis.
+     */
+    void pruneNewBeamByScore();
+
+    /*
+     * Apply the final max-beam-size pruning stage to `newBeam_` according to the configured pruning
+     * strategy. In `separate` mode active and terminated hypotheses each get their own beam size.
+     */
+    void pruneNewBeamBySize();
 
     /*
      * Helper function for joint pruning of extensions/hypotheses by a relative score threshold

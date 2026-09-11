@@ -21,9 +21,9 @@
 #include <Core/CollapsedVector.hh>
 #include <Core/Component.hh>
 #include <Core/Configuration.hh>
-#include <Core/StopWatch.hh>
 #include <Core/Parameter.hh>
 #include <Core/ReferenceCounting.hh>
+#include <Core/StopWatch.hh>
 #include <Core/Types.hh>
 #include <Core/XmlStream.hh>
 #include <Flow/Timestamp.hh>
@@ -129,8 +129,8 @@ public:
 
 protected:
     Core::StopWatch scoringTime_;
-    size_t numScoreAccessorsRequested_ = 0;
-    size_t numScoreAccessorsComputed_  = 0;
+    size_t          numScoreAccessorsRequested_ = 0;
+    size_t          numScoreAccessorsComputed_  = 0;
     TransitionSet   enabledTransitions_;
 };
 

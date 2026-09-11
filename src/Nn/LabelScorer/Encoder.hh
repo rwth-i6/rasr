@@ -71,6 +71,9 @@ protected:
 
     Core::StopWatch encodeTime_;
 
+    // Total number of input features (T) handed to this encoder over the whole run
+    size_t numEncodedFeatures_ = 0ul;
+
     // Encode features inside the input buffer and put the results into the output buffer
     virtual void encode() = 0;
 

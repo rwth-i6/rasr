@@ -20,8 +20,8 @@
 #include <utility>
 
 #include <Core/Assertions.hh>
-#include <Core/XmlStream.hh>
 #include <Core/ReferenceCounting.hh>
+#include <Core/XmlStream.hh>
 #include <Flow/Timestamp.hh>
 #include <Math/FastMatrix.hh>
 #include <Mm/Module.hh>

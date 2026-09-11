@@ -180,7 +180,7 @@ private:
     std::vector<Core::StopWatch> scoreAndPruneExtensionsTimes_;
     Core::StopWatch              buildNewBeamTime_;
     Core::StopWatch              recombinationTime_;
-    Core::StopWatch              pruningTime_;
+    Core::StopWatch              beamPruningTime_;
 
     Core::Statistics<u32>              numInputHyps_;
     Core::Statistics<u32>              numExtensionsBeforeFirstPruning_;
@@ -227,6 +227,19 @@ private:
      * Write debug channel output and stepwise statistics for the current beam, then close the XML tag.
      */
     void logStepStatistics();
+
+    /*
+     * Apply the final score-pruning stage to `newBeam_` according to the configured pruning strategy.
+     * In `joint` mode active and terminated hypotheses are pruned against the overall best hypothesis;
+     * in `separate` mode terminated ones are pruned against the best terminated hypothesis.
+     */
+    void pruneNewBeamByScore();
+
+    /*
+     * Apply the final max-beam-size pruning stage to `newBeam_` according to the configured pruning
+     * strategy. In `separate` mode active and terminated hypotheses each get their own beam size.
+     */
+    void pruneNewBeamBySize();
 
     /*
      * Helper function for acoustic pruning of hypotheses. Calculates an absolute threshold based on best score + relative threshold and

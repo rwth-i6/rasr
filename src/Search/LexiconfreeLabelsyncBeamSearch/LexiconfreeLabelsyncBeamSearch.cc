@@ -337,7 +337,7 @@ void LexiconfreeLabelsyncBeamSearch::enterSegment(Bliss::SpeechSegment const* se
     }
     buildNewBeamTime_.reset();
     recombinationTime_.reset();
-    pruningTime_.reset();
+    beamPruningTime_.reset();
     for (auto& stat : numHypsAfterIntermediatePruning_) {
         stat.clear();
     }
@@ -476,48 +476,7 @@ bool LexiconfreeLabelsyncBeamSearch::decodeStep() {
     // Prune terminated and active hypotheses by score according to the selected pruning strategy
     size_t const finalScorerIdx = labelScorers_.size() - 1;
     if (useScorePruning_[finalScorerIdx]) {
-        pruningTime_.start();
-        auto        relativeThreshold = scoreThresholds_[finalScorerIdx];
-        auto const* bestHypothesis    = getBestHypothesis(newBeam_, HypothesisFilter::Any);
-        verify(bestHypothesis != nullptr);
-        switch (pruningStrategyType_) {
-            case PruningStrategyJoint:
-                if (lengthNormScale_ != 0) {
-                    relativeThreshold /= std::pow(bestHypothesis->length, lengthNormScale_);
-                }
-                scorePruning(newBeam_,
-                             PruningParams{
-                                     .relativeThreshold = relativeThreshold,
-                                     .maxBeamSize       = newBeam_.size()});
-                break;
-            case PruningStrategySeparate: {
-                auto                 activeRelativeThreshold     = relativeThreshold;
-                auto                 terminatedRelativeThreshold = relativeThreshold;
-                std::optional<Score> terminatedReferenceScore;
-                auto const*          bestTerminatedHypothesis = getBestHypothesis(newBeam_, HypothesisFilter::Terminated);
-                if (bestTerminatedHypothesis != nullptr) {
-                    terminatedReferenceScore = bestTerminatedHypothesis->pruningScore();
-                }
-                if (lengthNormScale_ != 0) {
-                    activeRelativeThreshold /= std::pow(bestHypothesis->length, lengthNormScale_);
-                    if (bestTerminatedHypothesis) {
-                        terminatedRelativeThreshold /= std::pow(bestTerminatedHypothesis->length, lengthNormScale_);
-                    }
-                }
-                separateScorePruning(
-                        newBeam_,
-                        PruningParams{
-                                .relativeThreshold = activeRelativeThreshold,
-                                .maxBeamSize       = newBeam_.size(),
-                                .referenceScore    = bestHypothesis->pruningScore()},
-                        PruningParams{
-                                .relativeThreshold = terminatedRelativeThreshold,
-                                .maxBeamSize       = newBeam_.size(),
-                                .referenceScore    = terminatedReferenceScore});
-                break;
-            }
-        }
-        pruningTime_.stop();
+        pruneNewBeamByScore();
 
         size_t numActive     = numActiveHyps();
         size_t numTerminated = newBeam_.size() - numActive;
@@ -549,28 +508,7 @@ bool LexiconfreeLabelsyncBeamSearch::decodeStep() {
         }
     }
 
-    pruningTime_.start();
-    switch (pruningStrategyType_) {
-        case PruningStrategyJoint:
-            scorePruning(newBeam_,
-                         PruningParams{
-                                 .relativeThreshold = Core::Type<Score>::max,
-                                 .maxBeamSize       = maxBeamSizes_[finalScorerIdx]});
-            break;
-        case PruningStrategySeparate: {
-            auto finalBeamSize = maxBeamSizes_[finalScorerIdx];
-            separateScorePruning(
-                    newBeam_,
-                    PruningParams{
-                            .relativeThreshold = Core::Type<Score>::max,
-                            .maxBeamSize       = finalBeamSize},
-                    PruningParams{
-                            .relativeThreshold = Core::Type<Score>::max,
-                            .maxBeamSize       = finalBeamSize});
-            break;
-        }
-    }
-    pruningTime_.stop();
+    pruneNewBeamBySize();
 
     {
         size_t numActive     = numActiveHyps();
@@ -603,6 +541,78 @@ bool LexiconfreeLabelsyncBeamSearch::decodeStep() {
 
     logStepStatistics();
     return true;
+}
+
+void LexiconfreeLabelsyncBeamSearch::pruneNewBeamByScore() {
+    size_t const finalScorerIdx = labelScorers_.size() - 1;
+    beamPruningTime_.start();
+    auto        relativeThreshold = scoreThresholds_[finalScorerIdx];
+    auto const* bestHypothesis    = getBestHypothesis(newBeam_, HypothesisFilter::Any);
+    verify(bestHypothesis != nullptr);
+    switch (pruningStrategyType_) {
+        case PruningStrategyJoint:
+            if (lengthNormScale_ != 0) {
+                relativeThreshold /= std::pow(bestHypothesis->length, lengthNormScale_);
+            }
+            scorePruning(newBeam_,
+                         PruningParams{
+                                 .relativeThreshold = relativeThreshold,
+                                 .maxBeamSize       = newBeam_.size()});
+            break;
+        case PruningStrategySeparate: {
+            auto                 activeRelativeThreshold     = relativeThreshold;
+            auto                 terminatedRelativeThreshold = relativeThreshold;
+            std::optional<Score> terminatedReferenceScore;
+            auto const*          bestTerminatedHypothesis = getBestHypothesis(newBeam_, HypothesisFilter::Terminated);
+            if (bestTerminatedHypothesis != nullptr) {
+                terminatedReferenceScore = bestTerminatedHypothesis->pruningScore();
+            }
+            if (lengthNormScale_ != 0) {
+                activeRelativeThreshold /= std::pow(bestHypothesis->length, lengthNormScale_);
+                if (bestTerminatedHypothesis) {
+                    terminatedRelativeThreshold /= std::pow(bestTerminatedHypothesis->length, lengthNormScale_);
+                }
+            }
+            separateScorePruning(
+                    newBeam_,
+                    PruningParams{
+                            .relativeThreshold = activeRelativeThreshold,
+                            .maxBeamSize       = newBeam_.size(),
+                            .referenceScore    = bestHypothesis->pruningScore()},
+                    PruningParams{
+                            .relativeThreshold = terminatedRelativeThreshold,
+                            .maxBeamSize       = newBeam_.size(),
+                            .referenceScore    = terminatedReferenceScore});
+            break;
+        }
+    }
+    beamPruningTime_.stop();
+}
+
+void LexiconfreeLabelsyncBeamSearch::pruneNewBeamBySize() {
+    size_t const finalScorerIdx = labelScorers_.size() - 1;
+    beamPruningTime_.start();
+    switch (pruningStrategyType_) {
+        case PruningStrategyJoint:
+            scorePruning(newBeam_,
+                         PruningParams{
+                                 .relativeThreshold = Core::Type<Score>::max,
+                                 .maxBeamSize       = maxBeamSizes_[finalScorerIdx]});
+            break;
+        case PruningStrategySeparate: {
+            auto finalBeamSize = maxBeamSizes_[finalScorerIdx];
+            separateScorePruning(
+                    newBeam_,
+                    PruningParams{
+                            .relativeThreshold = Core::Type<Score>::max,
+                            .maxBeamSize       = finalBeamSize},
+                    PruningParams{
+                            .relativeThreshold = Core::Type<Score>::max,
+                            .maxBeamSize       = finalBeamSize});
+            break;
+        }
+    }
+    beamPruningTime_.stop();
 }
 
 bool LexiconfreeLabelsyncBeamSearch::scoreAndPruneExtensions() {
@@ -959,7 +969,7 @@ void LexiconfreeLabelsyncBeamSearch::logStatistics() const {
     }
     clog() << Core::XmlOpen("build-new-beam-time") << buildNewBeamTime_.elapsedMilliseconds() << Core::XmlClose("build-new-beam-time");
     clog() << Core::XmlOpen("recombination-time") << recombinationTime_.elapsedMilliseconds() << Core::XmlClose("recombination-time");
-    clog() << Core::XmlOpen("pruning-time") << pruningTime_.elapsedMilliseconds() << Core::XmlClose("pruning-time");
+    clog() << Core::XmlOpen("beam-pruning-time") << beamPruningTime_.elapsedMilliseconds() << Core::XmlClose("beam-pruning-time");
     clog() << Core::XmlClose("timing-statistics");
     numInputHyps_.write(clog());
     numExtensionsBeforeFirstPruning_.write(clog());

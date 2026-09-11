@@ -99,7 +99,12 @@ std::vector<std::optional<ScoreAccessorRef>> NoContextOnnxLabelScorer::getScoreA
             // If input is not available, this context can't be forwarded
             continue;
         }
-        forwardContext(stepScoringContext);
+        // All hypotheses of a decode step share the same step scoring context, so without this
+        // check the same session would be run once per hypothesis and all but the first result
+        // would be discarded by the `emplace` in `forwardContext`.
+        if (scoreCache_.find(stepScoringContext) == scoreCache_.end()) {
+            forwardContext(stepScoringContext);
+        }
 
         scoreAccessors[contextIndex] = Core::ref(new VectorScoreAccessor(scoreCache_.at(stepScoringContext), stepScoringContext->currentStep));
     }

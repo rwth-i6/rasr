@@ -684,8 +684,7 @@ bool TreeTimesyncBeamSearch::decodeStep() {
                              .baseHypIndex     = hypIndex});
 
                     // Add the LM lookahead score to the extensions' scores for pruning
-                    // Make sure not to calculate the lookahead score for the blank lemma which is reachable from the root
-                    if (enableLmLookahead_ and not(hyp.currentState == network_->rootState and tokenIdx == blankLabelIndex_)) {
+                    if (enableLmLookahead_) {
                         auto lookaheadScore                         = getLmLookaheadScore(withinWordExtensions_.back());
                         withinWordExtensions_.back().lookaheadScore = lookaheadScore;
                         withinWordExtensions_.back().score += lookaheadScore;

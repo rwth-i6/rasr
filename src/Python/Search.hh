@@ -42,11 +42,18 @@ class SearchAlgorithm : public Core::Component {
 public:
     SearchAlgorithm(const Core::Configuration& c);
 
+    // Closes a segment that is still open, so the log stays well-formed even if
+    // `finishSegment` was never reached.
+    ~SearchAlgorithm();
+
     // Return the model combination used by the search.
     Speech::ModelCombination& modelCombination();
 
     // Call at the beginning of a new segment.
-    void enterSegment();
+    // Opens a `segment` element in the log so that everything logged until `finishSegment`
+    // is grouped under it, mirroring what the corpus visitor does for the Flf recognizer.
+    // `name` is optional and only used to identify the segment in the log.
+    void enterSegment(std::string const& name = "");
 
     // Call after all features of the current segment have been passed
     void finishSegment();
@@ -68,11 +75,11 @@ public:
 
     // Convenience function to recognize a full segment given all the features as a tensor of shape [T, F]
     // Returns the recognition result
-    Traceback recognizeSegment(py::array_t<f32> const& features);
+    Traceback recognizeSegment(py::array_t<f32> const& features, std::string const& name = "");
 
     // Convenience function to recognize a full segment given all the features as a tensor of shape [T, F]
     // Returns a n-best list of recognition results
-    std::vector<Traceback> recognizeSegmentNBest(py::array_t<f32> const& features, size_t nBestSize);
+    std::vector<Traceback> recognizeSegmentNBest(py::array_t<f32> const& features, size_t nBestSize, std::string const& name = "");
 
 private:
     Traceback searchTracebackToPythonTraceback(Core::Ref<Search::Traceback const> traceback);
@@ -81,6 +88,12 @@ private:
     std::unique_ptr<Search::SearchAlgorithmV2> searchAlgorithm_;
     Flf::LexiconRef                            lexicon_;
     Speech::ModelCombination                   modelCombination_;
+
+    bool   segmentOpen_  = false;  // Whether a `segment` log element is currently open
+    size_t segmentIndex_ = 0ul;    // Running index of the current segment, used to identify it in the log
+
+    // Close the currently open `segment` log element, if there is one
+    void closeSegmentLog();
 };
 
 #endif  // _PYTHON_SEARCH_HH

@@ -90,7 +90,7 @@ public:
 
     void reset() override;
 
-    // Forwarded to the wrapped CTC scorer
+    // Logs the prefix-scoring statistics of this scorer and forwards to the wrapped CTC scorer
     void logStatistics() const override;
     void signalNoMoreFeatures() override;
     void addInput(DataView const& input) override;
@@ -108,11 +108,17 @@ private:
 
     std::shared_ptr<Math::FastMatrix<Score>> ctcScores_;  // Cached T x V matrix of scores
 
+    // Time spent building `ctcScores_`. Includes the scoring time of the sub-scorer that
+    // the matrix is pulled from, which is reported separately by that scorer.
+    Core::StopWatch ctcScoreCollectionTime_;
+
+    void logAdditionalStatistics() const override;
+
     // Retrieve matrix of CTC scores from sub-scorer. Assumes that these scores only depend on timestep and label index, not history or transition type.
     void setupCTCScores();
 
     // Update prefix scores in scoringContext
-    void finalizeScoringContext(CtcPrefixScoringContextRef const& scoringContext) const;
+    void finalizeScoringContext(CtcPrefixScoringContextRef const& scoringContext);
 };
 
 }  // namespace Nn

@@ -15,6 +15,8 @@
 
 #include "CtcPrefixLabelScorer.hh"
 
+#include <Core/XmlStream.hh>
+
 #include <Nn/Module.hh>
 #include <cmath>
 #include <limits>
@@ -175,18 +177,26 @@ Core::Ref<ScaledLabelScorer> CtcPrefixLabelScorer::getCtcLabelScorer() const {
 
 void CtcPrefixLabelScorer::reset() {
     Precursor::reset();
+    ctcScoreCollectionTime_.reset();
     ctcScorer_->reset();
     expectMoreFeatures_ = true;
 }
 
+void CtcPrefixLabelScorer::logAdditionalStatistics() const {
+    clog() << Core::XmlOpen("ctc-score-collection-time") + Core::XmlAttribute("unit", "milliseconds") << ctcScoreCollectionTime_.elapsedMilliseconds() << Core::XmlClose("ctc-score-collection-time");
+}
+
 void CtcPrefixLabelScorer::logStatistics() const {
+    Precursor::logStatistics();
     ctcScorer_->logStatistics();
 }
 
 void CtcPrefixLabelScorer::signalNoMoreFeatures() {
     ctcScorer_->signalNoMoreFeatures();
     expectMoreFeatures_ = false;
+    ctcScoreCollectionTime_.start();
     setupCTCScores();
+    ctcScoreCollectionTime_.stop();
 }
 
 void CtcPrefixLabelScorer::addInput(DataView const& input) {
@@ -215,9 +225,13 @@ std::optional<ScoreAccessorRef> CtcPrefixLabelScorer::getScoreAccessor(ScoringCo
         return {};
     }
 
+    scoringTime_.start();
+    ++numScoreAccessorsRequested_;
+
     auto context = Core::ref(dynamic_cast<const CtcPrefixScoringContext*>(scoringContext.get()));
     finalizeScoringContext(context);
 
+    scoringTime_.stop();
     return Core::ref(new CtcPrefixScoreAccessor(context, ctcScores_));
 }
 
@@ -247,10 +261,13 @@ void CtcPrefixLabelScorer::setupCTCScores() {
     }
 }
 
-void CtcPrefixLabelScorer::finalizeScoringContext(CtcPrefixScoringContextRef const& scoringContext) const {
+void CtcPrefixLabelScorer::finalizeScoringContext(CtcPrefixScoringContextRef const& scoringContext) {
     if (not scoringContext->requiresFinalize) {
         return;
     }
+
+    // Counts every prefix actually computed, including ancestors reached by the recursion below
+    ++numScoreAccessorsComputed_;
 
     if (scoringContext->labelSeq.empty()) {
         scoringContext->prefixScore = 0.0;

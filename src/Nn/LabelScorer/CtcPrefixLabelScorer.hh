@@ -118,7 +118,7 @@ private:
     void setupCTCScores();
 
     // Update prefix scores in scoringContext
-    void finalizeScoringContext(CtcPrefixScoringContextRef const& scoringContext);
+    void finalizeScoringContext(CtcPrefixScoringContextRef const& scoringContext) const;
 };
 
 }  // namespace Nn

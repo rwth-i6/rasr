@@ -136,10 +136,12 @@ protected:
     // `logStatistics`. Called between the shared timing and the shared counters.
     virtual void logAdditionalStatistics() const {}
 
-    Core::StopWatch scoringTime_;
-    size_t          numScoreAccessorsRequested_ = 0;
-    size_t          numScoreAccessorsComputed_  = 0;
-    TransitionSet   enabledTransitions_;
+    // Tracking only, so these stay writable from const scoring paths
+    mutable Core::StopWatch scoringTime_;
+    mutable size_t          numScoreAccessorsRequested_ = 0;
+    mutable size_t          numScoreAccessorsComputed_  = 0;
+
+    TransitionSet enabledTransitions_;
 };
 
 }  // namespace Nn

@@ -261,7 +261,7 @@ void CtcPrefixLabelScorer::setupCTCScores() {
     }
 }
 
-void CtcPrefixLabelScorer::finalizeScoringContext(CtcPrefixScoringContextRef const& scoringContext) {
+void CtcPrefixLabelScorer::finalizeScoringContext(CtcPrefixScoringContextRef const& scoringContext) const {
     if (not scoringContext->requiresFinalize) {
         return;
     }

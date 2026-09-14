@@ -77,10 +77,11 @@ protected:
     // `logStatistics`.
     virtual void logAdditionalStatistics() const {}
 
-    Core::StopWatch encodeTime_;
+    // Tracking only, so these stay writable from const paths
+    mutable Core::StopWatch encodeTime_;
 
     // Total number of input features (T) handed to this encoder in the current segment
-    size_t numEncodedFeatures_ = 0ul;
+    mutable size_t numEncodedFeatures_ = 0ul;
 
     // Encode features inside the input buffer and put the results into the output buffer
     virtual void encode() = 0;

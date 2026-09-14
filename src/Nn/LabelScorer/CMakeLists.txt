@@ -28,7 +28,6 @@ if(${MODULE_ONNX})
                 StatefulOnnxLabelScorer.cc
                 StatefulTransducerOnnxLabelScorer.cc
                 StateManagedOnnxLabelScorer.cc
-                StatefulTransducerOnnxLabelScorer.cc
     )
 endif()
 

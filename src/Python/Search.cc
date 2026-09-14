@@ -29,8 +29,7 @@ SearchAlgorithm::SearchAlgorithm(const Core::Configuration& c)
           latticeHandler_(Flf::Module::instance().createLatticeHandler(config)),
           searchAlgorithm_(Search::Module::instance().createSearchAlgorithmV2(select("search-algorithm"))),
           lexicon_(new Flf::Lexicon(select("lexicon"))),
-          modelCombination_(config, searchAlgorithm_->requiredModelCombination(), searchAlgorithm_->requiredAcousticModel(), lexicon_),
-          segmentChannel_(config, "segment", Core::Channel::standard) {
+          modelCombination_(config, searchAlgorithm_->requiredModelCombination(), searchAlgorithm_->requiredAcousticModel(), lexicon_) {
     latticeHandler_->setLexicon(lexicon_);
     searchAlgorithm_->setModelCombination(modelCombination_);
 }
@@ -53,7 +52,7 @@ void SearchAlgorithm::enterSegment(std::string const& name) {
     if (not name.empty()) {
         open + Core::XmlAttribute("name", name);
     }
-    segmentChannel_ << open;
+    clog() << open;
     segmentOpen_ = true;
 
     searchAlgorithm_->enterSegment();
@@ -74,7 +73,7 @@ void SearchAlgorithm::closeSegmentLog() {
     if (not segmentOpen_) {
         return;
     }
-    segmentChannel_ << Core::XmlClose("segment");
+    clog() << Core::XmlClose("segment");
     segmentOpen_ = false;
     ++segmentIndex_;
 }

@@ -16,7 +16,6 @@
 #ifndef _PYTHON_SEARCH_HH
 #define _PYTHON_SEARCH_HH
 
-#include <Core/Channel.hh>
 #include <Flf/LatticeHandler.hh>
 #include <Flf/Lexicon.hh>
 #include <Search/SearchV2.hh>
@@ -87,10 +86,6 @@ private:
     std::unique_ptr<Search::SearchAlgorithmV2> searchAlgorithm_;
     Flf::LexiconRef                            lexicon_;
     Speech::ModelCombination                   modelCombination_;
-
-    // Dedicated channel for the `segment` structure, like the corpus visitor uses for the Flf
-    // recognizer. Must not be the component log channel, which `log()` writes its own elements to.
-    Core::XmlChannel segmentChannel_;
 
     bool   segmentOpen_  = false;  // Whether a `segment` log element is currently open
     size_t segmentIndex_ = 0ul;    // Running index of the current segment, used to identify it in the log

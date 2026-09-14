@@ -293,7 +293,6 @@ TreeLabelsyncBeamSearch::TreeLabelsyncBeamSearch(Core::Configuration const& conf
           finishedSegment_(false),
           initializationTime_(),
           featureProcessingTime_(),
-          scoringTime_(),
           numInputHyps_("num-input-hyps"),
           numExtensionsBeforeFirstPruning_("num-extensions-before-first-pruning"),
           numHypsAfterIntermediatePruning_(),
@@ -336,6 +335,7 @@ TreeLabelsyncBeamSearch::TreeLabelsyncBeamSearch(Core::Configuration const& conf
     }
 
     scoreAndPruneExtensionsTimes_.resize(maxBeamSizes_.size());
+    scoringTimes_.resize(maxBeamSizes_.size());
 }
 
 Speech::ModelCombination::Mode TreeLabelsyncBeamSearch::requiredModelCombination() const {
@@ -460,7 +460,10 @@ bool TreeLabelsyncBeamSearch::setModelCombination(Speech::ModelCombination const
 void TreeLabelsyncBeamSearch::enterSegment(Bliss::SpeechSegment const* segment) {
     initializationTime_.reset();
     featureProcessingTime_.reset();
-    scoringTime_.reset();
+    for (auto& timer : scoringTimes_) {
+        timer.reset();
+    }
+    finalizeScoringTime_.reset();
     decodeStepTime_.reset();
     for (auto& timer : scoreAndPruneExtensionsTimes_) {
         timer.reset();
@@ -606,7 +609,7 @@ bool TreeLabelsyncBeamSearch::decodeStep() {
     decodeStepTime_.start();
 
     if (logStepwiseStatistics_) {
-        clog() << Core::XmlOpen("search-step-stats");
+        clog() << Core::XmlOpen("search-step-stats") + Core::XmlAttribute("step", currentSearchStep_);
     }
 
     bool hasExtensions = scoreAndPruneExtensions();
@@ -804,9 +807,9 @@ bool TreeLabelsyncBeamSearch::scoreAndPruneExtensions() {
         /*
          * Perform scoring of all the scoring contexts with the label scorer.
          */
-        scoringTime_.start();
+        scoringTimes_[scorerIdx].start();
         auto scoreAccessors = labelScorer->getScoreAccessors(scoringContexts_);
-        scoringTime_.stop();
+        scoringTimes_[scorerIdx].stop();
         std::vector<std::optional<Nn::DenseScoreSpan>> denseScoreSpans(scoreAccessors.size(), std::nullopt);
         std::vector<Nn::TimeframeIndex>                scoreTimes(scoreAccessors.size(), 0);
         for (size_t accessorIdx = 0ul; accessorIdx < scoreAccessors.size(); ++accessorIdx) {
@@ -918,7 +921,8 @@ bool TreeLabelsyncBeamSearch::scoreAndPruneExtensions() {
                              .maxBeamSize       = maxBeamSize});
         numHypsAfterIntermediatePruning_[scorerIdx] += withinWordExtensions_.size();
         if (logStepwiseStatistics_) {
-            clog() << Core::XmlFull("num-hyps-after-intermediate-pruning-" + std::to_string(scorerIdx + 1), withinWordExtensions_.size());
+            clog() << Core::XmlOpen("num-hyps-after-intermediate-pruning") + Core::XmlAttribute("scorer", scorerIdx + 1)
+                   << withinWordExtensions_.size() << Core::XmlClose("num-hyps-after-intermediate-pruning");
         }
 
         if (withinWordExtensions_.empty()) {
@@ -1235,16 +1239,20 @@ void TreeLabelsyncBeamSearch::logStatistics() const {
     clog() << Core::XmlOpen("timing-statistics") + Core::XmlAttribute("unit", "milliseconds");
     clog() << Core::XmlOpen("initialization-time") << initializationTime_.elapsedMilliseconds() << Core::XmlClose("initialization-time");
     clog() << Core::XmlOpen("feature-processing-time") << featureProcessingTime_.elapsedMilliseconds() << Core::XmlClose("feature-processing-time");
-    clog() << Core::XmlOpen("scoring-time") << scoringTime_.elapsedMilliseconds() << Core::XmlClose("scoring-time");
-    clog() << Core::XmlOpen("decode-step-time") << decodeStepTime_.elapsedMilliseconds() << Core::XmlClose("decode-step-time");
+    clog() << Core::XmlOpen("decode-step") + Core::XmlAttribute("total", decodeStepTime_.elapsedMilliseconds());
     for (size_t i = 0ul; i < scoreAndPruneExtensionsTimes_.size(); ++i) {
-        clog() << Core::XmlOpen("score-and-prune-extensions-time-" + std::to_string(i + 1)) << scoreAndPruneExtensionsTimes_[i].elapsedMilliseconds() << Core::XmlClose("score-and-prune-extensions-time-" + std::to_string(i + 1));
+        clog() << Core::XmlOpen("score-and-prune-extensions") + Core::XmlAttribute("scorer", i + 1) + Core::XmlAttribute("total", scoreAndPruneExtensionsTimes_[i].elapsedMilliseconds());
+        clog() << Core::XmlOpen("scoring-time") << scoringTimes_[i].elapsedMilliseconds() << Core::XmlClose("scoring-time");
+        clog() << Core::XmlClose("score-and-prune-extensions");
     }
     clog() << Core::XmlOpen("build-new-beam-time") << buildNewBeamTime_.elapsedMilliseconds() << Core::XmlClose("build-new-beam-time");
+    clog() << Core::XmlOpen("word-end-expansion-time") << wordEndExpansionTime_.elapsedMilliseconds() << Core::XmlClose("word-end-expansion-time");
     clog() << Core::XmlOpen("recombination-time") << recombinationTime_.elapsedMilliseconds() << Core::XmlClose("recombination-time");
     clog() << Core::XmlOpen("beam-pruning-time") << beamPruningTime_.elapsedMilliseconds() << Core::XmlClose("beam-pruning-time");
-    clog() << Core::XmlOpen("word-end-expansion-time") << wordEndExpansionTime_.elapsedMilliseconds() << Core::XmlClose("word-end-expansion-time");
-    clog() << Core::XmlOpen("finalize-hypotheses-time") << finalizeHypothesesTime_.elapsedMilliseconds() << Core::XmlClose("finalize-hypotheses-time");
+    clog() << Core::XmlClose("decode-step");
+    clog() << Core::XmlOpen("finalize-hypotheses") + Core::XmlAttribute("total", finalizeHypothesesTime_.elapsedMilliseconds());
+    clog() << Core::XmlOpen("scoring-time") << finalizeScoringTime_.elapsedMilliseconds() << Core::XmlClose("scoring-time");
+    clog() << Core::XmlClose("finalize-hypotheses");
     clog() << Core::XmlClose("timing-statistics");
     numInputHyps_.write(clog());
     numExtensionsBeforeFirstPruning_.write(clog());
@@ -1679,9 +1687,9 @@ void TreeLabelsyncBeamSearch::finalizeHypotheses() {
             scoringContexts_.push_back(hyp.scoringContexts[scorerIdx]);
         }
 
-        scoringTime_.start();
+        finalizeScoringTime_.start();
         auto scoreAccessors = labelScorers_[scorerIdx]->getScoreAccessors(scoringContexts_);
-        scoringTime_.stop();
+        finalizeScoringTime_.stop();
         std::vector<std::optional<Nn::DenseScoreSpan>> denseScoreSpans(scoreAccessors.size(), std::nullopt);
         std::vector<Nn::TimeframeIndex>                scoreTimes(scoreAccessors.size(), 0);
         for (size_t accessorIdx = 0ul; accessorIdx < scoreAccessors.size(); ++accessorIdx) {

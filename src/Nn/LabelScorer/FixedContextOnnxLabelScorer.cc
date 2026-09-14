@@ -126,9 +126,9 @@ FixedContextOnnxLabelScorer::FixedContextOnnxLabelScorer(Core::Configuration con
     scoresName_             = onnxModel_->mapping.getOnnxName("scores");
 }
 
-void FixedContextOnnxLabelScorer::logAdditionalStatistics() const {
-    clog() << Core::XmlOpen("onnx-session-time") + Core::XmlAttribute("unit", "milliseconds") << onnxSessionTime_.elapsedMilliseconds() << Core::XmlClose("onnx-session-time");
-    clog() << Core::XmlOpen("context-preparation-time") + Core::XmlAttribute("unit", "milliseconds") << contextPreparationTime_.elapsedMilliseconds() << Core::XmlClose("context-preparation-time");
+void FixedContextOnnxLabelScorer::logScoringBreakdown() const {
+    clog() << Core::XmlOpen("onnx-session-time") << onnxSessionTime_.elapsedMilliseconds() << Core::XmlClose("onnx-session-time");
+    clog() << Core::XmlOpen("context-preparation-time") << contextPreparationTime_.elapsedMilliseconds() << Core::XmlClose("context-preparation-time");
 }
 
 void FixedContextOnnxLabelScorer::reset() {

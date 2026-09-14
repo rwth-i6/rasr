@@ -111,7 +111,7 @@ private:
     Onnx::Value encoderStatesValue_;
     Onnx::Value encoderStatesSizeValue_;
 
-    void logAdditionalStatistics() const override;
+    void logScoringBreakdown() const override;
 
     Core::StopWatch onnxSessionTime_;
     Core::StopWatch contextPreparationTime_;

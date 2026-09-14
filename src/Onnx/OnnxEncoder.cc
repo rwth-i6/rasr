@@ -66,8 +66,8 @@ OnnxEncoder::OnnxEncoder(Core::Configuration const& config, Nn::ModelCache& mode
     stateManager_->setInitialStates(stateVariables_);
 }
 
-void OnnxEncoder::logAdditionalStatistics() const {
-    clog() << Core::XmlOpen("onnx-session-time") + Core::XmlAttribute("unit", "milliseconds") << onnxSessionTime_.elapsedMilliseconds() << Core::XmlClose("onnx-session-time");
+void OnnxEncoder::logEncodeBreakdown() const {
+    clog() << Core::XmlOpen("onnx-session-time") << onnxSessionTime_.elapsedMilliseconds() << Core::XmlClose("onnx-session-time");
 }
 
 void OnnxEncoder::reset() {

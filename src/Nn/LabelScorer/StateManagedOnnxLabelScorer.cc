@@ -166,9 +166,9 @@ StateManagedOnnxLabelScorer::StateManagedOnnxLabelScorer(Core::Configuration con
     startLabels_.insert(startLabels_.begin(), startLabels.begin(), startLabels.end());
 }
 
-void StateManagedOnnxLabelScorer::logAdditionalStatistics() const {
-    clog() << Core::XmlOpen("onnx-session-time") + Core::XmlAttribute("unit", "milliseconds") << onnxSessionTime_.elapsedMilliseconds() << Core::XmlClose("onnx-session-time");
-    clog() << Core::XmlOpen("context-preparation-time") + Core::XmlAttribute("unit", "milliseconds") << contextPreparationTime_.elapsedMilliseconds() << Core::XmlClose("context-preparation-time");
+void StateManagedOnnxLabelScorer::logScoringBreakdown() const {
+    clog() << Core::XmlOpen("onnx-session-time") << onnxSessionTime_.elapsedMilliseconds() << Core::XmlClose("onnx-session-time");
+    clog() << Core::XmlOpen("context-preparation-time") << contextPreparationTime_.elapsedMilliseconds() << Core::XmlClose("context-preparation-time");
 }
 
 void StateManagedOnnxLabelScorer::reset() {

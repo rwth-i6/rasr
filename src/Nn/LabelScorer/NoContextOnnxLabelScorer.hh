@@ -67,7 +67,7 @@ private:
     std::string inputFeatureName_;
     std::string scoresName_;
 
-    void logAdditionalStatistics() const override;
+    void logScoringBreakdown() const override;
 
     Core::StopWatch onnxSessionTime_;
 

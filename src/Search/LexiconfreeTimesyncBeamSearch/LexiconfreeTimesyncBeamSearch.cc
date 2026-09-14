@@ -200,7 +200,6 @@ LexiconfreeTimesyncBeamSearch::LexiconfreeTimesyncBeamSearch(Core::Configuration
           tempHypotheses_(),
           initializationTime_(),
           featureProcessingTime_(),
-          scoringTime_(),
           numInputHyps_("num-input-hyps"),
           numExtensionsBeforeFirstPruning_("num-extensions-before-first-pruning"),
           numHypsAfterRecombination_("num-hyps-after-recombination"),
@@ -237,6 +236,7 @@ LexiconfreeTimesyncBeamSearch::LexiconfreeTimesyncBeamSearch(Core::Configuration
     }
 
     scoreAndPruneExtensionsTimes_.resize(maxBeamSizes_.size());
+    scoringTimes_.resize(maxBeamSizes_.size());
 
     useSentenceEnd_ = sentenceEndLabelIndex_ != Nn::invalidLabelIndex;
     if (useSentenceEnd_) {
@@ -266,6 +266,9 @@ bool LexiconfreeTimesyncBeamSearch::setModelCombination(Speech::ModelCombination
     }
     if (scoreAndPruneExtensionsTimes_.size() < labelScorers_.size()) {
         scoreAndPruneExtensionsTimes_.resize(labelScorers_.size());
+    }
+    if (scoringTimes_.size() < labelScorers_.size()) {
+        scoringTimes_.resize(labelScorers_.size());
     }
 
     auto blankLemma = lexicon_->specialLemma("blank");
@@ -324,7 +327,10 @@ bool LexiconfreeTimesyncBeamSearch::setModelCombination(Speech::ModelCombination
 void LexiconfreeTimesyncBeamSearch::enterSegment(Bliss::SpeechSegment const* segment) {
     initializationTime_.reset();
     featureProcessingTime_.reset();
-    scoringTime_.reset();
+    for (auto& timer : scoringTimes_) {
+        timer.reset();
+    }
+    finalizeScoringTime_.reset();
     decodeStepTime_.reset();
     for (auto& timer : scoreAndPruneExtensionsTimes_) {
         timer.reset();
@@ -438,7 +444,7 @@ bool LexiconfreeTimesyncBeamSearch::decodeStep() {
     decodeStepTime_.start();
 
     if (logStepwiseStatistics_) {
-        clog() << Core::XmlOpen("search-step-stats");
+        clog() << Core::XmlOpen("search-step-stats") + Core::XmlAttribute("step", currentSearchStep_);
     }
 
     bool hasExtensions = scoreAndPruneExtensions();
@@ -469,7 +475,8 @@ bool LexiconfreeTimesyncBeamSearch::decodeStep() {
     beamPruningTime_.stop();
     numHypsAfterPruning_ += newBeam_.size();
     if (logStepwiseStatistics_) {
-        clog() << Core::XmlFull("num-hyps-after-pruning-" + std::to_string(labelScorers_.size()), newBeam_.size());
+        clog() << Core::XmlOpen("num-hyps-after-pruning") + Core::XmlAttribute("scorer", labelScorers_.size())
+               << newBeam_.size() << Core::XmlClose("num-hyps-after-pruning");
     }
 
     beam_.swap(newBeam_);
@@ -530,9 +537,9 @@ bool LexiconfreeTimesyncBeamSearch::scoreAndPruneExtensions() {
     for (size_t scorerIdx = 0ul; scorerIdx < labelScorers_.size(); ++scorerIdx) {
         scoreAndPruneExtensionsTimes_[scorerIdx].start();
         auto const& labelScorer = labelScorers_[scorerIdx];
-        scoringTime_.start();
+        scoringTimes_[scorerIdx].start();
         auto scoreAccessors = labelScorer->getScoreAccessors(scoringContexts_);
-        scoringTime_.stop();
+        scoringTimes_[scorerIdx].stop();
         std::vector<std::optional<Nn::DenseScoreSpan>> denseScoreSpans(scoreAccessors.size(), std::nullopt);
         std::vector<Nn::TimeframeIndex>                scoreTimes(scoreAccessors.size(), 0);
         for (size_t accessorIdx = 0ul; accessorIdx < scoreAccessors.size(); ++accessorIdx) {
@@ -631,7 +638,8 @@ bool LexiconfreeTimesyncBeamSearch::scoreAndPruneExtensions() {
         }
         scorePruning(extensions_, scoreThresholds_[scorerIdx], maxBeamSize);
         if (logStepwiseStatistics_) {
-            clog() << Core::XmlFull("num-hyps-after-intermediate-pruning-" + std::to_string(scorerIdx + 1), extensions_.size());
+            clog() << Core::XmlOpen("num-hyps-after-intermediate-pruning") + Core::XmlAttribute("scorer", scorerIdx + 1)
+                   << extensions_.size() << Core::XmlClose("num-hyps-after-intermediate-pruning");
         }
         numHypsAfterIntermediatePruning_[scorerIdx] += extensions_.size();
         if (extensions_.empty()) {
@@ -709,15 +717,19 @@ void LexiconfreeTimesyncBeamSearch::logStatistics() const {
     clog() << Core::XmlOpen("timing-statistics") + Core::XmlAttribute("unit", "milliseconds");
     clog() << Core::XmlOpen("initialization-time") << initializationTime_.elapsedMilliseconds() << Core::XmlClose("initialization-time");
     clog() << Core::XmlOpen("feature-processing-time") << featureProcessingTime_.elapsedMilliseconds() << Core::XmlClose("feature-processing-time");
-    clog() << Core::XmlOpen("scoring-time") << scoringTime_.elapsedMilliseconds() << Core::XmlClose("scoring-time");
-    clog() << Core::XmlOpen("decode-step-time") << decodeStepTime_.elapsedMilliseconds() << Core::XmlClose("decode-step-time");
+    clog() << Core::XmlOpen("decode-step") + Core::XmlAttribute("total", decodeStepTime_.elapsedMilliseconds());
     for (size_t i = 0ul; i < scoreAndPruneExtensionsTimes_.size(); ++i) {
-        clog() << Core::XmlOpen("score-and-prune-extensions-time-" + std::to_string(i + 1)) << scoreAndPruneExtensionsTimes_[i].elapsedMilliseconds() << Core::XmlClose("score-and-prune-extensions-time-" + std::to_string(i + 1));
+        clog() << Core::XmlOpen("score-and-prune-extensions") + Core::XmlAttribute("scorer", i + 1) + Core::XmlAttribute("total", scoreAndPruneExtensionsTimes_[i].elapsedMilliseconds());
+        clog() << Core::XmlOpen("scoring-time") << scoringTimes_[i].elapsedMilliseconds() << Core::XmlClose("scoring-time");
+        clog() << Core::XmlClose("score-and-prune-extensions");
     }
     clog() << Core::XmlOpen("build-new-beam-time") << buildNewBeamTime_.elapsedMilliseconds() << Core::XmlClose("build-new-beam-time");
     clog() << Core::XmlOpen("recombination-time") << recombinationTime_.elapsedMilliseconds() << Core::XmlClose("recombination-time");
     clog() << Core::XmlOpen("beam-pruning-time") << beamPruningTime_.elapsedMilliseconds() << Core::XmlClose("beam-pruning-time");
-    clog() << Core::XmlOpen("finalize-hypotheses-time") << finalizeHypothesesTime_.elapsedMilliseconds() << Core::XmlClose("finalize-hypotheses-time");
+    clog() << Core::XmlClose("decode-step");
+    clog() << Core::XmlOpen("finalize-hypotheses") + Core::XmlAttribute("total", finalizeHypothesesTime_.elapsedMilliseconds());
+    clog() << Core::XmlOpen("scoring-time") << finalizeScoringTime_.elapsedMilliseconds() << Core::XmlClose("scoring-time");
+    clog() << Core::XmlClose("finalize-hypotheses");
     clog() << Core::XmlClose("timing-statistics");
     numInputHyps_.write(clog());
     numExtensionsBeforeFirstPruning_.write(clog());
@@ -957,9 +969,9 @@ void LexiconfreeTimesyncBeamSearch::finalizeHypotheses() {
             scoringContexts_.push_back(hyp.scoringContexts[scorerIdx]);
         }
 
-        scoringTime_.start();
+        finalizeScoringTime_.start();
         auto scoreAccessors = labelScorers_[scorerIdx]->getScoreAccessors(scoringContexts_);
-        scoringTime_.stop();
+        finalizeScoringTime_.stop();
 
         for (size_t extensionIdx = 0ul; extensionIdx < extensions_.size(); ++extensionIdx) {
             if (not scoreAccessors[extensionIdx]) {

@@ -103,7 +103,7 @@ private:
     std::string historyName_;
     std::string scoresName_;
 
-    void logAdditionalStatistics() const override;
+    void logScoringBreakdown() const override;
 
     Core::StopWatch onnxSessionTime_;
     Core::StopWatch contextPreparationTime_;

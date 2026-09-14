@@ -147,7 +147,8 @@ private:
 
     Core::StopWatch              initializationTime_;
     Core::StopWatch              featureProcessingTime_;
-    Core::StopWatch              scoringTime_;
+    std::vector<Core::StopWatch> scoringTimes_;         // Scoring time per label scorer, contained in the matching scoreAndPruneExtensionsTimes_ entry
+    Core::StopWatch              finalizeScoringTime_;  // Scoring time during finalizeHypotheses
     Core::StopWatch              decodeStepTime_;
     std::vector<Core::StopWatch> scoreAndPruneExtensionsTimes_;
     Core::StopWatch              buildNewBeamTime_;

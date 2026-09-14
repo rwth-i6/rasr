@@ -65,7 +65,7 @@ protected:
     std::unique_ptr<StateManager>  stateManager_;
     std::vector<OnnxStateVariable> stateVariables_;
 
-    void logAdditionalStatistics() const override;
+    void logEncodeBreakdown() const override;
 
     Core::StopWatch onnxSessionTime_;
 };

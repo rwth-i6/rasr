@@ -132,8 +132,11 @@ public:
     TransitionSet enabledTransitions() const;
 
 protected:
-    // Hook for subclasses to add their own timers to the statistics element opened by
-    // `logStatistics`. Called between the shared timing and the shared counters.
+    // Hook for subclasses to break down `scoring-time`. Called inside that element, so only
+    // timers whose intervals are contained in it belong here.
+    virtual void logScoringBreakdown() const {}
+
+    // Hook for subclasses to add timers that are not contained in `scoring-time`.
     virtual void logAdditionalStatistics() const {}
 
     // Tracking only, so these stay writable from const scoring paths

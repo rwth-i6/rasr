@@ -73,9 +73,9 @@ protected:
 
     bool expectMoreFeatures_;
 
-    // Hook for subclasses to add their own timers to the statistics element opened by
-    // `logStatistics`.
-    virtual void logAdditionalStatistics() const {}
+    // Hook for subclasses to break down `encode-time`. Called inside that element, so only
+    // timers whose intervals are contained in it belong here.
+    virtual void logEncodeBreakdown() const {}
 
     // Tracking only, so these stay writable from const paths
     mutable Core::StopWatch encodeTime_;

@@ -27,8 +27,9 @@ Encoder::Encoder(Core::Configuration const& config)
 
 void Encoder::logStatistics() const {
     clog() << Core::XmlOpen("encoder-statistics") + Core::XmlAttribute("component", fullName());
-    clog() << Core::XmlOpen("encode-time") + Core::XmlAttribute("unit", "milliseconds") << encodeTime_.elapsedMilliseconds() << Core::XmlClose("encode-time");
-    logAdditionalStatistics();
+    clog() << Core::XmlOpen("encode-time") + Core::XmlAttribute("unit", "milliseconds") + Core::XmlAttribute("total", encodeTime_.elapsedMilliseconds());
+    logEncodeBreakdown();
+    clog() << Core::XmlClose("encode-time");
     clog() << Core::XmlFull("num-encoded-features", numEncodedFeatures_);
     clog() << Core::XmlClose("encoder-statistics");
 }

@@ -50,8 +50,8 @@ NoContextOnnxLabelScorer::NoContextOnnxLabelScorer(Core::Configuration const& co
     scoresName_             = onnxModel_->mapping.getOnnxName("scores");
 }
 
-void NoContextOnnxLabelScorer::logAdditionalStatistics() const {
-    clog() << Core::XmlOpen("onnx-session-time") + Core::XmlAttribute("unit", "milliseconds") << onnxSessionTime_.elapsedMilliseconds() << Core::XmlClose("onnx-session-time");
+void NoContextOnnxLabelScorer::logScoringBreakdown() const {
+    clog() << Core::XmlOpen("onnx-session-time") << onnxSessionTime_.elapsedMilliseconds() << Core::XmlClose("onnx-session-time");
 }
 
 void NoContextOnnxLabelScorer::reset() {

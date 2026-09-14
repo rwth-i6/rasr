@@ -37,7 +37,9 @@ void LabelScorer::reset() {
 
 void LabelScorer::logStatistics() const {
     clog() << Core::XmlOpen("label-scorer-statistics") + Core::XmlAttribute("component", fullName());
-    clog() << Core::XmlOpen("scoring-time") + Core::XmlAttribute("unit", "milliseconds") << scoringTime_.elapsedMilliseconds() << Core::XmlClose("scoring-time");
+    clog() << Core::XmlOpen("scoring-time") + Core::XmlAttribute("unit", "milliseconds") + Core::XmlAttribute("total", scoringTime_.elapsedMilliseconds());
+    logScoringBreakdown();
+    clog() << Core::XmlClose("scoring-time");
     logAdditionalStatistics();
     clog() << Core::XmlFull("num-score-accessors-requested", numScoreAccessorsRequested_);
     clog() << Core::XmlFull("num-score-accessors-computed", numScoreAccessorsComputed_);

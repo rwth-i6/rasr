@@ -144,7 +144,11 @@ void bindSearchAlgorithm(py::module_& module) {
     pySearchAlgorithm.def(
             "enter_segment",
             &SearchAlgorithm::enterSegment,
-            "Call at the beginning of a new segment.");
+            py::arg("name") = "",
+            "Call at the beginning of a new segment.\n\n"
+            "Opens a `segment` element in the log so that all messages until\n"
+            "`finish_segment()` are grouped under it. The optional `name` is only\n"
+            "used to identify the segment in the log.");
 
     pySearchAlgorithm.def(
             "finish_segment",
@@ -183,6 +187,7 @@ void bindSearchAlgorithm(py::module_& module) {
             "recognize_segment",
             &SearchAlgorithm::recognizeSegment,
             py::arg("features"),
+            py::arg("name") = "",
             "Convenience function to start a segment, pass all the features as a numpy array of shape [T, F] or [1, T, F], finish the segment, and return the recognition result.");
 
     pySearchAlgorithm.def(
@@ -190,6 +195,7 @@ void bindSearchAlgorithm(py::module_& module) {
             &SearchAlgorithm::recognizeSegmentNBest,
             py::arg("features"),
             py::arg("n"),
+            py::arg("name") = "",
             "Convenience function to start a segment, pass all the features as a numpy array of shape [T, F] or [1, T, F], finish the segment, and return a n-best list of results.");
 
     pySearchAlgorithm.def(

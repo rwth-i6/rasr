@@ -57,7 +57,6 @@ public:
     static const Core::ParameterBool        paramSeparateLookaheadLm;
     static const Core::ParameterBool        paramSparseLmLookAhead;
     static const Core::ParameterBool        paramSentenceEndFallBack;
-    static const Core::ParameterBool        paramLogStepwiseStatistics;
     static const Core::ParameterInt         paramCacheCleanupInterval;
     static const Core::ParameterInt         paramMaximumStableDelay;
     static const Core::ParameterInt         paramMaximumStableDelayPruningInterval;
@@ -173,7 +172,10 @@ private:
     bool collapseRepeatedLabels_;
     bool sentenceEndFallback_;
     bool recombinationEnabled_;
-    bool logStepwiseStatistics_;
+    // Per-segment timing and statistics. Defaults to the standard log target.
+    mutable Core::XmlChannel statisticsChannel_;
+    // Statistics for every search step. Disabled unless a target is configured.
+    Core::XmlChannel stepwiseStatisticsChannel_;
 
     std::vector<Core::Ref<Nn::LabelScorer>>        labelScorers_;
     Bliss::LexiconRef                              lexicon_;
@@ -208,13 +210,24 @@ private:
     size_t currentSearchStep_;
     bool   finishedSegment_;
 
-    Core::StopWatch initializationTime_;
-    Core::StopWatch featureProcessingTime_;
-    Core::StopWatch scoringTime_;
+    Core::StopWatch              initializationTime_;
+    Core::StopWatch              featureProcessingTime_;
+    std::vector<Core::StopWatch> scoringTimes_;         // Scoring time per label scorer, contained in the matching scoreAndPruneExtensionsTimes_ entry
+    Core::StopWatch              finalizeScoringTime_;  // Scoring time during finalizeHypotheses
+    Core::StopWatch              decodeStepTime_;
+    std::vector<Core::StopWatch> scoreAndPruneExtensionsTimes_;
+    Core::StopWatch              buildNewBeamTime_;
+    Core::StopWatch              recombinationTime_;
+    Core::StopWatch              beamPruningTime_;
+    Core::StopWatch              wordEndExpansionTime_;
+    Core::StopWatch              finalizeHypothesesTime_;
 
+    Core::Statistics<u32>              numInputHyps_;
+    Core::Statistics<u32>              numExtensionsBeforeFirstPruning_;
     std::vector<Core::Statistics<u32>> numHypsAfterIntermediatePruning_;
     Core::Statistics<u32>              numHypsAfterRecombination_;
     Core::Statistics<u32>              numHypsAfterPruning_;
+    Core::Statistics<u32>              numWordEndExtensionsBeforePruning_;
     Core::Statistics<u32>              numWordEndHypsAfterScorePruning_;
     Core::Statistics<u32>              numWordEndHypsAfterRecombination_;
     Core::Statistics<u32>              numWordEndHypsAfterBeamPruning_;
@@ -244,6 +257,31 @@ private:
      * With `createTraceSiblings` the traces of the recombined hypotheses will be added as siblings (for word-end recombination).
      */
     void recombination(std::vector<LabelHypothesis>& hypotheses, bool createTraceSiblings);
+
+    /*
+     * Run the multi-scorer loop: create within-word extensions from the first scorer, update scores
+     * with subsequent scorers, apply intermediate pruning after each scorer.
+     * Populates `withinWordExtensions_`. Returns false if no extensions survive (decode step should abort).
+     */
+    bool scoreAndPruneExtensions();
+
+    /*
+     * Create new beam hypotheses from the surviving within-word extensions.
+     * Populates `newBeam_`.
+     */
+    void buildNewBeamFromExtensions();
+
+    /*
+     * Expand within-word hypotheses in `newBeam_` to word-end hypotheses by applying
+     * the language model. Prune and recombine the word-end hypotheses.
+     * Populates `wordEndHypotheses_`.
+     */
+    void expandAndPruneWordEndHypotheses();
+
+    /*
+     * Log the per-step statistics and debug output for the current beam.
+     */
+    void logStepStatistics();
 
     /*
      * Retrieve or compute the LM lookahead for the given history

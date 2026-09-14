@@ -174,6 +174,12 @@ private:
     Onnx::Value encoderStatesValue_;
     Onnx::Value encoderStatesSizeValue_;
 
+    void logScoringBreakdown() const override;
+
+    Core::StopWatch stateUpdateSessionTime_;
+    Core::StopWatch scorerSessionTime_;
+    Core::StopWatch contextPreparationTime_;
+
     Core::FIFOCache<OnnxHiddenStateScoringContextRef, std::shared_ptr<std::vector<Score>>, ScoringContextHash, ScoringContextEq> scoreCache_;
     Core::FIFOCache<OnnxHiddenStateScoringContextRef, OnnxHiddenStateRef, ScoringContextHash, ScoringContextEq>                  stateCache_;
 };

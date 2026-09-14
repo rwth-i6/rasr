@@ -15,6 +15,8 @@
 
 #include "LabelScorer.hh"
 
+#include <Core/XmlStream.hh>
+
 namespace Nn {
 
 /*
@@ -24,7 +26,29 @@ namespace Nn {
  */
 LabelScorer::LabelScorer(Core::Configuration const& config, TransitionPresetType defaultPreset)
         : Core::Component(config),
+          statisticsChannel_(config, "statistics", Core::Channel::standard),
           enabledTransitions_(config, defaultPreset) {
+}
+
+void LabelScorer::reset() {
+    scoringTime_.reset();
+    numScoreAccessorsRequested_ = 0ul;
+    numScoreAccessorsComputed_  = 0ul;
+}
+
+void LabelScorer::logStatistics() const {
+    if (not statisticsChannel_.isOpen()) {
+        return;
+    }
+
+    statisticsChannel_ << Core::XmlOpen("label-scorer-statistics") + Core::XmlAttribute("component", fullName());
+    statisticsChannel_ << Core::XmlOpen("scoring-time") + Core::XmlAttribute("unit", "milliseconds") + Core::XmlAttribute("total", scoringTime_.elapsedMilliseconds());
+    logScoringBreakdown();
+    statisticsChannel_ << Core::XmlClose("scoring-time");
+    logAdditionalStatistics();
+    statisticsChannel_ << Core::XmlFull("num-score-accessors-requested", numScoreAccessorsRequested_);
+    statisticsChannel_ << Core::XmlFull("num-score-accessors-computed", numScoreAccessorsComputed_);
+    statisticsChannel_ << Core::XmlClose("label-scorer-statistics");
 }
 
 void LabelScorer::addInputs(DataView const& input, size_t nTimesteps) {

@@ -54,7 +54,6 @@ public:
     static const Core::ParameterInt         paramMaximumStableDelayPruningInterval;
     static const Core::Choice               choiceRecombinationMode;
     static const Core::ParameterChoice      paramRecombinationMode;
-    static const Core::ParameterBool        paramLogStepwiseStatistics;
 
     LexiconfreeTimesyncBeamSearch(Core::Configuration const&);
 
@@ -130,7 +129,10 @@ private:
     size_t              maximumStableDelay_;
     size_t              maximumStableDelayPruningInterval_;
     bool                recombinationEnabled_;
-    bool                logStepwiseStatistics_;
+    // Per-segment timing and statistics. Defaults to the standard log target.
+    mutable Core::XmlChannel statisticsChannel_;
+    // Statistics for every search step. Disabled unless a target is configured.
+    Core::XmlChannel stepwiseStatisticsChannel_;
 
     Core::Channel debugChannel_;
 
@@ -145,10 +147,19 @@ private:
     std::vector<Nn::ScoringContextRef> scoringContexts_;
     std::vector<LabelHypothesis>       tempHypotheses_;
 
-    Core::StopWatch initializationTime_;
-    Core::StopWatch featureProcessingTime_;
-    Core::StopWatch scoringTime_;
+    Core::StopWatch              initializationTime_;
+    Core::StopWatch              featureProcessingTime_;
+    std::vector<Core::StopWatch> scoringTimes_;         // Scoring time per label scorer, contained in the matching scoreAndPruneExtensionsTimes_ entry
+    Core::StopWatch              finalizeScoringTime_;  // Scoring time during finalizeHypotheses
+    Core::StopWatch              decodeStepTime_;
+    std::vector<Core::StopWatch> scoreAndPruneExtensionsTimes_;
+    Core::StopWatch              buildNewBeamTime_;
+    Core::StopWatch              recombinationTime_;
+    Core::StopWatch              beamPruningTime_;
+    Core::StopWatch              finalizeHypothesesTime_;
 
+    Core::Statistics<u32>              numInputHyps_;
+    Core::Statistics<u32>              numExtensionsBeforeFirstPruning_;
     std::vector<Core::Statistics<u32>> numHypsAfterIntermediatePruning_;
     Core::Statistics<u32>              numHypsAfterRecombination_;
     Core::Statistics<u32>              numHypsAfterPruning_;
@@ -179,6 +190,24 @@ private:
      * Helper function for recombination of hypotheses with the same scoring context
      */
     void recombination(std::vector<LabelHypothesis>& hypotheses);
+
+    /*
+     * Run the multi-scorer loop: create extensions from the first scorer, update scores with
+     * subsequent scorers, apply intermediate pruning after each scorer.
+     * Populates `extensions_`. Returns false if no extensions survive (decode step should abort).
+     */
+    bool scoreAndPruneExtensions();
+
+    /*
+     * Create new beam hypotheses from the surviving extensions in `extensions_`.
+     * Populates `newBeam_`.
+     */
+    void buildNewBeamFromExtensions();
+
+    /*
+     * Log the per-step statistics and debug output for the current beam.
+     */
+    void logStepStatistics();
 
     /*
      * Score sentence-end with all label scores for all hypotheses in the beam

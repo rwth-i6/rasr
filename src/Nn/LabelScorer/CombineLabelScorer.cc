@@ -137,8 +137,15 @@ Core::Ref<ScaledLabelScorer> CombineLabelScorer::getSubScorer(size_t index) cons
 }
 
 void CombineLabelScorer::reset() {
+    Precursor::reset();
     for (auto& scorer : scorers_) {
         scorer->reset();
+    }
+}
+
+void CombineLabelScorer::logStatistics() const {
+    for (auto const& scorer : scorers_) {
+        scorer->logStatistics();
     }
 }
 

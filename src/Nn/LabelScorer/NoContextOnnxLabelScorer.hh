@@ -67,6 +67,10 @@ private:
     std::string inputFeatureName_;
     std::string scoresName_;
 
+    void logScoringBreakdown() const override;
+
+    Core::StopWatch onnxSessionTime_;
+
     std::unordered_map<StepScoringContextRef, std::shared_ptr<std::vector<Score>>, ScoringContextHash, ScoringContextEq> scoreCache_;
 
     void forwardContext(StepScoringContextRef const& scoringContext);

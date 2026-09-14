@@ -18,12 +18,15 @@
 
 #include <optional>
 
+#include <Core/Channel.hh>
 #include <Core/CollapsedVector.hh>
 #include <Core/Component.hh>
 #include <Core/Configuration.hh>
 #include <Core/Parameter.hh>
 #include <Core/ReferenceCounting.hh>
+#include <Core/StopWatch.hh>
 #include <Core/Types.hh>
+#include <Core/XmlStream.hh>
 #include <Flow/Timestamp.hh>
 #include <Flow/Vector.hh>
 #include <Mm/FeatureScorer.hh>
@@ -82,8 +85,12 @@ public:
     virtual ~LabelScorer() = default;
 
     // Prepares the LabelScorer to receive new inputs
-    // e.g. by resetting input buffers and segmentEnd flags
+    // e.g. by resetting input buffers and segmentEnd flags.
+    // Also resets the accumulated timing and statistics; overrides must call this base implementation.
     virtual void reset() = 0;
+
+    // Log the timing and statistics accumulated since the last `reset`.
+    virtual void logStatistics() const;
 
     // Tells the LabelScorer that there will be no more input features coming in the current segment
     virtual void signalNoMoreFeatures() = 0;
@@ -126,6 +133,21 @@ public:
     TransitionSet enabledTransitions() const;
 
 protected:
+    // Hook for subclasses to break down `scoring-time`. Called inside that element, so only
+    // timers whose intervals are contained in it belong here.
+    virtual void logScoringBreakdown() const {}
+
+    // Hook for subclasses to add timers that are not contained in `scoring-time`.
+    virtual void logAdditionalStatistics() const {}
+
+    // Tracking only, so writable from const scoring paths
+    mutable Core::StopWatch scoringTime_;
+    mutable size_t          numScoreAccessorsRequested_ = 0;
+    mutable size_t          numScoreAccessorsComputed_  = 0;
+
+    // Channel that `logStatistics` writes to. Defaults to the standard log target.
+    mutable Core::XmlChannel statisticsChannel_;
+
     TransitionSet enabledTransitions_;
 };
 

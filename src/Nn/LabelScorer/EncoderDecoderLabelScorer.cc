@@ -30,8 +30,14 @@ Core::Ref<ScaledLabelScorer> EncoderDecoderLabelScorer::getDecoderLabelScorer() 
 }
 
 void EncoderDecoderLabelScorer ::reset() {
+    LabelScorer::reset();
     encoder_->reset();
     decoder_->reset();
+}
+
+void EncoderDecoderLabelScorer::logStatistics() const {
+    encoder_->logStatistics();
+    decoder_->logStatistics();
 }
 
 ScoringContextRef EncoderDecoderLabelScorer::getInitialScoringContext() {

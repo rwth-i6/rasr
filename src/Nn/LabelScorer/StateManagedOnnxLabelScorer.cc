@@ -15,6 +15,8 @@
 
 #include "StateManagedOnnxLabelScorer.hh"
 
+#include <Core/XmlStream.hh>
+
 #include <Nn/Module.hh>
 
 #include "ScoreAccessor.hh"
@@ -164,8 +166,15 @@ StateManagedOnnxLabelScorer::StateManagedOnnxLabelScorer(Core::Configuration con
     startLabels_.insert(startLabels_.begin(), startLabels.begin(), startLabels.end());
 }
 
+void StateManagedOnnxLabelScorer::logScoringBreakdown() const {
+    statisticsChannel_ << Core::XmlOpen("onnx-session-time") << onnxSessionTime_.elapsedMilliseconds() << Core::XmlClose("onnx-session-time");
+    statisticsChannel_ << Core::XmlOpen("context-preparation-time") << contextPreparationTime_.elapsedMilliseconds() << Core::XmlClose("context-preparation-time");
+}
+
 void StateManagedOnnxLabelScorer::reset() {
     Precursor::reset();
+    onnxSessionTime_.reset();
+    contextPreparationTime_.reset();
     encoderStatesValue_     = Onnx::Value();
     encoderStatesSizeValue_ = Onnx::Value();
     scoreCache_.clear();
@@ -242,14 +251,20 @@ std::vector<std::optional<ScoreAccessorRef>> StateManagedOnnxLabelScorer::getSco
         return {};
     }
 
+    scoringTime_.start();
+
+    numScoreAccessorsRequested_ += scoringContexts.size();
+
     std::vector<std::optional<ScoreAccessorRef>> scoreAccessors(scoringContexts.size(), std::nullopt);
     if ((encoderStatesName_ != "" or encoderStatesSizeName_ != "") and (expectMoreFeatures_ or bufferSize() == 0)) {
+        scoringTime_.stop();
         return scoreAccessors;
     }
 
     /*
      * Identify unique scoring contexts that still need session runs
      */
+    contextPreparationTime_.start();
     std::unordered_set<StateManagedOnnxScoringContextRef, ScoringContextHash, ScoringContextEq> uniqueUncachedScoringContexts;
     for (auto const& scoringContext : scoringContexts) {
         StateManagedOnnxScoringContextRef context(dynamic_cast<StateManagedOnnxScoringContext const*>(scoringContext.get()));
@@ -261,6 +276,9 @@ std::vector<std::optional<ScoreAccessorRef>> StateManagedOnnxLabelScorer::getSco
             uniqueUncachedScoringContexts.emplace(context);
         }
     }
+    contextPreparationTime_.stop();
+
+    numScoreAccessorsComputed_ += uniqueUncachedScoringContexts.size();
 
     /*
      * Fill state and score caches for all uncached scoring contexts
@@ -279,13 +297,16 @@ std::vector<std::optional<ScoreAccessorRef>> StateManagedOnnxLabelScorer::getSco
     /*
      * Assign scores from cache to result vector
      */
+    contextPreparationTime_.start();
     for (size_t i = 0ul; i < scoringContexts.size(); ++i) {
         StateManagedOnnxScoringContextRef context(dynamic_cast<StateManagedOnnxScoringContext const*>(scoringContexts[i].get()));
         auto                              scores = scoreCache_.get(context);
         verify(scores);
         scoreAccessors[i] = Core::ref(new VectorScoreAccessor(scores->get(), context->labelSeq.empty() ? 0ul : context->labelSeq.size() - 1ul));
     }
+    contextPreparationTime_.stop();
 
+    scoringTime_.stop();
     return scoreAccessors;
 }
 
@@ -384,7 +405,9 @@ void StateManagedOnnxLabelScorer::cacheStatesAndScores(std::vector<StateManagedO
     targets.emplace(targets.begin(), scoresName_);
 
     std::vector<Onnx::Value> outputs;
+    onnxSessionTime_.start();
     onnxModel_->session.run(std::move(inputs), targets, outputs);
+    onnxSessionTime_.stop();
 
     for (size_t b = 0ul; b < scoringContextBatch.size(); ++b) {
         auto scores = std::make_shared<std::vector<Score>>();

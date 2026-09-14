@@ -184,7 +184,7 @@ LexiconfreeTimesyncBeamSearch::LexiconfreeTimesyncBeamSearch(Core::Configuration
           maximumStableDelay_(paramMaximumStableDelay(config)),
           maximumStableDelayPruningInterval_(paramMaximumStableDelayPruningInterval(config)),
           recombinationEnabled_(paramRecombinationMode(config) == RecombinationModeOn),
-          statisticsChannel_(config, "statistics", Core::Channel::standard),
+          statisticsChannel_(config, "statistics"),
           stepwiseStatisticsChannel_(config, "stepwise-statistics"),
           debugChannel_(config, "debug"),
           labelScorers_(),

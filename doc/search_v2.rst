@@ -227,15 +227,24 @@ Logging channels
 ^^^^^^^^^^^^^^^^
 
 Statistics are written to dedicated channels rather than to the component log directly, so each kind of
-output can be redirected or switched off independently:
+output can be redirected or switched off independently. All of them are disabled unless a target is
+configured, so nothing is logged until you ask for it:
 
-* ``statistics``: per-segment timing and beam statistics. Defaults to the standard log target.
+* ``statistics``: per-segment timing and beam statistics.
 * ``stepwise-statistics``: beam statistics at every search step, useful for tuning and debugging.
-  Disabled unless a target is configured, e.g. ``stepwise-statistics.channel = log``.
-* ``debug``: per-hypothesis dumps for every search step. Disabled by default.
+* ``debug``: per-hypothesis dumps for every search step.
 
 The label scorers and encoders each have their own ``statistics`` channel with the same meaning, so the
-statistics of an individual model can be disabled without losing those of the search.
+statistics of an individual model can be enabled or disabled independently of those of the search.
+
+Point them at the same target as the log to get the statistics inside the log file, for example::
+
+    *.statistics.channel            = <log-target>
+    *.stepwise-statistics.channel   = <log-target>
+
+Note that a channel with no configured target falls back to ``stdout``, not to the target of the
+component log. If ``stdout`` is redirected to the log file by the surrounding job, that would be a
+second writer on the same file with its own file offset, which corrupts the output.
 
 Order of operations for one time-synchronous decoding step, assuming two label scorers ``L_1`` and ``L_2`` with
 ``max-beam-size = b_1 b_2`` and ``score-threshold = s_1 s_2``:

@@ -24,7 +24,7 @@ Encoder::Encoder(Core::Configuration const& config)
           inputBuffer_(),
           outputBuffer_(),
           expectMoreFeatures_(true),
-          statisticsChannel_(config, "statistics", Core::Channel::standard) {}
+          statisticsChannel_(config, "statistics") {}
 
 void Encoder::logStatistics() const {
     if (not statisticsChannel_.isOpen()) {

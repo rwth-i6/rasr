@@ -199,7 +199,7 @@ LexiconfreeLabelsyncBeamSearch::LexiconfreeLabelsyncBeamSearch(Core::Configurati
           sentenceEndLabelIndex_(paramSentenceEndLabelIndex(config)),
           pruningStrategyType_(paramPruningStrategyType(config)),
           recombinationEnabled_(paramRecombinationMode(config) == RecombinationModeOn),
-          statisticsChannel_(config, "statistics", Core::Channel::standard),
+          statisticsChannel_(config, "statistics"),
           stepwiseStatisticsChannel_(config, "stepwise-statistics"),
           cacheCleanupInterval_(paramCacheCleanupInterval(config)),
           debugChannel_(config, "debug"),

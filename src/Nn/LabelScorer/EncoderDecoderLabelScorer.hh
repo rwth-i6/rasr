@@ -43,6 +43,9 @@ public:
     // Resets both encoder and decoder component
     void reset() override;
 
+    // Forwarded to the encoder and the decoder scorer
+    void logStatistics() const override;
+
     // Signal end of feature stream to encoder, then encode features, pass them to the decoder and
     // finally signal end of feature stream to decoder.
     void signalNoMoreFeatures() override;

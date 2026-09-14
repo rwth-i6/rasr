@@ -89,6 +89,9 @@ public:
     Core::Ref<ScaledLabelScorer> getCtcLabelScorer() const;
 
     void reset() override;
+
+    // Forwarded to the wrapped CTC scorer
+    void logStatistics() const override;
     void signalNoMoreFeatures() override;
     void addInput(DataView const& input) override;
     void addInputs(DataView const& inputs, size_t nTimesteps) override;

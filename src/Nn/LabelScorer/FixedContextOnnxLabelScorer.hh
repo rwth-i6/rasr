@@ -58,7 +58,7 @@ class FixedContextOnnxLabelScorer : public BufferedLabelScorer {
 
 public:
     FixedContextOnnxLabelScorer(Core::Configuration const& config, ModelCache& modelCache);
-    virtual ~FixedContextOnnxLabelScorer();
+    virtual ~FixedContextOnnxLabelScorer() = default;
 
     // Clear feature buffer and cached scores
     void reset() override;
@@ -102,6 +102,8 @@ private:
     std::string inputFeatureName_;
     std::string historyName_;
     std::string scoresName_;
+
+    void logAdditionalStatistics() const override;
 
     Core::StopWatch onnxSessionTime_;
     Core::StopWatch contextPreparationTime_;

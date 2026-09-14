@@ -44,6 +44,9 @@ public:
     // Reset all sub-scorers
     void reset() override;
 
+    // Forwarded to the combined scorers; combining itself accumulates no statistics
+    void logStatistics() const override;
+
     // Forward signal to all sub-scorers
     void signalNoMoreFeatures() override;
 

@@ -44,6 +44,9 @@ public:
     // Reset sub-scorer
     void reset() override;
 
+    // Forwarded to the wrapped scorer; scaling itself accumulates no statistics
+    void logStatistics() const override;
+
     // Forward signal to sub-scorer
     void signalNoMoreFeatures() override;
 

@@ -44,10 +44,14 @@ class Encoder : public virtual Core::Component,
                 public Core::ReferenceCounted {
 public:
     Encoder(Core::Configuration const& config);
-    virtual ~Encoder();
+    virtual ~Encoder() = default;
 
     // Clear buffers and reset segment end flag.
+    // Also resets the accumulated timing and statistics.
     virtual void reset();
+
+    // Log the timing and statistics accumulated since the last `reset`.
+    virtual void logStatistics() const;
 
     // Signal that no more features are expected for the current segment.
     void signalNoMoreFeatures();
@@ -69,9 +73,13 @@ protected:
 
     bool expectMoreFeatures_;
 
+    // Hook for subclasses to add their own timers to the statistics element opened by
+    // `logStatistics`.
+    virtual void logAdditionalStatistics() const {}
+
     Core::StopWatch encodeTime_;
 
-    // Total number of input features (T) handed to this encoder over the whole run
+    // Total number of input features (T) handed to this encoder in the current segment
     size_t numEncodedFeatures_ = 0ul;
 
     // Encode features inside the input buffer and put the results into the output buffer

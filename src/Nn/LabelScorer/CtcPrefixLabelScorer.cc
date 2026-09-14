@@ -174,8 +174,13 @@ Core::Ref<ScaledLabelScorer> CtcPrefixLabelScorer::getCtcLabelScorer() const {
 }
 
 void CtcPrefixLabelScorer::reset() {
+    Precursor::reset();
     ctcScorer_->reset();
     expectMoreFeatures_ = true;
+}
+
+void CtcPrefixLabelScorer::logStatistics() const {
+    ctcScorer_->logStatistics();
 }
 
 void CtcPrefixLabelScorer::signalNoMoreFeatures() {

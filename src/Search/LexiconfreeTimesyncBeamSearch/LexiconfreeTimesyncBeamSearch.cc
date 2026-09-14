@@ -727,6 +727,9 @@ void LexiconfreeTimesyncBeamSearch::logStatistics() const {
     numHypsAfterRecombination_.write(clog());
     numHypsAfterPruning_.write(clog());
     numActiveHyps_.write(clog());
+    for (auto const& labelScorer : labelScorers_) {
+        labelScorer->logStatistics();
+    }
 }
 
 Nn::TransitionType LexiconfreeTimesyncBeamSearch::inferTransitionType(Nn::LabelIndex prevLabel, Nn::LabelIndex nextLabel) const {

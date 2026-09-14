@@ -958,6 +958,9 @@ void TreeTimesyncBeamSearch::logStatistics() const {
     numWordEndHypsAfterBeamPruning_.write(clog());
     numActiveHyps_.write(clog());
     numActiveTrees_.write(clog());
+    for (auto const& labelScorer : labelScorers_) {
+        labelScorer->logStatistics();
+    }
 }
 
 Nn::TransitionType TreeTimesyncBeamSearch::inferTransitionType(Nn::LabelIndex prevLabel, Nn::LabelIndex nextLabel, bool isSameState) const {

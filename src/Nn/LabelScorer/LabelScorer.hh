@@ -81,11 +81,15 @@ class LabelScorer : public virtual Core::Component,
                     public Core::ReferenceCounted {
 public:
     LabelScorer(Core::Configuration const& config, TransitionPresetType defaultPreset = TransitionPresetType::NONE);
-    virtual ~LabelScorer();
+    virtual ~LabelScorer() = default;
 
     // Prepares the LabelScorer to receive new inputs
-    // e.g. by resetting input buffers and segmentEnd flags
+    // e.g. by resetting input buffers and segmentEnd flags.
+    // Also resets the accumulated timing and statistics.
     virtual void reset() = 0;
+
+    // Log the timing and statistics accumulated since the last `reset`.
+    virtual void logStatistics() const;
 
     // Tells the LabelScorer that there will be no more input features coming in the current segment
     virtual void signalNoMoreFeatures() = 0;
@@ -128,6 +132,10 @@ public:
     TransitionSet enabledTransitions() const;
 
 protected:
+    // Hook for subclasses to add their own timers to the statistics element opened by
+    // `logStatistics`. Called between the shared timing and the shared counters.
+    virtual void logAdditionalStatistics() const {}
+
     Core::StopWatch scoringTime_;
     size_t          numScoreAccessorsRequested_ = 0;
     size_t          numScoreAccessorsComputed_  = 0;

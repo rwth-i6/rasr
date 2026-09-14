@@ -982,6 +982,9 @@ void LexiconfreeLabelsyncBeamSearch::logStatistics() const {
     numActiveHypsAfterScorePruning_.write(clog());
     numActiveHypsAfterRecombination_.write(clog());
     numActiveHypsAfterBeamPruning_.write(clog());
+    for (auto const& labelScorer : labelScorers_) {
+        labelScorer->logStatistics();
+    }
 }
 
 template<typename Element>

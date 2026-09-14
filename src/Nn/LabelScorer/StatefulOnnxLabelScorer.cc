@@ -243,18 +243,17 @@ StatefulOnnxLabelScorer::StatefulOnnxLabelScorer(Core::Configuration const& conf
     }
 }
 
-StatefulOnnxLabelScorer::~StatefulOnnxLabelScorer() {
-    if (stateUpdateSessionTime_.elapsedMilliseconds() > 0 or scorerSessionTime_.elapsedMilliseconds() > 0 or contextPreparationTime_.elapsedMilliseconds() > 0) {
-        clog() << Core::XmlOpen("label-scorer-timing") + Core::XmlAttribute("unit", "milliseconds") + Core::XmlAttribute("component", fullName());
-        clog() << Core::XmlOpen("state-update-session-time") << stateUpdateSessionTime_.elapsedMilliseconds() << Core::XmlClose("state-update-session-time");
-        clog() << Core::XmlOpen("scorer-session-time") << scorerSessionTime_.elapsedMilliseconds() << Core::XmlClose("scorer-session-time");
-        clog() << Core::XmlOpen("context-preparation-time") << contextPreparationTime_.elapsedMilliseconds() << Core::XmlClose("context-preparation-time");
-        clog() << Core::XmlClose("label-scorer-timing");
-    }
+void StatefulOnnxLabelScorer::logAdditionalStatistics() const {
+    clog() << Core::XmlOpen("state-update-session-time") + Core::XmlAttribute("unit", "milliseconds") << stateUpdateSessionTime_.elapsedMilliseconds() << Core::XmlClose("state-update-session-time");
+    clog() << Core::XmlOpen("scorer-session-time") + Core::XmlAttribute("unit", "milliseconds") << scorerSessionTime_.elapsedMilliseconds() << Core::XmlClose("scorer-session-time");
+    clog() << Core::XmlOpen("context-preparation-time") + Core::XmlAttribute("unit", "milliseconds") << contextPreparationTime_.elapsedMilliseconds() << Core::XmlClose("context-preparation-time");
 }
 
 void StatefulOnnxLabelScorer::reset() {
     Precursor::reset();
+    stateUpdateSessionTime_.reset();
+    scorerSessionTime_.reset();
+    contextPreparationTime_.reset();
     stateCache_.clear();
     scoreCache_.clear();
 }

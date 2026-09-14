@@ -83,7 +83,12 @@ void ScaledLabelScorer::setScale(Score scale) {
 }
 
 void ScaledLabelScorer::reset() {
+    LabelScorer::reset();
     scorer_->reset();
+}
+
+void ScaledLabelScorer::logStatistics() const {
+    scorer_->logStatistics();
 }
 
 void ScaledLabelScorer::signalNoMoreFeatures() {

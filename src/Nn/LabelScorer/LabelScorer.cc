@@ -29,14 +29,19 @@ LabelScorer::LabelScorer(Core::Configuration const& config, TransitionPresetType
           enabledTransitions_(config, defaultPreset) {
 }
 
-LabelScorer::~LabelScorer() {
-    if (scoringTime_.elapsedMilliseconds() > 0 or numScoreAccessorsRequested_ > 0) {
-        clog() << Core::XmlOpen("label-scorer-timing") + Core::XmlAttribute("unit", "milliseconds") + Core::XmlAttribute("component", fullName());
-        clog() << Core::XmlOpen("scoring-time") << scoringTime_.elapsedMilliseconds() << Core::XmlClose("scoring-time");
-        clog() << Core::XmlFull("num-score-accessors-requested", numScoreAccessorsRequested_);
-        clog() << Core::XmlFull("num-score-accessors-computed", numScoreAccessorsComputed_);
-        clog() << Core::XmlClose("label-scorer-timing");
-    }
+void LabelScorer::reset() {
+    scoringTime_.reset();
+    numScoreAccessorsRequested_ = 0ul;
+    numScoreAccessorsComputed_  = 0ul;
+}
+
+void LabelScorer::logStatistics() const {
+    clog() << Core::XmlOpen("label-scorer-statistics") + Core::XmlAttribute("component", fullName());
+    clog() << Core::XmlOpen("scoring-time") + Core::XmlAttribute("unit", "milliseconds") << scoringTime_.elapsedMilliseconds() << Core::XmlClose("scoring-time");
+    logAdditionalStatistics();
+    clog() << Core::XmlFull("num-score-accessors-requested", numScoreAccessorsRequested_);
+    clog() << Core::XmlFull("num-score-accessors-computed", numScoreAccessorsComputed_);
+    clog() << Core::XmlClose("label-scorer-statistics");
 }
 
 void LabelScorer::addInputs(DataView const& input, size_t nTimesteps) {

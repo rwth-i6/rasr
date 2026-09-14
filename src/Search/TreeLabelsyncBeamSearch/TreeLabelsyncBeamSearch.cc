@@ -1263,6 +1263,9 @@ void TreeLabelsyncBeamSearch::logStatistics() const {
     numActiveWordEndHypsAfterRecombination_.write(clog());
     numActiveWordEndHypsAfterBeamPruning_.write(clog());
     numActiveTrees_.write(clog());
+    for (auto const& labelScorer : labelScorers_) {
+        labelScorer->logStatistics();
+    }
 }
 
 template<typename Element>

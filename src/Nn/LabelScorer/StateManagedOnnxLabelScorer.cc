@@ -166,8 +166,15 @@ StateManagedOnnxLabelScorer::StateManagedOnnxLabelScorer(Core::Configuration con
     startLabels_.insert(startLabels_.begin(), startLabels.begin(), startLabels.end());
 }
 
+void StateManagedOnnxLabelScorer::logAdditionalStatistics() const {
+    clog() << Core::XmlOpen("onnx-session-time") + Core::XmlAttribute("unit", "milliseconds") << onnxSessionTime_.elapsedMilliseconds() << Core::XmlClose("onnx-session-time");
+    clog() << Core::XmlOpen("context-preparation-time") + Core::XmlAttribute("unit", "milliseconds") << contextPreparationTime_.elapsedMilliseconds() << Core::XmlClose("context-preparation-time");
+}
+
 void StateManagedOnnxLabelScorer::reset() {
     Precursor::reset();
+    onnxSessionTime_.reset();
+    contextPreparationTime_.reset();
     encoderStatesValue_     = Onnx::Value();
     encoderStatesSizeValue_ = Onnx::Value();
     scoreCache_.clear();
@@ -237,15 +244,6 @@ ScoringContextRef StateManagedOnnxLabelScorer::extendedScoringContext(ScoringCon
     std::vector<LabelIndex> labelSeq(context->labelSeq);
     labelSeq.push_back(nextToken);
     return Core::ref(new StateManagedOnnxScoringContext(std::move(labelSeq), context));
-}
-
-StateManagedOnnxLabelScorer::~StateManagedOnnxLabelScorer() {
-    if (onnxSessionTime_.elapsedMilliseconds() > 0 or contextPreparationTime_.elapsedMilliseconds() > 0) {
-        clog() << Core::XmlOpen("label-scorer-timing") + Core::XmlAttribute("unit", "milliseconds") + Core::XmlAttribute("component", fullName());
-        clog() << Core::XmlOpen("onnx-session-time") << onnxSessionTime_.elapsedMilliseconds() << Core::XmlClose("onnx-session-time");
-        clog() << Core::XmlOpen("context-preparation-time") << contextPreparationTime_.elapsedMilliseconds() << Core::XmlClose("context-preparation-time");
-        clog() << Core::XmlClose("label-scorer-timing");
-    }
 }
 
 std::vector<std::optional<ScoreAccessorRef>> StateManagedOnnxLabelScorer::getScoreAccessors(std::vector<ScoringContextRef> const& scoringContexts) {

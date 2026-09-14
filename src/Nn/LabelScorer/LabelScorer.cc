@@ -26,7 +26,7 @@ namespace Nn {
  */
 LabelScorer::LabelScorer(Core::Configuration const& config, TransitionPresetType defaultPreset)
         : Core::Component(config),
-          statisticsChannel_(config, "statistics", Core::Channel::standard),
+          statisticsChannel_(config, "statistics"),
           enabledTransitions_(config, defaultPreset) {
 }
 

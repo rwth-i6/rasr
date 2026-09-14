@@ -271,7 +271,7 @@ TreeLabelsyncBeamSearch::TreeLabelsyncBeamSearch(Core::Configuration const& conf
           sentenceEndFallback_(paramSentenceEndFallBack(config)),
           pruningStrategyType_(paramPruningStrategyType(config)),
           recombinationEnabled_(paramRecombinationMode(config) == RecombinationModeOn),
-          statisticsChannel_(config, "statistics", Core::Channel::standard),
+          statisticsChannel_(config, "statistics"),
           stepwiseStatisticsChannel_(config, "stepwise-statistics"),
           labelScorers_(),
           nonWordLemmas_(),

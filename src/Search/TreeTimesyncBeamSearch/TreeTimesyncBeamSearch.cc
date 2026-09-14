@@ -278,7 +278,7 @@ TreeTimesyncBeamSearch::TreeTimesyncBeamSearch(Core::Configuration const& config
           collapseRepeatedLabels_(paramCollapseRepeatedLabels(config)),
           sentenceEndFallback_(paramSentenceEndFallBack(config)),
           recombinationEnabled_(paramRecombinationMode(config) == RecombinationModeOn),
-          statisticsChannel_(config, "statistics", Core::Channel::standard),
+          statisticsChannel_(config, "statistics"),
           stepwiseStatisticsChannel_(config, "stepwise-statistics"),
           labelScorers_(),
           nonWordLemmas_(),

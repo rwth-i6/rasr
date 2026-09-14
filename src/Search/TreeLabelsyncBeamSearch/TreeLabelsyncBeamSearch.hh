@@ -58,7 +58,6 @@ public:
     static const Core::Choice               choiceRecombinationMode;
     static const Core::ParameterChoice      paramRecombinationMode;
     static const Core::ParameterBool        paramSentenceEndFallBack;
-    static const Core::ParameterBool        paramLogStepwiseStatistics;
 
     TreeLabelsyncBeamSearch(Core::Configuration const&);
 
@@ -198,7 +197,10 @@ private:
     bool                sentenceEndFallback_;
     Core::Choice::Value pruningStrategyType_;
     bool                recombinationEnabled_;
-    bool                logStepwiseStatistics_;
+    // Per-segment timing and statistics. Defaults to the standard log target.
+    mutable Core::XmlChannel statisticsChannel_;
+    // Statistics for every search step. Disabled unless a target is configured.
+    Core::XmlChannel stepwiseStatisticsChannel_;
 
     std::vector<Core::Ref<Nn::LabelScorer>>        labelScorers_;
     Bliss::LexiconRef                              lexicon_;

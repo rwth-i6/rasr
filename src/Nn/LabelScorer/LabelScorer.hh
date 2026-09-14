@@ -18,6 +18,7 @@
 
 #include <optional>
 
+#include <Core/Channel.hh>
 #include <Core/CollapsedVector.hh>
 #include <Core/Component.hh>
 #include <Core/Configuration.hh>
@@ -143,6 +144,10 @@ protected:
     mutable Core::StopWatch scoringTime_;
     mutable size_t          numScoreAccessorsRequested_ = 0;
     mutable size_t          numScoreAccessorsComputed_  = 0;
+
+    // Channel that `logStatistics` writes to. Defaults to the standard log target but can be
+    // redirected or disabled per label scorer via config.
+    mutable Core::XmlChannel statisticsChannel_;
 
     TransitionSet enabledTransitions_;
 };

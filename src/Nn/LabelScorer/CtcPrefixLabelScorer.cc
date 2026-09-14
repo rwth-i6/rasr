@@ -183,7 +183,7 @@ void CtcPrefixLabelScorer::reset() {
 }
 
 void CtcPrefixLabelScorer::logAdditionalStatistics() const {
-    clog() << Core::XmlOpen("ctc-score-collection-time") + Core::XmlAttribute("unit", "milliseconds") << ctcScoreCollectionTime_.elapsedMilliseconds() << Core::XmlClose("ctc-score-collection-time");
+    statisticsChannel_ << Core::XmlOpen("ctc-score-collection-time") + Core::XmlAttribute("unit", "milliseconds") << ctcScoreCollectionTime_.elapsedMilliseconds() << Core::XmlClose("ctc-score-collection-time");
 }
 
 void CtcPrefixLabelScorer::logStatistics() const {

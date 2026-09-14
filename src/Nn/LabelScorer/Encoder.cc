@@ -23,15 +23,20 @@ Encoder::Encoder(Core::Configuration const& config)
         : Core::Component(config),
           inputBuffer_(),
           outputBuffer_(),
-          expectMoreFeatures_(true) {}
+          expectMoreFeatures_(true),
+          statisticsChannel_(config, "statistics", Core::Channel::standard) {}
 
 void Encoder::logStatistics() const {
-    clog() << Core::XmlOpen("encoder-statistics") + Core::XmlAttribute("component", fullName());
-    clog() << Core::XmlOpen("encode-time") + Core::XmlAttribute("unit", "milliseconds") + Core::XmlAttribute("total", encodeTime_.elapsedMilliseconds());
+    if (not statisticsChannel_.isOpen()) {
+        return;
+    }
+
+    statisticsChannel_ << Core::XmlOpen("encoder-statistics") + Core::XmlAttribute("component", fullName());
+    statisticsChannel_ << Core::XmlOpen("encode-time") + Core::XmlAttribute("unit", "milliseconds") + Core::XmlAttribute("total", encodeTime_.elapsedMilliseconds());
     logEncodeBreakdown();
-    clog() << Core::XmlClose("encode-time");
-    clog() << Core::XmlFull("num-encoded-features", numEncodedFeatures_);
-    clog() << Core::XmlClose("encoder-statistics");
+    statisticsChannel_ << Core::XmlClose("encode-time");
+    statisticsChannel_ << Core::XmlFull("num-encoded-features", numEncodedFeatures_);
+    statisticsChannel_ << Core::XmlClose("encoder-statistics");
 }
 
 void Encoder::reset() {

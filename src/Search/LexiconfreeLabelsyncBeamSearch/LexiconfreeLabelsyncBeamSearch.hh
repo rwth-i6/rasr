@@ -55,7 +55,6 @@ public:
     static const Core::ParameterChoice      paramPruningStrategyType;
     static const Core::Choice               choiceRecombinationMode;
     static const Core::ParameterChoice      paramRecombinationMode;
-    static const Core::ParameterBool        paramLogStepwiseStatistics;
 
     LexiconfreeLabelsyncBeamSearch(Core::Configuration const&);
 
@@ -157,8 +156,11 @@ private:
     Nn::LabelIndex      sentenceEndLabelIndex_;
     Core::Choice::Value pruningStrategyType_;
     bool                recombinationEnabled_;
-    bool                logStepwiseStatistics_;
-    size_t              cacheCleanupInterval_;
+    // Per-segment timing and statistics. Defaults to the standard log target.
+    mutable Core::XmlChannel statisticsChannel_;
+    // Statistics for every search step. Disabled unless a target is configured.
+    Core::XmlChannel stepwiseStatisticsChannel_;
+    size_t           cacheCleanupInterval_;
 
     Core::Channel debugChannel_;
 

@@ -19,6 +19,7 @@
 #include <deque>
 #include <optional>
 
+#include <Core/Channel.hh>
 #include <Core/Component.hh>
 #include <Core/StopWatch.hh>
 
@@ -72,6 +73,10 @@ protected:
     std::deque<EncodedSpan> outputBuffer_;
 
     bool expectMoreFeatures_;
+
+    // Channel that `logStatistics` writes to. Defaults to the standard log target but can be
+    // redirected or disabled per encoder via config.
+    mutable Core::XmlChannel statisticsChannel_;
 
     // Hook for subclasses to break down `encode-time`. Called inside that element, so only
     // timers whose intervals are contained in it belong here.

@@ -99,7 +99,9 @@ std::vector<std::optional<ScoreAccessorRef>> NoContextOnnxLabelScorer::getScoreA
             // If input is not available, this context can't be forwarded
             continue;
         }
-        forwardContext(stepScoringContext);
+        if (scoreCache_.find(stepScoringContext) == scoreCache_.end()) {
+            forwardContext(stepScoringContext);
+        }
 
         scoreAccessors[contextIndex] = Core::ref(new VectorScoreAccessor(scoreCache_.at(stepScoringContext), stepScoringContext->currentStep));
     }

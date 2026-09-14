@@ -319,8 +319,7 @@ bool TreeTimesyncBeamSearch::setModelCombination(Speech::ModelCombination const&
         warning() << "Number of label scorers (" << labelScorers_.size() << ") is less than number of configured max beam sizes (" << maxBeamSizes_.size() << ")";
     }
 
-    // Per-scorer timers and statistics are indexed by label scorer, so make sure they are long
-    // enough even if the size mismatch reported above is configured to be ignored
+    // Per-scorer timers and statistics are indexed by label scorer as well
     for (size_t i = numHypsAfterIntermediatePruning_.size(); i < labelScorers_.size(); ++i) {
         numHypsAfterIntermediatePruning_.push_back({"num-hyps-after-intermediate-pruning-" + std::to_string(i + 1)});
     }
@@ -607,7 +606,7 @@ bool TreeTimesyncBeamSearch::decodeStep() {
         }
     }
 
-    // Counted once all pruning stages of this step, including maximum-stable-delay pruning, have been applied
+    // Counted after all pruning of this step, including maximum-stable-delay pruning
     numActiveHyps_ += beam_.size();
 
     decodeStepTime_.stop();

@@ -369,6 +369,17 @@ bool TreeLabelsyncBeamSearch::setModelCombination(Speech::ModelCombination const
         useScorePruning_.push_back(false);
     }
 
+    // Per-scorer timers and statistics are indexed by label scorer as well
+    for (size_t i = numHypsAfterIntermediatePruning_.size(); i < labelScorers_.size(); ++i) {
+        numHypsAfterIntermediatePruning_.push_back({"num-hyps-after-intermediate-pruning-" + std::to_string(i + 1)});
+    }
+    if (scoreAndPruneExtensionsTimes_.size() < labelScorers_.size()) {
+        scoreAndPruneExtensionsTimes_.resize(labelScorers_.size());
+    }
+    if (scoringTimes_.size() < labelScorers_.size()) {
+        scoringTimes_.resize(labelScorers_.size());
+    }
+
     size_t const finalScorerIdx = labelScorers_.size() - 1;
     switch (pruningStrategyType_) {
         case PruningStrategyJoint:

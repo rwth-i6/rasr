@@ -108,8 +108,7 @@ private:
 
     std::shared_ptr<Math::FastMatrix<Score>> ctcScores_;  // Cached T x V matrix of scores
 
-    // Time spent building `ctcScores_`. Includes the scoring time of the sub-scorer that
-    // the matrix is pulled from, which is reported separately by that scorer.
+    // Time spent building `ctcScores_`, including the sub-scorer time that the matrix is pulled from
     Core::StopWatch ctcScoreCollectionTime_;
 
     void logAdditionalStatistics() const override;

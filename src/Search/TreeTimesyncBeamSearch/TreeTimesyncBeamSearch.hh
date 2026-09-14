@@ -262,7 +262,7 @@ private:
     void expandAndPruneWordEndHypotheses();
 
     /*
-     * Write debug channel output and stepwise statistics for the current beam, then close the XML tag.
+     * Log the per-step statistics and debug output for the current beam.
      */
     void logStepStatistics();
 

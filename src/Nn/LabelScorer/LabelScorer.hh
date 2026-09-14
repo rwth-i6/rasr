@@ -86,7 +86,7 @@ public:
 
     // Prepares the LabelScorer to receive new inputs
     // e.g. by resetting input buffers and segmentEnd flags.
-    // Also resets the accumulated timing and statistics.
+    // Also resets the accumulated timing and statistics; overrides must call this base implementation.
     virtual void reset() = 0;
 
     // Log the timing and statistics accumulated since the last `reset`.
@@ -140,13 +140,12 @@ protected:
     // Hook for subclasses to add timers that are not contained in `scoring-time`.
     virtual void logAdditionalStatistics() const {}
 
-    // Tracking only, so these stay writable from const scoring paths
+    // Tracking only, so writable from const scoring paths
     mutable Core::StopWatch scoringTime_;
     mutable size_t          numScoreAccessorsRequested_ = 0;
     mutable size_t          numScoreAccessorsComputed_  = 0;
 
-    // Channel that `logStatistics` writes to. Defaults to the standard log target but can be
-    // redirected or disabled per label scorer via config.
+    // Channel that `logStatistics` writes to. Defaults to the standard log target.
     mutable Core::XmlChannel statisticsChannel_;
 
     TransitionSet enabledTransitions_;

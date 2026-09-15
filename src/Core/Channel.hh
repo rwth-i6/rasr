@@ -167,9 +167,21 @@ private:
     std::streambuf*                         originalStreamBuffers[3];
     typedef StringHashMap<Channel::Target*> TargetMap;
     TargetMap                               targets_;
-    typedef std::list<Channel::Target*>     TargetList;
-    TargetList                              ttyTargets_;
-    Channel::Target*                        createTarget(TargetType, const Core::Configuration&, const std::string& defaultFilename);
+    /**
+     * Targets that write to a file, keyed by that file. Two targets on the same file would keep
+     * independent write positions and silently overwrite each other's output, so a file is opened
+     * at most once and any further target naming it aliases the existing one.
+     */
+    TargetMap                           targetsByOutputFile_;
+    typedef std::list<Channel::Target*> TargetList;
+    TargetList                          ttyTargets_;
+    Channel::Target*                    createTarget(TargetType, const Core::Configuration&, const std::string& defaultFilename);
+
+    /**
+     * Record `target` under the file it writes to, if any. Returns the target that owns that file,
+     * which is `target` itself unless another target already claimed the file.
+     */
+    Channel::Target* claimOutputFile(Channel::Target* target);
 
 public:
     Manager(const Core::Configuration&, bool outputXmlHeader);

@@ -19,6 +19,7 @@
 #include <cerrno>
 #include <fstream>
 #include <iostream>
+#include <set>
 #include <unistd.h>
 
 #include <Core/Application.hh>
@@ -51,6 +52,7 @@ private:
     XmlWriter       xml_;
     bool            isXmlDocument_;
     std::streambuf* defaultStreamBuf_;
+    std::string     outputFilename_;
 
 public:
     Target(const Core::Configuration&, bool isXmlDocument, std::ostream* os = 0);
@@ -59,6 +61,21 @@ public:
     bool isTty() const {
         return isTty_;
     }
+
+    /**
+     * Path of the file this target writes to, or the empty string if it writes to an adopted
+     * stream (e.g. the terminal) instead. Two targets must never share a non-empty value here:
+     * they would hold independent file positions on the same file and overwrite each other.
+     */
+    const std::string& outputFilename() const {
+        return outputFilename_;
+    }
+
+    /**
+     * Path that a target created with this configuration and default filename would write to.
+     * Mirrors what `open()` does, so it can be evaluated before a target is constructed.
+     */
+    static std::string resolveFilename(const Core::Configuration&, const std::string& defaultFilename = std::string());
     void block(u32 bufferLimit);
     void unblock();
 };
@@ -106,9 +123,21 @@ Channel::Target::Target(const Core::Configuration& c, bool isXmlDocument, const 
           isTty_(false),
           xml_(*this),
           isXmlDocument_(isXmlDocument),
-          defaultStreamBuf_(defaultStreamBuf) {
+          defaultStreamBuf_(defaultStreamBuf),
+          outputFilename_(resolveFilename(c, defaultFilename)) {
     open(paramFilename(config, defaultFilename));
     setup();
+}
+
+std::string Channel::Target::resolveFilename(const Core::Configuration& c, const std::string& defaultFilename) {
+    std::string filename = paramFilename(c, defaultFilename);
+    if (filename.empty()) {
+        return filename;
+    }
+    if (paramCompressed(c) and filename.rfind(".gz") != filename.length() - 3) {
+        filename += ".gz";
+    }
+    return filename;
 }
 
 // This depends on specific STL implementations.
@@ -142,7 +171,8 @@ Channel::Target::Target(const Core::Configuration& c, bool isXmlDocument, std::o
           isTty_(false),
           xml_(*this),
           isXmlDocument_(isXmlDocument),
-          defaultStreamBuf_(defaultStream->rdbuf()) {
+          defaultStreamBuf_(defaultStream->rdbuf()),
+          outputFilename_(resolveFilename(c)) {
     require(defaultStream);
     std::string filename = paramFilename(config);
     if (filename.size()) {
@@ -299,14 +329,27 @@ Channel::Manager::Manager(const Core::Configuration& c, bool outputXmlHeader)
 
     // create default channels
     Target* stdoutTarget = new Target(select("stdout"), outputXmlHeader, new std::ostream(std::cout.rdbuf()));
-    Target* stderrTarget = new Target(select("stderr"), outputXmlHeader, new std::ostream(std::cerr.rdbuf()));
-    targets_["stdout"]   = stdoutTarget;
-    targets_["stderr"]   = stderrTarget;
-    targets_["nil"]      = 0;
+    claimOutputFile(stdoutTarget);
+
+    // If both default channels are redirected to the same file, they have to share one target;
+    // two targets on one file would overwrite each other (see `claimOutputFile`).
+    Target*     stderrTarget   = 0;
+    std::string stderrFilename = Target::resolveFilename(select("stderr"));
+    if (not stderrFilename.empty() and stderrFilename == stdoutTarget->outputFilename()) {
+        stderrTarget = stdoutTarget;
+    }
+    else {
+        stderrTarget = new Target(select("stderr"), outputXmlHeader, new std::ostream(std::cerr.rdbuf()));
+        claimOutputFile(stderrTarget);
+    }
+
+    targets_["stdout"] = stdoutTarget;
+    targets_["stderr"] = stderrTarget;
+    targets_["nil"]    = 0;
 
     if (stdoutTarget->isTty())
         ttyTargets_.push_back(stdoutTarget);
-    if (stderrTarget->isTty())
+    if (stderrTarget != stdoutTarget and stderrTarget->isTty())
         ttyTargets_.push_back(stderrTarget);
 
     // redirect cout and cerr
@@ -331,11 +374,30 @@ Channel::Manager::~Manager() {
     std::clog.rdbuf(originalStreamBuffers[2]);
 
     flushAll();
+    // Several names may alias the same target, so collect the distinct ones before deleting
+    std::set<Target*> distinctTargets;
     for (TargetMap::iterator t = targets_.begin(); t != targets_.end(); ++t)
-        delete t->second;
+        if (t->second)
+            distinctTargets.insert(t->second);
+    for (Target* t : distinctTargets)
+        delete t;
 
     singleton_ = 0;
     release();
+}
+
+Channel::Target* Channel::Manager::claimOutputFile(Channel::Target* target) {
+    if (not target or target->outputFilename().empty()) {
+        return target;
+    }
+
+    auto found = targetsByOutputFile_.find(target->outputFilename());
+    if (found != targetsByOutputFile_.end()) {
+        return found->second;
+    }
+
+    targetsByOutputFile_[target->outputFilename()] = target;
+    return target;
 }
 
 void Channel::Manager::flushAll() {
@@ -398,7 +460,23 @@ Channel::Target* Channel::Manager::get(TargetType type, const std::string& name)
             configName = name;
         else
             configName = name.substr(i + 1);
-        targets_[name] = result = createTarget(type, select(configName), name);
+        Core::Configuration targetConfig = select(configName);
+
+        // Opening the same file from two targets corrupts it: each holds its own write position,
+        // so whichever flushes (or writes its closing tag) last overwrites the other's output.
+        // Reuse the existing target instead.
+        std::string         outputFile     = Target::resolveFilename(targetConfig, name);
+        TargetMap::iterator existingByFile = outputFile.empty() ? targetsByOutputFile_.end() : targetsByOutputFile_.find(outputFile);
+        if (existingByFile != targetsByOutputFile_.end()) {
+            std::cerr << "channel warning: Target \"" << name << "\" writes to file \"" << outputFile
+                      << "\", which is already used by another channel target. Reusing that target;"
+                      << " its configuration takes precedence." << std::endl;
+            targets_[name] = result = existingByFile->second;
+        }
+        else {
+            result         = createTarget(type, targetConfig, name);
+            targets_[name] = result = claimOutputFile(result);
+        }
     }
     else {
         result = found->second;

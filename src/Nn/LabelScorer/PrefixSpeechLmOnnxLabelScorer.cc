@@ -220,6 +220,8 @@ PrefixSpeechLmOnnxLabelScorer::PrefixSpeechLmOnnxLabelScorer(Core::Configuration
     auto suffixPromptLabels  = paramSuffixPromptLabels(config);
     initialPromptLabels_.insert(initialPromptLabels_.begin(), initialPromptLabels.begin(), initialPromptLabels.end());
     suffixPromptLabels_.insert(suffixPromptLabels_.begin(), suffixPromptLabels.begin(), suffixPromptLabels.end());
+    // Scores are cached per scoring context, so cache misses are meaningful here
+    tracksScoreAccessorCache_ = true;
 }
 
 void PrefixSpeechLmOnnxLabelScorer::reset() {
@@ -281,7 +283,7 @@ ScoringContextRef PrefixSpeechLmOnnxLabelScorer::extendedScoringContext(ScoringC
     return Core::ref(new PrefixSpeechLmScoringContext(std::move(labelSeq), context->historyLength + 1ul, context));
 }
 
-std::vector<std::optional<ScoreAccessorRef>> PrefixSpeechLmOnnxLabelScorer::getScoreAccessors(std::vector<ScoringContextRef> const& scoringContexts) {
+std::vector<std::optional<ScoreAccessorRef>> PrefixSpeechLmOnnxLabelScorer::computeScoreAccessors(std::vector<ScoringContextRef> const& scoringContexts) {
     if (scoringContexts.empty()) {
         return {};
     }
@@ -310,6 +312,8 @@ std::vector<std::optional<ScoreAccessorRef>> PrefixSpeechLmOnnxLabelScorer::getS
         uniqueUncachedScoringContexts.emplace(context);
     }
 
+    numScoreAccessorsComputed_ += uniqueUncachedScoringContexts.size();
+
     std::vector<PrefixSpeechLmScoringContextRef> scoringContextBatch;
     scoringContextBatch.reserve(std::min(uniqueUncachedScoringContexts.size(), maxBatchSize_));
     for (auto const& scoringContext : uniqueUncachedScoringContexts) {
@@ -331,8 +335,8 @@ std::vector<std::optional<ScoreAccessorRef>> PrefixSpeechLmOnnxLabelScorer::getS
     return scoreAccessors;
 }
 
-std::optional<ScoreAccessorRef> PrefixSpeechLmOnnxLabelScorer::getScoreAccessor(ScoringContextRef scoringContext) {
-    return getScoreAccessors({scoringContext})[0];
+std::optional<ScoreAccessorRef> PrefixSpeechLmOnnxLabelScorer::computeScoreAccessor(ScoringContextRef scoringContext) {
+    return computeScoreAccessors({scoringContext})[0];
 }
 
 size_t PrefixSpeechLmOnnxLabelScorer::getMinActiveInputIndex(Core::CollapsedVector<ScoringContextRef> const& activeContexts) const {

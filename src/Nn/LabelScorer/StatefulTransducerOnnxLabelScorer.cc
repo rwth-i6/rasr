@@ -128,6 +128,8 @@ StatefulTransducerOnnxLabelScorer::StatefulTransducerOnnxLabelScorer(Core::Confi
           stateCache_(paramMaxCachedScores(config)) {
     scorerInputFeatureName_ = hiddenStateModel_.scorerOnnxName("input-feature");
     updaterTokenName_       = hiddenStateModel_.stateUpdaterOnnxName("token");
+    // Scores are cached per scoring context, so cache misses are meaningful here
+    tracksScoreAccessorCache_ = true;
 }
 
 void StatefulTransducerOnnxLabelScorer::logScoringBreakdown() const {
@@ -215,7 +217,7 @@ ScoringContextRef StatefulTransducerOnnxLabelScorer::extendedScoringContext(Scor
     return newScoringContext;
 }
 
-std::vector<std::optional<ScoreAccessorRef>> StatefulTransducerOnnxLabelScorer::getScoreAccessors(std::vector<ScoringContextRef> const& scoringContexts) {
+std::vector<std::optional<ScoreAccessorRef>> StatefulTransducerOnnxLabelScorer::computeScoreAccessors(std::vector<ScoringContextRef> const& scoringContexts) {
     if (scoringContexts.empty()) {
         return {};
     }
@@ -266,6 +268,8 @@ std::vector<std::optional<ScoreAccessorRef>> StatefulTransducerOnnxLabelScorer::
             }
         }
 
+        numScoreAccessorsComputed_ += uniqueUncachedScoringContexts.size();
+
         if (uniqueUncachedScoringContexts.empty()) {
             continue;
         }
@@ -311,8 +315,8 @@ std::vector<std::optional<ScoreAccessorRef>> StatefulTransducerOnnxLabelScorer::
     return scoreAccessors;
 }
 
-std::optional<ScoreAccessorRef> StatefulTransducerOnnxLabelScorer::getScoreAccessor(ScoringContextRef scoringContext) {
-    return getScoreAccessors({scoringContext})[0];
+std::optional<ScoreAccessorRef> StatefulTransducerOnnxLabelScorer::computeScoreAccessor(ScoringContextRef scoringContext) {
+    return computeScoreAccessors({scoringContext})[0];
 }
 
 size_t StatefulTransducerOnnxLabelScorer::getMinActiveInputIndex(Core::CollapsedVector<ScoringContextRef> const& activeContexts) const {

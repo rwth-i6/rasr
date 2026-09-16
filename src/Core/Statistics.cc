@@ -38,7 +38,16 @@ Statistics<T>& Statistics<T>::operator+=(const Self& rhs) {
 
 template<typename T>
 void Statistics<T>::write(XmlWriter& os) const {
-    os << Core::XmlOpen("statistic") + Core::XmlAttribute("name", name_) + Core::XmlAttribute("type", "scalar");
+    write(os, {});
+}
+
+template<typename T>
+void Statistics<T>::write(XmlWriter& os, std::vector<XmlAttribute> const& extraAttributes) const {
+    auto open = Core::XmlOpen("statistic") + Core::XmlAttribute("name", name_) + Core::XmlAttribute("type", "scalar");
+    for (auto const& attribute : extraAttributes) {
+        open + attribute;
+    }
+    os << open;
     if (nObs_) {
         os << XmlFull("min", min_)
            << XmlFull("avg", average())

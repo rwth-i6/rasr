@@ -145,6 +145,8 @@ StatefulOnnxLabelScorer::StatefulOnnxLabelScorer(Core::Configuration const& conf
     updaterEncoderStatesName_         = hiddenStateModel_.stateUpdaterOnnxName("encoder-states");
     updaterEncoderStatesSizeName_     = hiddenStateModel_.stateUpdaterOnnxName("encoder-states-size");
     updaterTokenName_                 = hiddenStateModel_.stateUpdaterOnnxName("token");
+
+    tracksScoreAccessorCache_ = true;
 }
 
 void StatefulOnnxLabelScorer::logScoringBreakdown() const {
@@ -231,20 +233,15 @@ ScoringContextRef StatefulOnnxLabelScorer::extendedScoringContext(ScoringContext
     return newScoringContext;
 }
 
-std::vector<std::optional<ScoreAccessorRef>> StatefulOnnxLabelScorer::getScoreAccessors(std::vector<ScoringContextRef> const& scoringContexts) {
+std::vector<std::optional<ScoreAccessorRef>> StatefulOnnxLabelScorer::computeScoreAccessors(std::vector<ScoringContextRef> const& scoringContexts) {
     if (scoringContexts.empty()) {
         return {};
     }
-
-    scoringTime_.start();
-
-    numScoreAccessorsRequested_ += scoringContexts.size();
 
     std::vector<std::optional<ScoreAccessorRef>> scoreAccessors(scoringContexts.size(), std::nullopt);
 
     if ((initializerEncoderStatesName_ != "" or initializerEncoderStatesSizeName_ != "" or updaterEncoderStatesName_ != "" or updaterEncoderStatesSizeName_ != "") and (expectMoreFeatures_ or bufferSize() == 0)) {
         // Only allow scoring once all encoder states have been passed
-        scoringTime_.stop();
         return scoreAccessors;
     }
 
@@ -306,12 +303,11 @@ std::vector<std::optional<ScoreAccessorRef>> StatefulOnnxLabelScorer::getScoreAc
     }
     contextPreparationTime_.stop();
 
-    scoringTime_.stop();
     return scoreAccessors;
 }
 
-std::optional<ScoreAccessorRef> StatefulOnnxLabelScorer::getScoreAccessor(ScoringContextRef scoringContext) {
-    return getScoreAccessors({scoringContext})[0];
+std::optional<ScoreAccessorRef> StatefulOnnxLabelScorer::computeScoreAccessor(ScoringContextRef scoringContext) {
+    return computeScoreAccessors({scoringContext})[0];
 }
 
 void StatefulOnnxLabelScorer::setupEncoderStatesValue() {

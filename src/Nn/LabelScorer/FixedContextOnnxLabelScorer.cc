@@ -91,11 +91,12 @@ FixedContextOnnxLabelScorer::FixedContextOnnxLabelScorer(Core::Configuration con
           maxBatchSize_(paramMaxBatchSize(config)),
           scoreCache_() {
     Core::Configuration modelConfig(config, "onnx-model");
-    auto                key = modelConfig.getSelection();
-    onnxModel_              = modelCache.getOrCreate<Onnx::Model>(key, modelConfig, ioSpec);
-    inputFeatureName_       = onnxModel_->mapping.getOnnxName("input-feature");
-    historyName_            = onnxModel_->mapping.getOnnxName("history");
-    scoresName_             = onnxModel_->mapping.getOnnxName("scores");
+    auto                key   = modelConfig.getSelection();
+    onnxModel_                = modelCache.getOrCreate<Onnx::Model>(key, modelConfig, ioSpec);
+    inputFeatureName_         = onnxModel_->mapping.getOnnxName("input-feature");
+    historyName_              = onnxModel_->mapping.getOnnxName("history");
+    scoresName_               = onnxModel_->mapping.getOnnxName("scores");
+    tracksScoreAccessorCache_ = true;
 }
 
 void FixedContextOnnxLabelScorer::logScoringBreakdown() const {
@@ -199,15 +200,12 @@ ScoringContextRef FixedContextOnnxLabelScorer::extendedScoringContext(ScoringCon
     return Core::ref(new SeqStepScoringContext(std::move(newLabelSeq), seqStepScoringContext->currentStep + timeIncrement));
 }
 
-std::vector<std::optional<ScoreAccessorRef>> FixedContextOnnxLabelScorer::getScoreAccessors(std::vector<ScoringContextRef> const& scoringContexts) {
+std::vector<std::optional<ScoreAccessorRef>> FixedContextOnnxLabelScorer::computeScoreAccessors(std::vector<ScoringContextRef> const& scoringContexts) {
     if (scoringContexts.empty()) {
         return {};
     }
 
-    scoringTime_.start();
     contextPreparationTime_.start();
-
-    numScoreAccessorsRequested_ += scoringContexts.size();
 
     // Cast scoring contexts to concrete types
     std::vector<SeqStepScoringContextRef> seqStepScoringContexts;
@@ -281,12 +279,11 @@ std::vector<std::optional<ScoreAccessorRef>> FixedContextOnnxLabelScorer::getSco
         contextPreparationTime_.stop();
     }
 
-    scoringTime_.stop();
     return scoreAccessors;
 }
 
-std::optional<ScoreAccessorRef> FixedContextOnnxLabelScorer::getScoreAccessor(ScoringContextRef scoringContext) {
-    return getScoreAccessors({scoringContext})[0];
+std::optional<ScoreAccessorRef> FixedContextOnnxLabelScorer::computeScoreAccessor(ScoringContextRef scoringContext) {
+    return computeScoreAccessors({scoringContext})[0];
 }
 
 void FixedContextOnnxLabelScorer::forwardBatch(std::vector<SeqStepScoringContextRef> const& scoringContextBatch) {

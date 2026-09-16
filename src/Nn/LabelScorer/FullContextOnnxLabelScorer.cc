@@ -118,6 +118,8 @@ FullContextOnnxLabelScorer::FullContextOnnxLabelScorer(Core::Configuration const
     historyName_           = onnxModel_->mapping.getOnnxName("history");
     historySizeName_       = onnxModel_->mapping.getOnnxName("history-size");
     scoresName_            = onnxModel_->mapping.getOnnxName("scores");
+
+    tracksScoreAccessorCache_ = true;
 }
 
 void FullContextOnnxLabelScorer::reset() {
@@ -229,7 +231,7 @@ ScoringContextRef FullContextOnnxLabelScorer::extendedScoringContext(ScoringCont
     return Core::ref(new SeqStepScoringContext(std::move(newLabelSeq), seqStepScoringContext->currentStep + timeIncrement));
 }
 
-std::vector<std::optional<ScoreAccessorRef>> FullContextOnnxLabelScorer::getScoreAccessors(std::vector<ScoringContextRef> const& scoringContexts) {
+std::vector<std::optional<ScoreAccessorRef>> FullContextOnnxLabelScorer::computeScoreAccessors(std::vector<ScoringContextRef> const& scoringContexts) {
     if (scoringContexts.empty()) {
         return {};
     }
@@ -287,6 +289,8 @@ std::vector<std::optional<ScoreAccessorRef>> FullContextOnnxLabelScorer::getScor
             }
         }
 
+        numScoreAccessorsComputed_ += uniqueUncachedContexts.size();
+
         std::vector<SeqStepScoringContextRef> contextBatch;
         contextBatch.reserve(std::min(uniqueUncachedContexts.size(), maxBatchSize_));
         for (auto context : uniqueUncachedContexts) {
@@ -308,8 +312,8 @@ std::vector<std::optional<ScoreAccessorRef>> FullContextOnnxLabelScorer::getScor
     return scoreAccessors;
 }
 
-std::optional<ScoreAccessorRef> FullContextOnnxLabelScorer::getScoreAccessor(ScoringContextRef scoringContext) {
-    return getScoreAccessors({scoringContext})[0];
+std::optional<ScoreAccessorRef> FullContextOnnxLabelScorer::computeScoreAccessor(ScoringContextRef scoringContext) {
+    return computeScoreAccessors({scoringContext})[0];
 }
 
 void FullContextOnnxLabelScorer::forwardBatch(std::vector<SeqStepScoringContextRef> const& scoringContextBatch) {

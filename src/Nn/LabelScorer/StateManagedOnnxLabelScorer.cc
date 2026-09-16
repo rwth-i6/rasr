@@ -164,6 +164,7 @@ StateManagedOnnxLabelScorer::StateManagedOnnxLabelScorer(Core::Configuration con
 
     auto startLabels = paramStartLabels(config);
     startLabels_.insert(startLabels_.begin(), startLabels.begin(), startLabels.end());
+    tracksScoreAccessorCache_ = true;
 }
 
 void StateManagedOnnxLabelScorer::logScoringBreakdown() const {
@@ -246,18 +247,13 @@ ScoringContextRef StateManagedOnnxLabelScorer::extendedScoringContext(ScoringCon
     return Core::ref(new StateManagedOnnxScoringContext(std::move(labelSeq), context));
 }
 
-std::vector<std::optional<ScoreAccessorRef>> StateManagedOnnxLabelScorer::getScoreAccessors(std::vector<ScoringContextRef> const& scoringContexts) {
+std::vector<std::optional<ScoreAccessorRef>> StateManagedOnnxLabelScorer::computeScoreAccessors(std::vector<ScoringContextRef> const& scoringContexts) {
     if (scoringContexts.empty()) {
         return {};
     }
 
-    scoringTime_.start();
-
-    numScoreAccessorsRequested_ += scoringContexts.size();
-
     std::vector<std::optional<ScoreAccessorRef>> scoreAccessors(scoringContexts.size(), std::nullopt);
     if ((encoderStatesName_ != "" or encoderStatesSizeName_ != "") and (expectMoreFeatures_ or bufferSize() == 0)) {
-        scoringTime_.stop();
         return scoreAccessors;
     }
 
@@ -306,12 +302,11 @@ std::vector<std::optional<ScoreAccessorRef>> StateManagedOnnxLabelScorer::getSco
     }
     contextPreparationTime_.stop();
 
-    scoringTime_.stop();
     return scoreAccessors;
 }
 
-std::optional<ScoreAccessorRef> StateManagedOnnxLabelScorer::getScoreAccessor(ScoringContextRef scoringContext) {
-    return getScoreAccessors({scoringContext})[0];
+std::optional<ScoreAccessorRef> StateManagedOnnxLabelScorer::computeScoreAccessor(ScoringContextRef scoringContext) {
+    return computeScoreAccessors({scoringContext})[0];
 }
 
 size_t StateManagedOnnxLabelScorer::getMinActiveInputIndex(Core::CollapsedVector<ScoringContextRef> const& activeContexts) const {
@@ -347,7 +342,7 @@ void StateManagedOnnxLabelScorer::cacheStatesAndScores(std::vector<StateManagedO
         return;
     }
 
-    // Can't score before any encoder features are buffered; defer (mirrors the guard in getScoreAccessors()).
+    // Can't score before any encoder features are buffered; defer (mirrors the guard in computeScoreAccessors()).
     if ((not encoderStatesName_.empty() or not encoderStatesSizeName_.empty()) and bufferSize() == 0ul) {
         return;
     }

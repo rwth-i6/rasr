@@ -122,11 +122,11 @@ py::object PythonLabelScorer::extendedPythonScoringContext(py::object const& pyt
             transitionType);
 }
 
-std::optional<Nn::ScoreAccessorRef> PythonLabelScorer::getScoreAccessor(Nn::ScoringContextRef scoringContext) {
-    return getScoreAccessors({scoringContext})[0];
+std::optional<Nn::ScoreAccessorRef> PythonLabelScorer::computeScoreAccessor(Nn::ScoringContextRef scoringContext) {
+    return computeScoreAccessors({scoringContext})[0];
 }
 
-std::vector<std::optional<Nn::ScoreAccessorRef>> PythonLabelScorer::getScoreAccessors(std::vector<Nn::ScoringContextRef> const& scoringContexts) {
+std::vector<std::optional<Nn::ScoreAccessorRef>> PythonLabelScorer::computeScoreAccessors(std::vector<Nn::ScoringContextRef> const& scoringContexts) {
     std::vector<py::object> pythonContexts;
 
     pythonContexts.reserve(scoringContexts.size());

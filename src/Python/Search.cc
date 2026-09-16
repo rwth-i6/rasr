@@ -59,7 +59,7 @@ void SearchAlgorithm::enterSegment(std::string const& name) {
 
     auto open = Core::XmlOpen("segment") + Core::XmlAttribute("index", segmentIndex_);
     if (not name.empty()) {
-        open + Core::XmlAttribute("name", name);
+        open += Core::XmlAttribute("name", name);
     }
     clog() << open;
     segmentOpen_ = true;

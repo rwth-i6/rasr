@@ -53,7 +53,6 @@ public:
     static const Core::ParameterBool  paramCacheCleanupInterval;
     static const Core::ParameterInt   paramMaximumStableDelay;
     static const Core::ParameterInt   paramMaximumStableDelayPruningInterval;
-    static const Core::ParameterBool  paramLogStepwiseStatistics;
 
     LexiconfreeRNNTTimesyncBeamSearch(Core::Configuration const&);
 
@@ -132,7 +131,11 @@ private:
     size_t              cacheCleanupInterval_;
     size_t              maximumStableDelay_;
     size_t              maximumStableDelayPruningInterval_;
-    bool                logStepwiseStatistics_;
+
+    // Per-segment timing and statistics. Defaults to the standard log target.
+    mutable Core::XmlChannel statisticsChannel_;
+    // Statistics for every search step. Disabled unless a target is configured.
+    Core::XmlChannel stepwiseStatisticsChannel_;
 
     Core::Channel debugChannel_;
 

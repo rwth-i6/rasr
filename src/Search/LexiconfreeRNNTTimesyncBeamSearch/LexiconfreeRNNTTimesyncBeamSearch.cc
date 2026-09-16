@@ -155,11 +155,6 @@ const Core::ParameterBool LexiconfreeRNNTTimesyncBeamSearch::paramCollapseRepeat
         "Collapse repeated emission of the same label into one output. If false, every emission is treated like a new output.",
         false);
 
-const Core::ParameterBool LexiconfreeRNNTTimesyncBeamSearch::paramLogStepwiseStatistics(
-        "log-stepwise-statistics",
-        "Log statistics about the beam at every search step.",
-        false);
-
 const Core::ParameterBool LexiconfreeRNNTTimesyncBeamSearch::paramCacheCleanupInterval(
         "cache-cleanup-interval",
         "Interval of search steps after which buffered inputs that are not needed anymore get cleaned up.",
@@ -194,7 +189,8 @@ LexiconfreeRNNTTimesyncBeamSearch::LexiconfreeRNNTTimesyncBeamSearch(Core::Confi
           cacheCleanupInterval_(paramCacheCleanupInterval(config)),
           maximumStableDelay_(paramMaximumStableDelay(config)),
           maximumStableDelayPruningInterval_(paramMaximumStableDelayPruningInterval(config)),
-          logStepwiseStatistics_(paramLogStepwiseStatistics(config)),
+          statisticsChannel_(config, "statistics"),
+          stepwiseStatisticsChannel_(config, "stepwise-statistics"),
           debugChannel_(config, "debug"),
           labelScorer_(),
           beam_(),
@@ -286,6 +282,10 @@ void LexiconfreeRNNTTimesyncBeamSearch::enterSegment(Bliss::SpeechSegment const*
     finishedSegment_   = false;
 
     initializationTime_.stop();
+
+    if (stepwiseStatisticsChannel_.isOpen()) {
+        stepwiseStatisticsChannel_ << Core::XmlOpen("search-steps");
+    }
 }
 
 void LexiconfreeRNNTTimesyncBeamSearch::finishSegment() {
@@ -294,6 +294,9 @@ void LexiconfreeRNNTTimesyncBeamSearch::finishSegment() {
     featureProcessingTime_.stop();
     decodeManySteps();
     finalizeHypotheses();
+    if (stepwiseStatisticsChannel_.isOpen()) {
+        stepwiseStatisticsChannel_ << Core::XmlClose("search-steps");
+    }
     logStatistics();
     finishedSegment_ = true;
 }
@@ -350,9 +353,8 @@ bool LexiconfreeRNNTTimesyncBeamSearch::decodeStep() {
         return false;
     }
 
-    if (logStepwiseStatistics_) {
-        clog() << Core::XmlOpen("search-step-stats");
-        clog() << Core::XmlFull("timestep", currentSearchStep_);
+    if (stepwiseStatisticsChannel_.isOpen()) {
+        stepwiseStatisticsChannel_ << Core::XmlOpen("search-step-stats") + Core::XmlAttribute("step", currentSearchStep_);
     }
 
     // Assume the output labels are stored as lexicon lemma orth and ordered consistently with NN output index
@@ -365,8 +367,8 @@ bool LexiconfreeRNNTTimesyncBeamSearch::decodeStep() {
 
     // Start inner loop of this timestep
     while (true) {
-        if (logStepwiseStatistics_) {
-            clog() << Core::XmlFull("symbolstep", symbolStep);
+        if (stepwiseStatisticsChannel_.isOpen()) {
+            stepwiseStatisticsChannel_ << Core::XmlFull("symbol-step", symbolStep);
         }
 
         // Early stopping if no inner hyps left
@@ -442,8 +444,8 @@ bool LexiconfreeRNNTTimesyncBeamSearch::decodeStep() {
         recombination(outerHyps_);
 
         numOuterHyps_ += outerHyps_.size();
-        if (logStepwiseStatistics_) {
-            clog() << Core::XmlFull("outer-hyps", outerHyps_.size());
+        if (stepwiseStatisticsChannel_.isOpen()) {
+            stepwiseStatisticsChannel_ << Core::XmlFull("num-outer-hyps", outerHyps_.size());
         }
 
         // Finish this step if the maximum number of output symbols has been reached
@@ -538,13 +540,13 @@ bool LexiconfreeRNNTTimesyncBeamSearch::decodeStep() {
         }
 
         numInnerHyps_ += innerHyps_.size();
-        if (logStepwiseStatistics_) {
-            clog() << Core::XmlFull("inner-hyps", innerHyps_.size());
+        if (stepwiseStatisticsChannel_.isOpen()) {
+            stepwiseStatisticsChannel_ << Core::XmlFull("num-inner-hyps", innerHyps_.size());
         }
 
         numInnerAndOuterHyps_ += (innerHyps_.size() + outerHyps_.size());
-        if (logStepwiseStatistics_) {
-            clog() << Core::XmlFull("inner-and-outer-hyps", innerHyps_.size() + outerHyps_.size());
+        if (stepwiseStatisticsChannel_.isOpen()) {
+            stepwiseStatisticsChannel_ << Core::XmlFull("num-inner-and-outer-hyps", innerHyps_.size() + outerHyps_.size());
         }
 
         ++symbolStep;
@@ -562,9 +564,9 @@ bool LexiconfreeRNNTTimesyncBeamSearch::decodeStep() {
     outerHyps_.clear();
 
     numActiveHyps_ += beam_.size();
-    if (logStepwiseStatistics_) {
-        clog() << Core::XmlFull("active-hyps", beam_.size());
-        clog() << Core::XmlClose("search-step-stats");
+    if (stepwiseStatisticsChannel_.isOpen()) {
+        stepwiseStatisticsChannel_ << Core::XmlFull("num-active-hyps", beam_.size());
+        stepwiseStatisticsChannel_ << Core::XmlClose("search-step-stats");
     }
 
     /*
@@ -605,16 +607,22 @@ void LexiconfreeRNNTTimesyncBeamSearch::resetStatistics() {
 }
 
 void LexiconfreeRNNTTimesyncBeamSearch::logStatistics() const {
-    clog() << Core::XmlOpen("timing-statistics") + Core::XmlAttribute("unit", "milliseconds");
-    clog() << Core::XmlOpen("initialization-time") << initializationTime_.elapsedMilliseconds() << Core::XmlClose("initialization-time");
-    clog() << Core::XmlOpen("feature-processing-time") << featureProcessingTime_.elapsedMilliseconds() << Core::XmlClose("feature-processing-time");
-    clog() << Core::XmlOpen("scoring-time") << scoringTime_.elapsedMilliseconds() << Core::XmlClose("scoring-time");
-    clog() << Core::XmlOpen("context-extension-time") << contextExtensionTime_.elapsedMilliseconds() << Core::XmlClose("context-extension-time");
-    clog() << Core::XmlClose("timing-statistics");
-    numActiveHyps_.write(clog());
-    numOuterHyps_.write(clog());
-    numInnerHyps_.write(clog());
-    numInnerAndOuterHyps_.write(clog());
+    if (statisticsChannel_.isOpen()) {
+        statisticsChannel_ << Core::XmlOpen("timing-statistics") + Core::XmlAttribute("unit", "milliseconds");
+        statisticsChannel_ << Core::XmlOpen("initialization-time") << initializationTime_.elapsedMilliseconds() << Core::XmlClose("initialization-time");
+        statisticsChannel_ << Core::XmlOpen("feature-processing-time") << featureProcessingTime_.elapsedMilliseconds() << Core::XmlClose("feature-processing-time");
+        statisticsChannel_ << Core::XmlOpen("scoring-time") << scoringTime_.elapsedMilliseconds() << Core::XmlClose("scoring-time");
+        statisticsChannel_ << Core::XmlOpen("context-extension-time") << contextExtensionTime_.elapsedMilliseconds() << Core::XmlClose("context-extension-time");
+        statisticsChannel_ << Core::XmlClose("timing-statistics");
+        statisticsChannel_ << Core::XmlOpen("search-statistics");
+        numActiveHyps_.write(statisticsChannel_);
+        numOuterHyps_.write(statisticsChannel_);
+        numInnerHyps_.write(statisticsChannel_);
+        numInnerAndOuterHyps_.write(statisticsChannel_);
+        statisticsChannel_ << Core::XmlClose("search-statistics");
+    }
+
+    labelScorer_->logStatistics();
 }
 
 Nn::TransitionType LexiconfreeRNNTTimesyncBeamSearch::inferTransitionType(Nn::LabelIndex prevLabel, Nn::LabelIndex nextLabel) const {

@@ -155,10 +155,11 @@ const Core::ParameterBool LexiconfreeRNNTTimesyncBeamSearch::paramLogStepwiseSta
         "Log statistics about the beam at every search step.",
         false);
 
-const Core::ParameterBool LexiconfreeRNNTTimesyncBeamSearch::paramCacheCleanupInterval(
+const Core::ParameterInt LexiconfreeRNNTTimesyncBeamSearch::paramCacheCleanupInterval(
         "cache-cleanup-interval",
         "Interval of search steps after which buffered inputs that are not needed anymore get cleaned up.",
-        10);
+        10,
+        1);
 
 const Core::ParameterInt LexiconfreeRNNTTimesyncBeamSearch::paramMaximumStableDelay(
         "maximum-stable-delay",
@@ -850,6 +851,10 @@ void LexiconfreeRNNTTimesyncBeamSearch::maximumStableDelayPruning() {
 }
 
 void LexiconfreeRNNTTimesyncBeamSearch::finalizeHypotheses() {
+    if (not useSentenceEnd_) {
+        return;
+    }
+
     newBeam_.clear();
     for (auto const& hyp : beam_) {
         if (hyp.reachedSentenceEnd) {

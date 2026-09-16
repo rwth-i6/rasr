@@ -67,13 +67,16 @@ configuration.
 Search algorithms
 -----------------
 
-Four search algorithms are currently implemented on top of ``SearchV2``. Which one to pick depends on the type of model
-and vocabulary you use:
+Five search algorithms are currently implemented on top of ``SearchV2``. Which one to pick depends on the type of
+model and vocabulary you use:
 
 * ``lexiconfree-timesync-beam-search``: time-synchronous decoding, no pronunciation lexicon required. Typical
   use case: CTC / neural monotonic transducer models.
 * ``lexiconfree-labelsync-beam-search``: label-synchronous decoding, no pronunciation lexicon required. Typical
   use case: attention encoder-decoder (AED) models and Speech LLMs.
+* ``lexiconfree-rnnt-timesync-beam-search``: time-synchronous decoding, no pronunciation lexicon required, for
+  standard (non-monotonic) RNN-T/Transducer models where more than one non-blank label may be emitted per input
+  timestep. Typical use case: neural transducer models with an unrestricted (non-monotonic) alignment.
 * ``tree-timesync-beam-search``: time-synchronous decoding over a pronunciation lexicon search tree, with a
   word-level language model. The topology of the tree itself (HMM, CTC, RNA, ...) is a separate choice,
   see :ref:`Search tree types` below.
@@ -173,7 +176,8 @@ The search algorithm is selected with the ``type`` parameter under the ``search-
 
     [*.search-algorithm]
     type = lexiconfree-timesync-beam-search
-    ; other options: lexiconfree-labelsync-beam-search, tree-timesync-beam-search, tree-labelsync-beam-search
+    ; other options: lexiconfree-labelsync-beam-search, lexiconfree-rnnt-timesync-beam-search,
+    ; tree-timesync-beam-search, tree-labelsync-beam-search
 
 If unset, ``type`` defaults to ``lexiconfree-timesync-beam-search``.
 
@@ -310,6 +314,76 @@ Example config:
     length-norm-scale       = 1.0
     pruning-strategy-type   = separate
     max-labels-per-timestep = 1.2
+
+lexiconfree-rnnt-timesync-beam-search
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+A time-synchronous beam search without a pronunciation lexicon, word-level language model or transition model,
+for standard (non-monotonic) RNN-T/Transducer models. Unlike ``lexiconfree-timesync-beam-search``, a hypothesis
+can emit more than one non-blank label within the same input timestep, so the search has an inner loop within
+each timestep: a hypothesis keeps being extended with further non-blank labels until it emits blank (finishing
+it for that timestep) or the per-timestep label limit is reached.
+
+* ``max-beam-size`` (int list), ``score-threshold`` (float list): same meaning as for
+  ``lexiconfree-timesync-beam-search`` above.
+* ``length-norm-scale`` (float): same meaning as for ``lexiconfree-labelsync-beam-search`` above.
+  Only the beam pruning done at the end of each timestep (across that timestep's finished hypotheses)
+  uses the length-normalized score, together with the last label scorer's ``score-threshold``;
+  pruning within a timestep's inner loop always uses the raw, un-normalized score.
+* ``max-labels-per-timeframe`` (int): maximum number of non-blank labels a hypothesis may emit within a single
+  input timestep, before it is forced to finish that timestep with blank. Default ``10``.
+* ``blank-label-index`` (int): same meaning and inference as for ``lexiconfree-timesync-beam-search`` above,
+  except blank is not optional here -- this algorithm cannot function without a blank label.
+* ``sentence-end-label-index`` (int): same meaning and inference as for ``lexiconfree-timesync-beam-search``
+  above. Unlike ``lexiconfree-labelsync-beam-search``, sentence-end here is scored inline like any other
+  vocabulary token and does not stop a hypothesis from being extended further -- reaching it only sets a
+  per-hypothesis flag, consulted by ``sentence-end-fall-back`` at the very end of the segment.
+* ``sentence-end-fall-back`` (bool): only relevant if ``sentence-end-label-index`` is set. If no hypothesis has
+  emitted sentence-end by the end of the segment, controls what happens instead of failing: keep the beam as-is
+  if enabled, or produce an empty hypothesis if disabled. Default ``true``.
+* ``collapse-repeated-labels``, ``cache-cleanup-interval``, ``maximum-stable-delay``,
+  ``maximum-stable-delay-pruning-interval``, ``log-stepwise-statistics``: same meaning and defaults as for
+  ``lexiconfree-timesync-beam-search`` above.
+
+Like the other ``SearchV2`` algorithms, this one supports more than one label scorer at once (see
+:ref:`Multiple label scorers and per-stage parameters`), applied one after another within each symbol step with
+intermediate ``score-threshold``/``max-beam-size`` pruning in between. One exception is that the blank extension
+candidates (one per active hypothesis, not one per vocabulary token like the non-blank ones) are never pruned
+after the *first* label scorer -- with only one candidate per hypothesis there is nothing to gain from an
+intermediate cut there. They are still scored by every configured label scorer, and pruned like the non-blank
+extensions from the second scorer onward.
+
+Order of operations for one time-synchronous decoding step, assuming two label scorers ``L_1`` and ``L_2`` with
+``max-beam-size = b_1 b_2`` and ``score-threshold = s_1 s_2``:
+
+#. Start the timestep with the beam from the previous timestep as the active hypotheses.
+#. Repeat, until either no active hypotheses remain or ``max-labels-per-timeframe`` non-blank labels have been
+   emitted within this timestep:
+
+   #. Score all active hypotheses with ``L_1``.
+   #. Extend each active hypothesis with blank. Add the ``L_2`` score contribution to these blank extensions,
+      add the results to this timestep's pool of finished hypotheses, and recombine equivalent ones.
+   #. Extend each active hypothesis with every non-blank vocabulary token and prune the results with
+      score-threshold ``s_1`` and max-beam-size ``b_1``.
+   #. Add the ``L_2`` score contribution to the surviving non-blank extensions and prune them with
+      score-threshold ``s_2``.
+   #. Prune the surviving extensions with max-beam-size ``b_2`` (also dropping any that could no longer beat the
+      ``b_2``-th best finished hypothesis collected so far) to become the active hypotheses for the next
+      iteration of this loop.
+#. Prune this timestep's finished hypotheses with score-threshold ``s_2`` and max-beam-size ``b_2``, both applied
+   to the length-normalized score.
+#. The result becomes the beam for the next timestep.
+
+Example config:
+
+.. code-block:: ini
+
+    [*.search-algorithm]
+    type                     = lexiconfree-rnnt-timesync-beam-search
+    max-beam-size            = 32
+    score-threshold          = 14.0
+    blank-label-index        = 0
+    max-labels-per-timeframe = 10
 
 tree-timesync-beam-search
 ^^^^^^^^^^^^^^^^^^^^^^^^^^

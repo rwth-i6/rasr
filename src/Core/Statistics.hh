@@ -18,6 +18,7 @@
 #define _CORE_STATISTICS_HH
 
 #include <iostream>
+#include <vector>
 #include <sys/times.h>
 
 #include <Core/Assertions.hh>
@@ -77,6 +78,11 @@ public:
     }
 
     void write(XmlWriter&) const;
+
+    /*
+     * Write the statistic with additional attributes on the `<statistic>` element.
+     */
+    void write(XmlWriter&, std::vector<XmlAttribute> const& extraAttributes) const;
 
     Statistics(const std::string& n)
             : name_(n) {

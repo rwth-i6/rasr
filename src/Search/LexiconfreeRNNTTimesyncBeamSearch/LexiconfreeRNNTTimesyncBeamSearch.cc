@@ -140,11 +140,6 @@ const Core::ParameterInt LexiconfreeRNNTTimesyncBeamSearch::paramSentenceEndLabe
         "Index of the sentence end label in the lexicon. Can also be inferred from lexicon if it has a lemma with `special='sentence-end'` or `special='sentence-boundary'`. If not set, the search will not use sentence end.",
         Nn::invalidLabelIndex);
 
-const Core::ParameterBool LexiconfreeRNNTTimesyncBeamSearch::paramAllowBlankAfterSentenceEnd(
-        "allow-blank-after-sentence-end",
-        "blanks can still be produced after the sentence-end has been reached",
-        true);
-
 const Core::ParameterBool LexiconfreeRNNTTimesyncBeamSearch::paramSentenceEndFallBack(
         "sentence-end-fall-back",
         "Allow for fallback solution if no active word-end hypothesis exists at the end of a segment.",
@@ -186,7 +181,6 @@ LexiconfreeRNNTTimesyncBeamSearch::LexiconfreeRNNTTimesyncBeamSearch(Core::Confi
           lengthNormScale_(paramLengthNormScale(config)),
           maxLabelsPerFrame_(paramMaxLabelsPerFrame(config)),
           blankLabelIndex_(paramBlankLabelIndex(config)),
-          allowBlankAfterSentenceEnd_(paramAllowBlankAfterSentenceEnd(config)),
           sentenceEndLemma_(),
           sentenceEndLabelIndex_(paramSentenceEndLabelIndex(config)),
           sentenceEndFallback_(paramSentenceEndFallBack(config)),
@@ -318,9 +312,12 @@ Core::Ref<const LatticeAdaptor> LexiconfreeRNNTTimesyncBeamSearch::getCurrentBes
     auto&        bestHypothesis = getBestHypothesis();
     LatticeTrace endTrace(bestHypothesis.trace, 0, bestHypothesis.trace->time + 1, bestHypothesis.trace->score, {});
 
-    for (size_t hypIdx = 1ul; hypIdx < beam_.size(); ++hypIdx) {
-        auto& hyp          = beam_[hypIdx];
-        auto  siblingTrace = Core::ref(new LatticeTrace(hyp.trace, 0, hyp.trace->time, hyp.trace->score, {}));
+    for (auto const& hyp : beam_) {
+        // The best hypothesis is already represented in endTrace
+        if (&hyp == &bestHypothesis) {
+            continue;
+        }
+        auto siblingTrace = Core::ref(new LatticeTrace(hyp.trace, 0, hyp.trace->time, hyp.trace->score, {}));
         endTrace.appendSiblingToChain(siblingTrace);
     }
 
@@ -578,6 +575,16 @@ bool LexiconfreeRNNTTimesyncBeamSearch::decodeStep() {
         labelScorer_->cleanupCaches(activeContexts);
     }
 
+    /*
+     * Perform maximum-stable-delay-pruning.
+     */
+    if (currentSearchStep_ % maximumStableDelayPruningInterval_ == 0) {
+        maximumStableDelayPruning();
+        if (logStepwiseStatistics_) {
+            clog() << Core::XmlFull("num-hyps-after-maximum-stable-delay-pruning", beam_.size());
+        }
+    }
+
     return true;
 }
 
@@ -769,14 +776,25 @@ void LexiconfreeRNNTTimesyncBeamSearch::recombination(std::vector<LexiconfreeRNN
         else {
             verify(not hyp.trace->sibling);
 
-            auto* existingHyp           = it->second;
-            hyp.trace->sibling          = existingHyp->trace->sibling;
-            existingHyp->trace->sibling = hyp.trace;
+            auto* existingHyp = it->second;
 
-            // Add this hyp's score to existing hyp's score
-            existingHyp->score += hyp.score;
+            // Merge scores in probability space (log-sum-exp of the two path scores)
+            // numerically stable form: min(a, b) - log1p(exp(-|a - b|)), which is <= min(a, b)
+            Score mergedScore = std::min(existingHyp->score, hyp.score) - std::log1p(std::exp(-std::fabs(existingHyp->score - hyp.score)));
+
+            if (hyp.score < existingHyp->score) {
+                // New hyp is better -> keep it as representative and add existing one as sibling
+                hyp.trace->sibling = existingHyp->trace;
+                *existingHyp       = std::move(hyp);  // Overwrite in-place
+            }
+            else {
+                // New hyp is worse -> add it as sibling to the existing representative
+                hyp.trace->sibling          = existingHyp->trace->sibling;
+                existingHyp->trace->sibling = hyp.trace;
+            }
 
             // Recompute scaled score from the merged score
+            existingHyp->score       = mergedScore;
             const auto len           = std::max<std::size_t>(1, existingHyp->length);
             existingHyp->scaledScore = existingHyp->score / std::pow(static_cast<double>(len), static_cast<double>(lengthNormScale_));
         }
@@ -793,14 +811,12 @@ void LexiconfreeRNNTTimesyncBeamSearch::maximumStableDelayPruning() {
     auto cutoff = currentSearchStep_ + 1 - maximumStableDelay_;
 
     // Find trace of current best hypothesis that has a recent word-end within the limit
-    auto&                   bestHyp   = beam_.front();
     Score                   bestScore = Core::Type<Score>::max;
     Core::Ref<LatticeTrace> root;
 
     for (auto const& hyp : beam_) {
         if (hyp.score < bestScore and hyp.trace->time >= cutoff) {
             bestScore = hyp.score;
-            bestHyp   = hyp;
             root      = hyp.trace;
         }
     }

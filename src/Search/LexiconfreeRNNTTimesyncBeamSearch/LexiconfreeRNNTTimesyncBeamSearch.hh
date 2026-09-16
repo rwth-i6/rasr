@@ -47,7 +47,6 @@ public:
     static const Core::ParameterInt   paramMaxLabelsPerFrame;
     static const Core::ParameterInt   paramBlankLabelIndex;
     static const Core::ParameterInt   paramSentenceEndLabelIndex;
-    static const Core::ParameterBool  paramAllowBlankAfterSentenceEnd;
     static const Core::ParameterBool  paramSentenceEndFallBack;
     static const Core::ParameterBool  paramCollapseRepeatedLabels;
     static const Core::ParameterBool  paramCacheCleanupInterval;
@@ -123,7 +122,6 @@ private:
     float               lengthNormScale_;
     size_t              maxLabelsPerFrame_;
     Nn::LabelIndex      blankLabelIndex_;
-    bool                allowBlankAfterSentenceEnd_;
     bool                useSentenceEnd_;
     Bliss::Lemma const* sentenceEndLemma_;
     Nn::LabelIndex      sentenceEndLabelIndex_;

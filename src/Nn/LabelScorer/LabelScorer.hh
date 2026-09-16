@@ -114,15 +114,16 @@ public:
     // Perform scoring computation for a single context and return a score accessor
     // that allows retrieving the scores of specific labels or transition types as well
     // as the associated timeframe.
-    // Returns std::nullopt if the LabelScorer is not ready to score the context yet
-    virtual std::optional<ScoreAccessorRef> getScoreAccessor(ScoringContextRef scoringContext) = 0;
+    // Returns std::nullopt if the LabelScorer is not ready to score the context yet.
+    // Counts the request, times the call and delegates to `computeScoreAccessor`.
+    std::optional<ScoreAccessorRef> getScoreAccessor(ScoringContextRef scoringContext);
 
     // Perform scoring computation for a batch of contexts and return score accessors for each
     // that allow retrieving the scores of specific labels or transition types as well
     // as the associated timeframes.
-    // By default loops over the single-context version if not overridden in concrete LabelScorer
-    // Returns std::nullopt for a context if the LabelScorer is not ready to score it yet
-    virtual std::vector<std::optional<ScoreAccessorRef>> getScoreAccessors(std::vector<ScoringContextRef> const& scoringContexts);
+    // Returns std::nullopt for a context if the LabelScorer is not ready to score it yet.
+    // Counts the requests, times the call and delegates to `computeScoreAccessors`.
+    std::vector<std::optional<ScoreAccessorRef>> getScoreAccessors(std::vector<ScoringContextRef> const& scoringContexts);
 
     // Check whether the given transition type can be scored by this LabelScorer
     inline bool scoresTransition(TransitionType transitionType) const {
@@ -133,6 +134,14 @@ public:
     TransitionSet enabledTransitions() const;
 
 protected:
+    // Compute the score accessor for a single context. `getScoreAccessor` handles the
+    // statistics, so implementations must not touch them.
+    virtual std::optional<ScoreAccessorRef> computeScoreAccessor(ScoringContextRef scoringContext) = 0;
+
+    // Same for a batch of contexts. By default loops over the single-context version;
+    // override to exploit batched computation.
+    virtual std::vector<std::optional<ScoreAccessorRef>> computeScoreAccessors(std::vector<ScoringContextRef> const& scoringContexts);
+
     // Hook for subclasses to break down `scoring-time`. Called inside that element, so only
     // timers whose intervals are contained in it belong here.
     virtual void logScoringBreakdown() const {}
@@ -140,10 +149,16 @@ protected:
     // Hook for subclasses to add timers that are not contained in `scoring-time`.
     virtual void logAdditionalStatistics() const {}
 
+    // Time spent in `computeScoreAccessor(s)`. Scorers that compute scores lazily add those
+    // intervals as well.
     // Tracking only, so writable from const scoring paths
     mutable Core::StopWatch scoringTime_;
     mutable size_t          numScoreAccessorsRequested_ = 0;
-    mutable size_t          numScoreAccessorsComputed_  = 0;
+
+    // Contexts that had to be computed rather than served from an internal cache. Maintained and
+    // logged only by scorers that have such a cache, indicated by the flag below.
+    mutable size_t numScoreAccessorsComputed_ = 0;
+    bool           tracksScoreAccessorCache_  = false;
 
     // Channel that `logStatistics` writes to. Defaults to the standard log target.
     mutable Core::XmlChannel statisticsChannel_;

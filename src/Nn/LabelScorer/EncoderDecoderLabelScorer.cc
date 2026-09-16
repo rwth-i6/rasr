@@ -70,11 +70,11 @@ void EncoderDecoderLabelScorer::signalNoMoreFeatures() {
     decoder_->signalNoMoreFeatures();
 }
 
-std::optional<ScoreAccessorRef> EncoderDecoderLabelScorer::getScoreAccessor(ScoringContextRef scoringContext) {
+std::optional<ScoreAccessorRef> EncoderDecoderLabelScorer::computeScoreAccessor(ScoringContextRef scoringContext) {
     return decoder_->getScoreAccessor(scoringContext);
 }
 
-std::vector<std::optional<ScoreAccessorRef>> EncoderDecoderLabelScorer::getScoreAccessors(std::vector<ScoringContextRef> const& scoringContexts) {
+std::vector<std::optional<ScoreAccessorRef>> EncoderDecoderLabelScorer::computeScoreAccessors(std::vector<ScoringContextRef> const& scoringContexts) {
     return decoder_->getScoreAccessors(scoringContexts);
 }
 

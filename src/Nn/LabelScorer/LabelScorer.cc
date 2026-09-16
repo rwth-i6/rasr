@@ -47,7 +47,9 @@ void LabelScorer::logStatistics() const {
     statisticsChannel_ << Core::XmlClose("scoring-time");
     logAdditionalStatistics();
     statisticsChannel_ << Core::XmlFull("num-score-accessors-requested", numScoreAccessorsRequested_);
-    statisticsChannel_ << Core::XmlFull("num-score-accessors-computed", numScoreAccessorsComputed_);
+    if (tracksScoreAccessorCache_) {
+        statisticsChannel_ << Core::XmlFull("num-score-accessors-computed", numScoreAccessorsComputed_);
+    }
     statisticsChannel_ << Core::XmlClose("label-scorer-statistics");
 }
 
@@ -58,11 +60,23 @@ void LabelScorer::addInputs(DataView const& input, size_t nTimesteps) {
     }
 }
 
+std::optional<ScoreAccessorRef> LabelScorer::getScoreAccessor(ScoringContextRef scoringContext) {
+    ++numScoreAccessorsRequested_;
+    Core::StopWatch::Scope timer(scoringTime_);
+    return computeScoreAccessor(scoringContext);
+}
+
 std::vector<std::optional<ScoreAccessorRef>> LabelScorer::getScoreAccessors(std::vector<ScoringContextRef> const& scoringContexts) {
+    numScoreAccessorsRequested_ += scoringContexts.size();
+    Core::StopWatch::Scope timer(scoringTime_);
+    return computeScoreAccessors(scoringContexts);
+}
+
+std::vector<std::optional<ScoreAccessorRef>> LabelScorer::computeScoreAccessors(std::vector<ScoringContextRef> const& scoringContexts) {
     std::vector<std::optional<ScoreAccessorRef>> result;
     result.reserve(scoringContexts.size());
     for (auto const& scoringContext : scoringContexts) {
-        result.push_back(getScoreAccessor(scoringContext));
+        result.push_back(computeScoreAccessor(scoringContext));
     }
     return result;
 }

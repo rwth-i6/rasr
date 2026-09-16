@@ -54,7 +54,9 @@ typedef Core::Ref<const CtcPrefixScoringContext> CtcPrefixScoringContextRef;
 
 class CtcPrefixScoreAccessor : public ScoreAccessor {
 public:
-    CtcPrefixScoreAccessor(CtcPrefixScoringContextRef const& scoringContext, std::shared_ptr<Math::FastMatrix<Score>> const& ctcScores);
+    // Extended-prefix scores are computed on access, so that time is charged to `scoringTime`,
+    // the owning scorer's timer. The accessor never outlives the scorer.
+    CtcPrefixScoreAccessor(CtcPrefixScoringContextRef const& scoringContext, std::shared_ptr<Math::FastMatrix<Score>> const& ctcScores, Core::StopWatch& scoringTime);
 
     // Compute score of extended prefix with labelIndex on-demand
     Score getScore(TransitionType transitionType, LabelIndex labelIndex = invalidLabelIndex) const override;
@@ -65,6 +67,7 @@ public:
 private:
     CtcPrefixScoringContextRef               scoringContext_;
     std::shared_ptr<Math::FastMatrix<Score>> ctcScores_;
+    Core::StopWatch&                         scoringTime_;
 };
 
 /*
@@ -96,9 +99,11 @@ public:
     void addInput(DataView const& input) override;
     void addInputs(DataView const& inputs, size_t nTimesteps) override;
 
-    ScoringContextRef               getInitialScoringContext() override;
-    ScoringContextRef               extendedScoringContext(ScoringContextRef scoringContext, LabelIndex nextToken, TransitionType transitionType) override;
-    std::optional<ScoreAccessorRef> getScoreAccessor(ScoringContextRef scoringContext) override;
+    ScoringContextRef getInitialScoringContext() override;
+    ScoringContextRef extendedScoringContext(ScoringContextRef scoringContext, LabelIndex nextToken, TransitionType transitionType) override;
+
+protected:
+    std::optional<ScoreAccessorRef> computeScoreAccessor(ScoringContextRef scoringContext) override;
 
 private:
     LabelIndex                   blankIndex_;

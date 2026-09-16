@@ -44,10 +44,11 @@ NoContextOnnxLabelScorer::NoContextOnnxLabelScorer(Core::Configuration const& co
           Precursor(config, TransitionPresetType::CTC),
           scoreCache_() {
     Core::Configuration modelConfig(config, "onnx-model");
-    auto                key = modelConfig.getSelection();
-    onnxModel_              = modelCache.getOrCreate<Onnx::Model>(key, modelConfig, ioSpec);
-    inputFeatureName_       = onnxModel_->mapping.getOnnxName("input-feature");
-    scoresName_             = onnxModel_->mapping.getOnnxName("scores");
+    auto                key   = modelConfig.getSelection();
+    onnxModel_                = modelCache.getOrCreate<Onnx::Model>(key, modelConfig, ioSpec);
+    inputFeatureName_         = onnxModel_->mapping.getOnnxName("input-feature");
+    scoresName_               = onnxModel_->mapping.getOnnxName("scores");
+    tracksScoreAccessorCache_ = true;
 }
 
 void NoContextOnnxLabelScorer::logScoringBreakdown() const {
@@ -94,14 +95,10 @@ ScoringContextRef NoContextOnnxLabelScorer::extendedScoringContext(ScoringContex
     return Core::ref(new StepScoringContext(stepScoringContext->currentStep + 1));
 }
 
-std::vector<std::optional<ScoreAccessorRef>> NoContextOnnxLabelScorer::getScoreAccessors(std::vector<ScoringContextRef> const& scoringContexts) {
+std::vector<std::optional<ScoreAccessorRef>> NoContextOnnxLabelScorer::computeScoreAccessors(std::vector<ScoringContextRef> const& scoringContexts) {
     if (scoringContexts.empty()) {
         return {};
     }
-
-    scoringTime_.start();
-
-    numScoreAccessorsRequested_ += scoringContexts.size();
 
     std::vector<std::optional<ScoreAccessorRef>> scoreAccessors(scoringContexts.size(), std::nullopt);
 
@@ -119,12 +116,11 @@ std::vector<std::optional<ScoreAccessorRef>> NoContextOnnxLabelScorer::getScoreA
         scoreAccessors[contextIndex] = Core::ref(new VectorScoreAccessor(scoreCache_.at(stepScoringContext), stepScoringContext->currentStep));
     }
 
-    scoringTime_.stop();
     return scoreAccessors;
 }
 
-std::optional<ScoreAccessorRef> NoContextOnnxLabelScorer::getScoreAccessor(ScoringContextRef scoringContext) {
-    return getScoreAccessors({scoringContext})[0];
+std::optional<ScoreAccessorRef> NoContextOnnxLabelScorer::computeScoreAccessor(ScoringContextRef scoringContext) {
+    return computeScoreAccessors({scoringContext})[0];
 }
 
 void NoContextOnnxLabelScorer::forwardContext(StepScoringContextRef const& scoringContext) {

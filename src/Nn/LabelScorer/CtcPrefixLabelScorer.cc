@@ -123,12 +123,15 @@ size_t CtcPrefixScoringContext::hash() const {
  * =============================
  */
 
-CtcPrefixScoreAccessor::CtcPrefixScoreAccessor(CtcPrefixScoringContextRef const& scoringContext, std::shared_ptr<Math::FastMatrix<Score>> const& ctcScores)
+CtcPrefixScoreAccessor::CtcPrefixScoreAccessor(CtcPrefixScoringContextRef const& scoringContext, std::shared_ptr<Math::FastMatrix<Score>> const& ctcScores, Core::StopWatch& scoringTime)
         : scoringContext_(scoringContext),
-          ctcScores_(ctcScores) {
+          ctcScores_(ctcScores),
+          scoringTime_(scoringTime) {
 }
 
 Score CtcPrefixScoreAccessor::getScore(TransitionType transitionType, LabelIndex labelIndex) const {
+    Core::StopWatch::Scope timer(scoringTime_);
+
     // Since this function should return the score-delta for the new label, subtract the total score of the base prefix
     // before returning.
     verify(scoringContext_->prefixScore);
@@ -169,6 +172,7 @@ CtcPrefixLabelScorer::CtcPrefixLabelScorer(Core::Configuration const& config, Mo
           ctcScorer_(Module::instance().labelScorerFactory().createLabelScorer(select("ctc-scorer"), modelCache)),
           expectMoreFeatures_(true),
           ctcScores_(std::make_shared<Math::FastMatrix<Score>>(vocabSize_, 0)) {
+    tracksScoreAccessorCache_ = true;
 }
 
 Core::Ref<ScaledLabelScorer> CtcPrefixLabelScorer::getCtcLabelScorer() const {
@@ -220,19 +224,15 @@ ScoringContextRef CtcPrefixLabelScorer::extendedScoringContext(ScoringContextRef
     return Core::ref(new CtcPrefixScoringContext(std::move(newLabelSeq), scoringContext));
 }
 
-std::optional<ScoreAccessorRef> CtcPrefixLabelScorer::getScoreAccessor(ScoringContextRef scoringContext) {
+std::optional<ScoreAccessorRef> CtcPrefixLabelScorer::computeScoreAccessor(ScoringContextRef scoringContext) {
     if (expectMoreFeatures_) {
         return {};
     }
 
-    scoringTime_.start();
-    ++numScoreAccessorsRequested_;
-
     auto context = Core::ref(dynamic_cast<const CtcPrefixScoringContext*>(scoringContext.get()));
     finalizeScoringContext(context);
 
-    scoringTime_.stop();
-    return Core::ref(new CtcPrefixScoreAccessor(context, ctcScores_));
+    return Core::ref(new CtcPrefixScoreAccessor(context, ctcScores_, scoringTime_));
 }
 
 void CtcPrefixLabelScorer::setupCTCScores() {

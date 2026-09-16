@@ -34,25 +34,26 @@ namespace Search {
  * At each timestep, multiple non-blank labels can be predicted.
  * A hypothesis is finished in the current timestep if it has emitted a blank label.
  * Supports global pruning by max beam-size and by score difference to the best hypothesis.
- * Uses a LabelScorer to context initialization/extension and scoring.
+ * Uses one or more LabelScorers for context initialization/extension and scoring.
+ * The LabelScorers are applied one after another with intermediate pruning in-between.
  *
  * The search requires a lexicon that represents the vocabulary. Each lemma is viewed as a token with its index
  * in the lexicon corresponding to the associated output index of the label scorer.
  */
 class LexiconfreeRNNTTimesyncBeamSearch : public SearchAlgorithmV2 {
 public:
-    static const Core::ParameterInt   paramMaxBeamSize;
-    static const Core::ParameterFloat paramScoreThreshold;
-    static const Core::ParameterFloat paramLengthNormScale;
-    static const Core::ParameterInt   paramMaxLabelsPerFrame;
-    static const Core::ParameterInt   paramBlankLabelIndex;
-    static const Core::ParameterInt   paramSentenceEndLabelIndex;
-    static const Core::ParameterBool  paramSentenceEndFallBack;
-    static const Core::ParameterBool  paramCollapseRepeatedLabels;
-    static const Core::ParameterInt   paramCacheCleanupInterval;
-    static const Core::ParameterInt   paramMaximumStableDelay;
-    static const Core::ParameterInt   paramMaximumStableDelayPruningInterval;
-    static const Core::ParameterBool  paramLogStepwiseStatistics;
+    static const Core::ParameterIntVector   paramMaxBeamSizes;
+    static const Core::ParameterFloatVector paramScoreThresholds;
+    static const Core::ParameterFloat       paramLengthNormScale;
+    static const Core::ParameterInt         paramMaxLabelsPerFrame;
+    static const Core::ParameterInt         paramBlankLabelIndex;
+    static const Core::ParameterInt         paramSentenceEndLabelIndex;
+    static const Core::ParameterBool        paramSentenceEndFallBack;
+    static const Core::ParameterBool        paramCollapseRepeatedLabels;
+    static const Core::ParameterInt         paramCacheCleanupInterval;
+    static const Core::ParameterInt         paramMaximumStableDelay;
+    static const Core::ParameterInt         paramMaximumStableDelayPruningInterval;
+    static const Core::ParameterBool        paramLogStepwiseStatistics;
 
     LexiconfreeRNNTTimesyncBeamSearch(Core::Configuration const&);
 
@@ -93,17 +94,17 @@ protected:
      * Struct containing all information about a single hypothesis in the beam
      */
     struct LabelHypothesis {
-        Nn::ScoringContextRef   scoringContext;      // Context to compute scores based on this hypothesis
-        Nn::LabelIndex          currentToken;        // Most recent token in associated label sequence (useful to infer transition type)
-        size_t                  length;              // Number of tokens in hypothesis for length normalization
-        Score                   score;               // Full score of hypothesis
-        Score                   scaledScore;         // Length-normalized score of hypothesis
-        std::vector<int>        outputTokens;        // Previously predicted non-blank output tokens of hypothesis
-        Core::Ref<LatticeTrace> trace;               // Associated trace for traceback or lattice building off of hypothesis
-        bool                    reachedSentenceEnd;  // Flag whether hypothesis trace contains a sentence end emission
+        std::vector<Nn::ScoringContextRef> scoringContexts;     // Contexts to compute scores based on this hypothesis, one per label scorer
+        Nn::LabelIndex                     currentToken;        // Most recent token in associated label sequence (useful to infer transition type)
+        size_t                             length;              // Number of tokens in hypothesis for length normalization
+        Score                              score;               // Full score of hypothesis
+        Score                              scaledScore;         // Length-normalized score of hypothesis
+        std::vector<int>                   outputTokens;        // Previously predicted non-blank output tokens of hypothesis
+        Core::Ref<LatticeTrace>            trace;               // Associated trace for traceback or lattice building off of hypothesis
+        bool                               reachedSentenceEnd;  // Flag whether hypothesis trace contains a sentence end emission
 
         LabelHypothesis();
-        LabelHypothesis(LabelHypothesis const& base, ExtensionCandidate const& extension, Nn::ScoringContextRef const& newScoringContext, float lengthNormScale);
+        LabelHypothesis(LabelHypothesis const& base, ExtensionCandidate const& extension, std::vector<Nn::ScoringContextRef> const& newScoringContexts, float lengthNormScale);
 
         bool operator<(LabelHypothesis const& other) const {
             return scaledScore < other.scaledScore;
@@ -116,9 +117,9 @@ protected:
     };
 
 private:
-    size_t              maxBeamSize_;
-    bool                useScorePruning_;
-    Score               scoreThreshold_;
+    std::vector<size_t> maxBeamSizes_;
+    std::vector<bool>   useScorePruning_;
+    std::vector<Score>  scoreThresholds_;
     float               lengthNormScale_;
     size_t              maxLabelsPerFrame_;
     Nn::LabelIndex      blankLabelIndex_;
@@ -134,14 +135,15 @@ private:
 
     Core::Channel debugChannel_;
 
-    Core::Ref<Nn::LabelScorer>   labelScorer_;
-    Bliss::LexiconRef            lexicon_;
-    std::vector<LabelHypothesis> beam_;
+    std::vector<Core::Ref<Nn::LabelScorer>> labelScorers_;
+    Bliss::LexiconRef                       lexicon_;
+    std::vector<LabelHypothesis>            beam_;
 
     std::vector<LabelHypothesis> innerHyps_;  // Hyps that are active at the current timestep, so which can still be extended
     std::vector<LabelHypothesis> outerHyps_;  // Hyps that are finished for this timestep are waiting for the next timestep (ended with blank)
 
     // Pre-allocated intermediate vectors
+    std::vector<int>                   hypIndexToContextIndexMap_;
     std::vector<ExtensionCandidate>    extensions_;
     std::vector<LabelHypothesis>       newBeam_;
     std::vector<Nn::ScoringContextRef> scoringContexts_;
@@ -173,15 +175,26 @@ private:
     Nn::TransitionType inferTransitionType(Nn::LabelIndex prevLabel, Nn::LabelIndex nextLabel) const;
 
     /*
-     * Helper functions for pruning to maxBeamSize_
+     * Score `extensions` with labelScorers_[1..], applying intermediate score-threshold and
+     * max-beam-size pruning after each of them except the last
+     */
+    void scoreWithRemainingLabelScorers(std::vector<ExtensionCandidate>& extensions, std::vector<LabelHypothesis> const& baseHyps);
+
+    /*
+     * Extend `baseHyp`'s scoring context of every label scorer according to `extension`
+     */
+    std::vector<Nn::ScoringContextRef> extendedScoringContexts(LabelHypothesis const& baseHyp, ExtensionCandidate const& extension);
+
+    /*
+     * Helper functions for pruning to maxBeamSizes_.back()
      */
     void beamSizePruning(std::vector<LabelHypothesis>& hypotheses) const;
     void beamSizePruningLengthnormalized(std::vector<LabelHypothesis>& hypotheses) const;
 
     /*
-     * Helper functions for pruning to scoreThreshold_
+     * Helper functions for pruning to a given score-threshold/max-beam-size
      */
-    void scorePruning(std::vector<ExtensionCandidate>& extensions) const;
+    void scorePruning(std::vector<ExtensionCandidate>& extensions, Score relativeThreshold, size_t maxBeamSize) const;
     void scorePruningLengthnormalized(std::vector<LabelHypothesis>& hypotheses) const;
 
     /*

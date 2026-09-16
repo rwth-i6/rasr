@@ -193,12 +193,19 @@ private:
     size_t currentSearchStep_;
     bool   finishedSegment_;
 
-    Core::StopWatch              initializationTime_;
-    Core::StopWatch              featureProcessingTime_;
-    std::vector<Core::StopWatch> scoringTimes_;         // Scoring time per label scorer, contained in the matching scoreAndPruneExtensionsTimes_ entry
-    Core::StopWatch              finalizeScoringTime_;  // Scoring time during finalizeHypotheses
-    Core::StopWatch              decodeStepTime_;
+    Core::StopWatch initializationTime_;
+    Core::StopWatch featureProcessingTime_;
+    Core::StopWatch finalizeScoringTime_;  // Scoring time during finalizeHypotheses
+    Core::StopWatch decodeStepTime_;
+    /*
+     * Phases of `scoreAndPruneExtensions` per label scorer, adding up to the matching
+     * `scoreAndPruneExtensionsTimes_` entry. Scorers that compute scores lazily do that work
+     * during the extension phase; the pruning phase also prepares the next scorer's contexts.
+     */
     std::vector<Core::StopWatch> scoreAndPruneExtensionsTimes_;
+    std::vector<Core::StopWatch> scoringTimes_;
+    std::vector<Core::StopWatch> extensionTimes_;
+    std::vector<Core::StopWatch> intermediatePruningTimes_;
     Core::StopWatch              buildNewBeamTime_;
     Core::StopWatch              recombinationTime_;
     Core::StopWatch              beamPruningTime_;

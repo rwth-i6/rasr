@@ -286,10 +286,11 @@ private:
     Core::Statistics<u32>              numActiveHyps_;
     Core::Statistics<u32>              numActiveTrees_;
 
-    // Open-vocabulary fallback accounting over the best hypothesis' competitors.
-    // Counted per applied word event, not per surviving hypothesis.
-    Core::Statistics<u32> numUnknownWordEvents_;
-    Core::Statistics<u32> numKnownResolvedFallbackWords_;
+    // Open-vocabulary fallback accounting for the current segment. Plain counts
+    // rather than `Core::Statistics`, which reports min/avg/max over its samples and
+    // would only ever say "1" for an event counter.
+    u32 numUnknownWordEvents_;
+    u32 numKnownResolvedFallbackWords_;
 
     LabelHypothesis const& getBestHypothesis() const;
     LabelHypothesis const& getWorstHypothesis() const;

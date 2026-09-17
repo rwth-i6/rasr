@@ -512,9 +512,11 @@ Instrumentation, caching and limitations
 
 The search reports ``num-unknown-word-events`` and ``num-known-resolved-fallback-words`` per segment. The latter
 counts piece sequences that spelled an exact known pronunciation and were therefore scored with their known LM
-token; in ``known-excluding`` mode none of them can reach the unknown route. The route of a word is recoverable from
-the traceback without guessing: a fallback word appears as a sequence of fallback piece lemmata, a known word as a
-single ordinary lemma.
+token; in ``known-excluding`` mode none of them can reach the unknown route. Both are counted over the word-end
+extensions of the whole beam, not over the single best hypothesis, so they are a relative diagnostic of how much
+the fallback is being explored -- not the number of unknown words in the recognized output. That number has to come
+from the traceback, where the route of a word is recoverable without guessing: a fallback word appears as a sequence
+of fallback piece lemmata, a known word as a single ordinary lemma.
 
 The persistent search-tree image records the fallback policy (mode, tokenization and the identity of the fallback
 lemmata). An image built under a different policy is rejected and the tree is rebuilt, so an old cached tree cannot

@@ -292,8 +292,8 @@ TreeTimesyncBeamSearch::TreeTimesyncBeamSearch(Core::Configuration const& config
           numWordEndHypsAfterBeamPruning_("num-word-end-hyps-after-beam-pruning"),
           numActiveHyps_("num-active-hyps"),
           numActiveTrees_("num-active-trees"),
-          numUnknownWordEvents_("num-unknown-word-events"),
-          numKnownResolvedFallbackWords_("num-known-resolved-fallback-words") {
+          numUnknownWordEvents_(0u),
+          numKnownResolvedFallbackWords_(0u) {
     auto maxBeamSizes = paramMaxBeamSizes(config);
     maxBeamSizes_.insert(maxBeamSizes_.begin(), maxBeamSizes.begin(), maxBeamSizes.end());
 
@@ -485,8 +485,8 @@ void TreeTimesyncBeamSearch::enterSegment(Bliss::SpeechSegment const* segment) {
     numWordEndHypsAfterBeamPruning_.clear();
     numActiveHyps_.clear();
     numActiveTrees_.clear();
-    numUnknownWordEvents_.clear();
-    numKnownResolvedFallbackWords_.clear();
+    numUnknownWordEvents_          = 0u;
+    numKnownResolvedFallbackWords_ = 0u;
 
     initializationTime_.start();
 
@@ -875,10 +875,10 @@ bool TreeTimesyncBeamSearch::decodeStep() {
 
         if (extension.oov and extension.lmEvent.token != nullptr) {
             if (extension.lmEvent.isUnknown) {
-                numUnknownWordEvents_ += 1;
+                ++numUnknownWordEvents_;
             }
             else if (unknownWordFallback_->isFallbackLemma(extension.pron->lemma())) {
-                numKnownResolvedFallbackWords_ += 1;
+                ++numKnownResolvedFallbackWords_;
             }
         }
 
@@ -990,13 +990,14 @@ void TreeTimesyncBeamSearch::logStatistics() const {
     numActiveHyps_.write(clog());
     numActiveTrees_.write(clog());
     if (excludeKnownWordsFromFallback_) {
-        // Counted over the word-end extensions that survived score pruning, plus the
-        // segment-end finalizations. `num-known-resolved-fallback-words` are piece
-        // sequences that spell an exact known pronunciation and were therefore scored
-        // with their known LM token; in known-excluding mode none of them can reach
-        // the unknown route.
-        numUnknownWordEvents_.write(clog());
-        numKnownResolvedFallbackWords_.write(clog());
+        // Counted over the word-end extensions of this segment that survived score
+        // pruning, plus the segment-end finalizations -- so these are attempted word
+        // events across the beam, not events on the single best hypothesis.
+        // `num-known-resolved-fallback-words` are piece sequences that spell an exact
+        // known pronunciation and were therefore scored with their known LM token; in
+        // known-excluding mode none of them can reach the unknown route.
+        clog() << Core::XmlFull("num-unknown-word-events", numUnknownWordEvents_);
+        clog() << Core::XmlFull("num-known-resolved-fallback-words", numKnownResolvedFallbackWords_);
     }
 }
 
@@ -1569,10 +1570,10 @@ void TreeTimesyncBeamSearch::finalizeHypotheses() {
                         pendingHistory = languageModel_->extendedHistory(hyp.lmHistory, event.token);
                     }
                     if (event.isUnknown) {
-                        numUnknownWordEvents_ += 1;
+                        ++numUnknownWordEvents_;
                     }
                     else {
-                        numKnownResolvedFallbackWords_ += 1;
+                        ++numKnownResolvedFallbackWords_;
                     }
 
                     wordEndExtensions_.push_back({

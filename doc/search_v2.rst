@@ -413,6 +413,13 @@ Which special lemma groups describe the inventory depends on ``unknown-word-toke
     word and a token on the piece itself would be applied to the wrong one. This tokenization requires
     ``unknown-word-fallback = known-excluding``; the legacy mechanism cannot express a delayed boundary.
 
+    A fallback piece which is additionally listed in the lexicon's ``special="nonword"`` group is a **separator**:
+    it marks a boundary but carries no lexical content, so it neither opens nor extends a word. That is how a
+    standalone word-start marker is distinguished from a word-start piece with lexical content, and it is why a
+    trailing separator, a leading one, or several in a row create no unknown word. Punctuation pieces which do carry
+    content are ordinary pieces and are deliberately *not* treated as boundaries, so an apostrophe or a decimal point
+    can sit inside a word.
+
 All four names are intentionally multi-valued; every other special lemma name remains unique. Keep the conventional
 singleton ``special="unknown"`` lemma: it supplies the word LM's unknown token and remains available to the Bliss
 orthographic parser, while being kept out of the ordinary search tree. In the continuation-marked case an older
@@ -479,8 +486,9 @@ how state tying maps a label to an emission index -- in particular not on the al
 differ between a one-piece word and the first piece of a longer one under ``no-tying-dense``.
 
 The rule is an *exact token sequence* rule. An unseen tokenization of a known spelling is not recognized as known;
-such a word is counted as an unknown event. Resolving completed detokenized spellings back to known LM tokens would
-need a declared, deterministic lexical mapping and is not part of this prototype.
+such a word is counted as an unknown event, even though detokenizing it would yield an in-vocabulary spelling.
+Resolving completed detokenized spellings back to known LM tokens would need a declared, deterministic lexical
+mapping which handles casing and normalization ambiguities explicitly, and is not part of this prototype.
 
 Scoring details
 """""""""""""""

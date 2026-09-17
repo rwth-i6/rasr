@@ -1425,16 +1425,21 @@ void TreeTimesyncBeamSearch::expandFallbackExit(LabelHypothesis const&          
     bool const closesWordBefore = unknownWordFallback_->closesWordBefore(role) and hyp.oov->wordPending();
     bool const closesWordAfter  = unknownWordFallback_->closesWordAfter(role);
 
+    // A separator piece marks a boundary but is not lexical content, so it neither
+    // opens nor extends a word. Several separators in a row, or one at the very end,
+    // therefore create no unknown word.
+    bool const isSeparator = unknownWordFallback_->isSeparator(lemmaPron->lemma());
+
     OovStateRef eventOov;  // the pending word this exit completes, if any
     OovStateRef pendingAfterExit;
 
     if (closesWordBefore) {
         eventOov         = hyp.oov;
-        pendingAfterExit = advanceOovState(emptyOovState(), piece);
+        pendingAfterExit = isSeparator ? emptyOovState() : advanceOovState(emptyOovState(), piece);
     }
     else {
-        pendingAfterExit = advanceOovState(hyp.oov, piece);
-        if (closesWordAfter) {
+        pendingAfterExit = isSeparator ? hyp.oov : advanceOovState(hyp.oov, piece);
+        if (closesWordAfter and not isSeparator) {
             eventOov         = pendingAfterExit;
             pendingAfterExit = emptyOovState();
         }

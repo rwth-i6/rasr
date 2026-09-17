@@ -127,6 +127,17 @@ public:
     }
 
     /**
+     * True if this fallback piece carries no lexical content: it marks a boundary
+     * (and, as a word-start piece, closes a pending word) but does not itself begin
+     * or extend a word. Declared by additionally listing the piece lemma in the
+     * lexicon's `special="nonword"` group; this is how a standalone word-start
+     * marker is distinguished from a word-start piece with lexical content.
+     */
+    bool isSeparator(Bliss::Lemma const* lemma) const {
+        return separatorLemmas_.find(lemma) != separatorLemmas_.end();
+    }
+
+    /**
      * True if a piece with this role terminates the pending word *after* being
      * emitted. Only meaningful for ContinuationMarked.
      */
@@ -199,6 +210,8 @@ private:
     LemmaRoleMap                     roles_;
     // Membership in any fallback group, independent of the configured mode.
     LemmaSet allFallbackLemmas_;
+    // Fallback pieces which carry no lexical content.
+    LemmaSet separatorLemmas_;
 
     Bliss::Lemma const*          unknownLemma_;
     Bliss::SyntacticToken const* unknownSyntacticToken_;

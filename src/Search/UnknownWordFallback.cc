@@ -111,6 +111,14 @@ UnknownWordFallback::UnknownWordFallback(Core::Configuration const& config, Blis
 
     resolveUnknownSyntacticToken(lexicon);
 
+    // A fallback piece which is also a "nonword" carries no lexical content: a
+    // standalone word-start marker, for instance, separates words without being one.
+    for (auto const* lemma : lexicon.specialLemmas("nonword")) {
+        if (roles_.find(lemma) != roles_.end()) {
+            separatorLemmas_.insert(lemma);
+        }
+    }
+
     log() << "Open-vocabulary subword fallback: " << describe();
 }
 
@@ -299,6 +307,9 @@ std::string UnknownWordFallback::describe() const {
     }
     ss << ", " << (tokenization_ == ContinuationMarked ? "continuation-marked" : "word-start-marked");
     ss << ", " << openingLemmas_.size() << " opening and " << pendingLemmas_.size() << " pending piece lemmata";
+    if (not separatorLemmas_.empty()) {
+        ss << " (" << separatorLemmas_.size() << " of them separators without lexical content)";
+    }
     if (mode_ == KnownExcluding) {
         ss << ", unknown-word-penalty " << unknownWordPenalty_;
     }

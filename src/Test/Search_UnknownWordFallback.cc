@@ -238,7 +238,7 @@ public:
 
 void WordStartFallbackSearchTest::setUp() {
     lexicon_ = Core::ref(new Test::Lexicon());
-    for (auto const* phoneme : {"_cat", "_un", "_the", "_xy", "familiar", "s", "zz", "blank", "eos"}) {
+    for (auto const* phoneme : {"_cat", "_un", "_the", "_xy", "_sep", "familiar", "fam", "iliar", "s", "zz", "blank", "eos"}) {
         lexicon_->addPhoneme(phoneme, false);
     }
 
@@ -256,6 +256,13 @@ void WordStartFallbackSearchTest::setUp() {
     addLemma("familiar", {"familiar"}, "unknown-word-internal", {});
     addLemma("s", {"s"}, "unknown-word-internal", {});
     addLemma("zz", {"zz"}, "unknown-word-internal", {});
+    // An alternate tokenization of the known spelling "unfamiliar".
+    addLemma("fam", {"fam"}, "unknown-word-internal", {});
+    addLemma("iliar", {"iliar"}, "unknown-word-internal", {});
+    // A standalone word-start marker: a boundary without lexical content. Declared by
+    // additionally listing it as a "nonword".
+    Bliss::Lemma* separator = addLemma("_sep", {"_sep"}, "unknown-word-start", {});
+    lexicon_->defineSpecialLemma("nonword", separator);
 
     addLemma("[BLANK]", {"blank"}, "blank", {});
     addLemma("[SENTENCE-BEGIN]", {}, "sentence-begin", {"<s>"});
@@ -371,6 +378,62 @@ TEST_F(Search, WordStartFallbackSearchTest, UnmarkedFirstPieceIsAccepted) {
     EXPECT_DOUBLE_EQ(result.lmScore, costUnknown + costSentenceEnd, 1e-4);
 }
 
+TEST_F(Search, WordStartFallbackSearchTest, SeparatorPiecesCreateNoPhantomWord) {
+    buildSearch();
+
+    // A trailing separator closes the pending word and leaves nothing behind.
+    auto trailing = decode({"_xy", "zz", "_sep"});
+    EXPECT_DOUBLE_EQ(trailing.lmScore, costUnknown + costSentenceEnd, 1e-4);
+
+    // Repeated separators likewise add no word.
+    auto repeated = decode({"_xy", "zz", "_sep", "_sep"});
+    EXPECT_DOUBLE_EQ(repeated.lmScore, costUnknown + costSentenceEnd, 1e-4);
+
+    // A separator at the very beginning does not open one either.
+    auto leading = decode({"_sep", "_xy", "zz"});
+    EXPECT_DOUBLE_EQ(leading.lmScore, costUnknown + costSentenceEnd, 1e-4);
+}
+
+TEST_F(Search, WordStartFallbackSearchTest, KnownWordIsResolvedOnTheFallbackRoute) {
+    buildSearch();
+    // The unmarked first piece forces the hypothesis into the fallback sub-tree, which
+    // it cannot leave again, so "_cat" is closed and resolved there rather than on the
+    // ordinary route. It must still be scored with its own LM token.
+    auto result = decode({"zz", "_cat"});
+
+    EXPECT_EQ(result.lemmas, std::string("zz"
+                                         " "
+                                         "_cat"));
+    EXPECT_DOUBLE_EQ(result.lmScore, costUnknown + costCat + costSentenceEnd, 1e-4);
+}
+
+TEST_F(Search, WordStartFallbackSearchTest, AlternateTokenizationOfAKnownSpellingStaysUnknown) {
+    buildSearch();
+    // "_un fam iliar" detokenizes to the known spelling "unfamiliar", but it is not the
+    // token sequence the lexicon lists. The exact-token-sequence rule of this prototype
+    // deliberately reports it as an unknown word; recognizing it would need a declared
+    // detokenized-spelling mapping.
+    auto result = decode({"_un", "fam", "iliar"});
+
+    EXPECT_DOUBLE_EQ(result.lmScore, costUnknown + costSentenceEnd, 1e-4);
+}
+
+TEST_F(Search, WordStartFallbackSearchTest, RepeatedPieceSeparatedByBlankStaysTwoPieces) {
+    buildSearch();
+    // Two identical pieces separated by a blank are two pieces of one pending word,
+    // and the blank itself is not a boundary.
+    auto result = decode({"_xy", "zz", "blank", "zz"});
+
+    EXPECT_EQ(result.lemmas, std::string("_xy"
+                                         " "
+                                         "zz"
+                                         " "
+                                         "[BLANK]"
+                                         " "
+                                         "zz"));
+    EXPECT_DOUBLE_EQ(result.lmScore, costUnknown + costSentenceEnd, 1e-4);
+}
+
 /*
  * ==========================================================================
  * === Continuation-marked (BPE style) boundaries and exclusion           ===
@@ -417,6 +480,16 @@ TEST_F(Search, ContinuationMarkedFallbackSearchTest, FinalPieceClosesTheUnknownW
 
     auto twoWords = decode({"ra@@", "word", "ra@@", "word"});
     EXPECT_DOUBLE_EQ(twoWords.lmScore, 2.0 * costUnknown + costSentenceEnd, 1e-4);
+}
+
+TEST_F(Search, ContinuationMarkedFallbackSearchTest, SinglePieceUnknownWord) {
+    setParameter("*.unknown-word-fallback", "known-excluding");
+    buildSearch();
+
+    // A final piece on its own is a complete one-piece unknown word.
+    auto result = decode({"word"});
+    EXPECT_EQ(result.lemmas, std::string("word"));
+    EXPECT_DOUBLE_EQ(result.lmScore, costUnknown + costSentenceEnd, 1e-4);
 }
 
 TEST_F(Search, ContinuationMarkedFallbackSearchTest, ExactKnownPronunciationNeverBecomesUnknown) {

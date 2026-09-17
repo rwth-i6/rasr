@@ -27,6 +27,7 @@
 #include <Search/PersistentStateTree.hh>
 #include <Search/SearchV2.hh>
 #include <Search/Traceback.hh>
+#include <Search/UnknownWordFallback.hh>
 
 namespace Search {
 
@@ -80,6 +81,56 @@ public:
 
 protected:
     /*
+     * State of the open-vocabulary fallback for one hypothesis.
+     *
+     * `prefixNodes` are the nodes of `pronunciationTrie_` which spell exactly the
+     * pieces emitted for the currently pending fallback word. They decide whether that
+     * piece sequence is an exact known pronunciation, and they are tracked
+     * independently of where the hypothesis actually sits in the search tree.
+     *
+     * Under the exact-token-sequence rule the trie is deterministic, so the set holds
+     * at most one node today. It is kept as a set because a lexicon with optional
+     * neutral pieces or pronunciations spanning a surface word boundary would need
+     * several alternatives to stay alive at once.
+     *
+     * `diverged` records that some emitted piece already left every known
+     * pronunciation; once set it stays set until the pending word is closed.
+     *
+     * Instances are immutable and shared between hypotheses, so copying a hypothesis
+     * only copies a reference.
+     */
+    struct OovState : public Core::ReferenceCounted {
+        std::vector<u32> prefixNodes;
+        u32              numPieces;
+        bool             diverged;
+
+        OovState()
+                : prefixNodes(), numPieces(0u), diverged(false) {}
+
+        bool wordPending() const {
+            return numPieces > 0u;
+        }
+
+        bool operator==(OovState const& other) const {
+            return numPieces == other.numPieces and diverged == other.diverged and prefixNodes == other.prefixNodes;
+        }
+    };
+    using OovStateRef = Core::Ref<const OovState>;
+
+    /*
+     * Word-LM event a word-end extension performs. At most one such event happens per
+     * completed lexical word; piece exits and blanks carry none.
+     */
+    struct WordLmEvent {
+        // Token the word LM is advanced with, or null for no event at all.
+        Bliss::SyntacticToken const* token = nullptr;
+        // Additive unknown-word cost `beta`, charged once per completed unknown word.
+        Score unknownBias = 0.0;
+        // Whether this event took the unknown route rather than a known lexical one.
+        bool isUnknown = false;
+    };
+
+    /*
      * Possible extension for some label hypothesis in the beam
      */
     struct WithinWordExtensionCandidate {
@@ -101,6 +152,8 @@ protected:
         Score                            score;           // Would-be total score of the full hypothesis after LM score contribution
         Nn::TransitionType               transitionType;  // Type of transition towward `rootState`
         size_t                           baseHypIndex;    // Index of base hypothesis in beam
+        WordLmEvent                      lmEvent;         // Word-LM event this exit performs, if any
+        OovStateRef                      oov;             // Fallback state after this exit; null if the fallback is inactive
 
         bool operator<(WordEndExtensionCandidate const& other) {
             return score < other.score;
@@ -118,6 +171,7 @@ protected:
         Speech::TimeframeIndex             timeframe;        // Timeframe of current token
         Score                              score;            // Full score of the hypothesis
         Core::Ref<LatticeTrace>            trace;            // Associated trace for traceback or lattice building of hypothesis
+        OovStateRef                        oov;              // Open-vocabulary fallback state; null unless the known-excluding fallback is active
 
 #ifdef SEARCHV2_DEBUG
         std::vector<Nn::LabelIndex>         tokenSequence;     // Full sequence of predicted tokens for debugging purposes
@@ -151,6 +205,8 @@ private:
     Histogram           scoreHistogram_;
     Nn::LabelIndex      blankLabelIndex_;
     Nn::LabelIndex      silenceLabelIndex_;
+    Bliss::Lemma const* blankLemma_;
+    Bliss::Lemma const* silenceLemma_;
     Bliss::Lemma const* sentenceEndLemma_;
     Nn::LabelIndex      sentenceEndLabelIndex_;
     size_t              cacheCleanupInterval_;
@@ -172,6 +228,15 @@ private:
     Core::Ref<Lm::ScaledLanguageModel>             languageModel_;
     Core::Channel                                  debugChannel_;
 
+    // Open-vocabulary fallback. `unknownWordFallback_` is only constructed once the
+    // lexicon is known; the remaining members are only used in known-excluding mode.
+    std::unique_ptr<UnknownWordFallback> unknownWordFallback_;
+    bool                                 excludeKnownWordsFromFallback_;
+    StateId                              unknownWordRoot_;
+    Bliss::SyntacticToken const*         unknownSyntacticToken_;
+    Score                                unknownWordPenalty_;
+    OovStateRef                          initialOovState_;
+
     // Pre-allocated intermediate vectors
     std::vector<int>                          hypIndexToContextIndexMap_;
     std::vector<WithinWordExtensionCandidate> withinWordExtensions_;
@@ -188,6 +253,23 @@ private:
     std::vector<size_t>                    stateExitsOffset_;
     std::vector<PersistentStateTree::Exit> stateExits_;
 
+    /*
+     * Prefix trie over the pronunciations of all ordinary lexical entries, used to
+     * decide whether the pieces of a pending fallback word spell an exact known
+     * pronunciation. It is built from the lexicon rather than read off the search
+     * tree, so it does not depend on how state tying maps a label to an emission
+     * index -- in particular not on the word-boundary flags of the allophone, which
+     * differ between a one-piece word and the first piece of a longer one.
+     * Node 0 is the root. Only filled in known-excluding mode.
+     */
+    struct PronunciationTrieNode {
+        // Children by acoustic-label phoneme, sorted by phoneme id.
+        std::vector<std::pair<Bliss::Phoneme::Id, u32>> children;
+        // Ordinary lexical entries whose pronunciation ends exactly here.
+        std::vector<Bliss::Lemma const*> completedLemmas;
+    };
+    std::vector<PronunciationTrieNode> pronunciationTrie_;
+
     size_t currentSearchStep_;
     bool   finishedSegment_;
 
@@ -203,6 +285,11 @@ private:
     Core::Statistics<u32>              numWordEndHypsAfterBeamPruning_;
     Core::Statistics<u32>              numActiveHyps_;
     Core::Statistics<u32>              numActiveTrees_;
+
+    // Open-vocabulary fallback accounting over the best hypothesis' competitors.
+    // Counted per applied word event, not per surviving hypothesis.
+    Core::Statistics<u32> numUnknownWordEvents_;
+    Core::Statistics<u32> numKnownResolvedFallbackWords_;
 
     LabelHypothesis const& getBestHypothesis() const;
     LabelHypothesis const& getWorstHypothesis() const;
@@ -235,6 +322,57 @@ private:
      * (stateSuccessorsOffset_[s], stateSuccessorsOffset_[s+1]) and (stateExitsOffset_[s], stateExitsOffset_[s+1])
      */
     void createSuccessorLookups();
+
+    /*
+     * Build `pronunciationTrie_` from every ordinary lexical entry of the lexicon.
+     */
+    void createPronunciationTrie();
+
+    /*
+     * The fallback state a hypothesis has when no fallback word is pending.
+     */
+    OovStateRef emptyOovState() const {
+        return initialOovState_;
+    }
+
+    /*
+     * Advance the known-prefix tracking of `base` by one emitted fallback piece.
+     */
+    OovStateRef advanceOovState(OovStateRef const& base, Bliss::Pronunciation const& piece) const;
+
+    /*
+     * Ordinary lexical entries which spell exactly the pieces of the pending fallback
+     * word described by `oov`. A non-empty result means the pending word is an exact
+     * known pronunciation, in which case the unknown route is disallowed and the
+     * fallback hypothesis is resolved into these known interpretations instead.
+     */
+    void collectKnownLemmas(OovState const& oov, std::vector<Bliss::Lemma const*>& knownLemmas) const;
+
+    /*
+     * Word-LM events which close the pending fallback word described by `oov`:
+     * either one event per known lexical interpretation, or a single unknown event.
+     */
+    void resolveWordLmEvents(OovState const& oov, std::vector<WordLmEvent>& events) const;
+
+    /*
+     * Append the word-end extension candidates produced by one exit of a hypothesis
+     * whose state carries the open-vocabulary fallback.
+     */
+    // Scratch buffers for the fallback bookkeeping, kept as members to avoid
+    // reallocating them once per exit.
+    mutable std::vector<Bliss::Lemma const*> knownLemmaBuffer_;
+    mutable std::vector<WordLmEvent>         wordLmEventBuffer_;
+
+    void expandFallbackExit(LabelHypothesis const&           hyp,
+                            size_t                           hypIndex,
+                            PersistentStateTree::Exit const& exit,
+                            Bliss::LemmaPronunciation const* lemmaPron,
+                            UnknownWordFallback::PieceRole   role);
+
+    /*
+     * Score contribution of all label scorers for a word-end transition of `hyp`.
+     */
+    Score wordEndTransitionScore(LabelHypothesis const& hyp, Nn::TransitionType transitionType) const;
 
     /*
      * After reaching the segment end, go through the active hypotheses, only keep those

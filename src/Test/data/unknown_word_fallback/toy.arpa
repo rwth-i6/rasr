@@ -1,0 +1,19 @@
+# Toy unigram word LM for the open-vocabulary fallback tests.
+# Probabilities are log10 and deliberately do not sum to one; the tests only rely
+# on the exact per-token cost. RASR converts them to its internal negative natural
+# logarithm convention, so a log10 value of -x becomes a cost of x * ln(10).
+
+\data\
+ngram 1=8
+
+\1-grams:
+-99		<s>	0.0
+-0.09691	</s>
+-0.60206	<UNK>
+-0.30103	CAT
+-1.00000	THE
+-0.69897	UNFAMILIAR
+-0.39794	KNOWN
+-0.52288	KNOWNTWO
+
+\end\

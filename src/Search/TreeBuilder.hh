@@ -15,9 +15,12 @@
 #ifndef TREEBUILDER_HH
 #define TREEBUILDER_HH
 
+#include <functional>
+
 #include <Bliss/Phoneme.hh>
 #include <Core/Hash.hh>
 #include <Search/StateTree.hh>
+#include <Search/UnknownWordFallback.hh>
 
 #include "PersistentStateTree.hh"
 
@@ -243,15 +246,30 @@ public:
     virtual ~SharedBaseClassTreeBuilder() = default;
 
 protected:
-    // If present, these special lemma groups define an open-vocabulary
-    // sub-tree. The conventional unknown lemma remains available for the
-    // orthographic parser; unknown-final lemmata provide piece-specific
-    // orthographies for the search tree.
-    Bliss::Lemma const*              unknownLemma_;
-    std::vector<Bliss::Lemma const*> unknownFinalLemmas_;
-    std::vector<Bliss::Lemma const*> unknownContinuationLemmas_;
+    // Signature of the builder-specific routine which lays out one pronunciation.
+    using PronunciationExtender = std::function<StateId(StateId, Bliss::Pronunciation const*)>;
+
+    // Configured open-vocabulary fallback policy and the special lemma groups it
+    // is described by. Shared with the search algorithm, which realizes the
+    // word-boundary and scoring semantics on top of this topology.
+    Search::UnknownWordFallback unknownWordFallback_;
+
+    // Root of the region in which a fallback word is pending. Invalid if the
+    // fallback is disabled.
+    StateId unknownWordRoot_;
 
     bool isUnknownWordLemma(Bliss::Lemma const* lemma) const;
+
+    // Allocate `unknownWordRoot_` if the policy needs one, register it in the
+    // network and mark it final where a pending word may end a segment.
+    // Call from the derived builder's constructor once the ordinary roots exist.
+    void createUnknownWordRoot();
+
+    // Build the fallback sub-tree. `extend` lays out one pronunciation in the
+    // topology of the concrete builder, `wordEndRoot` is the root an ordinary
+    // word exit transits to, and `blankLemma` (may be null) keeps the ordinary
+    // blank behavior available while a fallback word is pending.
+    void addUnknownWordStates(PronunciationExtender const& extend, StateId wordEndRoot, Bliss::Lemma const* blankLemma);
 
     // Create a node with invalid AM and TM indices which serves as a root
     StateId createRoot();
@@ -287,7 +305,6 @@ protected:
     bool forceBlank_;
 
     StateId                      wordBoundaryRoot_;
-    StateId                      unknownWordRoot_;
     Search::StateTree::StateDesc blankDesc_;
     Am::AllophoneStateIndex      blankAllophoneStateIndex_;
 
@@ -298,11 +315,8 @@ protected:
     // Build the sub-tree with the word-boundary lemma plus optional blank starting from `wordBoundaryRoot_`.
     void addWordBoundaryStates();
 
-    // Build the sub-tree for sequences of unknown-word pieces. This is enabled
-    // by the multi-valued special lemma groups "unknown-continuation" and
-    // "unknown-final". A singleton "unknown" lemma is accepted as a legacy
-    // source of final-piece pronunciations.
-    void addUnknownWordStates();
+    // The root that an ordinary word exit transits to.
+    StateId wordEndRoot() const;
 
     Bliss::Lemma const* getSentenceEndLemma() const;
 };
@@ -330,7 +344,6 @@ public:
 
 protected:
     StateId wordBoundaryRoot_;
-    StateId unknownWordRoot_;
 
     // Starting in `startState` (usually a root), include the lemma with pronunciation `pron` in the tree
     // Returns the last state corresponding to `pron`.
@@ -339,8 +352,8 @@ protected:
     // Build the sub-tree with the word-boundary lemma starting from `wordBoundaryRoot_`.
     void addWordBoundaryStates();
 
-    // AED counterpart of CtcTreeBuilder::addUnknownWordStates().
-    void addUnknownWordStates();
+    // The root that an ordinary word exit transits to.
+    StateId wordEndRoot() const;
 };
 
 class HmmTreeBuilder : public SharedBaseClassTreeBuilder {

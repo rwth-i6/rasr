@@ -16,6 +16,8 @@
 #include "TreeTimesyncBeamSearch.hh"
 
 #include <algorithm>
+#include <cmath>
+#include <memory>
 #include <strings.h>
 
 #include <Am/ClassicStateModel.hh>
@@ -53,7 +55,8 @@ TreeTimesyncBeamSearch::LabelHypothesis::LabelHypothesis()
           lmHistory(),
           timeframe(0),
           score(0.0),
-          trace(Core::ref(new LatticeTrace(0, {0, 0}, {})))
+          trace(Core::ref(new LatticeTrace(0, {0, 0}, {}))),
+          oov()
 #ifdef SEARCHV2_DEBUG
           ,
           tokenSequence(),
@@ -73,7 +76,8 @@ TreeTimesyncBeamSearch::LabelHypothesis::LabelHypothesis(
           lmHistory(base.lmHistory),
           timeframe(extension.timeframe),
           score(extension.score),
-          trace(base.trace)
+          trace(base.trace),
+          oov(base.oov)
 #ifdef SEARCHV2_DEBUG
           ,
           tokenSequence(base.tokenSequence),
@@ -97,7 +101,8 @@ TreeTimesyncBeamSearch::LabelHypothesis::LabelHypothesis(
           currentState(extension.rootState),
           lmHistory(newLmHistory),
           timeframe(base.timeframe),
-          score(extension.score)
+          score(extension.score),
+          oov(extension.oov)
 #ifdef SEARCHV2_DEBUG
           ,
           tokenSequence(base.tokenSequence),
@@ -123,7 +128,12 @@ TreeTimesyncBeamSearch::LabelHypothesis::LabelHypothesis(
 
 std::string TreeTimesyncBeamSearch::LabelHypothesis::toString() const {
     std::stringstream ss;
-    ss << "Score: " << score << ", current state: " << currentState << ", traceback: ";
+    ss << "Score: " << score << ", current state: " << currentState;
+    if (oov and oov->wordPending()) {
+        ss << ", pending fallback word of " << oov->numPieces << " piece(s) ("
+           << (oov->diverged ? "diverged from every known pronunciation" : "still matching a known prefix") << ")";
+    }
+    ss << ", traceback: ";
 
     auto traceback = trace->performTraceback();
 
@@ -240,6 +250,8 @@ TreeTimesyncBeamSearch::TreeTimesyncBeamSearch(Core::Configuration const& config
           scoreHistogram_(paramNumHistogramBins(config)),
           blankLabelIndex_(Nn::invalidLabelIndex),
           silenceLabelIndex_(Nn::invalidLabelIndex),
+          blankLemma_(nullptr),
+          silenceLemma_(nullptr),
           sentenceEndLemma_(),
           sentenceEndLabelIndex_(Nn::invalidLabelIndex),
           cacheCleanupInterval_(paramCacheCleanupInterval(config)),
@@ -254,6 +266,12 @@ TreeTimesyncBeamSearch::TreeTimesyncBeamSearch(Core::Configuration const& config
           labelScorers_(),
           nonWordLemmas_(),
           debugChannel_(config, "debug"),
+          unknownWordFallback_(),
+          excludeKnownWordsFromFallback_(false),
+          unknownWordRoot_(invalidTreeNodeIndex),
+          unknownSyntacticToken_(nullptr),
+          unknownWordPenalty_(0.0),
+          initialOovState_(),
           hypIndexToContextIndexMap_(),
           withinWordExtensions_(),
           wordEndExtensions_(),
@@ -273,7 +291,9 @@ TreeTimesyncBeamSearch::TreeTimesyncBeamSearch(Core::Configuration const& config
           numWordEndHypsAfterRecombination_("num-word-end-hyps-after-recombination"),
           numWordEndHypsAfterBeamPruning_("num-word-end-hyps-after-beam-pruning"),
           numActiveHyps_("num-active-hyps"),
-          numActiveTrees_("num-active-trees") {
+          numActiveTrees_("num-active-trees"),
+          numUnknownWordEvents_("num-unknown-word-events"),
+          numKnownResolvedFallbackWords_("num-known-resolved-fallback-words") {
     auto maxBeamSizes = paramMaxBeamSizes(config);
     maxBeamSizes_.insert(maxBeamSizes_.begin(), maxBeamSizes.begin(), maxBeamSizes.end());
 
@@ -320,6 +340,21 @@ bool TreeTimesyncBeamSearch::setModelCombination(Speech::ModelCombination const&
 
     nonWordLemmas_ = lexicon_->specialLemmas("nonword");
 
+    // The word-end expansion can apply only one syntactic token per exit. Report the
+    // offending lemma up front instead of failing on a `require` mid-segment.
+    for (auto lemmaIters = lexicon_->lemmas(); lemmaIters.first != lemmaIters.second; ++lemmaIters.first) {
+        auto const* lemma = *lemmaIters.first;
+        if (lemma->syntacticTokenSequence().size() > 1) {
+            error() << "Lemma \"" << lemma->name().str() << "\" has " << lemma->syntacticTokenSequence().size()
+                    << " syntactic tokens. " << name() << " supports at most one syntactic token per lexical exit.";
+        }
+    }
+
+    unknownWordFallback_           = std::make_unique<UnknownWordFallback>(config, *lexicon_);
+    excludeKnownWordsFromFallback_ = unknownWordFallback_->excludesKnownWords();
+    unknownSyntacticToken_         = unknownWordFallback_->unknownSyntacticToken();
+    unknownWordPenalty_            = unknownWordFallback_->unknownWordPenalty();
+
     network_ = Core::ref(new PersistentStateTree(
             config,
             acousticModel_,
@@ -347,7 +382,10 @@ bool TreeTimesyncBeamSearch::setModelCombination(Speech::ModelCombination const&
         }
     }
 
-    if (lexicon_->specialLemma("blank")) {
+    blankLemma_   = lexicon_->specialLemma("blank");
+    silenceLemma_ = lexicon_->specialLemma("silence");
+
+    if (blankLemma_) {
         blankLabelIndex_ = acousticModel_->emissionIndex(acousticModel_->blankAllophoneStateIndex());
         useBlank_        = true;
         log() << "Use blank label with index " << blankLabelIndex_;
@@ -357,7 +395,7 @@ bool TreeTimesyncBeamSearch::setModelCombination(Speech::ModelCombination const&
         useBlank_        = false;
     }
 
-    if (lexicon_->specialLemma("silence")) {
+    if (silenceLemma_) {
         silenceLabelIndex_ = acousticModel_->emissionIndex(acousticModel_->silenceAllophoneStateIndex());
         useSilence_        = true;
         log() << "Use silence label with index " << silenceLabelIndex_;
@@ -394,6 +432,42 @@ bool TreeTimesyncBeamSearch::setModelCombination(Speech::ModelCombination const&
     // Create look-ups for state successors and exits of each state
     createSuccessorLookups();
 
+    if (excludeKnownWordsFromFallback_) {
+        unknownWordRoot_ = network_->unknownWordRoot;
+        if (unknownWordRoot_ == invalidTreeNodeIndex) {
+            criticalError("The search tree was built without an open-vocabulary fallback root, "
+                          "but unknown-word-fallback is \"known-excluding\".");
+        }
+        if (lexicon_->specialLemma("word-boundary") != nullptr) {
+            // Known-prefix tracking starts at the ordinary root. With a word-boundary
+            // lemma an ordinary word exit transits to the word-boundary root instead,
+            // so the prefix walk and the ordinary path would disagree.
+            criticalError("unknown-word-fallback \"known-excluding\" does not support a \"word-boundary\" special lemma.");
+        }
+        if (unknownSyntacticToken_ == nullptr) {
+            criticalError("No unknown syntactic token available for the open-vocabulary fallback.");
+        }
+        else {
+            // A finite additive bias cannot revive a zero-probability unknown token, so
+            // refuse to decode rather than silently never taking the fallback.
+            Lm::Score unknownScore = languageModel_->score(languageModel_->startHistory(), unknownSyntacticToken_);
+            if (not Math::isinf(unknownScore) and not std::isnan(unknownScore)) {
+                log() << "Unknown word cost of the configured word LM in the start history: " << unknownScore;
+            }
+            else {
+                criticalError() << "The configured word LM assigns no probability to the unknown token \""
+                                << unknownSyntacticToken_->symbol().str() << "\". Use an LM which models it, or "
+                                << "configure an explicit smoothing/floor policy for it.";
+            }
+        }
+
+        createPronunciationTrie();
+
+        auto initial         = Core::ref(new OovState());
+        initial->prefixNodes = {0u};  // the trie root
+        initialOovState_     = initial;
+    }
+
     return true;
 }
 
@@ -411,6 +485,8 @@ void TreeTimesyncBeamSearch::enterSegment(Bliss::SpeechSegment const* segment) {
     numWordEndHypsAfterBeamPruning_.clear();
     numActiveHyps_.clear();
     numActiveTrees_.clear();
+    numUnknownWordEvents_.clear();
+    numKnownResolvedFallbackWords_.clear();
 
     initializationTime_.start();
 
@@ -427,6 +503,19 @@ void TreeTimesyncBeamSearch::enterSegment(Bliss::SpeechSegment const* segment) {
     }
     beam_.front().currentState = network_->rootState;
     beam_.front().lmHistory    = languageModel_->startHistory();
+    beam_.front().oov          = initialOovState_;
+
+    if (excludeKnownWordsFromFallback_ and
+        unknownWordFallback_->tokenization() == UnknownWordFallback::WordStartMarked) {
+        // Ordinary pronunciations and the fallback both start a word with a word-start
+        // piece, so a first piece without that marker would be unreachable. Seed a
+        // second hypothesis inside the pending-word root, where the still empty
+        // pending word can be opened by any piece. An empty pending word produces no
+        // word event, so this costs nothing if the first piece is word-start marked
+        // after all: both hypotheses then recombine immediately.
+        beam_.push_back(beam_.front());
+        beam_.back().currentState = unknownWordRoot_;
+    }
 
     currentSearchStep_ = 0ul;
     finishedSegment_   = false;
@@ -713,34 +802,42 @@ bool TreeTimesyncBeamSearch::decodeStep() {
             auto const*                     lemmaPron = lexicon_->lemmaPronunciation(exit.pronunciation);
             auto const*                     lemma     = lemmaPron->lemma();
 
+            // In known-excluding mode the fallback pieces do not carry their word-LM
+            // event themselves: the search decides where the word boundary is and
+            // whether the completed piece sequence is an exact known pronunciation.
+            UnknownWordFallback::PieceRole const role =
+                    excludeKnownWordsFromFallback_ ? unknownWordFallback_->roleOf(lemma) : UnknownWordFallback::NotFallback;
+            if (role != UnknownWordFallback::NotFallback) {
+                expandFallbackExit(hyp, hypIndex, exit, lemmaPron, role);
+                continue;
+            }
+
+            WordLmEvent                         lmEvent;
             Score                               lmScore = 0;
             const Bliss::SyntacticTokenSequence sts     = lemma->syntacticTokenSequence();
             if (sts.size() != 0) {
                 require(sts.size() == 1);
-                auto const* st = sts.front();
-                lmScore        = languageModel_->score(hyp.lmHistory, st);
+                lmEvent.token = sts.front();
+                lmScore       = languageModel_->score(hyp.lmHistory, lmEvent.token);
             }
 
-            Score              penalty               = 0.0;
             Nn::TransitionType wordEndtransitionType = Nn::TransitionType::WORD_EXIT;
-            if (lemma == lexicon_->specialLemma("blank")) {
+            if (lemma == blankLemma_) {
                 wordEndtransitionType = Nn::TransitionType::BLANK_EXIT;
             }
-            else if (lemma == lexicon_->specialLemma("silence")) {
+            else if (lemma == silenceLemma_) {
                 wordEndtransitionType = Nn::TransitionType::SILENCE_EXIT;
             }
             else if (nonWordLemmas_.contains(lemma)) {
                 wordEndtransitionType = Nn::TransitionType::NONWORD_EXIT;
             }
-            for (size_t scorerIdx = 0ul; scorerIdx < labelScorers_.size(); ++scorerIdx) {
-                if (not labelScorers_[scorerIdx]->scoresTransition(wordEndtransitionType)) {
-                    continue;
-                }
-                auto scoreAccessor = labelScorers_[scorerIdx]->getScoreAccessor(hyp.scoringContexts[scorerIdx]);
-                if (not scoreAccessor) {
-                    continue;
-                }
-                penalty += (*scoreAccessor)->getScore(wordEndtransitionType);
+            Score penalty = wordEndTransitionScore(hyp, wordEndtransitionType);
+
+            // A completed ordinary word clears any fallback bookkeeping; blank,
+            // silence and neutral exits leave a pending fallback word untouched.
+            OovStateRef newOov = hyp.oov;
+            if (lmEvent.token != nullptr and excludeKnownWordsFromFallback_) {
+                newOov = emptyOovState();
             }
 
             wordEndExtensions_.push_back({
@@ -749,6 +846,8 @@ bool TreeTimesyncBeamSearch::decodeStep() {
                     .score          = hyp.score + lmScore + penalty,
                     .transitionType = wordEndtransitionType,
                     .baseHypIndex   = hypIndex,
+                    .lmEvent        = lmEvent,
+                    .oov            = newOov,
             });
         }
     }
@@ -762,18 +861,25 @@ bool TreeTimesyncBeamSearch::decodeStep() {
         clog() << Core::XmlFull("num-word-end-hyps-after-score-pruning", wordEndExtensions_.size());
     }
 
-    // Create new word-end label hypotheses from word-end extension candidates and update the LM history
+    // Create new word-end label hypotheses from word-end extension candidates and update the LM history.
+    // The history is advanced with exactly the token that was scored above, so score and
+    // successor history can never disagree.
     wordEndHypotheses_.clear();
     for (auto& extension : wordEndExtensions_) {
         auto const& baseHyp = newBeam_[extension.baseHypIndex];
 
-        auto        newLmHistory = baseHyp.lmHistory;
-        auto const& sts          = extension.pron->lemma()->syntacticTokenSequence();
+        auto newLmHistory = baseHyp.lmHistory;
+        if (extension.lmEvent.token != nullptr) {
+            newLmHistory = languageModel_->extendedHistory(newLmHistory, extension.lmEvent.token);
+        }
 
-        if (sts.size() != 0) {
-            require(sts.size() == 1);
-            const Bliss::SyntacticToken* st = sts.front();
-            newLmHistory                    = languageModel_->extendedHistory(newLmHistory, st);
+        if (extension.oov and extension.lmEvent.token != nullptr) {
+            if (extension.lmEvent.isUnknown) {
+                numUnknownWordEvents_ += 1;
+            }
+            else if (unknownWordFallback_->isFallbackLemma(extension.pron->lemma())) {
+                numKnownResolvedFallbackWords_ += 1;
+            }
         }
 
         wordEndHypotheses_.push_back({baseHyp, extension, newLmHistory});
@@ -883,6 +989,15 @@ void TreeTimesyncBeamSearch::logStatistics() const {
     numWordEndHypsAfterBeamPruning_.write(clog());
     numActiveHyps_.write(clog());
     numActiveTrees_.write(clog());
+    if (excludeKnownWordsFromFallback_) {
+        // Counted over the word-end extensions that survived score pruning, plus the
+        // segment-end finalizations. `num-known-resolved-fallback-words` are piece
+        // sequences that spell an exact known pronunciation and were therefore scored
+        // with their known LM token; in known-excluding mode none of them can reach
+        // the unknown route.
+        numUnknownWordEvents_.write(clog());
+        numKnownResolvedFallbackWords_.write(clog());
+    }
 }
 
 Nn::TransitionType TreeTimesyncBeamSearch::inferTransitionType(Nn::LabelIndex prevLabel, Nn::LabelIndex nextLabel, bool isSameState) const {
@@ -1024,20 +1139,35 @@ void TreeTimesyncBeamSearch::recombination(std::vector<TreeTimesyncBeamSearch::L
         return;
     }
 
-    // Represents a unique combination of StateId, ScoringContext and LmHistory
+    /*
+     * Represents a unique combination of StateId, ScoringContext, LmHistory and
+     * open-vocabulary fallback state.
+     *
+     * The fallback state has to be part of the key because it decides which
+     * continuations are legal (which pieces may follow, and whether the segment may
+     * end here) and how the pending word will be scored once it is closed. Two
+     * hypotheses that agree on all of this are interchangeable for everything that
+     * follows, so under Viterbi semantics the better-scoring one survives and its
+     * traceback stays a valid path -- even if the two spell their pending fallback
+     * word differently.
+     */
     struct RecombinationContext {
         StateId                            state;
         std::vector<Nn::ScoringContextRef> scoringContexts;
         Lm::History                        lmHistory;
+        OovStateRef                        oov;
 
         RecombinationContext(LabelHypothesis const& hyp)
-                : state(hyp.currentState), scoringContexts(hyp.scoringContexts), lmHistory(hyp.lmHistory) {}
+                : state(hyp.currentState), scoringContexts(hyp.scoringContexts), lmHistory(hyp.lmHistory), oov(hyp.oov) {}
 
         bool operator==(const RecombinationContext& other) const {
             if (state != other.state) {
                 return false;
             }
             if (lmHistory != other.lmHistory) {
+                return false;
+            }
+            if (oov.get() != other.oov.get() and not(oov and other.oov and *oov == *other.oov)) {
                 return false;
             }
             if (scoringContexts.size() != other.scoringContexts.size()) {
@@ -1056,6 +1186,12 @@ void TreeTimesyncBeamSearch::recombination(std::vector<TreeTimesyncBeamSearch::L
             size_t hash = Core::combineHashes(context.state, Lm::History::Hash{}(context.lmHistory));
             for (auto const& scoringContext : context.scoringContexts) {
                 hash = Core::combineHashes(hash, Nn::ScoringContextHash{}(scoringContext));
+            }
+            if (context.oov) {
+                hash = Core::combineHashes(hash, context.oov->numPieces * 2ul + (context.oov->diverged ? 1ul : 0ul));
+                for (u32 node : context.oov->prefixNodes) {
+                    hash = Core::combineHashes(hash, node);
+                }
             }
             return hash;
         }
@@ -1123,6 +1259,217 @@ void TreeTimesyncBeamSearch::createSuccessorLookups() {
     }
     stateSuccessorsOffset_[numStates] = stateSuccessors_.size();
     stateExitsOffset_[numStates]      = stateExits_.size();
+}
+
+void TreeTimesyncBeamSearch::createPronunciationTrie() {
+    pronunciationTrie_.assign(1ul, PronunciationTrieNode());  // node 0 is the root
+
+    auto const* sentenceBeginLemma = lexicon_->specialLemma("sentence-begin");
+
+    size_t numEntries = 0ul;
+    for (auto iters = lexicon_->lemmaPronunciations(); iters.first != iters.second; ++iters.first) {
+        auto const* lemmaPron = *iters.first;
+        auto const* lemma     = lemmaPron->lemma();
+
+        // Only ordinary lexical entries define known pronunciations. The fallback
+        // pieces, blank, silence and the sentence boundaries do not.
+        if (unknownWordFallback_->isExcludedFromOrdinaryTree(lemma) or lemma == blankLemma_ or
+            lemma == silenceLemma_ or lemma == sentenceEndLemma_ or lemma == sentenceBeginLemma) {
+            continue;
+        }
+
+        auto const* pron = lemmaPron->pronunciation();
+        if (pron == nullptr or pron->length() == 0) {
+            continue;
+        }
+
+        u32 node = 0u;
+        for (u32 i = 0u; i < pron->length(); ++i) {
+            Bliss::Phoneme::Id const phoneme  = (*pron)[i];
+            auto&                    children = pronunciationTrie_[node].children;
+            auto                     it       = std::lower_bound(children.begin(), children.end(), phoneme,
+                                                                 [](std::pair<Bliss::Phoneme::Id, u32> const& child, Bliss::Phoneme::Id id) {
+                                           return child.first < id;
+                                       });
+            if (it != children.end() and it->first == phoneme) {
+                node = it->second;
+            }
+            else {
+                u32 const child = static_cast<u32>(pronunciationTrie_.size());
+                pronunciationTrie_.emplace_back();
+                // `children` may dangle after the reallocation above, so look it up again.
+                auto& parentChildren = pronunciationTrie_[node].children;
+                parentChildren.insert(
+                        std::lower_bound(parentChildren.begin(), parentChildren.end(), phoneme,
+                                         [](std::pair<Bliss::Phoneme::Id, u32> const& c, Bliss::Phoneme::Id id) { return c.first < id; }),
+                        {phoneme, child});
+                node = child;
+            }
+        }
+
+        auto& completed = pronunciationTrie_[node].completedLemmas;
+        if (std::find(completed.begin(), completed.end(), lemma) == completed.end()) {
+            completed.push_back(lemma);
+        }
+        ++numEntries;
+    }
+
+    log() << "Built known-pronunciation trie with " << pronunciationTrie_.size() << " nodes from " << numEntries << " lexical entries";
+}
+
+TreeTimesyncBeamSearch::OovStateRef TreeTimesyncBeamSearch::advanceOovState(OovStateRef const& base, Bliss::Pronunciation const& piece) const {
+    auto next       = Core::ref(new OovState());
+    next->numPieces = base->numPieces + 1u;
+
+    for (u32 node : base->prefixNodes) {
+        u32  current = node;
+        bool alive   = true;
+        for (u32 i = 0u; alive and i < piece.length(); ++i) {
+            Bliss::Phoneme::Id const phoneme  = piece[i];
+            auto const&              children = pronunciationTrie_[current].children;
+            auto                     it       = std::lower_bound(children.begin(), children.end(), phoneme,
+                                                                 [](std::pair<Bliss::Phoneme::Id, u32> const& c, Bliss::Phoneme::Id id) { return c.first < id; });
+            if (it != children.end() and it->first == phoneme) {
+                current = it->second;
+            }
+            else {
+                alive = false;
+            }
+        }
+        if (alive) {
+            next->prefixNodes.push_back(current);
+        }
+    }
+
+    std::sort(next->prefixNodes.begin(), next->prefixNodes.end());
+    next->prefixNodes.erase(std::unique(next->prefixNodes.begin(), next->prefixNodes.end()), next->prefixNodes.end());
+
+    // Once no known pronunciation spells the pending pieces any more, none ever will:
+    // a later piece cannot re-enter the trie in the middle of a word.
+    next->diverged = base->diverged or next->prefixNodes.empty();
+    return next;
+}
+
+void TreeTimesyncBeamSearch::collectKnownLemmas(OovState const& oov, std::vector<Bliss::Lemma const*>& knownLemmas) const {
+    knownLemmas.clear();
+    if (oov.diverged or not oov.wordPending()) {
+        return;
+    }
+
+    for (u32 node : oov.prefixNodes) {
+        for (auto const* lemma : pronunciationTrie_[node].completedLemmas) {
+            knownLemmas.push_back(lemma);
+        }
+    }
+}
+
+void TreeTimesyncBeamSearch::resolveWordLmEvents(OovState const& oov, std::vector<WordLmEvent>& events) const {
+    events.clear();
+    if (not oov.wordPending()) {
+        // An empty pending word is not a word: trailing separators and empty input
+        // must not produce an unknown word.
+        return;
+    }
+
+    collectKnownLemmas(oov, knownLemmaBuffer_);
+    for (auto const* lemma : knownLemmaBuffer_) {
+        auto const& sts = lemma->syntacticTokenSequence();
+        WordLmEvent event;
+        event.token = sts.size() == 1 ? sts.front() : nullptr;
+        // Several known interpretations can carry the same LM token (pronunciation
+        // variants, homophones). They would produce identical hypotheses, so keep one.
+        if (std::none_of(events.begin(), events.end(), [&](WordLmEvent const& seen) { return seen.token == event.token; })) {
+            events.push_back(event);
+        }
+    }
+
+    if (not events.empty()) {
+        // The piece sequence is an exact known pronunciation, so the unknown route is
+        // disallowed for it regardless of LM scale or unknown reward, and the fallback
+        // hypothesis is resolved into its known lexical interpretation(s) instead.
+        return;
+    }
+
+    WordLmEvent unknownEvent;
+    unknownEvent.token       = unknownSyntacticToken_;
+    unknownEvent.unknownBias = unknownWordPenalty_;
+    unknownEvent.isUnknown   = true;
+    events.push_back(unknownEvent);
+}
+
+Score TreeTimesyncBeamSearch::wordEndTransitionScore(LabelHypothesis const& hyp, Nn::TransitionType transitionType) const {
+    Score score = 0.0;
+    for (size_t scorerIdx = 0ul; scorerIdx < labelScorers_.size(); ++scorerIdx) {
+        if (not labelScorers_[scorerIdx]->scoresTransition(transitionType)) {
+            continue;
+        }
+        auto scoreAccessor = labelScorers_[scorerIdx]->getScoreAccessor(hyp.scoringContexts[scorerIdx]);
+        if (not scoreAccessor) {
+            continue;
+        }
+        score += (*scoreAccessor)->getScore(transitionType);
+    }
+    return score;
+}
+
+void TreeTimesyncBeamSearch::expandFallbackExit(LabelHypothesis const&           hyp,
+                                                size_t                           hypIndex,
+                                                PersistentStateTree::Exit const& exit,
+                                                Bliss::LemmaPronunciation const* lemmaPron,
+                                                UnknownWordFallback::PieceRole   role) {
+    Bliss::Pronunciation const& piece = *lemmaPron->pronunciation();
+
+    // Under the word-start-marked convention a word-start piece belongs to the *next*
+    // word and therefore closes the pending one before being consumed. Under the
+    // continuation-marked convention a final piece closes the word it belongs to.
+    bool const closesWordBefore = unknownWordFallback_->closesWordBefore(role) and hyp.oov->wordPending();
+    bool const closesWordAfter  = unknownWordFallback_->closesWordAfter(role);
+
+    OovStateRef eventOov;  // the pending word this exit completes, if any
+    OovStateRef pendingAfterExit;
+
+    if (closesWordBefore) {
+        eventOov         = hyp.oov;
+        pendingAfterExit = advanceOovState(emptyOovState(), piece);
+    }
+    else {
+        pendingAfterExit = advanceOovState(hyp.oov, piece);
+        if (closesWordAfter) {
+            eventOov         = pendingAfterExit;
+            pendingAfterExit = emptyOovState();
+        }
+    }
+
+    if (eventOov) {
+        resolveWordLmEvents(*eventOov, wordLmEventBuffer_);
+    }
+    else {
+        wordLmEventBuffer_.assign(1ul, WordLmEvent{});
+    }
+
+    // Only a completed word is a word: an exit which merely appends a piece to the
+    // pending word must not collect the word-exit reward a second time. A completed
+    // word gets it on both routes alike, also when it resolved to a known lemma whose
+    // syntactic token sequence is empty.
+    Nn::TransitionType const transitionType  = eventOov ? Nn::TransitionType::WORD_EXIT : Nn::TransitionType::NONWORD_EXIT;
+    Score const              transitionScore = wordEndTransitionScore(hyp, transitionType);
+
+    for (auto const& event : wordLmEventBuffer_) {
+        Score lmScore = 0.0;
+        if (event.token != nullptr) {
+            lmScore = languageModel_->score(hyp.lmHistory, event.token);
+        }
+
+        wordEndExtensions_.push_back({
+                .pron           = lemmaPron,
+                .rootState      = exit.transitState,
+                .score          = hyp.score + lmScore + event.unknownBias + transitionScore,
+                .transitionType = transitionType,
+                .baseHypIndex   = hypIndex,
+                .lmEvent        = event,
+                .oov            = pendingAfterExit,
+        });
+    }
 }
 
 void TreeTimesyncBeamSearch::finalizeHypotheses() {
@@ -1202,6 +1549,40 @@ void TreeTimesyncBeamSearch::finalizeHypotheses() {
         wordEndExtensions_.clear();
         for (size_t hypIndex = 0ul; hypIndex < newBeam_.size(); ++hypIndex) {
             auto& hyp = newBeam_[hypIndex];
+
+            // A fallback word which is still pending is closed by the segment end,
+            // exactly once, before the sentence-end score is taken. A pending word of
+            // zero pieces is not a word, so a trailing separator or empty input adds
+            // no unknown word here.
+            if (hyp.oov and hyp.oov->wordPending()) {
+                resolveWordLmEvents(*hyp.oov, wordLmEventBuffer_);
+                for (auto const& event : wordLmEventBuffer_) {
+                    Lm::History pendingHistory = hyp.lmHistory;
+                    Score       pendingScore   = event.unknownBias;
+                    if (event.token != nullptr) {
+                        pendingScore += languageModel_->score(hyp.lmHistory, event.token);
+                        pendingHistory = languageModel_->extendedHistory(hyp.lmHistory, event.token);
+                    }
+                    if (event.isUnknown) {
+                        numUnknownWordEvents_ += 1;
+                    }
+                    else {
+                        numKnownResolvedFallbackWords_ += 1;
+                    }
+
+                    wordEndExtensions_.push_back({
+                            .pron           = sentenceEndLemma_->pronunciations().first,
+                            .rootState      = hyp.currentState,
+                            .score          = hyp.score + pendingScore + languageModel_->sentenceEndScore(pendingHistory),
+                            .transitionType = Nn::TransitionType::SENTENCE_END,
+                            .baseHypIndex   = hypIndex,
+                            .lmEvent        = event,
+                            .oov            = emptyOovState(),
+                    });
+                }
+                continue;
+            }
+
             // Add the LM's sentence-end score
             // The LM history is not updated as this is the last LM scoring step
             Lm::Score sentenceEndScore = languageModel_->sentenceEndScore(hyp.lmHistory);
@@ -1211,6 +1592,8 @@ void TreeTimesyncBeamSearch::finalizeHypotheses() {
                     .score          = hyp.score + sentenceEndScore,
                     .transitionType = Nn::TransitionType::SENTENCE_END,
                     .baseHypIndex   = hypIndex,
+                    .lmEvent        = WordLmEvent{},
+                    .oov            = hyp.oov,
             });
         }
 
@@ -1218,6 +1601,10 @@ void TreeTimesyncBeamSearch::finalizeHypotheses() {
         for (size_t extensionIdx = 0ul; extensionIdx < wordEndExtensions_.size(); ++extensionIdx) {
             auto&       ext     = wordEndExtensions_[extensionIdx];
             auto const& baseHyp = newBeam_[ext.baseHypIndex];
+            // The LM history is not advanced any further: this is the last LM scoring
+            // step. The whole difference to the base score (the finalization of a
+            // pending fallback word plus the sentence-end score) is attributed to the
+            // language model in the resulting trace.
             tempHypotheses_.push_back({baseHyp, ext, baseHyp.lmHistory});
         }
     }

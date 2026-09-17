@@ -11,6 +11,7 @@ add_library(
     Traceback.cc
     TreeBuilder.cc
     TreeStructure.cc
+    UnknownWordFallback.cc
 )
 
 if(${MODULE_SEARCH_MBR})

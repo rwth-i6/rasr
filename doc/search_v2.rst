@@ -345,6 +345,184 @@ start up faster. This is however not automatic, no cache file is configured by d
 
 See :ref:`Memory mapped archives` in :doc:`architecture` for this generic RASR caching mechanism.
 
+.. _Open-vocabulary subword fallback:
+
+Open-vocabulary subword fallback
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+The ``ctc``, ``rna`` and ``aed`` tree builders can add a constrained fallback for words which are absent from the
+pronunciation lexicon but can be represented by the model's subword labels. The fallback sub-tree is described by
+multi-valued special lemmata in the Bliss lexicon -- one lemma per subword piece, so that each piece keeps its own
+orthography and survives traceback -- and is governed by two parameters of the search/tree-builder configuration.
+
+.. code-block:: ini
+
+    unknown-word-fallback     = auto | disabled | legacy | known-excluding
+    unknown-word-tokenization = continuation-marked | word-start-marked
+    unknown-word-penalty      = 0.0
+
+``unknown-word-fallback`` selects the policy:
+
+``auto`` (default)
+    ``legacy`` if the lexicon defines fallback lemmata, ``disabled`` otherwise. Setups which predate these
+    parameters keep their previous behavior and their previous search-tree identity.
+
+``disabled``
+    No fallback. Fallback lemmata present in the lexicon are still kept out of the ordinary tree, so this is the
+    closed-vocabulary baseline the fallback modes are compared against, using the very same lexicon.
+
+``legacy``
+    The fallback sub-tree alone defines the semantics: a piece lemma carrying a syntactic token produces a word-LM
+    event, one with an empty syntactic token sequence does not. There is no known-word exclusion and
+    ``unknown-word-penalty`` has no effect. This reproduces the behavior of earlier reduced-lexicon BPE setups.
+
+``known-excluding``
+    Word boundaries and word-LM events are resolved by the search. The syntactic tokens of the fallback lemmata are
+    ignored; instead the search applies exactly one word-LM event per completed lexical word, and a piece sequence
+    which is an *exact* known pronunciation is never scored as an unknown word (see below).
+
+``unknown-word-penalty`` is the additive cost ``beta`` charged once per completed unknown word, outside of all LM
+scales. RASR's internal score convention is the negative natural logarithm -- an ARPA ``log10`` value of ``-x``
+becomes a cost of ``x * ln(10)`` when the model is read -- so ``beta`` is in those units as well. Positive values
+discourage the fallback, negative values reward it. The cost of one completed unknown word is
+
+.. code-block:: text
+
+    C_unknown(h) = sum_j lambda_j * [-ln P_j(UNK_j | h_j)] + beta
+
+with one term per configured word LM. Each LM advances to its successor history for its own unknown token once;
+``beta`` is applied once per word, never once per scorer and never once per acoustic piece. A known word receives
+its normal word score and history update and no unknown penalty at all. The fallback and ``beta`` are also usable
+with an LM scale of zero, which is the setting the topology-equivalence tests use.
+
+Lexicon interface
+"""""""""""""""""
+
+Which special lemma groups describe the inventory depends on ``unknown-word-tokenization``.
+
+``continuation-marked`` (e.g. BPE with a trailing ``@@``)
+    * ``special="unknown-continuation"`` -- a piece which keeps the word open. Empty syntactic token sequence.
+    * ``special="unknown-final"`` -- a piece which ends the word. In ``legacy`` mode its syntactic token sequence
+      must contain exactly the word LM's unknown token; in ``known-excluding`` mode it is ignored and may be empty.
+
+``word-start-marked`` (e.g. SentencePiece with a leading word-start marker)
+    * ``special="unknown-word-start"`` -- a piece which begins a word.
+    * ``special="unknown-word-internal"`` -- a piece which can only continue a word.
+
+    Both groups must have an empty syntactic token sequence, because a word-start piece belongs to the *following*
+    word and a token on the piece itself would be applied to the wrong one. This tokenization requires
+    ``unknown-word-fallback = known-excluding``; the legacy mechanism cannot express a delayed boundary.
+
+All four names are intentionally multi-valued; every other special lemma name remains unique. Keep the conventional
+singleton ``special="unknown"`` lemma: it supplies the word LM's unknown token and remains available to the Bliss
+orthographic parser, while being kept out of the ordinary search tree. In the continuation-marked case an older
+lexicon without an ``unknown-final`` group is still accepted, with the singleton ``unknown`` lemma carrying all
+final-piece pronunciations, but that form cannot provide piece-specific orthography.
+
+.. code-block:: xml
+
+    <lemma special="unknown-continuation">
+      <orth>ra@@</orth>
+      <phon>ra@@</phon>
+      <synt/>
+    </lemma>
+    <lemma special="unknown-final">
+      <orth>word</orth>
+      <phon>word</phon>
+      <synt><tok>&lt;UNK&gt;</tok></synt>
+    </lemma>
+
+Topology
+""""""""
+
+Both tokenizations share one sub-tree shape. A dedicated root represents "a fallback word is pending". Pieces which
+may *open* a fallback word are reachable from the ordinary root, pieces which may occur *inside* one are reachable
+from the pending-word root, and no ordinary in-vocabulary word can be started while a word is pending. For CTC,
+blank stays available inside the pending word, so two identical adjacent pieces still follow the configured
+blank/repetition topology.
+
+Under ``continuation-marked`` the piece itself says where the word ends: a continuation piece returns to the
+pending-word root, a final piece returns to the ordinary root. The pending-word root is deliberately **not** a valid
+segment-final state, so an unfinished word is rejected -- set ``sentence-end-fall-back = false`` to make that
+rejection strict.
+
+Under ``word-start-marked`` there is no word-final marker, so the boundary is resolved late: every piece returns to
+the pending-word root, and the word is closed when the next word-start piece is emitted or when the segment ends.
+Only word-start pieces open a fallback word at the ordinary root, so ``_un familiar`` cannot be split into two
+unknown words. A first piece *without* the word-start marker is still accepted, because the search additionally
+seeds a hypothesis in the pending-word root at the start of a segment, where the still empty pending word can be
+opened by any piece. An empty pending word is not a word, so empty input and trailing separators create no unknown
+word. The pending-word root is a valid final state here, since the segment end is what closes the last word.
+
+Known-word exclusion
+""""""""""""""""""""
+
+In ``known-excluding`` mode the search carries, per hypothesis, the set of nodes of a prefix trie over the
+pronunciations of all ordinary lexical entries which spell exactly the pieces emitted for the pending word. When the
+word is closed:
+
+* if some ordinary lexical entry spells that exact piece sequence, the unknown route is disallowed for it
+  regardless of LM scale or unknown reward, and the fallback hypothesis is **resolved** into those known lexical
+  interpretations -- it is scored with the known LM token and advances the LM history with it, while the traceback
+  still shows the acoustic pieces, so the recognized spelling is preserved;
+* otherwise exactly one unknown event is applied, with the unknown token of each configured word LM and ``beta``.
+
+Resolving rather than discarding matters: the fallback realization is never dropped by the exclusion check, so a
+known word cannot be lost because its ordinary hypothesis happened to be pruned while its fallback hypothesis was
+re-interpreted as unknown. Several genuinely different known interpretations are all kept; interpretations which
+would use the same LM token are collapsed because they yield identical hypotheses.
+
+An accepting prefix never blocks continuation: if ``_cat`` is known but ``_cat xyz`` is not, the longer word still
+reaches the fallback, and an unfinished proper prefix of a longer known word is itself a valid unknown word at a
+legal boundary. The trie is built from the lexicon rather than read off the search tree, so it does not depend on
+how state tying maps a label to an emission index -- in particular not on the allophone word-boundary flags, which
+differ between a one-piece word and the first piece of a longer one under ``no-tying-dense``.
+
+The rule is an *exact token sequence* rule. An unseen tokenization of a known spelling is not recognized as known;
+such a word is counted as an unknown event. Resolving completed detokenized spellings back to known LM tokens would
+need a declared, deterministic lexical mapping and is not part of this prototype.
+
+Scoring details
+"""""""""""""""
+
+* A piece exit which only extends the pending word is bookkeeping, not a word: it is typed ``nonword-exit``, so a
+  configured word-exit reward is charged once per completed word and not once per piece. A completed word is typed
+  ``word-exit`` on both the ordinary and the fallback route.
+* Blanks and frame repetitions create no word boundary and no LM event; boundary processing operates on the
+  emitted/collapsed pieces.
+* A subword LM (configured as a further label scorer) sees the actual emitted pieces on both routes and keeps their
+  actual history. It never receives a word-level unknown replacement.
+* Recombination keys include the fallback state (pending piece count, divergence flag and prefix-trie nodes)
+  alongside the tree state, all scoring contexts and the word-LM history. Two hypotheses which agree on all of this
+  are interchangeable for everything that follows, so under Viterbi semantics the better-scoring one survives and
+  its traceback stays a valid path even if the two spell their pending fallback word differently.
+* In the lattice, the finalization of a pending word at the segment end and ``beta`` are attributed to the language
+  model component of the trace.
+
+Instrumentation, caching and limitations
+""""""""""""""""""""""""""""""""""""""""
+
+The search reports ``num-unknown-word-events`` and ``num-known-resolved-fallback-words`` per segment. The latter
+counts piece sequences that spelled an exact known pronunciation and were therefore scored with their known LM
+token; in ``known-excluding`` mode none of them can reach the unknown route. The route of a word is recoverable from
+the traceback without guessing: a fallback word appears as a sequence of fallback piece lemmata, a known word as a
+single ordinary lemma.
+
+The persistent search-tree image records the fallback policy (mode, tokenization and the identity of the fallback
+lemmata). An image built under a different policy is rejected and the tree is rebuilt, so an old cached tree cannot
+silently activate or deactivate a fallback mode. The unknown-word penalty is deliberately *not* part of that key: it
+changes the search result but not the topology.
+
+Known limitations of this prototype:
+
+* ``known-excluding`` does not support a ``word-boundary`` special lemma; the combination is rejected at start-up.
+* Under ``word-start-marked``, a hypothesis which has entered the fallback sub-tree stays in it until the segment
+  ends, because closing its pending word requires seeing the next word-start piece. Known words inside that region
+  are still scored with their correct word-LM tokens through prefix resolution, so this is a search-efficiency
+  property rather than a scoring error, but it does enlarge the search space after the first fallback word.
+* The word-end expansion applies at most one syntactic token per lexical exit. A lexicon with multi-token exits is
+  rejected at start-up.
+
 tree-labelsync-beam-search
 ^^^^^^^^^^^^^^^^^^^^^^^^^^
 

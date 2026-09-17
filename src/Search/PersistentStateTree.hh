@@ -112,6 +112,16 @@ public:
     // Other root nodes (e.g. word-boundary and unfinished-unknown-word roots)
     std::set<StateId> otherRootStates;
 
+    // Root of the region in which an open-vocabulary fallback word is pending,
+    // or `invalidTreeNodeIndex` if the tree was built without the fallback.
+    StateId unknownWordRoot;
+
+    // Identity of the open-vocabulary fallback policy the tree was built under.
+    // Zero means "no fallback". A stored image whose value differs from the
+    // currently configured policy is rejected, so that an old cached tree cannot
+    // silently activate (or deactivate) a fallback mode.
+    u32 unknownWordFallbackPolicy;
+
     // Valid nodes that the search can end in
     std::set<StateId> finalStates;
 

@@ -14,6 +14,8 @@
  */
 #include "PersistentStateTree.hh"
 
+#include <Search/UnknownWordFallback.hh>
+
 #include <sstream>
 #include <math.h>
 
@@ -36,7 +38,7 @@ static const Core::ParameterString paramCacheArchive(
         "cache archive in which the persistent state-network should be cached",
         "global-cache");
 
-static u32 formatVersion = 15;
+static u32 formatVersion = 16;
 
 namespace Search {
 struct ConvertTree {
@@ -174,6 +176,8 @@ private:
 PersistentStateTree::PersistentStateTree(Core::Configuration config, Core::Ref<const Am::AcousticModel> acousticModel, Bliss::LexiconRef lexicon, TreeBuilderFactory treeBuilderFactory)
         : rootState(0),
           ciRootState(0),
+          unknownWordRoot(invalidTreeNodeIndex),
+          unknownWordFallbackPolicy(0),
           archive_(paramCacheArchive(Core::Configuration(config, "search-network"))),
           acousticModel_(acousticModel),
           lexicon_(lexicon),
@@ -274,6 +278,7 @@ void PersistentStateTree::write(Core::MappedArchiveWriter out) {
     out << coarticulatedRootStates << unpushedCoarticulatedRootStates;
     out << rootTransitDescriptions << pushedWordEndNodes << uncoarticulatedWordEndStates;
     out << rootState << ciRootState << otherRootStates << finalStates;
+    out << unknownWordRoot << unknownWordFallbackPolicy;
 }
 
 bool PersistentStateTree::read(Core::MappedArchiveReader in) {
@@ -287,12 +292,15 @@ bool PersistentStateTree::read(Core::MappedArchiveReader in) {
         return false;
     }
 
-    // Version 15 introduced the dedicated unknown-word fallback root. An
-    // older image for the same lexicon would otherwise silently retain the
-    // former unconstrained exit-to-root behavior.
-    if (lexicon_ && (lexicon_->specialLemma("unknown-continuation") || lexicon_->specialLemma("unknown-final")) && v < 15) {
+    // Version 15 introduced the dedicated unknown-word fallback root and version 16
+    // the recorded fallback policy. An older image for the same lexicon would
+    // otherwise silently retain the former unconstrained exit-to-root behavior, or
+    // a topology built under a different fallback mode or tokenization.
+    if (lexicon_ && v < 16 &&
+        (lexicon_->specialLemma("unknown-continuation") || lexicon_->specialLemma("unknown-final") ||
+         lexicon_->specialLemma("unknown-word-start") || lexicon_->specialLemma("unknown-word-internal"))) {
         Core::Application::us()->log() << "Persistent network format " << v
-                                       << " predates unknown-word continuation support; rebuilding the network";
+                                       << " predates the recorded open-vocabulary fallback policy; rebuilding the network";
         return false;
     }
 
@@ -319,6 +327,20 @@ bool PersistentStateTree::read(Core::MappedArchiveReader in) {
     in >> rootState >> ciRootState >> otherRootStates;
     if (v >= 14) {
         in >> finalStates;
+    }
+
+    if (v >= 16) {
+        u32 storedPolicy = 0;
+        in >> unknownWordRoot >> storedPolicy;
+
+        u32 const requiredPolicy = lexicon_ ? UnknownWordFallback(config_, *lexicon_).topologyKey() : storedPolicy;
+        if (storedPolicy != requiredPolicy) {
+            Core::Application::us()->log()
+                    << "The cached search tree was built for open-vocabulary fallback policy " << storedPolicy
+                    << " but " << requiredPolicy << " is configured; rebuilding the network";
+            return false;
+        }
+        unknownWordFallbackPolicy = storedPolicy;
     }
 
     return in.good();

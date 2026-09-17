@@ -18,6 +18,7 @@ add_executable(
     Math_Utilities.cc
     Registry.cc
     Search_TreeBuilder.cc
+    Search_UnknownWordFallback.cc
     Speech_AllophoneStateGraphBuilder.cc
     Test_File.cc
     Test_Lexicon.cc

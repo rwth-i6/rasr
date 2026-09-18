@@ -131,6 +131,13 @@ private:
     // batched session outputs back up again
     mutable Core::StopWatch stateMarshallingTime_;
 
+public:
+    // Exposed so that a scorer which prepares further session inputs can charge the same timer
+    Core::StopWatch& stateMarshallingTime() const {
+        return stateMarshallingTime_;
+    }
+
+private:
     std::shared_ptr<Onnx::Model> stateInitializerOnnxModel_;
     std::shared_ptr<Onnx::Model> stateUpdaterOnnxModel_;
     std::shared_ptr<Onnx::Model> scorerOnnxModel_;

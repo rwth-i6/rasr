@@ -359,17 +359,20 @@ OnnxHiddenStateRef StatefulOnnxLabelScorer::computeInitialHiddenState() {
 
 std::vector<OnnxHiddenStateRef> StatefulOnnxLabelScorer::updatedHiddenStates(std::vector<OnnxHiddenStateRef> const& hiddenStatesBatch, std::vector<s32> nextTokensBatch) {
     OnnxHiddenStateModel::SessionInputs sessionInputs;
+    {
+        Core::StopWatch::Scope marshallingTimer(hiddenStateModel_.stateMarshallingTime());
 
-    if (updaterEncoderStatesName_ != "") {
-        setupEncoderStatesValue();
-        sessionInputs.emplace_back(updaterEncoderStatesName_, encoderStatesValue_);
-    }
-    if (updaterEncoderStatesSizeName_ != "") {
-        setupEncoderStatesSizeValue();
-        sessionInputs.emplace_back(updaterEncoderStatesSizeName_, encoderStatesSizeValue_);
-    }
-    if (updaterTokenName_ != "") {
-        sessionInputs.emplace_back(updaterTokenName_, Onnx::Value::create(nextTokensBatch));
+        if (updaterEncoderStatesName_ != "") {
+            setupEncoderStatesValue();
+            sessionInputs.emplace_back(updaterEncoderStatesName_, encoderStatesValue_);
+        }
+        if (updaterEncoderStatesSizeName_ != "") {
+            setupEncoderStatesSizeValue();
+            sessionInputs.emplace_back(updaterEncoderStatesSizeName_, encoderStatesSizeValue_);
+        }
+        if (updaterTokenName_ != "") {
+            sessionInputs.emplace_back(updaterTokenName_, Onnx::Value::create(nextTokensBatch));
+        }
     }
 
     return hiddenStateModel_.updatedHiddenStates(hiddenStatesBatch, std::move(sessionInputs));

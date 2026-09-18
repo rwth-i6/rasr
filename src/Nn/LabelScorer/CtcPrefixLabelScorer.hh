@@ -56,7 +56,7 @@ class CtcPrefixScoreAccessor : public ScoreAccessor {
 public:
     // Extended-prefix scores are computed on access, so that time is charged to `scoringTime`,
     // the owning scorer's timer. The accessor never outlives the scorer.
-    CtcPrefixScoreAccessor(CtcPrefixScoringContextRef const& scoringContext, std::shared_ptr<Math::FastMatrix<Score>> const& ctcScores, Core::StopWatch& scoringTime);
+    CtcPrefixScoreAccessor(CtcPrefixScoringContextRef const& scoringContext, std::shared_ptr<Math::FastMatrix<Score>> const& ctcScores, Core::StopWatch& scoringTime, Core::StopWatch& prefixExtensionTime);
 
     // Compute score of extended prefix with labelIndex on-demand
     Score getScore(TransitionType transitionType, LabelIndex labelIndex = invalidLabelIndex) const override;
@@ -68,6 +68,7 @@ private:
     CtcPrefixScoringContextRef               scoringContext_;
     std::shared_ptr<Math::FastMatrix<Score>> ctcScores_;
     Core::StopWatch&                         scoringTime_;
+    Core::StopWatch&                         prefixExtensionTime_;
 };
 
 /*
@@ -116,6 +117,13 @@ private:
     // Time spent building `ctcScores_`, including the sub-scorer time that the matrix is pulled from
     Core::StopWatch ctcScoreCollectionTime_;
 
+    // Computing the time-wise prefix scores of a scoring context, and computing the score of a
+    // prefix extended by one label. The latter is also reached from the former, in which case it
+    // is counted as finalization.
+    mutable Core::StopWatch prefixFinalizationTime_;
+    mutable Core::StopWatch prefixExtensionTime_;
+
+    void logScoringBreakdown() const override;
     void logAdditionalStatistics() const override;
 
     // Retrieve matrix of CTC scores from sub-scorer. Assumes that these scores only depend on timestep and label index, not history or transition type.

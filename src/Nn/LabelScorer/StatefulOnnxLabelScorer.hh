@@ -173,6 +173,9 @@ private:
 
     Core::StopWatch stateUpdateSessionTime_;
     Core::StopWatch scorerSessionTime_;
+    // Building the batched session inputs from the individual hidden states and splitting the
+    // batched session outputs back up again
+    Core::StopWatch stateMarshallingTime_;
     Core::StopWatch contextPreparationTime_;
 
     Core::FIFOCache<OnnxHiddenStateScoringContextRef, std::shared_ptr<std::vector<Score>>, ScoringContextHash, ScoringContextEq> scoreCache_;

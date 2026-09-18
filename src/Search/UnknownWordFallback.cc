@@ -66,7 +66,8 @@ const Core::ParameterFloat UnknownWordFallback::paramUnknownWordPenalty(
         "unknown-word-penalty",
         "Additive cost charged once per completed unknown word, outside of all LM scales, in RASR's internal "
         "(negative natural logarithm) score convention. Positive values discourage the fallback, negative values "
-        "reward it. Has no effect in \"legacy\" mode.",
+        "reward it. Applied wherever a completed word advances the word LM with the unknown token, so it also "
+        "covers lexica which carry additional words as ordinary lemmata with that token.",
         0.0);
 
 const Core::ParameterFloat UnknownWordFallback::paramUnknownPiecePenalty(
@@ -75,7 +76,7 @@ const Core::ParameterFloat UnknownWordFallback::paramUnknownPiecePenalty(
         "unknown-word-penalty. Without it the cost of an unknown word is independent of its length, so a single "
         "fallback word spanning the whole utterance avoids every word-LM event the correct segmentation would pay "
         "and wins on score. The cost is charged as each piece is emitted and refunded again if the word turns out "
-        "to be a known pronunciation. Has no effect in \"legacy\" mode.",
+        "to be a known pronunciation. Only applies to the fallback sub-tree, and only in \"known-excluding\" mode.",
         0.0);
 
 UnknownWordFallback::UnknownWordFallback(Core::Configuration const& config, Bliss::Lexicon const& lexicon)
@@ -104,6 +105,14 @@ UnknownWordFallback::UnknownWordFallback(Core::Configuration const& config, Blis
     }
     else {
         mode_ = static_cast<Mode>(configuredMode);
+    }
+
+    // Resolve the unknown token from the conventional singleton lemma up front, even
+    // with the fallback disabled: a lexicon may carry additional words as ordinary
+    // lemmata whose syntactic token is the unknown one, and those should still be able
+    // to take the unknown-word penalty.
+    if (unknownLemma_ != nullptr and unknownLemma_->syntacticTokenSequence().size() == 1) {
+        unknownSyntacticToken_ = unknownLemma_->syntacticTokenSequence().front();
     }
 
     if (mode_ == Disabled) {

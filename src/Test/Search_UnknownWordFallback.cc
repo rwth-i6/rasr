@@ -262,6 +262,8 @@ void WordStartFallbackSearchTest::setUp() {
     addLemma("cat", {"_cat"}, "", {"CAT"});
     addLemma("the", {"_the"}, "", {"THE"});
     addLemma("unfamiliar", {"_un familiar"}, "", {"UNFAMILIAR"});
+    // Recognizable, but outside the word LM's vocabulary: scored with the unknown token.
+    addLemma("unesses", {"_un s"}, "", {"<UNK>"});
 
     // Fallback inventory. "_xy" and "zz" spell no in-vocabulary word at all.
     addLemma("[UNKNOWN]", {}, "unknown", {"<UNK>"});
@@ -418,8 +420,8 @@ TEST_F(Search, WordStartFallbackSearchTest, WithoutAPerPieceCostALongPendingWord
 }
 
 TEST_F(Search, WordStartFallbackSearchTest, PerPieceCostStopsTheRunawayPendingWord) {
-    // 2 * 1.0 of per-piece cost outweighs the 1.11 the degenerate reading saves.
-    setParameter("*.unknown-piece-penalty", "1.0");
+    // One continuation piece at 2.0 outweighs the 1.11 the degenerate reading saves.
+    setParameter("*.unknown-piece-penalty", "2.0");
     buildSearch();
 
     auto result = decodeGraded({{{"_the", 0.0f}}, {{"_cat", 0.0f}, {"cat", 0.5f}}});
@@ -438,29 +440,53 @@ TEST_F(Search, WordStartFallbackSearchTest, UnknownWordCostGrowsWithItsLength) {
     setParameter("*.unknown-piece-penalty", "0.5");
     buildSearch();
 
+    // The piece that opens a word is free; only continuing one costs, so an n-piece
+    // unknown word costs beta + alpha * (n - 1).
     auto onePiece = decode({"zz"});
-    EXPECT_DOUBLE_EQ(onePiece.lmScore, costUnknown + 0.5 + costSentenceEnd, 1e-4);
+    EXPECT_DOUBLE_EQ(onePiece.lmScore, costUnknown + costSentenceEnd, 1e-4);
 
     auto twoPieces = decode({"_xy", "zz"});
-    EXPECT_DOUBLE_EQ(twoPieces.lmScore, costUnknown + 2.0 * 0.5 + costSentenceEnd, 1e-4);
+    EXPECT_DOUBLE_EQ(twoPieces.lmScore, costUnknown + 0.5 + costSentenceEnd, 1e-4);
 
-    // A separator carries no lexical content, so it is not charged.
+    auto threePieces = decode({"_un", "fam", "iliar"});
+    EXPECT_DOUBLE_EQ(threePieces.lmScore, costUnknown + 2.0 * 0.5 + costSentenceEnd, 1e-4);
+
+    // A separator carries no lexical content, so it neither opens nor continues a word.
     auto withSeparator = decode({"_xy", "zz", "_sep"});
-    EXPECT_DOUBLE_EQ(withSeparator.lmScore, costUnknown + 2.0 * 0.5 + costSentenceEnd, 1e-4);
+    EXPECT_DOUBLE_EQ(withSeparator.lmScore, costUnknown + 0.5 + costSentenceEnd, 1e-4);
 }
 
 TEST_F(Search, WordStartFallbackSearchTest, KnownWordOnTheFallbackRouteIsRefundedThePerPieceCost) {
     setParameter("*.unknown-piece-penalty", "5.0");
     buildSearch();
 
-    // "zz" is an unknown one-piece word and keeps its per-piece cost; "_cat" is closed
-    // by the segment end, resolves to CAT and gets its own refunded.
-    auto result = decode({"zz", "_cat"});
+    // The unmarked first piece forces everything onto the fallback route, which cannot
+    // be left again. "zz" is a one-piece unknown word, then "_un familiar" is closed by
+    // the segment end and resolves to UNFAMILIAR: its continuation piece was charged
+    // while the word was still open and has to be refunded, so that a known word costs
+    // the same whichever route recognized it.
+    auto result = decode({"zz", "_un", "familiar"});
 
-    EXPECT_EQ(result.lemmas, std::string("zz"
-                                         " "
-                                         "_cat"));
-    EXPECT_DOUBLE_EQ(result.lmScore, costUnknown + 5.0 + costCat + costSentenceEnd, 1e-4);
+    EXPECT_EQ(result.lemmas, std::string("zz _un familiar"));
+    EXPECT_DOUBLE_EQ(result.lmScore, costUnknown + costUnfamiliar + costSentenceEnd, 1e-4);
+}
+
+TEST_F(Search, WordStartFallbackSearchTest, OrdinaryLemmaWithTheUnknownTokenTakesTheUnknownPenalty) {
+    // The "extended lexicon" pattern: a word which should be recognizable but is
+    // outside the word LM's vocabulary is an ordinary lemma carrying the unknown token.
+    // It needs no fallback sub-tree at all, but it is an unknown word and takes beta.
+    setParameter("*.unknown-word-penalty", "3.0");
+    setParameter("*.unknown-piece-penalty", "7.0");
+    buildSearch();
+
+    auto result = decode({"_un", "s"});
+
+    // Its spelling is attested by the lexicon, so it pays beta but no per-piece cost,
+    // even though it is two pieces long. The ordinary route and the fallback route
+    // (which resolves the same pieces into this lemma) therefore score it identically
+    // and tie, so only the score is asserted and not which identity the traceback shows.
+    EXPECT_DOUBLE_EQ(result.lmScore, costUnknown + 3.0 + costSentenceEnd, 1e-4);
+    EXPECT_DOUBLE_EQ(result.amScore, 0.0, 1e-4);
 }
 
 TEST_F(Search, WordStartFallbackSearchTest, SeparatorPiecesCreateNoPhantomWord) {
@@ -590,13 +616,15 @@ TEST_F(Search, ContinuationMarkedFallbackSearchTest, ExactKnownPronunciationNeve
 TEST_F(Search, ContinuationMarkedFallbackSearchTest, LegacyModeScoresKnownPieceSequenceAsUnknown) {
     // The same input in legacy mode: the word-LM event comes from the final piece's
     // syntactic token, so the known realization is not enforced. This is the
-    // behavior the known-excluding mode is compared against.
+    // behavior the known-excluding mode is compared against. The unknown-word penalty
+    // applies here too, since it follows the unknown token rather than the route, so
+    // both modes can be swept on the same axis.
     setParameter("*.unknown-word-fallback", "legacy");
     setParameter("*.unknown-word-penalty", "-50.0");
     buildSearch();
 
     auto result = decode({"kn@@", "own"});
-    EXPECT_DOUBLE_EQ(result.lmScore, costUnknown + costSentenceEnd, 1e-4);
+    EXPECT_DOUBLE_EQ(result.lmScore, costUnknown - 50.0 + costSentenceEnd, 1e-4);
 }
 
 TEST_F(Search, ContinuationMarkedFallbackSearchTest, DanglingContinuationIsRejectedInStrictMode) {

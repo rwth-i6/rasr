@@ -359,8 +359,8 @@ orthography and survives traceback -- and is governed by two parameters of the s
 
     unknown-word-fallback     = auto | disabled | legacy | known-excluding
     unknown-word-tokenization = continuation-marked | word-start-marked
-    unknown-word-penalty      = 0.0
-    unknown-piece-penalty     = 0.0
+    unknown-word-penalty      = 0.0     ; beta, per completed unknown word
+    unknown-piece-penalty     = 0.0     ; alpha, per piece continuing an unknown word
 
 ``unknown-word-fallback`` selects the policy:
 
@@ -389,12 +389,19 @@ discourage the fallback, negative values reward it. The cost of one completed un
 
 .. code-block:: text
 
-    C_unknown(h) = sum_j lambda_j * [-ln P_j(UNK_j | h_j)] + beta + alpha * (number of pieces)
+    C_unknown(h) = sum_j lambda_j * [-ln P_j(UNK_j | h_j)] + beta + alpha * (number of pieces - 1)
 
 with one term per configured word LM. Each LM advances to its successor history for its own unknown token once;
-``beta`` is applied once per word, never once per scorer and never once per acoustic piece. A known word receives
-its normal word score and history update and no unknown penalty at all. The fallback and ``beta`` are also usable
-with an LM scale of zero, which is the setting the topology-equivalence tests use.
+``beta`` is applied once per word, never once per scorer and never once per acoustic piece. A word the LM does know
+receives its normal word score and history update and no unknown penalty at all. The fallback and ``beta`` are also
+usable with an LM scale of zero, which is the setting the topology-equivalence tests use.
+
+``beta`` follows the *token*, not the route: it is charged whenever a completed word advances the word LM with the
+unknown token. That includes ordinary lexical entries which carry that token, so a lexicon can list words which
+should be recognizable but are outside the word LM's vocabulary as plain lemmata with ``<synt><tok>&lt;UNK&gt;</tok></synt>``
+and they behave as unknown words with no fallback sub-tree involved at all -- see :ref:`Extending the lexicon
+instead of the vocabulary`. It also means ``beta`` is usable in ``legacy`` mode, so both fallback modes can be swept
+on the same axis; at ``beta = 0`` legacy behaviour is unchanged.
 
 ``alpha`` is ``unknown-piece-penalty``, and it is what keeps the cost of an unknown word dependent on its length.
 **Without it the fallback is degenerate**: since a pending word is only charged when it closes, never closing it is
@@ -405,14 +412,35 @@ comes out as the whole sentence run together without spaces. This is a scoring p
 so no amount of look-ahead fixes it: an LM look-ahead score is subtracted again at the word end by construction and
 never changes a final score.
 
-``alpha`` is charged as each piece with lexical content is emitted rather than in one lump at word completion, and
-refunded again if the word turns out to be a known pronunciation. Charging early is what keeps a growing fallback
-word comparable to its properly segmented competitors while it is still open, so it does not crowd them out of the
-beam; refunding is what keeps a known word scored identically on both routes. Separator pieces are not charged.
-Interpret ``alpha`` as a geometric length model for unknown spellings: a value in the order of a typical word-LM
-cost per piece is the right starting point, since it has to make an *n*-piece unknown word roughly as expensive as
-the *n* short words it would otherwise absorb. A subword LM configured as a further label scorer models the same
-thing properly and with the right shape, and is the principled replacement for ``alpha``.
+``alpha`` is the cost of *continuing* a word, so the piece that opens one is free and a one-piece unknown word costs
+``beta`` alone. Since every word begins with exactly one opening piece, this keeps the two parameters separable for
+tuning. It is charged as each continuing piece is emitted rather than in one lump at word completion, and refunded
+again if the word turns out to be attested by the lexicon. Charging early is what keeps a growing fallback word
+comparable to its properly segmented competitors while it is still open, so it does not crowd them out of the beam;
+refunding is what keeps an attested word scored identically whichever route recognized it. Separator pieces neither
+open nor continue a word and are never charged.
+
+Interpret ``alpha`` as a geometric length model for unseen spellings. A principled starting value can be computed
+rather than searched for: take the mean per-word LM cost of a baseline run (the ``lm`` component of the traceback
+items) divided by the mean number of pieces per word, which is the point at which a fallback word that swallows *m*
+real words costs about what those *m* words would have cost. Note that ``alpha`` sits outside the LM scales, like
+``beta``, so it has to be re-tuned whenever the LM scale changes.
+
+.. _Extending the lexicon instead of the vocabulary:
+
+Extending the lexicon instead of the vocabulary
+"""""""""""""""""""""""""""""""""""""""""""""""
+
+The fallback sub-tree is not the only way to recognize a word the word LM does not know. A lexicon may simply list
+such words as ordinary lemmata whose syntactic token is the unknown token. They are built into the ordinary tree,
+recognized with their real orthography, and produce exactly one unknown word event each, taking ``beta`` like any
+other unknown word. No fallback lemmata, no ``unknown-word-fallback`` setting and no per-piece cost are involved,
+and the degenerate reading the per-piece cost exists to suppress is impossible by construction, because such a word
+can only be spelled the way the lexicon spells it.
+
+This trades open vocabulary for a larger closed one: it recognizes only words on the list, but it needs no
+modelling of unseen spellings at all. It composes with the fallback -- with both enabled, a fallback spelling of one
+of these words resolves into it through the known-word exclusion and is scored with the unknown token once.
 
 Lexicon interface
 """""""""""""""""

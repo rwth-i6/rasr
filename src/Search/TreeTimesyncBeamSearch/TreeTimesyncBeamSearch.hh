@@ -124,10 +124,14 @@ protected:
     struct WordLmEvent {
         // Token the word LM is advanced with, or null for no event at all.
         Bliss::SyntacticToken const* token = nullptr;
-        // Additive unknown-word cost `beta`, charged once per completed unknown word.
+        // Additive unknown-word cost `beta`, charged once whenever `token` is the
+        // unknown token -- on the fallback route and on an ordinary lexical entry
+        // which the word LM does not know alike.
         Score unknownBias = 0.0;
-        // Whether this event took the unknown route rather than a known lexical one.
-        bool isUnknown = false;
+        // True if the word was not matched to any lexical entry, i.e. its spelling is
+        // an arbitrary piece sequence rather than one the lexicon attests. Only such a
+        // word keeps the per-piece cost; for everything else it is refunded.
+        bool viaUnknownRoute = false;
     };
 
     /*

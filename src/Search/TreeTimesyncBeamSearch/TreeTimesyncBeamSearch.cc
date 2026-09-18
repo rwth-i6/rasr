@@ -821,6 +821,13 @@ bool TreeTimesyncBeamSearch::decodeStep() {
                 require(sts.size() == 1);
                 lmEvent.token = sts.front();
                 lmScore       = languageModel_->score(hyp.lmHistory, lmEvent.token);
+                // An ordinary lemma may carry the unknown token too: that is how a
+                // lexicon adds words which should be recognized but are outside the
+                // word LM's vocabulary. Such a word is an unknown word and takes the
+                // unknown-word penalty, on this route just as on the fallback one.
+                if (lmEvent.token == unknownSyntacticToken_) {
+                    lmEvent.unknownBias = unknownWordPenalty_;
+                }
             }
 
             Nn::TransitionType wordEndtransitionType = Nn::TransitionType::WORD_EXIT;
@@ -845,7 +852,7 @@ bool TreeTimesyncBeamSearch::decodeStep() {
             wordEndExtensions_.push_back({
                     .pron           = lemmaPron,
                     .rootState      = exit.transitState,
-                    .score          = hyp.score + lmScore + penalty,
+                    .score          = hyp.score + lmScore + lmEvent.unknownBias + penalty,
                     .transitionType = wordEndtransitionType,
                     .baseHypIndex   = hypIndex,
                     .lmEvent        = lmEvent,
@@ -875,13 +882,12 @@ bool TreeTimesyncBeamSearch::decodeStep() {
             newLmHistory = languageModel_->extendedHistory(newLmHistory, extension.lmEvent.token);
         }
 
-        if (extension.oov and extension.lmEvent.token != nullptr) {
-            if (extension.lmEvent.isUnknown) {
-                ++numUnknownWordEvents_;
-            }
-            else if (unknownWordFallback_->isFallbackLemma(extension.pron->lemma())) {
-                ++numKnownResolvedFallbackWords_;
-            }
+        if (extension.lmEvent.token != nullptr and extension.lmEvent.token == unknownSyntacticToken_) {
+            ++numUnknownWordEvents_;
+        }
+        if (extension.oov and not extension.lmEvent.viaUnknownRoute and extension.lmEvent.token != nullptr and
+            unknownWordFallback_->isFallbackLemma(extension.pron->lemma())) {
+            ++numKnownResolvedFallbackWords_;
         }
 
         wordEndHypotheses_.push_back({baseHyp, extension, newLmHistory});
@@ -991,14 +997,16 @@ void TreeTimesyncBeamSearch::logStatistics() const {
     numWordEndHypsAfterBeamPruning_.write(clog());
     numActiveHyps_.write(clog());
     numActiveTrees_.write(clog());
-    if (excludeKnownWordsFromFallback_) {
-        // Counted over the word-end extensions of this segment that survived score
-        // pruning, plus the segment-end finalizations -- so these are attempted word
-        // events across the beam, not events on the single best hypothesis.
-        // `num-known-resolved-fallback-words` are piece sequences that spell an exact
-        // known pronunciation and were therefore scored with their known LM token; in
-        // known-excluding mode none of them can reach the unknown route.
+    // Counted over the word-end extensions of this segment that survived score pruning,
+    // plus the segment-end finalizations -- so these are attempted word events across
+    // the beam, not events on the single best hypothesis.
+    if (unknownSyntacticToken_ != nullptr) {
         clog() << Core::XmlFull("num-unknown-word-events", numUnknownWordEvents_);
+    }
+    if (excludeKnownWordsFromFallback_) {
+        // Piece sequences that spell an exact known pronunciation and were therefore
+        // scored with their known LM token; in known-excluding mode none of them can
+        // reach the unknown route.
         clog() << Core::XmlFull("num-known-resolved-fallback-words", numKnownResolvedFallbackWords_);
     }
 }
@@ -1379,6 +1387,12 @@ void TreeTimesyncBeamSearch::resolveWordLmEvents(OovState const& oov, std::vecto
         auto const& sts = lemma->syntacticTokenSequence();
         WordLmEvent event;
         event.token = sts.size() == 1 ? sts.front() : nullptr;
+        if (event.token != nullptr and event.token == unknownSyntacticToken_) {
+            // A lexical entry outside the word LM's vocabulary: unknown to the LM, so
+            // it takes `beta`, but its spelling is attested by the lexicon, so it does
+            // not keep the per-piece cost.
+            event.unknownBias = unknownWordPenalty_;
+        }
         // Several known interpretations can carry the same LM token (pronunciation
         // variants, homophones). They would produce identical hypotheses, so keep one.
         if (std::none_of(events.begin(), events.end(), [&](WordLmEvent const& seen) { return seen.token == event.token; })) {
@@ -1394,9 +1408,9 @@ void TreeTimesyncBeamSearch::resolveWordLmEvents(OovState const& oov, std::vecto
     }
 
     WordLmEvent unknownEvent;
-    unknownEvent.token       = unknownSyntacticToken_;
-    unknownEvent.unknownBias = unknownWordPenalty_;
-    unknownEvent.isUnknown   = true;
+    unknownEvent.token           = unknownSyntacticToken_;
+    unknownEvent.unknownBias     = unknownWordPenalty_;
+    unknownEvent.viaUnknownRoute = true;
     events.push_back(unknownEvent);
 }
 
@@ -1462,7 +1476,12 @@ void TreeTimesyncBeamSearch::expandFallbackExit(LabelHypothesis const&          
     // wins on score even with an unlimited beam. Charging it early also keeps a
     // growing fallback word comparable to its properly segmented competitors while it
     // is still open, so it does not crowd them out of the beam.
-    Score const pieceCost = isSeparator ? 0.0 : unknownPiecePenalty_;
+    //
+    // It is the cost of *continuing* a word, so the piece that opens one is free and
+    // an n-piece unknown word costs `beta + alpha * (n - 1)`. Every word begins with
+    // exactly one opening piece, which keeps `beta` and `alpha` separable for tuning.
+    bool const  continuesPendingWord = not closesWordBefore and hyp.oov->wordPending();
+    Score const pieceCost            = (isSeparator or not continuesPendingWord) ? 0.0 : unknownPiecePenalty_;
 
     // Only a completed word is a word: an exit which merely appends a piece to the
     // pending word must not collect the word-exit reward a second time. A completed
@@ -1480,8 +1499,8 @@ void TreeTimesyncBeamSearch::expandFallbackExit(LabelHypothesis const&          
         // A word which turns out to be a known pronunciation gets the provisional
         // per-piece cost of all its pieces refunded, so that both routes score it
         // identically.
-        Score const settlement = (eventOov and not event.isUnknown)
-                                         ? -unknownPiecePenalty_ * static_cast<Score>(eventOov->numPieces)
+        Score const settlement = (eventOov and not event.viaUnknownRoute)
+                                         ? -unknownPiecePenalty_ * static_cast<Score>(eventOov->numPieces - 1u)
                                          : 0.0;
 
         wordEndExtensions_.push_back({
@@ -1583,19 +1602,19 @@ void TreeTimesyncBeamSearch::finalizeHypotheses() {
                 for (auto const& event : wordLmEventBuffer_) {
                     Lm::History pendingHistory = hyp.lmHistory;
                     Score       pendingScore   = event.unknownBias;
-                    if (not event.isUnknown) {
+                    if (not event.viaUnknownRoute) {
                         // Refund the provisional per-piece cost of a pending word which
                         // the segment end resolves into a known pronunciation.
-                        pendingScore -= unknownPiecePenalty_ * static_cast<Score>(hyp.oov->numPieces);
+                        pendingScore -= unknownPiecePenalty_ * static_cast<Score>(hyp.oov->numPieces - 1u);
                     }
                     if (event.token != nullptr) {
                         pendingScore += languageModel_->score(hyp.lmHistory, event.token);
                         pendingHistory = languageModel_->extendedHistory(hyp.lmHistory, event.token);
                     }
-                    if (event.isUnknown) {
+                    if (event.token != nullptr and event.token == unknownSyntacticToken_) {
                         ++numUnknownWordEvents_;
                     }
-                    else {
+                    if (not event.viaUnknownRoute) {
                         ++numKnownResolvedFallbackWords_;
                     }
 

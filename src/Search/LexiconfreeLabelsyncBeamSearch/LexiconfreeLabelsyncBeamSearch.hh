@@ -181,11 +181,11 @@ private:
     /*
      * Phases of `scoreAndPruneExtensions` per label scorer, adding up to the matching
      * `scoreAndPruneExtensionsTimes_` entry. Scorers that compute scores lazily do that work
-     * during the extension phase; the pruning phase also prepares the next scorer's contexts.
+     * during the score readout; the pruning phase also prepares the next scorer's contexts.
      */
     std::vector<Core::StopWatch> scoreAndPruneExtensionsTimes_;
     std::vector<Core::StopWatch> scoringTimes_;
-    std::vector<Core::StopWatch> extensionTimes_;
+    std::vector<Core::StopWatch> scoreReadoutTimes_;
     std::vector<Core::StopWatch> intermediatePruningTimes_;
     Core::StopWatch              buildNewBeamTime_;
     Core::StopWatch              recombinationTime_;

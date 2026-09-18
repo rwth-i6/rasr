@@ -331,7 +331,7 @@ TreeLabelsyncBeamSearch::TreeLabelsyncBeamSearch(Core::Configuration const& conf
 
     scoreAndPruneExtensionsTimes_.resize(maxBeamSizes_.size());
     scoringTimes_.resize(maxBeamSizes_.size());
-    extensionTimes_.resize(maxBeamSizes_.size());
+    scoreReadoutTimes_.resize(maxBeamSizes_.size());
     intermediatePruningTimes_.resize(maxBeamSizes_.size());
 }
 
@@ -380,8 +380,8 @@ bool TreeLabelsyncBeamSearch::setModelCombination(Speech::ModelCombination const
     if (scoringTimes_.size() < labelScorers_.size()) {
         scoringTimes_.resize(labelScorers_.size());
     }
-    if (extensionTimes_.size() < labelScorers_.size()) {
-        extensionTimes_.resize(labelScorers_.size());
+    if (scoreReadoutTimes_.size() < labelScorers_.size()) {
+        scoreReadoutTimes_.resize(labelScorers_.size());
     }
     if (intermediatePruningTimes_.size() < labelScorers_.size()) {
         intermediatePruningTimes_.resize(labelScorers_.size());
@@ -476,7 +476,7 @@ void TreeLabelsyncBeamSearch::enterSegment(Bliss::SpeechSegment const* segment) 
     featureProcessingTime_.reset();
     finalizeScoringTime_.reset();
     decodeStepTime_.reset();
-    for (auto* timers : {&scoreAndPruneExtensionsTimes_, &scoringTimes_, &extensionTimes_, &intermediatePruningTimes_}) {
+    for (auto* timers : {&scoreAndPruneExtensionsTimes_, &scoringTimes_, &scoreReadoutTimes_, &intermediatePruningTimes_}) {
         for (auto& timer : *timers) {
             timer.reset();
         }
@@ -834,8 +834,9 @@ bool TreeLabelsyncBeamSearch::scoreAndPruneExtensions() {
         auto scoreAccessors = labelScorer->getScoreAccessors(scoringContexts_);
         scoringTimes_[scorerIdx].stop();
 
-        // Scorers that compute scores lazily do that work while the extensions are built
-        extensionTimes_[scorerIdx].start();
+        // Read the scores out of the accessors and apply them to the extension candidates; for
+        // the first scorer this also creates them. Lazily computing scorers do their work here.
+        scoreReadoutTimes_[scorerIdx].start();
         std::vector<std::optional<Nn::DenseScoreSpan>> denseScoreSpans(scoreAccessors.size(), std::nullopt);
         std::vector<Nn::TimeframeIndex>                scoreTimes(scoreAccessors.size(), 0);
         for (size_t accessorIdx = 0ul; accessorIdx < scoreAccessors.size(); ++accessorIdx) {
@@ -925,7 +926,7 @@ bool TreeLabelsyncBeamSearch::scoreAndPruneExtensions() {
             }
         }
 
-        extensionTimes_[scorerIdx].stop();
+        scoreReadoutTimes_[scorerIdx].stop();
 
         if (withinWordExtensions_.empty()) {
             return false;
@@ -1281,7 +1282,7 @@ void TreeLabelsyncBeamSearch::logStatistics() const {
         for (size_t i = 0ul; i < scoreAndPruneExtensionsTimes_.size(); ++i) {
             statisticsChannel_ << Core::XmlOpen("score-and-prune-extensions-time") + Core::XmlAttribute("scorer", i + 1) + Core::XmlAttribute("total", scoreAndPruneExtensionsTimes_[i].elapsedMilliseconds());
             statisticsChannel_ << Core::XmlOpen("scoring-time") << scoringTimes_[i].elapsedMilliseconds() << Core::XmlClose("scoring-time");
-            statisticsChannel_ << Core::XmlOpen("extension-time") << extensionTimes_[i].elapsedMilliseconds() << Core::XmlClose("extension-time");
+            statisticsChannel_ << Core::XmlOpen("score-readout-time") << scoreReadoutTimes_[i].elapsedMilliseconds() << Core::XmlClose("score-readout-time");
             statisticsChannel_ << Core::XmlOpen("intermediate-pruning-time") << intermediatePruningTimes_[i].elapsedMilliseconds() << Core::XmlClose("intermediate-pruning-time");
             statisticsChannel_ << Core::XmlClose("score-and-prune-extensions-time");
         }

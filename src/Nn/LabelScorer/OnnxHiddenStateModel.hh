@@ -127,6 +127,9 @@ private:
     mutable Core::StopWatch stateInitializerSessionTime_;
     mutable Core::StopWatch stateUpdaterSessionTime_;
     mutable Core::StopWatch scorerSessionTime_;
+    // Building the batched session inputs from the individual hidden states and splitting the
+    // batched session outputs back up again
+    mutable Core::StopWatch stateMarshallingTime_;
 
     std::shared_ptr<Onnx::Model> stateInitializerOnnxModel_;
     std::shared_ptr<Onnx::Model> stateUpdaterOnnxModel_;

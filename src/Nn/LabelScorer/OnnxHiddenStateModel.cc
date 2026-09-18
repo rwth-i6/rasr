@@ -68,12 +68,14 @@ void OnnxHiddenStateModel::resetStatistics() {
     stateInitializerSessionTime_.reset();
     stateUpdaterSessionTime_.reset();
     scorerSessionTime_.reset();
+    stateMarshallingTime_.reset();
 }
 
 void OnnxHiddenStateModel::logStatistics(Core::XmlWriter& out) const {
     out << Core::XmlOpen("state-initializer-session-time") << stateInitializerSessionTime_.elapsedMilliseconds() << Core::XmlClose("state-initializer-session-time");
     out << Core::XmlOpen("state-updater-session-time") << stateUpdaterSessionTime_.elapsedMilliseconds() << Core::XmlClose("state-updater-session-time");
     out << Core::XmlOpen("scorer-session-time") << scorerSessionTime_.elapsedMilliseconds() << Core::XmlClose("scorer-session-time");
+    out << Core::XmlOpen("state-marshalling-time") << stateMarshallingTime_.elapsedMilliseconds() << Core::XmlClose("state-marshalling-time");
 }
 
 void OnnxHiddenStateModel::setupStateNameMaps() {
@@ -182,13 +184,17 @@ void OnnxHiddenStateModel::collectStateOutputs(StateNameMap const&       outputT
 OnnxHiddenStateRef OnnxHiddenStateModel::initialHiddenState(SessionInputs extraInputs) {
     std::vector<std::string> sessionOutputNames;
     std::vector<std::string> stateNames;
-    collectStateOutputs(initializerOutputToStateNameMap_, sessionOutputNames, stateNames);
+    {
+        Core::StopWatch::Scope marshallingTimer(stateMarshallingTime_);
+        collectStateOutputs(initializerOutputToStateNameMap_, sessionOutputNames, stateNames);
+    }
 
     std::vector<Onnx::Value> sessionOutputs;
     stateInitializerSessionTime_.start();
     stateInitializerOnnxModel_->session.run(std::move(extraInputs), sessionOutputNames, sessionOutputs);
     stateInitializerSessionTime_.stop();
 
+    Core::StopWatch::Scope marshallingTimer(stateMarshallingTime_);
     return Core::ref(new OnnxHiddenState(std::move(stateNames), std::move(sessionOutputs)));
 }
 
@@ -201,15 +207,17 @@ std::vector<OnnxHiddenStateRef> OnnxHiddenStateModel::updatedHiddenStates(std::v
     /*
      * Create session inputs
      */
-    addStateInputs(updaterInputToStateNameMap_, hiddenStatesBatch, extraInputs);
+    std::vector<std::string> sessionOutputNames;
+    std::vector<std::string> stateNames;
+    {
+        Core::StopWatch::Scope marshallingTimer(stateMarshallingTime_);
+        addStateInputs(updaterInputToStateNameMap_, hiddenStatesBatch, extraInputs);
+        collectStateOutputs(updaterOutputToStateNameMap_, sessionOutputNames, stateNames);
+    }
 
     /*
      * Run session
      */
-    std::vector<std::string> sessionOutputNames;
-    std::vector<std::string> stateNames;
-    collectStateOutputs(updaterOutputToStateNameMap_, sessionOutputNames, stateNames);
-
     std::vector<Onnx::Value> sessionOutputs;
     stateUpdaterSessionTime_.start();
     stateUpdaterOnnxModel_->session.run(std::move(extraInputs), sessionOutputNames, sessionOutputs);
@@ -218,6 +226,7 @@ std::vector<OnnxHiddenStateRef> OnnxHiddenStateModel::updatedHiddenStates(std::v
     /*
      * Return resulting hidden states
      */
+    Core::StopWatch::Scope          marshallingTimer(stateMarshallingTime_);
     std::vector<OnnxHiddenStateRef> newHiddenStates;
     newHiddenStates.reserve(hiddenStatesBatch.size());
     for (size_t b = 0ul; b < hiddenStatesBatch.size(); ++b) {
@@ -241,7 +250,10 @@ std::vector<std::shared_ptr<std::vector<Score>>> OnnxHiddenStateModel::scores(st
     /*
      * Create session inputs
      */
-    addStateInputs(scorerInputToStateNameMap_, hiddenStatesBatch, extraInputs);
+    {
+        Core::StopWatch::Scope marshallingTimer(stateMarshallingTime_);
+        addStateInputs(scorerInputToStateNameMap_, hiddenStatesBatch, extraInputs);
+    }
 
     /*
      * Run session
@@ -254,6 +266,7 @@ std::vector<std::shared_ptr<std::vector<Score>>> OnnxHiddenStateModel::scores(st
     /*
      * Return resulting score vectors
      */
+    Core::StopWatch::Scope                           marshallingTimer(stateMarshallingTime_);
     std::vector<std::shared_ptr<std::vector<Score>>> scoreVecs;
     scoreVecs.reserve(hiddenStatesBatch.size());
     for (size_t b = 0ul; b < hiddenStatesBatch.size(); ++b) {

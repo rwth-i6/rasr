@@ -434,6 +434,16 @@ bool TreeTimesyncBeamSearch::setModelCombination(Speech::ModelCombination const&
     // Create look-ups for state successors and exits of each state
     createSuccessorLookups();
 
+    if (unknownWordPenalty_ != 0.0 and unknownSyntacticToken_ == nullptr) {
+        error() << "unknown-word-penalty is set to " << unknownWordPenalty_
+                << " but no unknown syntactic token is available, so it would be silently ignored. "
+                << "Define a special lemma \"unknown\" with exactly one syntactic token.";
+    }
+    if (unknownPiecePenalty_ != 0.0 and not excludeKnownWordsFromFallback_) {
+        warning() << "unknown-piece-penalty is set to " << unknownPiecePenalty_
+                  << " but only applies to the open-vocabulary fallback in \"known-excluding\" mode; it has no effect here.";
+    }
+
     if (excludeKnownWordsFromFallback_) {
         unknownWordRoot_ = network_->unknownWordRoot;
         if (unknownWordRoot_ == invalidTreeNodeIndex) {

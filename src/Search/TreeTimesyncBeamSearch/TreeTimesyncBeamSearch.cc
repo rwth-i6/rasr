@@ -271,6 +271,7 @@ TreeTimesyncBeamSearch::TreeTimesyncBeamSearch(Core::Configuration const& config
           unknownWordRoot_(invalidTreeNodeIndex),
           unknownSyntacticToken_(nullptr),
           unknownWordPenalty_(0.0),
+          unknownPiecePenalty_(0.0),
           initialOovState_(),
           hypIndexToContextIndexMap_(),
           withinWordExtensions_(),
@@ -354,6 +355,7 @@ bool TreeTimesyncBeamSearch::setModelCombination(Speech::ModelCombination const&
     excludeKnownWordsFromFallback_ = unknownWordFallback_->excludesKnownWords();
     unknownSyntacticToken_         = unknownWordFallback_->unknownSyntacticToken();
     unknownWordPenalty_            = unknownWordFallback_->unknownWordPenalty();
+    unknownPiecePenalty_           = unknownWordFallback_->unknownPiecePenalty();
 
     network_ = Core::ref(new PersistentStateTree(
             config,
@@ -1453,6 +1455,15 @@ void TreeTimesyncBeamSearch::expandFallbackExit(LabelHypothesis const&          
         wordLmEventBuffer_.assign(1ul, WordLmEvent{});
     }
 
+    // The per-piece unknown cost is charged as soon as a piece with lexical content is
+    // emitted, not in one lump when the word is finally closed. Otherwise a pending
+    // fallback word is free to grow: swallowing the rest of the utterance into one
+    // unknown word avoids every word-LM event the correct segmentation would pay, and
+    // wins on score even with an unlimited beam. Charging it early also keeps a
+    // growing fallback word comparable to its properly segmented competitors while it
+    // is still open, so it does not crowd them out of the beam.
+    Score const pieceCost = isSeparator ? 0.0 : unknownPiecePenalty_;
+
     // Only a completed word is a word: an exit which merely appends a piece to the
     // pending word must not collect the word-exit reward a second time. A completed
     // word gets it on both routes alike, also when it resolved to a known lemma whose
@@ -1466,10 +1477,17 @@ void TreeTimesyncBeamSearch::expandFallbackExit(LabelHypothesis const&          
             lmScore = languageModel_->score(hyp.lmHistory, event.token);
         }
 
+        // A word which turns out to be a known pronunciation gets the provisional
+        // per-piece cost of all its pieces refunded, so that both routes score it
+        // identically.
+        Score const settlement = (eventOov and not event.isUnknown)
+                                         ? -unknownPiecePenalty_ * static_cast<Score>(eventOov->numPieces)
+                                         : 0.0;
+
         wordEndExtensions_.push_back({
                 .pron           = lemmaPron,
                 .rootState      = exit.transitState,
-                .score          = hyp.score + lmScore + event.unknownBias + transitionScore,
+                .score          = hyp.score + lmScore + event.unknownBias + transitionScore + pieceCost + settlement,
                 .transitionType = transitionType,
                 .baseHypIndex   = hypIndex,
                 .lmEvent        = event,
@@ -1565,6 +1583,11 @@ void TreeTimesyncBeamSearch::finalizeHypotheses() {
                 for (auto const& event : wordLmEventBuffer_) {
                     Lm::History pendingHistory = hyp.lmHistory;
                     Score       pendingScore   = event.unknownBias;
+                    if (not event.isUnknown) {
+                        // Refund the provisional per-piece cost of a pending word which
+                        // the segment end resolves into a known pronunciation.
+                        pendingScore -= unknownPiecePenalty_ * static_cast<Score>(hyp.oov->numPieces);
+                    }
                     if (event.token != nullptr) {
                         pendingScore += languageModel_->score(hyp.lmHistory, event.token);
                         pendingHistory = languageModel_->extendedHistory(hyp.lmHistory, event.token);

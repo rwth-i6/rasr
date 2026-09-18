@@ -360,6 +360,7 @@ orthography and survives traceback -- and is governed by two parameters of the s
     unknown-word-fallback     = auto | disabled | legacy | known-excluding
     unknown-word-tokenization = continuation-marked | word-start-marked
     unknown-word-penalty      = 0.0
+    unknown-piece-penalty     = 0.0
 
 ``unknown-word-fallback`` selects the policy:
 
@@ -388,12 +389,30 @@ discourage the fallback, negative values reward it. The cost of one completed un
 
 .. code-block:: text
 
-    C_unknown(h) = sum_j lambda_j * [-ln P_j(UNK_j | h_j)] + beta
+    C_unknown(h) = sum_j lambda_j * [-ln P_j(UNK_j | h_j)] + beta + alpha * (number of pieces)
 
 with one term per configured word LM. Each LM advances to its successor history for its own unknown token once;
 ``beta`` is applied once per word, never once per scorer and never once per acoustic piece. A known word receives
 its normal word score and history update and no unknown penalty at all. The fallback and ``beta`` are also usable
 with an LM scale of zero, which is the setting the topology-equivalence tests use.
+
+``alpha`` is ``unknown-piece-penalty``, and it is what keeps the cost of an unknown word dependent on its length.
+**Without it the fallback is degenerate**: since a pending word is only charged when it closes, never closing it is
+free, so swallowing the rest of the utterance into one unknown word avoids every word-LM event the correct
+segmentation would pay. Under a word-start-marked inventory that is easy to do -- emit the unmarked variant of each
+piece instead of the word-start one -- and the resulting reading wins on score even with an unlimited beam, which
+comes out as the whole sentence run together without spaces. This is a scoring preference, not a pruning artifact,
+so no amount of look-ahead fixes it: an LM look-ahead score is subtracted again at the word end by construction and
+never changes a final score.
+
+``alpha`` is charged as each piece with lexical content is emitted rather than in one lump at word completion, and
+refunded again if the word turns out to be a known pronunciation. Charging early is what keeps a growing fallback
+word comparable to its properly segmented competitors while it is still open, so it does not crowd them out of the
+beam; refunding is what keeps a known word scored identically on both routes. Separator pieces are not charged.
+Interpret ``alpha`` as a geometric length model for unknown spellings: a value in the order of a typical word-LM
+cost per piece is the right starting point, since it has to make an *n*-piece unknown word roughly as expensive as
+the *n* short words it would otherwise absorb. A subword LM configured as a further label scorer models the same
+thing properly and with the right shape, and is the principled replacement for ``alpha``.
 
 Lexicon interface
 """""""""""""""""

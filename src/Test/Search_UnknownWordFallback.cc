@@ -31,6 +31,7 @@
 #include <Test/UnitTest.hh>
 
 #include <cmath>
+#include <map>
 #include <memory>
 #include <string>
 #include <vector>
@@ -93,6 +94,11 @@ protected:
 
     // Decode one frame per entry of `labels`, forcing that label in that frame.
     Result decode(std::vector<std::string> const& labels);
+
+    // Decode one frame per entry of `frameScores`, giving the listed labels their
+    // listed score and every other label `suppressed`. Lets a test express that two
+    // labels are acoustically close rather than mutually exclusive.
+    Result decodeGraded(std::vector<std::map<std::string, float>> const& frameScores);
 
     Core::Ref<Test::Lexicon>                        lexicon_;
     Core::Ref<Am::AcousticModel>                    acousticModel_;
@@ -190,14 +196,24 @@ Nn::LabelIndex FallbackSearchFixture::emissionIndexOf(std::string const& phoneme
 }
 
 FallbackSearchFixture::Result FallbackSearchFixture::decode(std::vector<std::string> const& labels) {
+    std::vector<std::map<std::string, float>> frameScores;
+    for (auto const& label : labels) {
+        frameScores.push_back({{label, 0.0f}});
+    }
+    return decodeGraded(frameScores);
+}
+
+FallbackSearchFixture::Result FallbackSearchFixture::decodeGraded(std::vector<std::map<std::string, float>> const& frameScores) {
     search_->enterSegment();
 
     std::vector<std::shared_ptr<f32[]>> frames;  // keep the buffers alive until finishSegment
-    for (auto const& label : labels) {
+    for (auto const& scores : frameScores) {
         std::shared_ptr<f32[]> frame(new f32[numEmissions_]);
         std::fill(frame.get(), frame.get() + numEmissions_, suppressed);
-        require_lt(static_cast<size_t>(emissionIndexOf(label)), numEmissions_);
-        frame[emissionIndexOf(label)] = 0.0f;
+        for (auto const& [label, score] : scores) {
+            require_lt(static_cast<size_t>(emissionIndexOf(label)), numEmissions_);
+            frame[emissionIndexOf(label)] = score;
+        }
         frames.push_back(frame);
         search_->putFeature(Nn::DataView(std::shared_ptr<f32 const[]>(frame), numEmissions_));
     }
@@ -238,7 +254,7 @@ public:
 
 void WordStartFallbackSearchTest::setUp() {
     lexicon_ = Core::ref(new Test::Lexicon());
-    for (auto const* phoneme : {"_cat", "_un", "_the", "_xy", "_sep", "familiar", "fam", "iliar", "s", "zz", "blank", "eos"}) {
+    for (auto const* phoneme : {"_cat", "_un", "_the", "_xy", "_sep", "cat", "the", "familiar", "fam", "iliar", "s", "zz", "blank", "eos"}) {
         lexicon_->addPhoneme(phoneme, false);
     }
 
@@ -257,6 +273,8 @@ void WordStartFallbackSearchTest::setUp() {
     addLemma("s", {"s"}, "unknown-word-internal", {});
     addLemma("zz", {"zz"}, "unknown-word-internal", {});
     // An alternate tokenization of the known spelling "unfamiliar".
+    addLemma("cat", {"cat"}, "unknown-word-internal", {});
+    addLemma("the", {"the"}, "unknown-word-internal", {});
     addLemma("fam", {"fam"}, "unknown-word-internal", {});
     addLemma("iliar", {"iliar"}, "unknown-word-internal", {});
     // A standalone word-start marker: a boundary without lexical content. Declared by
@@ -376,6 +394,73 @@ TEST_F(Search, WordStartFallbackSearchTest, UnmarkedFirstPieceIsAccepted) {
 
     EXPECT_EQ(result.lemmas, std::string("zz"));
     EXPECT_DOUBLE_EQ(result.lmScore, costUnknown + costSentenceEnd, 1e-4);
+}
+
+TEST_F(Search, WordStartFallbackSearchTest, WithoutAPerPieceCostALongPendingWordSwallowsTheSentence) {
+    buildSearch();
+
+    // Both words are in the vocabulary and the word-start pieces are acoustically
+    // preferred, but only by a little: the unmarked variant of the second word costs
+    // 0.5 more. Keeping one word open over the whole utterance avoids one word-LM
+    // event, and the cost of an unknown word does not depend on its length, so the
+    // degenerate reading wins -- with an unlimited beam, i.e. this is a scoring
+    // preference and not a pruning artifact.
+    //
+    //   correct   : THE + CAT + </s>        = 2.303 + 0.693 + 0.223 = 3.219, am 0.0
+    //   degenerate: UNK("_the cat") + </s>  = 1.386         + 0.223 = 1.609, am 0.5
+    auto result = decodeGraded({{{"_the", 0.0f}}, {{"_cat", 0.0f}, {"cat", 0.5f}}});
+
+    EXPECT_EQ(result.lemmas, std::string("_the"
+                                         " "
+                                         "cat [1]"));
+    EXPECT_DOUBLE_EQ(result.lmScore, costUnknown + costSentenceEnd, 1e-4);
+    EXPECT_DOUBLE_EQ(result.amScore, 0.5, 1e-4);
+}
+
+TEST_F(Search, WordStartFallbackSearchTest, PerPieceCostStopsTheRunawayPendingWord) {
+    // 2 * 1.0 of per-piece cost outweighs the 1.11 the degenerate reading saves.
+    setParameter("*.unknown-piece-penalty", "1.0");
+    buildSearch();
+
+    auto result = decodeGraded({{{"_the", 0.0f}}, {{"_cat", 0.0f}, {"cat", 0.5f}}});
+
+    // Two word events with the words' own LM tokens rather than one unknown event.
+    // Both words resolve to known pronunciations, so the provisional per-piece cost is
+    // refunded and the result is scored exactly as on the ordinary route -- the two
+    // routes tie, so which lemma identities the traceback shows is arbitrary and only
+    // the score and the absence of the unmarked piece are asserted here.
+    EXPECT_TRUE(result.lemmas.find("cat [1]") == std::string::npos);
+    EXPECT_DOUBLE_EQ(result.lmScore, costThe + costCat + costSentenceEnd, 1e-4);
+    EXPECT_DOUBLE_EQ(result.amScore, 0.0, 1e-4);
+}
+
+TEST_F(Search, WordStartFallbackSearchTest, UnknownWordCostGrowsWithItsLength) {
+    setParameter("*.unknown-piece-penalty", "0.5");
+    buildSearch();
+
+    auto onePiece = decode({"zz"});
+    EXPECT_DOUBLE_EQ(onePiece.lmScore, costUnknown + 0.5 + costSentenceEnd, 1e-4);
+
+    auto twoPieces = decode({"_xy", "zz"});
+    EXPECT_DOUBLE_EQ(twoPieces.lmScore, costUnknown + 2.0 * 0.5 + costSentenceEnd, 1e-4);
+
+    // A separator carries no lexical content, so it is not charged.
+    auto withSeparator = decode({"_xy", "zz", "_sep"});
+    EXPECT_DOUBLE_EQ(withSeparator.lmScore, costUnknown + 2.0 * 0.5 + costSentenceEnd, 1e-4);
+}
+
+TEST_F(Search, WordStartFallbackSearchTest, KnownWordOnTheFallbackRouteIsRefundedThePerPieceCost) {
+    setParameter("*.unknown-piece-penalty", "5.0");
+    buildSearch();
+
+    // "zz" is an unknown one-piece word and keeps its per-piece cost; "_cat" is closed
+    // by the segment end, resolves to CAT and gets its own refunded.
+    auto result = decode({"zz", "_cat"});
+
+    EXPECT_EQ(result.lemmas, std::string("zz"
+                                         " "
+                                         "_cat"));
+    EXPECT_DOUBLE_EQ(result.lmScore, costUnknown + 5.0 + costCat + costSentenceEnd, 1e-4);
 }
 
 TEST_F(Search, WordStartFallbackSearchTest, SeparatorPiecesCreateNoPhantomWord) {

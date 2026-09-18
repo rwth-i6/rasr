@@ -77,6 +77,7 @@ public:
     static const Core::Choice          choiceTokenization;
     static const Core::ParameterChoice paramTokenization;
     static const Core::ParameterFloat  paramUnknownWordPenalty;
+    static const Core::ParameterFloat  paramUnknownPiecePenalty;
 
     UnknownWordFallback(Core::Configuration const& config, Bliss::Lexicon const& lexicon);
 
@@ -103,6 +104,19 @@ public:
      */
     Score unknownWordPenalty() const {
         return unknownWordPenalty_;
+    }
+
+    /**
+     * Additive cost `alpha` charged once per subword piece of a completed unknown
+     * word, in the same units as `unknownWordPenalty`. Without it the cost of an
+     * unknown word does not depend on its length, so keeping one fallback word open
+     * over a whole utterance avoids all the word-LM events the correct segmentation
+     * would pay and wins on score. The total cost of a completed unknown word is
+     *
+     *     -ln P(UNK | h) * lambda + beta + alpha * (number of pieces)
+     */
+    Score unknownPiecePenalty() const {
+        return unknownPiecePenalty_;
     }
 
     PieceRole roleOf(Bliss::Lemma const* lemma) const;
@@ -204,6 +218,7 @@ private:
     Mode         mode_;
     Tokenization tokenization_;
     Score        unknownWordPenalty_;
+    Score        unknownPiecePenalty_;
 
     std::vector<Bliss::Lemma const*> openingLemmas_;
     std::vector<Bliss::Lemma const*> pendingLemmas_;

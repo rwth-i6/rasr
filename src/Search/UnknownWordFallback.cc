@@ -69,11 +69,21 @@ const Core::ParameterFloat UnknownWordFallback::paramUnknownWordPenalty(
         "reward it. Has no effect in \"legacy\" mode.",
         0.0);
 
+const Core::ParameterFloat UnknownWordFallback::paramUnknownPiecePenalty(
+        "unknown-piece-penalty",
+        "Additive cost charged once per subword piece of a completed unknown word, in the same units as "
+        "unknown-word-penalty. Without it the cost of an unknown word is independent of its length, so a single "
+        "fallback word spanning the whole utterance avoids every word-LM event the correct segmentation would pay "
+        "and wins on score. The cost is charged as each piece is emitted and refunded again if the word turns out "
+        "to be a known pronunciation. Has no effect in \"legacy\" mode.",
+        0.0);
+
 UnknownWordFallback::UnknownWordFallback(Core::Configuration const& config, Bliss::Lexicon const& lexicon)
         : Core::Component(config),
           mode_(Disabled),
           tokenization_(static_cast<Tokenization>(paramTokenization(config))),
           unknownWordPenalty_(paramUnknownWordPenalty(config)),
+          unknownPiecePenalty_(paramUnknownPiecePenalty(config)),
           openingLemmas_(),
           pendingLemmas_(),
           roles_(),
@@ -311,7 +321,7 @@ std::string UnknownWordFallback::describe() const {
         ss << " (" << separatorLemmas_.size() << " of them separators without lexical content)";
     }
     if (mode_ == KnownExcluding) {
-        ss << ", unknown-word-penalty " << unknownWordPenalty_;
+        ss << ", unknown-word-penalty " << unknownWordPenalty_ << ", unknown-piece-penalty " << unknownPiecePenalty_;
     }
     return ss.str();
 }

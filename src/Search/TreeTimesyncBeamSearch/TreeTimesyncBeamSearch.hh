@@ -235,6 +235,7 @@ private:
     StateId                              unknownWordRoot_;
     Bliss::SyntacticToken const*         unknownSyntacticToken_;
     Score                                unknownWordPenalty_;
+    Score                                unknownPiecePenalty_;
     OovStateRef                          initialOovState_;
 
     // Pre-allocated intermediate vectors

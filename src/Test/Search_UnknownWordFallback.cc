@@ -138,7 +138,11 @@ Bliss::Lemma* FallbackSearchFixture::addLemma(std::string const&              or
 }
 
 void FallbackSearchFixture::setCommonParameters() {
-    setParameter("*.state-tying.type", "no-tying-dense");
+    // Boundary-independent tying, so one subword label has one emission index whether
+    // it is a whole word or the first piece of a longer one. This is what a real
+    // subword CTC setup must use, and without it the ordinary and the fallback
+    // realization of the same piece would not even be the same acoustic label.
+    setParameter("*.state-tying.type", "monophone");
     setParameter("*.hmm.states-per-phone", "1");
     setParameter("*.hmm.state-repetitions", "1");
     setParameter("*.hmm.across-word-model", "no");
@@ -625,6 +629,33 @@ TEST_F(Search, ContinuationMarkedFallbackSearchTest, LegacyModeScoresKnownPieceS
 
     auto result = decode({"kn@@", "own"});
     EXPECT_DOUBLE_EQ(result.lmScore, costUnknown - 50.0 + costSentenceEnd, 1e-4);
+}
+
+TEST_F(Search, ContinuationMarkedFallbackSearchTest, PendingFallbackWordDoesNotPruneAwayTheOrdinaryResult) {
+    // A large unknown-word penalty with tight word-end pruning. The correct reading is
+    // the in-vocabulary one, which the closed tree finds; adding the fallback sub-tree
+    // must not destroy it.
+    //
+    // The competing fallback reading "ra@@ ra@@" never closes its word. If `beta` were
+    // charged when a fallback word closes rather than when it opens, that hypothesis
+    // would stay at its bare acoustic cost for the whole utterance, set the word-end
+    // pruning threshold, and prune away the ordinary hypothesis which honestly paid the
+    // LM cost of the word it completed. Since a pending word cannot end a segment under
+    // this tokenization, the result would then be no hypothesis at all -- the fallback
+    // making the search fail on input the closed tree handles.
+    setParameter("*.unknown-word-fallback", "known-excluding");
+    setParameter("*.unknown-word-penalty", "100.0");
+    setParameter("*.score-threshold", "1.0");
+    setParameter("*.word-end-score-threshold", "0.5");
+    setParameter("*.sentence-end-fall-back", "false");
+    buildSearch();
+
+    auto result = decodeGraded({{{"kn@@", 0.0f}, {"ra@@", 0.0f}},
+                                {{"own", 0.0f}, {"ra@@", 0.5f}}});
+
+    EXPECT_FALSE(result.empty);
+    EXPECT_DOUBLE_EQ(result.lmScore, costKnownTwo + costSentenceEnd, 1e-4);
+    EXPECT_DOUBLE_EQ(result.amScore, 0.0, 1e-4);
 }
 
 TEST_F(Search, ContinuationMarkedFallbackSearchTest, DanglingContinuationIsRejectedInStrictMode) {

@@ -396,6 +396,16 @@ with one term per configured word LM. Each LM advances to its successor history 
 receives its normal word score and history update and no unknown penalty at all. The fallback and ``beta`` are also
 usable with an LM scale of zero, which is the setting the topology-equivalence tests use.
 
+``beta`` is charged when a fallback word *opens* and settled again when it closes, rather than charged in one lump
+at the close. The final score is identical either way, but the timing is not: a pending fallback word charged only
+at its close stays at its bare acoustic cost for as long as it remains open, which makes it the best hypothesis in
+the beam and lets its score set the pruning threshold for everything else. An ordinary hypothesis that has honestly
+paid the LM cost of each word it completed is then pruned against it, and adding the fallback sub-tree can destroy
+a result which the closed tree finds -- as an empty hypothesis under a continuation-marked inventory, where a
+pending word cannot end a segment, or as the whole utterance run together as one unknown word under a
+word-start-marked one, where it can. This is a pruning effect and it appears at ordinary beam sizes; widening the
+beam does not help, because it is the score threshold that removes the honest hypothesis.
+
 ``beta`` follows the *token*, not the route: it is charged whenever a completed word advances the word LM with the
 unknown token. That includes ordinary lexical entries which carry that token, so a lexicon can list words which
 should be recognizable but are outside the word LM's vocabulary as plain lemmata with ``<synt><tok>&lt;UNK&gt;</tok></synt>``

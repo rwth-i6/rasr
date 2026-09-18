@@ -1493,6 +1493,17 @@ void TreeTimesyncBeamSearch::expandFallbackExit(LabelHypothesis const&          
     bool const  continuesPendingWord = not closesWordBefore and hyp.oov->wordPending();
     Score const pieceCost            = (isSeparator or not continuesPendingWord) ? 0.0 : unknownPiecePenalty_;
 
+    // `beta` is charged when a fallback word *opens*, not when it closes, and settled
+    // again below. Charging it at the close would leave a pending fallback word
+    // artificially cheap for as long as it stays open: it would then set the pruning
+    // threshold for everything else, and an ordinary hypothesis that honestly paid for
+    // its completed words would be pruned against it. The observable effect is that
+    // adding the fallback sub-tree destroys an in-vocabulary result which the closed
+    // tree finds, because the surviving fallback hypotheses cannot finalize. Since the
+    // settlement restores the exact amount at completion, no final score changes.
+    bool const  opensWord = not isSeparator and (closesWordBefore or not hyp.oov->wordPending());
+    Score const openCost  = opensWord ? unknownWordPenalty_ : 0.0;
+
     // Only a completed word is a word: an exit which merely appends a piece to the
     // pending word must not collect the word-exit reward a second time. A completed
     // word gets it on both routes alike, also when it resolved to a known lemma whose
@@ -1506,17 +1517,21 @@ void TreeTimesyncBeamSearch::expandFallbackExit(LabelHypothesis const&          
             lmScore = languageModel_->score(hyp.lmHistory, event.token);
         }
 
-        // A word which turns out to be a known pronunciation gets the provisional
+        // A word which turns out to be attested by the lexicon gets the provisional
         // per-piece cost of all its pieces refunded, so that both routes score it
         // identically.
-        Score const settlement = (eventOov and not event.viaUnknownRoute)
-                                         ? -unknownPiecePenalty_ * static_cast<Score>(eventOov->numPieces - 1u)
-                                         : 0.0;
+        Score const pieceSettlement = (eventOov and not event.viaUnknownRoute)
+                                              ? -unknownPiecePenalty_ * static_cast<Score>(eventOov->numPieces - 1u)
+                                              : 0.0;
+        // The completed word already paid `beta` when it opened; `unknownBias` is what
+        // it should end up having paid, so the difference settles it. That is zero for
+        // a word the LM does not know and a full refund for one it does.
+        Score const betaSettlement = eventOov ? (event.unknownBias - unknownWordPenalty_) : 0.0;
 
         wordEndExtensions_.push_back({
                 .pron           = lemmaPron,
                 .rootState      = exit.transitState,
-                .score          = hyp.score + lmScore + event.unknownBias + transitionScore + pieceCost + settlement,
+                .score          = hyp.score + lmScore + transitionScore + pieceCost + pieceSettlement + betaSettlement + openCost,
                 .transitionType = transitionType,
                 .baseHypIndex   = hypIndex,
                 .lmEvent        = event,
@@ -1611,7 +1626,8 @@ void TreeTimesyncBeamSearch::finalizeHypotheses() {
                 resolveWordLmEvents(*hyp.oov, wordLmEventBuffer_);
                 for (auto const& event : wordLmEventBuffer_) {
                     Lm::History pendingHistory = hyp.lmHistory;
-                    Score       pendingScore   = event.unknownBias;
+                    // The pending word paid `beta` when it opened; settle it here.
+                    Score pendingScore = event.unknownBias - unknownWordPenalty_;
                     if (not event.viaUnknownRoute) {
                         // Refund the provisional per-piece cost of a pending word which
                         // the segment end resolves into a known pronunciation.

@@ -26,6 +26,7 @@
 #include <Math/Utilities.hh>
 #include <Nn/LabelScorer/LabelScorer.hh>
 #include <Nn/LabelScorer/ScoringContext.hh>
+#include <Search/Helpers.hh>
 #include <Search/Module.hh>
 #include <Search/Traceback.hh>
 #include <Search/TracebackHelper.hh>
@@ -768,6 +769,10 @@ bool TreeLabelsyncBeamSearch::decodeStep() {
                     continue;
                 }
                 penalty += (*scoreAccessor)->getScore(wordEndtransitionType);
+            }
+
+            if (wordEndtransitionType == Nn::TransitionType::BLANK_EXIT) {
+                penalty += blankExitPenalty(hyp.score);
             }
 
             wordEndExtensions_.push_back({

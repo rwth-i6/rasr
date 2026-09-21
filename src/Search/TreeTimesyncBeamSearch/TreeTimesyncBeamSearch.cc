@@ -56,7 +56,8 @@ TreeTimesyncBeamSearch::LabelHypothesis::LabelHypothesis()
           timeframe(0),
           score(0.0),
           trace(Core::ref(new LatticeTrace(0, {0, 0}, {}))),
-          oov()
+          oov(),
+          unknownLookahead(0.0)
 #ifdef SEARCHV2_DEBUG
           ,
           tokenSequence(),
@@ -77,7 +78,8 @@ TreeTimesyncBeamSearch::LabelHypothesis::LabelHypothesis(
           timeframe(extension.timeframe),
           score(extension.score),
           trace(base.trace),
-          oov(base.oov)
+          oov(base.oov),
+          unknownLookahead(extension.unknownLookahead)
 #ifdef SEARCHV2_DEBUG
           ,
           tokenSequence(base.tokenSequence),
@@ -102,7 +104,8 @@ TreeTimesyncBeamSearch::LabelHypothesis::LabelHypothesis(
           lmHistory(newLmHistory),
           timeframe(base.timeframe),
           score(extension.score),
-          oov(extension.oov)
+          oov(extension.oov),
+          unknownLookahead(0.0)
 #ifdef SEARCHV2_DEBUG
           ,
           tokenSequence(base.tokenSequence),
@@ -434,6 +437,10 @@ bool TreeTimesyncBeamSearch::setModelCombination(Speech::ModelCombination const&
     // Create look-ups for state successors and exits of each state
     createSuccessorLookups();
 
+    if (unknownWordPenalty_ != 0.0 and unknownSyntacticToken_ != nullptr) {
+        createUnknownWordLookahead();
+    }
+
     if (unknownWordPenalty_ != 0.0 and unknownSyntacticToken_ == nullptr) {
         error() << "unknown-word-penalty is set to " << unknownWordPenalty_
                 << " but no unknown syntactic token is available, so it would be silently ignored. "
@@ -691,6 +698,12 @@ bool TreeTimesyncBeamSearch::decodeStep() {
                         extTime = std::max(extTime, scoreTime);
                     }
 
+                    // Include the provisional unknown-word cost of the state we are moving
+                    // into, so that a label only the fallback can emit does not compete as
+                    // if it were free. Subtracted again in the word-end expansion.
+                    Score const unknownLookahead = unknownLookaheadOf(successorState);
+                    extScore += unknownLookahead;
+
                     // Pre-prune based on score before creating extension instance and appending to list
                     if (scoreThresholds_.front() != Core::Type<Score>::max and extScore > currentBestScore + scoreThresholds_.front()) {
                         continue;
@@ -698,12 +711,13 @@ bool TreeTimesyncBeamSearch::decodeStep() {
                     currentBestScore = std::min(currentBestScore, extScore);
 
                     withinWordExtensions_.push_back(
-                            {.nextToken      = tokenIdx,
-                             .nextState      = successorState,
-                             .timeframe      = extTime,
-                             .score          = extScore,
-                             .transitionType = transitionType,
-                             .baseHypIndex   = hypIndex});
+                            {.nextToken        = tokenIdx,
+                             .nextState        = successorState,
+                             .timeframe        = extTime,
+                             .score            = extScore,
+                             .transitionType   = transitionType,
+                             .baseHypIndex     = hypIndex,
+                             .unknownLookahead = unknownLookahead});
                 }
             }
         }
@@ -807,6 +821,11 @@ bool TreeTimesyncBeamSearch::decodeStep() {
     wordEndExtensions_.clear();
     for (size_t hypIndex = 0ul; hypIndex < newBeam_.size(); ++hypIndex) {
         auto& hyp = newBeam_[hypIndex];
+
+        // The provisional unknown-word cost has done its job for this step's pruning;
+        // remove it again so that every score from here on is a real one.
+        hyp.score -= hyp.unknownLookahead;
+        hyp.unknownLookahead = 0.0;
 
         // Create one word-end hypothesis for each exit
         for (size_t i = stateExitsOffset_[hyp.currentState]; i < stateExitsOffset_[hyp.currentState + 1]; ++i) {
@@ -1338,6 +1357,75 @@ void TreeTimesyncBeamSearch::createPronunciationTrie() {
     log() << "Built known-pronunciation trie with " << pronunciationTrie_.size() << " nodes from " << numEntries << " lexical entries";
 }
 
+void TreeTimesyncBeamSearch::createUnknownWordLookahead() {
+    size_t const numStates = network_->structure.stateCount();
+
+    // `avoidsUnknown[s]`: from `s` a word can be completed without the unknown token.
+    // Propagated backwards over within-word successors, and over blank/silence exits,
+    // which are not word completions and return to a root from which ordinary words
+    // may well be reachable.
+    std::vector<char> avoidsUnknown(numStates, 0);
+
+    auto exitAvoidsUnknown = [this](PersistentStateTree::Exit const& exit) {
+        auto const* lemma = lexicon_->lemmaPronunciation(exit.pronunciation)->lemma();
+        if (lemma == blankLemma_ or lemma == silenceLemma_) {
+            return false;  // not a word completion, handled via its transit state
+        }
+        if (unknownWordFallback_->isFallbackLemma(lemma)) {
+            // Whether a fallback word ends up costing `beta` is only decided when it
+            // completes, so assume it does. Overestimating here biases pruning towards
+            // the ordinary realization of a known word, which is the intended direction
+            // and is corrected exactly at completion.
+            return false;
+        }
+        auto const& sts = lemma->syntacticTokenSequence();
+        return not(sts.size() == 1 and sts.front() == unknownSyntacticToken_);
+    };
+    auto exitIsNeutral = [this](PersistentStateTree::Exit const& exit) {
+        auto const* lemma = lexicon_->lemmaPronunciation(exit.pronunciation)->lemma();
+        return lemma == blankLemma_ or lemma == silenceLemma_;
+    };
+
+    // Within-word successors always have a higher state index than their predecessor
+    // (apart from self-loops), but a neutral exit points back at a root with a lower
+    // one, so iterate to a fixpoint rather than in a single reverse pass.
+    bool changed = true;
+    while (changed) {
+        changed = false;
+        for (StateId state = numStates; state-- > 1;) {
+            if (avoidsUnknown[state]) {
+                continue;
+            }
+            bool reachable = false;
+            for (size_t i = stateExitsOffset_[state]; not reachable and i < stateExitsOffset_[state + 1]; ++i) {
+                auto const& exit = stateExits_[i];
+                reachable        = exitAvoidsUnknown(exit) or
+                            (exitIsNeutral(exit) and exit.transitState < numStates and avoidsUnknown[exit.transitState]);
+            }
+            for (size_t i = stateSuccessorsOffset_[state]; not reachable and i < stateSuccessorsOffset_[state + 1]; ++i) {
+                StateId const successor = stateSuccessors_[i];
+                reachable               = successor != state and avoidsUnknown[successor];
+            }
+            if (reachable) {
+                avoidsUnknown[state] = 1;
+                changed              = true;
+            }
+        }
+    }
+
+    unknownWordLookahead_.assign(numStates, 0.0);
+    size_t numCommitted = 0ul;
+    for (StateId state = 1; state < numStates; ++state) {
+        if (not avoidsUnknown[state]) {
+            unknownWordLookahead_[state] = unknownWordPenalty_;
+            ++numCommitted;
+        }
+    }
+
+    log() << "Unknown-word look-ahead of " << unknownWordPenalty_ << " applies to " << numCommitted
+          << " of " << numStates << " states";
+}
+
 TreeTimesyncBeamSearch::OovStateRef TreeTimesyncBeamSearch::advanceOovState(OovStateRef const& base, Bliss::Pronunciation const& piece) const {
     auto next       = Core::ref(new OovState());
     next->numPieces = base->numPieces + 1u;
@@ -1493,17 +1581,6 @@ void TreeTimesyncBeamSearch::expandFallbackExit(LabelHypothesis const&          
     bool const  continuesPendingWord = not closesWordBefore and hyp.oov->wordPending();
     Score const pieceCost            = (isSeparator or not continuesPendingWord) ? 0.0 : unknownPiecePenalty_;
 
-    // `beta` is charged when a fallback word *opens*, not when it closes, and settled
-    // again below. Charging it at the close would leave a pending fallback word
-    // artificially cheap for as long as it stays open: it would then set the pruning
-    // threshold for everything else, and an ordinary hypothesis that honestly paid for
-    // its completed words would be pruned against it. The observable effect is that
-    // adding the fallback sub-tree destroys an in-vocabulary result which the closed
-    // tree finds, because the surviving fallback hypotheses cannot finalize. Since the
-    // settlement restores the exact amount at completion, no final score changes.
-    bool const  opensWord = not isSeparator and (closesWordBefore or not hyp.oov->wordPending());
-    Score const openCost  = opensWord ? unknownWordPenalty_ : 0.0;
-
     // Only a completed word is a word: an exit which merely appends a piece to the
     // pending word must not collect the word-exit reward a second time. A completed
     // word gets it on both routes alike, also when it resolved to a known lemma whose
@@ -1523,15 +1600,10 @@ void TreeTimesyncBeamSearch::expandFallbackExit(LabelHypothesis const&          
         Score const pieceSettlement = (eventOov and not event.viaUnknownRoute)
                                               ? -unknownPiecePenalty_ * static_cast<Score>(eventOov->numPieces - 1u)
                                               : 0.0;
-        // The completed word already paid `beta` when it opened; `unknownBias` is what
-        // it should end up having paid, so the difference settles it. That is zero for
-        // a word the LM does not know and a full refund for one it does.
-        Score const betaSettlement = eventOov ? (event.unknownBias - unknownWordPenalty_) : 0.0;
-
         wordEndExtensions_.push_back({
                 .pron           = lemmaPron,
                 .rootState      = exit.transitState,
-                .score          = hyp.score + lmScore + transitionScore + pieceCost + pieceSettlement + betaSettlement + openCost,
+                .score          = hyp.score + lmScore + event.unknownBias + transitionScore + pieceCost + pieceSettlement,
                 .transitionType = transitionType,
                 .baseHypIndex   = hypIndex,
                 .lmEvent        = event,
@@ -1626,8 +1698,7 @@ void TreeTimesyncBeamSearch::finalizeHypotheses() {
                 resolveWordLmEvents(*hyp.oov, wordLmEventBuffer_);
                 for (auto const& event : wordLmEventBuffer_) {
                     Lm::History pendingHistory = hyp.lmHistory;
-                    // The pending word paid `beta` when it opened; settle it here.
-                    Score pendingScore = event.unknownBias - unknownWordPenalty_;
+                    Score       pendingScore   = event.unknownBias;
                     if (not event.viaUnknownRoute) {
                         // Refund the provisional per-piece cost of a pending word which
                         // the segment end resolves into a known pronunciation.

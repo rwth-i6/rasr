@@ -4,7 +4,7 @@
 # logarithm convention, so a log10 value of -x becomes a cost of x * ln(10).
 
 \data\
-ngram 1=8
+ngram 1=9
 
 \1-grams:
 -99		<s>	0.0
@@ -15,5 +15,6 @@ ngram 1=8
 -0.69897	UNFAMILIAR
 -0.39794	KNOWN
 -0.52288	KNOWNTWO
+-0.30103	DOG
 
 \end\

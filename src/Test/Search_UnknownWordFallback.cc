@@ -258,13 +258,14 @@ public:
 
 void WordStartFallbackSearchTest::setUp() {
     lexicon_ = Core::ref(new Test::Lexicon());
-    for (auto const* phoneme : {"_cat", "_un", "_the", "_xy", "_sep", "cat", "the", "familiar", "fam", "iliar", "s", "zz", "blank", "eos"}) {
+    for (auto const* phoneme : {"_cat", "_un", "_the", "_xy", "_sep", "_dog", "_q", "cat", "the", "familiar", "fam", "iliar", "s", "zz", "blank", "eos"}) {
         lexicon_->addPhoneme(phoneme, false);
     }
 
     // Ordinary in-vocabulary words.
     addLemma("cat", {"_cat"}, "", {"CAT"});
     addLemma("the", {"_the"}, "", {"THE"});
+    addLemma("dog", {"_dog"}, "", {"DOG"});
     addLemma("unfamiliar", {"_un familiar"}, "", {"UNFAMILIAR"});
     // Recognizable, but outside the word LM's vocabulary: scored with the unknown token.
     addLemma("unesses", {"_un s"}, "", {"<UNK>"});
@@ -275,6 +276,9 @@ void WordStartFallbackSearchTest::setUp() {
     addLemma("_un", {"_un"}, "unknown-word-start", {});
     addLemma("_the", {"_the"}, "unknown-word-start", {});
     addLemma("_xy", {"_xy"}, "unknown-word-start", {});
+    addLemma("_dog", {"_dog"}, "unknown-word-start", {});
+    // Fallback-only: no ordinary word uses this label.
+    addLemma("_q", {"_q"}, "unknown-word-start", {});
     addLemma("familiar", {"familiar"}, "unknown-word-internal", {});
     addLemma("s", {"s"}, "unknown-word-internal", {});
     addLemma("zz", {"zz"}, "unknown-word-internal", {});
@@ -493,6 +497,22 @@ TEST_F(Search, WordStartFallbackSearchTest, OrdinaryLemmaWithTheUnknownTokenTake
     EXPECT_DOUBLE_EQ(result.amScore, 0.0, 1e-4);
 }
 
+TEST_F(Search, WordStartFallbackSearchTest, FallbackOnlyLabelDoesNotPruneAwayAnOrdinaryWord) {
+    // The word-start-marked counterpart: "_q" is a fallback-only label and is free
+    // here, while the ordinary word "_dog" costs 20. Completing the fallback word
+    // costs beta = 100 at the segment end, long after the step where the two compete.
+    setParameter("*.unknown-word-penalty", "100.0");
+    setParameter("*.score-threshold", "16.0");
+    setParameter("*.lm.scale", "0.0");
+    buildSearch();
+
+    auto result = decodeGraded({{{"blank", 0.0f}}, {{"_q", 0.0f}, {"_dog", 20.0f}}, {{"blank", 0.0f}}});
+
+    EXPECT_TRUE(result.lemmas.find("dog") != std::string::npos);
+    EXPECT_TRUE(result.lemmas.find("_q") == std::string::npos);
+    EXPECT_DOUBLE_EQ(result.amScore, 20.0, 1e-4);
+}
+
 TEST_F(Search, WordStartFallbackSearchTest, SeparatorPiecesCreateNoPhantomWord) {
     buildSearch();
 
@@ -562,18 +582,21 @@ public:
 
 void ContinuationMarkedFallbackSearchTest::setUp() {
     lexicon_ = Core::ref(new Test::Lexicon());
-    for (auto const* phoneme : {"kn@@", "own", "ra@@", "word", "blank", "eos"}) {
+    for (auto const* phoneme : {"kn@@", "own", "ra@@", "word", "dog", "x", "blank", "eos"}) {
         lexicon_->addPhoneme(phoneme, false);
     }
 
     // "kn@@ own" is an in-vocabulary word which the fallback pieces can spell too.
     addLemma("knowntwo", {"kn@@ own"}, "", {"KNOWNTWO"});
+    addLemma("dog", {"dog"}, "", {"DOG"});
 
     addLemma("[UNKNOWN]", {}, "unknown", {"<UNK>"});
     addLemma("ra@@", {"ra@@"}, "unknown-continuation", {});
     addLemma("kn@@", {"kn@@"}, "unknown-continuation", {});
     addLemma("word", {"word"}, "unknown-final", {"<UNK>"});
     addLemma("own", {"own"}, "unknown-final", {"<UNK>"});
+    // Fallback-only: no ordinary word uses this label.
+    addLemma("x", {"x"}, "unknown-final", {"<UNK>"});
 
     addLemma("[BLANK]", {"blank"}, "blank", {});
     addLemma("[SENTENCE-BEGIN]", {}, "sentence-begin", {"<s>"});
@@ -629,6 +652,26 @@ TEST_F(Search, ContinuationMarkedFallbackSearchTest, LegacyModeScoresKnownPieceS
 
     auto result = decode({"kn@@", "own"});
     EXPECT_DOUBLE_EQ(result.lmScore, costUnknown - 50.0 + costSentenceEnd, 1e-4);
+}
+
+TEST_F(Search, ContinuationMarkedFallbackSearchTest, FallbackOnlyLabelDoesNotPruneAwayAnOrdinaryWord) {
+    // A label only the fallback can emit is acoustically free here, while the ordinary
+    // word costs 20. Completing the fallback word costs beta = 100, so the ordinary
+    // word is by far the better reading -- but beta is only charged at the word end,
+    // which is after the within-word pruning of the step they compete in. Without a
+    // provisional cost at extension time the free fallback label sets the pruning
+    // threshold and removes the ordinary word before its own cost is ever visible.
+    setParameter("*.unknown-word-fallback", "known-excluding");
+    setParameter("*.unknown-word-penalty", "100.0");
+    setParameter("*.score-threshold", "16.0");
+    setParameter("*.lm.scale", "0.0");
+    buildSearch();
+
+    auto result = decodeGraded({{{"blank", 0.0f}}, {{"x", 0.0f}, {"dog", 20.0f}}, {{"blank", 0.0f}}});
+
+    EXPECT_TRUE(result.lemmas.find("dog") != std::string::npos);
+    EXPECT_TRUE(result.lemmas.find(" x") == std::string::npos);
+    EXPECT_DOUBLE_EQ(result.amScore, 20.0, 1e-4);
 }
 
 TEST_F(Search, ContinuationMarkedFallbackSearchTest, PendingFallbackWordDoesNotPruneAwayTheOrdinaryResult) {

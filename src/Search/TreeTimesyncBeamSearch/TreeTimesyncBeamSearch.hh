@@ -138,12 +138,13 @@ protected:
      * Possible extension for some label hypothesis in the beam
      */
     struct WithinWordExtensionCandidate {
-        Nn::LabelIndex         nextToken;       // Proposed token to extend the hypothesis with
-        StateId                nextState;       // State in the search tree of this extension
-        Search::TimeframeIndex timeframe;       // Timestamp of `nextToken` for traceback
-        Score                  score;           // Would-be total score of the full hypothesis after extension
-        Nn::TransitionType     transitionType;  // Type of transition toward `nextToken`
-        size_t                 baseHypIndex;    // Index of base hypothesis in beam
+        Nn::LabelIndex         nextToken;         // Proposed token to extend the hypothesis with
+        StateId                nextState;         // State in the search tree of this extension
+        Search::TimeframeIndex timeframe;         // Timestamp of `nextToken` for traceback
+        Score                  score;             // Would-be total score of the full hypothesis after extension
+        Nn::TransitionType     transitionType;    // Type of transition toward `nextToken`
+        size_t                 baseHypIndex;      // Index of base hypothesis in beam
+        Score                  unknownLookahead;  // Provisional unknown-word cost included in `score`, see `unknownWordLookahead_`
 
         bool operator<(WithinWordExtensionCandidate const& other) {
             return score < other.score;
@@ -168,14 +169,15 @@ protected:
      * Struct containing all information about a single hypothesis in the beam
      */
     struct LabelHypothesis {
-        std::vector<Nn::ScoringContextRef> scoringContexts;  // Context to compute scores based on this hypothesis
-        Nn::LabelIndex                     currentToken;     // Most recent token in associated label sequence (useful to infer transition type)
-        StateId                            currentState;     // Current state in the search tree
-        Lm::History                        lmHistory;        // Language model history
-        Speech::TimeframeIndex             timeframe;        // Timeframe of current token
-        Score                              score;            // Full score of the hypothesis
-        Core::Ref<LatticeTrace>            trace;            // Associated trace for traceback or lattice building of hypothesis
-        OovStateRef                        oov;              // Open-vocabulary fallback state; null unless the known-excluding fallback is active
+        std::vector<Nn::ScoringContextRef> scoringContexts;   // Context to compute scores based on this hypothesis
+        Nn::LabelIndex                     currentToken;      // Most recent token in associated label sequence (useful to infer transition type)
+        StateId                            currentState;      // Current state in the search tree
+        Lm::History                        lmHistory;         // Language model history
+        Speech::TimeframeIndex             timeframe;         // Timeframe of current token
+        Score                              score;             // Full score of the hypothesis
+        Core::Ref<LatticeTrace>            trace;             // Associated trace for traceback or lattice building of hypothesis
+        OovStateRef                        oov;               // Open-vocabulary fallback state; null unless the known-excluding fallback is active
+        Score                              unknownLookahead;  // Provisional unknown-word cost currently included in `score`
 
 #ifdef SEARCHV2_DEBUG
         std::vector<Nn::LabelIndex>         tokenSequence;     // Full sequence of predicted tokens for debugging purposes
@@ -275,6 +277,23 @@ private:
     };
     std::vector<PronunciationTrieNode> pronunciationTrie_;
 
+    /*
+     * Per-state provisional unknown-word cost, `beta` for a state from which every
+     * reachable word exit is an unknown one and zero elsewhere.
+     *
+     * `beta` itself is only charged when a word completes, which is after the
+     * within-word pruning of every step the word spans. A label that only the
+     * fallback can emit would therefore look free while it competes with ordinary
+     * labels, and could prune away a better in-vocabulary path before its cost ever
+     * became visible. Adding this bound to a within-word extension makes that
+     * competition honest. It is a pruning device only: it is subtracted again before
+     * any word-end score is applied, exactly like an LM look-ahead, so no completed
+     * path changes its score.
+     *
+     * Empty when no unknown token or no penalty is configured, which reads as zero.
+     */
+    std::vector<Score> unknownWordLookahead_;
+
     size_t currentSearchStep_;
     bool   finishedSegment_;
 
@@ -333,6 +352,15 @@ private:
      * Build `pronunciationTrie_` from every ordinary lexical entry of the lexicon.
      */
     void createPronunciationTrie();
+
+    /*
+     * Fill `unknownWordLookahead_`.
+     */
+    void createUnknownWordLookahead();
+
+    Score unknownLookaheadOf(StateId state) const {
+        return unknownWordLookahead_.empty() ? 0.0 : unknownWordLookahead_[state];
+    }
 
     /*
      * The fallback state a hypothesis has when no fallback word is pending.

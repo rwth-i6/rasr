@@ -150,7 +150,7 @@ private:
     Core::StopWatch initializationTime_;
     Core::StopWatch featureProcessingTime_;
     Core::StopWatch finalizeScoringTime_;  // Scoring time during finalizeHypotheses
-    Core::StopWatch decodeStepTime_;
+    Core::StopWatch recognitionTime_;
     /*
      * Phases of `scoreAndPruneExtensions` per label scorer, adding up to the matching
      * `scoreAndPruneExtensionsTimes_` entry. Scorers that compute scores lazily do that work
@@ -163,7 +163,7 @@ private:
     Core::StopWatch              buildNewBeamTime_;
     Core::StopWatch              recombinationTime_;
     Core::StopWatch              beamPruningTime_;
-    Core::StopWatch              finalizeHypothesesTime_;
+    Core::StopWatch              finalizeTime_;
 
     Core::Statistics<u32>              numInputHyps_;
     Core::Statistics<u32>              numExtensionsBeforeFirstPruning_;

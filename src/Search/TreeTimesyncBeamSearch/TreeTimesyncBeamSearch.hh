@@ -196,7 +196,7 @@ private:
     Core::StopWatch initializationTime_;
     Core::StopWatch featureProcessingTime_;
     Core::StopWatch finalizeScoringTime_;  // Scoring time during finalizeHypotheses
-    Core::StopWatch decodeStepTime_;
+    Core::StopWatch recognitionTime_;
     /*
      * Phases of `scoreAndPruneExtensions` per label scorer, adding up to the matching
      * `scoreAndPruneExtensionsTimes_` entry. Scorers that compute scores lazily do that work
@@ -210,13 +210,13 @@ private:
     Core::StopWatch              recombinationTime_;
     Core::StopWatch              beamPruningTime_;
     Core::StopWatch              wordEndExpansionTime_;
-    Core::StopWatch              finalizeHypothesesTime_;
+    Core::StopWatch              finalizeTime_;
 
     Core::Statistics<u32>              numInputHyps_;
-    Core::Statistics<u32>              numExtensionsBeforeFirstPruning_;
-    std::vector<Core::Statistics<u32>> numHypsAfterIntermediatePruning_;
-    Core::Statistics<u32>              numHypsAfterRecombination_;
-    Core::Statistics<u32>              numHypsAfterPruning_;
+    Core::Statistics<u32>              numWithinWordExtensionsBeforeFirstPruning_;
+    std::vector<Core::Statistics<u32>> numWithinWordHypsAfterIntermediatePruning_;
+    Core::Statistics<u32>              numWithinWordHypsAfterRecombination_;
+    Core::Statistics<u32>              numWithinWordHypsAfterPruning_;
     Core::Statistics<u32>              numWordEndExtensionsBeforePruning_;
     Core::Statistics<u32>              numWordEndHypsAfterScorePruning_;
     Core::Statistics<u32>              numWordEndHypsAfterRecombination_;

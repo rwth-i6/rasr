@@ -177,7 +177,7 @@ private:
 
     Core::StopWatch initializationTime_;
     Core::StopWatch featureProcessingTime_;
-    Core::StopWatch decodeStepTime_;
+    Core::StopWatch recognitionTime_;
     /*
      * Phases of `scoreAndPruneExtensions` per label scorer, adding up to the matching
      * `scoreAndPruneExtensionsTimes_` entry. Scorers that compute scores lazily do that work

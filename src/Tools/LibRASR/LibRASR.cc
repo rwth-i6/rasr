@@ -18,6 +18,9 @@
 #ifdef MODULE_TENSORFLOW
 #include <Tensorflow/Module.hh>
 #endif
+#ifdef MODULE_TORCH
+#include <Torch/Module.hh>
+#endif
 
 DummyApplication::DummyApplication()
         : Core::Application() {
@@ -41,6 +44,9 @@ DummyApplication::DummyApplication()
 #endif
 #ifdef MODULE_TENSORFLOW
     INIT_MODULE(Tensorflow);
+#endif
+#ifdef MODULE_TORCH
+    INIT_MODULE(Torch);
 #endif
 }
 

@@ -53,6 +53,8 @@ public:
     static const Core::ParameterInt         paramCacheCleanupInterval;
     static const Core::ParameterInt         paramMaximumStableDelay;
     static const Core::ParameterInt         paramMaximumStableDelayPruningInterval;
+    static const Core::Choice               choiceRecombinationMode;
+    static const Core::ParameterChoice      paramRecombinationMode;
     static const Core::ParameterBool        paramLogStepwiseStatistics;
 
     LexiconfreeRNNTTimesyncBeamSearch(Core::Configuration const&);
@@ -131,6 +133,7 @@ private:
     size_t              cacheCleanupInterval_;
     size_t              maximumStableDelay_;
     size_t              maximumStableDelayPruningInterval_;
+    bool                recombinationEnabled_;
     bool                logStepwiseStatistics_;
 
     Core::Channel debugChannel_;

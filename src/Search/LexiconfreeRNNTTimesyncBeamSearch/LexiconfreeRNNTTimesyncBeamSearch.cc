@@ -29,6 +29,15 @@
 
 namespace Search {
 
+namespace {
+
+enum RecombinationMode {
+    RecombinationModeOff,
+    RecombinationModeOn,
+};
+
+}  // namespace
+
 /*
  * =======================
  * === LabelHypothesis ===
@@ -178,6 +187,17 @@ const Core::ParameterInt LexiconfreeRNNTTimesyncBeamSearch::paramMaximumStableDe
         10,
         1);
 
+const Core::Choice LexiconfreeRNNTTimesyncBeamSearch::choiceRecombinationMode(
+        "off", RecombinationModeOff,
+        "on", RecombinationModeOn,
+        Core::Choice::endMark());
+
+const Core::ParameterChoice LexiconfreeRNNTTimesyncBeamSearch::paramRecombinationMode(
+        "recombination-mode",
+        &choiceRecombinationMode,
+        "Whether hypotheses with identical recombination state should be recombined.",
+        RecombinationModeOn);
+
 LexiconfreeRNNTTimesyncBeamSearch::LexiconfreeRNNTTimesyncBeamSearch(Core::Configuration const& config)
         : Core::Component(config),
           SearchAlgorithmV2(config),
@@ -191,6 +211,7 @@ LexiconfreeRNNTTimesyncBeamSearch::LexiconfreeRNNTTimesyncBeamSearch(Core::Confi
           cacheCleanupInterval_(paramCacheCleanupInterval(config)),
           maximumStableDelay_(paramMaximumStableDelay(config)),
           maximumStableDelayPruningInterval_(paramMaximumStableDelayPruningInterval(config)),
+          recombinationEnabled_(paramRecombinationMode(config) == RecombinationModeOn),
           logStepwiseStatistics_(paramLogStepwiseStatistics(config)),
           debugChannel_(config, "debug"),
           labelScorers_(),
@@ -584,10 +605,6 @@ bool LexiconfreeRNNTTimesyncBeamSearch::decodeStep() {
     outerHyps_.clear();
 
     numActiveHyps_ += beam_.size();
-    if (logStepwiseStatistics_) {
-        clog() << Core::XmlFull("active-hyps", beam_.size());
-        clog() << Core::XmlClose("search-step-stats");
-    }
 
     /*
      * Clean up label scorer caches.
@@ -610,6 +627,25 @@ bool LexiconfreeRNNTTimesyncBeamSearch::decodeStep() {
         if (logStepwiseStatistics_) {
             clog() << Core::XmlFull("num-hyps-after-maximum-stable-delay-pruning", beam_.size());
         }
+    }
+
+    /*
+     * Log statistics about the new beam after this step.
+     */
+    if (debugChannel_.isOpen()) {
+        std::stringstream ss;
+        for (size_t hypIdx = 0ul; hypIdx < beam_.size(); ++hypIdx) {
+            ss << "Hypothesis " << hypIdx + 1ul << ":  " << beam_[hypIdx].toString() << "\n";
+        }
+        ss << "\n";
+        debugChannel_ << ss.str();
+    }
+
+    if (logStepwiseStatistics_) {
+        clog() << Core::XmlFull("active-hyps", beam_.size());
+        clog() << Core::XmlFull("best-hyp-score", getBestHypothesis().score);
+        clog() << Core::XmlFull("worst-hyp-score", getWorstHypothesis().score);
+        clog() << Core::XmlClose("search-step-stats");
     }
 
     return true;
@@ -848,6 +884,10 @@ void LexiconfreeRNNTTimesyncBeamSearch::scorePruningLengthnormalized(std::vector
 }
 
 void LexiconfreeRNNTTimesyncBeamSearch::recombination(std::vector<LexiconfreeRNNTTimesyncBeamSearch::LabelHypothesis>& hypotheses) {
+    if (not recombinationEnabled_) {
+        return;
+    }
+
     // Represents a unique combination of currentToken, scoringContexts and the previous (non-blank) output tokens
     struct RecombinationContext {
         Nn::LabelIndex                     currentToken;

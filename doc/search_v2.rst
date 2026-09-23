@@ -341,6 +341,9 @@ it for that timestep) or the per-timestep label limit is reached.
 * ``sentence-end-fall-back`` (bool): only relevant if ``sentence-end-label-index`` is set. If no hypothesis has
   emitted sentence-end by the end of the segment, controls what happens instead of failing: keep the beam as-is
   if enabled, or produce an empty hypothesis if disabled. Default ``true``.
+* ``recombination-mode`` (``on``/``off``): same meaning as for ``lexiconfree-timesync-beam-search`` above,
+  except recombining here merges the two paths' scores via log-sum-exp instead of keeping only the better one,
+  since both paths reach the same hypothesis and their probabilities should add up. Default ``on``.
 * ``collapse-repeated-labels``, ``cache-cleanup-interval``, ``maximum-stable-delay``,
   ``maximum-stable-delay-pruning-interval``, ``log-stepwise-statistics``: same meaning and defaults as for
   ``lexiconfree-timesync-beam-search`` above.
@@ -362,7 +365,8 @@ Order of operations for one time-synchronous decoding step, assuming two label s
 
    #. Score all active hypotheses with ``L_1``.
    #. Extend each active hypothesis with blank. Add the ``L_2`` score contribution to these blank extensions,
-      add the results to this timestep's pool of finished hypotheses, and recombine equivalent ones.
+      add the results to this timestep's pool of finished hypotheses, and recombine equivalent ones (if
+      ``recombination-mode = on``).
    #. Extend each active hypothesis with every non-blank vocabulary token and prune the results with
       score-threshold ``s_1`` and max-beam-size ``b_1``.
    #. Add the ``L_2`` score contribution to the surviving non-blank extensions and prune them with

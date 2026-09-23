@@ -299,9 +299,9 @@ TreeTimesyncBeamSearch::TreeTimesyncBeamSearch(Core::Configuration const& config
           initializationTime_(),
           featureProcessingTime_(),
           numInputHyps_("num-input-hyps"),
-          numExtensionsBeforeFirstPruning_("num-extensions-before-first-pruning"),
-          numHypsAfterRecombination_("num-hyps-after-recombination"),
-          numHypsAfterPruning_("num-hyps-after-pruning"),
+          numWithinWordExtensionsBeforeFirstPruning_("num-within-word-extensions-before-first-pruning"),
+          numWithinWordHypsAfterRecombination_("num-within-word-hyps-after-recombination"),
+          numWithinWordHypsAfterPruning_("num-within-word-hyps-after-pruning"),
           numWordEndExtensionsBeforePruning_("num-word-end-extensions-before-pruning"),
           numWordEndHypsAfterScorePruning_("num-word-end-hyps-after-score-pruning"),
           numWordEndHypsAfterRecombination_("num-word-end-hyps-after-recombination"),
@@ -327,7 +327,7 @@ TreeTimesyncBeamSearch::TreeTimesyncBeamSearch(Core::Configuration const& config
     }
 
     // All entries share one name; the scorer is written as an attribute
-    numHypsAfterIntermediatePruning_.resize(maxBeamSizes_.size(), Core::Statistics<u32>("num-hyps-after-intermediate-pruning"));
+    numWithinWordHypsAfterIntermediatePruning_.resize(maxBeamSizes_.size(), Core::Statistics<u32>("num-within-word-hyps-after-intermediate-pruning"));
 
     scoreAndPruneExtensionsTimes_.resize(maxBeamSizes_.size());
     scoringTimes_.resize(maxBeamSizes_.size());
@@ -357,8 +357,8 @@ bool TreeTimesyncBeamSearch::setModelCombination(Speech::ModelCombination const&
     }
 
     // Per-scorer timers and statistics are indexed by label scorer as well
-    if (numHypsAfterIntermediatePruning_.size() < labelScorers_.size()) {
-        numHypsAfterIntermediatePruning_.resize(labelScorers_.size(), Core::Statistics<u32>("num-hyps-after-intermediate-pruning"));
+    if (numWithinWordHypsAfterIntermediatePruning_.size() < labelScorers_.size()) {
+        numWithinWordHypsAfterIntermediatePruning_.resize(labelScorers_.size(), Core::Statistics<u32>("num-within-word-hyps-after-intermediate-pruning"));
     }
     if (scoreAndPruneExtensionsTimes_.size() < labelScorers_.size()) {
         scoreAndPruneExtensionsTimes_.resize(labelScorers_.size());
@@ -484,7 +484,7 @@ void TreeTimesyncBeamSearch::enterSegment(Bliss::SpeechSegment const* segment) {
     initializationTime_.reset();
     featureProcessingTime_.reset();
     finalizeScoringTime_.reset();
-    decodeStepTime_.reset();
+    recognitionTime_.reset();
     for (auto* timers : {&scoreAndPruneExtensionsTimes_, &scoringTimes_, &scoreReadoutTimes_, &intermediatePruningTimes_}) {
         for (auto& timer : *timers) {
             timer.reset();
@@ -494,14 +494,14 @@ void TreeTimesyncBeamSearch::enterSegment(Bliss::SpeechSegment const* segment) {
     recombinationTime_.reset();
     beamPruningTime_.reset();
     wordEndExpansionTime_.reset();
-    finalizeHypothesesTime_.reset();
-    for (auto& stat : numHypsAfterIntermediatePruning_) {
+    finalizeTime_.reset();
+    for (auto& stat : numWithinWordHypsAfterIntermediatePruning_) {
         stat.clear();
     }
     numInputHyps_.clear();
-    numExtensionsBeforeFirstPruning_.clear();
-    numHypsAfterRecombination_.clear();
-    numHypsAfterPruning_.clear();
+    numWithinWordExtensionsBeforeFirstPruning_.clear();
+    numWithinWordHypsAfterRecombination_.clear();
+    numWithinWordHypsAfterPruning_.clear();
     numWordEndExtensionsBeforePruning_.clear();
     numWordEndHypsAfterScorePruning_.clear();
     numWordEndHypsAfterRecombination_.clear();
@@ -562,9 +562,9 @@ void TreeTimesyncBeamSearch::finishSegment() {
     }
     featureProcessingTime_.stop();
     decodeManySteps();
-    finalizeHypothesesTime_.start();
+    finalizeTime_.start();
     finalizeHypotheses();
-    finalizeHypothesesTime_.stop();
+    finalizeTime_.stop();
     finishedSegment_ = true;
     if (stepwiseStatisticsChannel_.isOpen()) {
         stepwiseStatisticsChannel_ << Core::XmlClose("search-steps");
@@ -631,7 +631,7 @@ bool TreeTimesyncBeamSearch::decodeStep() {
         return false;
     }
 
-    decodeStepTime_.start();
+    recognitionTime_.start();
 
     if (stepwiseStatisticsChannel_.isOpen()) {
         stepwiseStatisticsChannel_ << Core::XmlOpen("search-step-stats") + Core::XmlAttribute("step", currentSearchStep_);
@@ -643,7 +643,7 @@ bool TreeTimesyncBeamSearch::decodeStep() {
         if (stepwiseStatisticsChannel_.isOpen()) {
             stepwiseStatisticsChannel_ << Core::XmlClose("search-step-stats");
         }
-        decodeStepTime_.stop();
+        recognitionTime_.stop();
         return false;
     }
 
@@ -655,18 +655,18 @@ bool TreeTimesyncBeamSearch::decodeStep() {
     recombinationTime_.start();
     recombination(newBeam_, false);
     recombinationTime_.stop();
-    numHypsAfterRecombination_ += newBeam_.size();
+    numWithinWordHypsAfterRecombination_ += newBeam_.size();
     if (stepwiseStatisticsChannel_.isOpen()) {
-        stepwiseStatisticsChannel_ << Core::XmlFull("num-hyps-after-recombination", newBeam_.size());
+        stepwiseStatisticsChannel_ << Core::XmlFull("num-within-word-hyps-after-recombination", newBeam_.size());
     }
 
     beamPruningTime_.start();
     scorePruning(newBeam_, Core::Type<Score>::max, maxBeamSizes_[labelScorers_.size() - 1]);
     beamPruningTime_.stop();
-    numHypsAfterPruning_ += newBeam_.size();
+    numWithinWordHypsAfterPruning_ += newBeam_.size();
     if (stepwiseStatisticsChannel_.isOpen()) {
-        stepwiseStatisticsChannel_ << Core::XmlOpen("num-hyps-after-pruning") + Core::XmlAttribute("scorer", labelScorers_.size())
-                                   << newBeam_.size() << Core::XmlClose("num-hyps-after-pruning");
+        stepwiseStatisticsChannel_ << Core::XmlOpen("num-within-word-hyps-after-pruning") + Core::XmlAttribute("scorer", labelScorers_.size())
+                                   << newBeam_.size() << Core::XmlClose("num-within-word-hyps-after-pruning");
     }
 
     wordEndExpansionTime_.start();
@@ -700,7 +700,7 @@ bool TreeTimesyncBeamSearch::decodeStep() {
     // Counted after all pruning of this step, including maximum-stable-delay pruning
     numActiveHyps_ += beam_.size();
 
-    decodeStepTime_.stop();
+    recognitionTime_.stop();
 
     logStepStatistics();
     return true;
@@ -849,9 +849,9 @@ bool TreeTimesyncBeamSearch::scoreAndPruneExtensions() {
         }
 
         if (scorerIdx == 0ul) {
-            numExtensionsBeforeFirstPruning_ += withinWordExtensions_.size();
+            numWithinWordExtensionsBeforeFirstPruning_ += withinWordExtensions_.size();
             if (stepwiseStatisticsChannel_.isOpen()) {
-                stepwiseStatisticsChannel_ << Core::XmlFull("num-extensions-before-first-pruning", withinWordExtensions_.size());
+                stepwiseStatisticsChannel_ << Core::XmlFull("num-within-word-extensions-before-first-pruning", withinWordExtensions_.size());
             }
         }
 
@@ -864,10 +864,10 @@ bool TreeTimesyncBeamSearch::scoreAndPruneExtensions() {
             maxBeamSize = maxBeamSizes_[scorerIdx];
         }
         scorePruning(withinWordExtensions_, scoreThresholds_[scorerIdx], maxBeamSize);
-        numHypsAfterIntermediatePruning_[scorerIdx] += withinWordExtensions_.size();
+        numWithinWordHypsAfterIntermediatePruning_[scorerIdx] += withinWordExtensions_.size();
         if (stepwiseStatisticsChannel_.isOpen()) {
-            stepwiseStatisticsChannel_ << Core::XmlOpen("num-hyps-after-intermediate-pruning") + Core::XmlAttribute("scorer", scorerIdx + 1)
-                                       << withinWordExtensions_.size() << Core::XmlClose("num-hyps-after-intermediate-pruning");
+            stepwiseStatisticsChannel_ << Core::XmlOpen("num-within-word-hyps-after-intermediate-pruning") + Core::XmlAttribute("scorer", scorerIdx + 1)
+                                       << withinWordExtensions_.size() << Core::XmlClose("num-within-word-hyps-after-intermediate-pruning");
         }
         if (withinWordExtensions_.empty()) {
             return false;
@@ -1095,7 +1095,7 @@ void TreeTimesyncBeamSearch::logStatistics() const {
         statisticsChannel_ << Core::XmlOpen("timing-statistics") + Core::XmlAttribute("unit", "milliseconds");
         statisticsChannel_ << Core::XmlOpen("initialization-time") << initializationTime_.elapsedMilliseconds() << Core::XmlClose("initialization-time");
         statisticsChannel_ << Core::XmlOpen("feature-processing-time") << featureProcessingTime_.elapsedMilliseconds() << Core::XmlClose("feature-processing-time");
-        statisticsChannel_ << Core::XmlOpen("decode-step-time") + Core::XmlAttribute("total", decodeStepTime_.elapsedMilliseconds());
+        statisticsChannel_ << Core::XmlOpen("recognition-time") + Core::XmlAttribute("total", recognitionTime_.elapsedMilliseconds());
         for (size_t i = 0ul; i < scoreAndPruneExtensionsTimes_.size(); ++i) {
             statisticsChannel_ << Core::XmlOpen("score-and-prune-extensions-time") + Core::XmlAttribute("scorer", i + 1) + Core::XmlAttribute("total", scoreAndPruneExtensionsTimes_[i].elapsedMilliseconds());
             statisticsChannel_ << Core::XmlOpen("scoring-time") << scoringTimes_[i].elapsedMilliseconds() << Core::XmlClose("scoring-time");
@@ -1107,19 +1107,19 @@ void TreeTimesyncBeamSearch::logStatistics() const {
         statisticsChannel_ << Core::XmlOpen("word-end-expansion-time") << wordEndExpansionTime_.elapsedMilliseconds() << Core::XmlClose("word-end-expansion-time");
         statisticsChannel_ << Core::XmlOpen("recombination-time") << recombinationTime_.elapsedMilliseconds() << Core::XmlClose("recombination-time");
         statisticsChannel_ << Core::XmlOpen("beam-pruning-time") << beamPruningTime_.elapsedMilliseconds() << Core::XmlClose("beam-pruning-time");
-        statisticsChannel_ << Core::XmlClose("decode-step-time");
-        statisticsChannel_ << Core::XmlOpen("finalize-hypotheses-time") + Core::XmlAttribute("total", finalizeHypothesesTime_.elapsedMilliseconds());
+        statisticsChannel_ << Core::XmlClose("recognition-time");
+        statisticsChannel_ << Core::XmlOpen("finalize-time") + Core::XmlAttribute("total", finalizeTime_.elapsedMilliseconds());
         statisticsChannel_ << Core::XmlOpen("scoring-time") << finalizeScoringTime_.elapsedMilliseconds() << Core::XmlClose("scoring-time");
-        statisticsChannel_ << Core::XmlClose("finalize-hypotheses-time");
+        statisticsChannel_ << Core::XmlClose("finalize-time");
         statisticsChannel_ << Core::XmlClose("timing-statistics");
         statisticsChannel_ << Core::XmlOpen("search-statistics");
         numInputHyps_.write(statisticsChannel_);
-        numExtensionsBeforeFirstPruning_.write(statisticsChannel_);
-        for (size_t i = 0ul; i < numHypsAfterIntermediatePruning_.size(); ++i) {
-            numHypsAfterIntermediatePruning_[i].write(statisticsChannel_, {Core::XmlAttribute("scorer", i + 1)});
+        numWithinWordExtensionsBeforeFirstPruning_.write(statisticsChannel_);
+        for (size_t i = 0ul; i < numWithinWordHypsAfterIntermediatePruning_.size(); ++i) {
+            numWithinWordHypsAfterIntermediatePruning_[i].write(statisticsChannel_, {Core::XmlAttribute("scorer", i + 1)});
         }
-        numHypsAfterRecombination_.write(statisticsChannel_);
-        numHypsAfterPruning_.write(statisticsChannel_);
+        numWithinWordHypsAfterRecombination_.write(statisticsChannel_);
+        numWithinWordHypsAfterPruning_.write(statisticsChannel_);
         numWordEndExtensionsBeforePruning_.write(statisticsChannel_);
         numWordEndHypsAfterScorePruning_.write(statisticsChannel_);
         numWordEndHypsAfterRecombination_.write(statisticsChannel_);

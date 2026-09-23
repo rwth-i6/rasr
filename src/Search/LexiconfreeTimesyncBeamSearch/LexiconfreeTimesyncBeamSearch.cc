@@ -330,7 +330,7 @@ void LexiconfreeTimesyncBeamSearch::enterSegment(Bliss::SpeechSegment const* seg
     initializationTime_.reset();
     featureProcessingTime_.reset();
     finalizeScoringTime_.reset();
-    decodeStepTime_.reset();
+    recognitionTime_.reset();
     for (auto* timers : {&scoreAndPruneExtensionsTimes_, &scoringTimes_, &scoreReadoutTimes_, &intermediatePruningTimes_}) {
         for (auto& timer : *timers) {
             timer.reset();
@@ -339,7 +339,7 @@ void LexiconfreeTimesyncBeamSearch::enterSegment(Bliss::SpeechSegment const* seg
     buildNewBeamTime_.reset();
     recombinationTime_.reset();
     beamPruningTime_.reset();
-    finalizeHypothesesTime_.reset();
+    finalizeTime_.reset();
     for (auto& stat : numHypsAfterIntermediatePruning_) {
         stat.clear();
     }
@@ -380,9 +380,9 @@ void LexiconfreeTimesyncBeamSearch::finishSegment() {
     }
     featureProcessingTime_.stop();
     decodeManySteps();
-    finalizeHypothesesTime_.start();
+    finalizeTime_.start();
     finalizeHypotheses();
-    finalizeHypothesesTime_.stop();
+    finalizeTime_.stop();
     finishedSegment_ = true;
     if (stepwiseStatisticsChannel_.isOpen()) {
         stepwiseStatisticsChannel_ << Core::XmlClose("search-steps");
@@ -449,7 +449,7 @@ bool LexiconfreeTimesyncBeamSearch::decodeStep() {
         return false;
     }
 
-    decodeStepTime_.start();
+    recognitionTime_.start();
 
     if (stepwiseStatisticsChannel_.isOpen()) {
         stepwiseStatisticsChannel_ << Core::XmlOpen("search-step-stats") + Core::XmlAttribute("step", currentSearchStep_);
@@ -461,7 +461,7 @@ bool LexiconfreeTimesyncBeamSearch::decodeStep() {
         if (stepwiseStatisticsChannel_.isOpen()) {
             stepwiseStatisticsChannel_ << Core::XmlClose("search-step-stats");
         }
-        decodeStepTime_.stop();
+        recognitionTime_.stop();
         return false;
     }
 
@@ -512,7 +512,7 @@ bool LexiconfreeTimesyncBeamSearch::decodeStep() {
     // Counted after all pruning of this step, including maximum-stable-delay pruning
     numActiveHyps_ += beam_.size();
 
-    decodeStepTime_.stop();
+    recognitionTime_.stop();
 
     logStepStatistics();
     return true;
@@ -741,7 +741,7 @@ void LexiconfreeTimesyncBeamSearch::logStatistics() const {
         statisticsChannel_ << Core::XmlOpen("timing-statistics") + Core::XmlAttribute("unit", "milliseconds");
         statisticsChannel_ << Core::XmlOpen("initialization-time") << initializationTime_.elapsedMilliseconds() << Core::XmlClose("initialization-time");
         statisticsChannel_ << Core::XmlOpen("feature-processing-time") << featureProcessingTime_.elapsedMilliseconds() << Core::XmlClose("feature-processing-time");
-        statisticsChannel_ << Core::XmlOpen("decode-step-time") + Core::XmlAttribute("total", decodeStepTime_.elapsedMilliseconds());
+        statisticsChannel_ << Core::XmlOpen("recognition-time") + Core::XmlAttribute("total", recognitionTime_.elapsedMilliseconds());
         for (size_t i = 0ul; i < scoreAndPruneExtensionsTimes_.size(); ++i) {
             statisticsChannel_ << Core::XmlOpen("score-and-prune-extensions-time") + Core::XmlAttribute("scorer", i + 1) + Core::XmlAttribute("total", scoreAndPruneExtensionsTimes_[i].elapsedMilliseconds());
             statisticsChannel_ << Core::XmlOpen("scoring-time") << scoringTimes_[i].elapsedMilliseconds() << Core::XmlClose("scoring-time");
@@ -752,10 +752,10 @@ void LexiconfreeTimesyncBeamSearch::logStatistics() const {
         statisticsChannel_ << Core::XmlOpen("build-new-beam-time") << buildNewBeamTime_.elapsedMilliseconds() << Core::XmlClose("build-new-beam-time");
         statisticsChannel_ << Core::XmlOpen("recombination-time") << recombinationTime_.elapsedMilliseconds() << Core::XmlClose("recombination-time");
         statisticsChannel_ << Core::XmlOpen("beam-pruning-time") << beamPruningTime_.elapsedMilliseconds() << Core::XmlClose("beam-pruning-time");
-        statisticsChannel_ << Core::XmlClose("decode-step-time");
-        statisticsChannel_ << Core::XmlOpen("finalize-hypotheses-time") + Core::XmlAttribute("total", finalizeHypothesesTime_.elapsedMilliseconds());
+        statisticsChannel_ << Core::XmlClose("recognition-time");
+        statisticsChannel_ << Core::XmlOpen("finalize-time") + Core::XmlAttribute("total", finalizeTime_.elapsedMilliseconds());
         statisticsChannel_ << Core::XmlOpen("scoring-time") << finalizeScoringTime_.elapsedMilliseconds() << Core::XmlClose("scoring-time");
-        statisticsChannel_ << Core::XmlClose("finalize-hypotheses-time");
+        statisticsChannel_ << Core::XmlClose("finalize-time");
         statisticsChannel_ << Core::XmlClose("timing-statistics");
         statisticsChannel_ << Core::XmlOpen("search-statistics");
         numInputHyps_.write(statisticsChannel_);

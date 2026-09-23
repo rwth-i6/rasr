@@ -490,10 +490,18 @@ void TreeTimesyncBeamSearch::enterSegment(Bliss::SpeechSegment const* segment) {
             timer.reset();
         }
     }
-    buildNewBeamTime_.reset();
+    buildWithinWordHypsTime_.reset();
     recombinationTime_.reset();
     beamPruningTime_.reset();
     wordEndExpansionTime_.reset();
+    wordEndExtensionTime_.reset();
+    lmScoreTime_.reset();
+    wordEndScorePruningTime_.reset();
+    wordEndHypBuildingTime_.reset();
+    lmHistoryTime_.reset();
+    lmLookaheadTime_.reset();
+    wordEndRecombinationTime_.reset();
+    wordEndBeamPruningTime_.reset();
     finalizeTime_.reset();
     for (auto& stat : numWithinWordHypsAfterIntermediatePruning_) {
         stat.clear();
@@ -647,9 +655,9 @@ bool TreeTimesyncBeamSearch::decodeStep() {
         return false;
     }
 
-    buildNewBeamTime_.start();
+    buildWithinWordHypsTime_.start();
     buildNewBeamFromExtensions();
-    buildNewBeamTime_.stop();
+    buildWithinWordHypsTime_.stop();
 
     // Recombine hypotheses at the same state with the same scoring context and LM history
     recombinationTime_.start();
@@ -917,6 +925,7 @@ void TreeTimesyncBeamSearch::expandAndPruneWordEndHypotheses() {
     /*
      * Expand hypotheses to word-end hypotheses and incorporate the language model
      */
+    wordEndExtensionTime_.start();
     wordEndExtensions_.clear();
     for (size_t hypIndex = 0ul; hypIndex < newBeam_.size(); ++hypIndex) {
         auto& hyp = newBeam_[hypIndex];
@@ -939,8 +948,10 @@ void TreeTimesyncBeamSearch::expandAndPruneWordEndHypotheses() {
             if (sts.size() != 0) {
                 require(sts.size() == 1);
                 auto const* st = sts.front();
-                lmScore        = languageModel_->score(hyp.lmHistory, st);
-                exitLabel      = static_cast<Nn::LabelIndex>(st->id());
+                lmScoreTime_.start();
+                lmScore = languageModel_->score(hyp.lmHistory, st);
+                lmScoreTime_.stop();
+                exitLabel = static_cast<Nn::LabelIndex>(st->id());
             }
 
             Score              penalty               = 0.0;
@@ -976,6 +987,8 @@ void TreeTimesyncBeamSearch::expandAndPruneWordEndHypotheses() {
         }
     }
 
+    wordEndExtensionTime_.stop();
+
     numWordEndExtensionsBeforePruning_ += wordEndExtensions_.size();
     if (stepwiseStatisticsChannel_.isOpen()) {
         stepwiseStatisticsChannel_ << Core::XmlFull("num-word-end-extensions-before-pruning", wordEndExtensions_.size());
@@ -984,13 +997,16 @@ void TreeTimesyncBeamSearch::expandAndPruneWordEndHypotheses() {
     /*
      * Prune set of word-end extensions by score.
      */
+    wordEndScorePruningTime_.start();
     scorePruning(wordEndExtensions_, wordEndScoreThreshold_, wordEndExtensions_.size());
+    wordEndScorePruningTime_.stop();
     numWordEndHypsAfterScorePruning_ += wordEndExtensions_.size();
     if (stepwiseStatisticsChannel_.isOpen()) {
         stepwiseStatisticsChannel_ << Core::XmlFull("num-word-end-hyps-after-score-pruning", wordEndExtensions_.size());
     }
 
     // Create new word-end label hypotheses from word-end extension candidates, update the LM history and prepare the new lookahead if its history has changed
+    wordEndHypBuildingTime_.start();
     wordEndHypotheses_.clear();
     for (auto& extension : wordEndExtensions_) {
         auto const& baseHyp = newBeam_[extension.baseHypIndex];
@@ -1005,9 +1021,12 @@ void TreeTimesyncBeamSearch::expandAndPruneWordEndHypotheses() {
         if (sts.size() != 0) {
             require(sts.size() == 1);
             const Bliss::SyntacticToken* st = sts.front();
-            newLmHistory                    = languageModel_->extendedHistory(newLmHistory, st);
+            lmHistoryTime_.start();
+            newLmHistory = languageModel_->extendedHistory(newLmHistory, st);
+            lmHistoryTime_.stop();
 
             if (enableLmLookahead_) {
+                lmLookaheadTime_.start();
                 newLookaheadHistory = lookaheadLm_->extendedHistory(baseHyp.lookaheadHistory, st);
 
                 if (!(newLookaheadHistory == baseHyp.lookaheadHistory)) {
@@ -1016,6 +1035,7 @@ void TreeTimesyncBeamSearch::expandAndPruneWordEndHypotheses() {
                     getLmLookahead(newLookahead, newLookaheadHistory);
                     newLookaheadBackOff = 0.0;
                 }
+                lmLookaheadTime_.stop();
             }
         }
 
@@ -1037,14 +1057,20 @@ void TreeTimesyncBeamSearch::expandAndPruneWordEndHypotheses() {
         wordEndHypotheses_.push_back({baseHyp, extension, newLmHistory, newLookahead, newLookaheadHistory, newLookaheadBackOff, newScoringContexts});
     }
 
+    wordEndHypBuildingTime_.stop();
+
+    wordEndRecombinationTime_.start();
     recombination(wordEndHypotheses_, true);
+    wordEndRecombinationTime_.stop();
     numWordEndHypsAfterRecombination_ += wordEndHypotheses_.size();
     if (stepwiseStatisticsChannel_.isOpen()) {
         stepwiseStatisticsChannel_ << Core::XmlFull("num-word-end-hyps-after-recombination", wordEndHypotheses_.size());
     }
 
     // Prune set of word-end hypotheses by max beam size.
+    wordEndBeamPruningTime_.start();
     scorePruning(wordEndHypotheses_, Core::Type<Score>::max, maxWordEndBeamSize_);
+    wordEndBeamPruningTime_.stop();
     numWordEndHypsAfterBeamPruning_ += wordEndHypotheses_.size();
     if (stepwiseStatisticsChannel_.isOpen()) {
         stepwiseStatisticsChannel_ << Core::XmlFull("num-word-end-hyps-after-beam-pruning", wordEndHypotheses_.size());
@@ -1103,8 +1129,19 @@ void TreeTimesyncBeamSearch::logStatistics() const {
             statisticsChannel_ << Core::XmlOpen("intermediate-pruning-time") << intermediatePruningTimes_[i].elapsedMilliseconds() << Core::XmlClose("intermediate-pruning-time");
             statisticsChannel_ << Core::XmlClose("score-and-prune-extensions-time");
         }
-        statisticsChannel_ << Core::XmlOpen("build-new-beam-time") << buildNewBeamTime_.elapsedMilliseconds() << Core::XmlClose("build-new-beam-time");
-        statisticsChannel_ << Core::XmlOpen("word-end-expansion-time") << wordEndExpansionTime_.elapsedMilliseconds() << Core::XmlClose("word-end-expansion-time");
+        statisticsChannel_ << Core::XmlOpen("build-within-word-hyps-time") << buildWithinWordHypsTime_.elapsedMilliseconds() << Core::XmlClose("build-within-word-hyps-time");
+        statisticsChannel_ << Core::XmlOpen("word-end-expansion-time") + Core::XmlAttribute("total", wordEndExpansionTime_.elapsedMilliseconds());
+        statisticsChannel_ << Core::XmlOpen("word-end-extension-time") + Core::XmlAttribute("total", wordEndExtensionTime_.elapsedMilliseconds());
+        statisticsChannel_ << Core::XmlOpen("lm-score-time") << lmScoreTime_.elapsedMilliseconds() << Core::XmlClose("lm-score-time");
+        statisticsChannel_ << Core::XmlClose("word-end-extension-time");
+        statisticsChannel_ << Core::XmlOpen("word-end-score-pruning-time") << wordEndScorePruningTime_.elapsedMilliseconds() << Core::XmlClose("word-end-score-pruning-time");
+        statisticsChannel_ << Core::XmlOpen("word-end-hyp-building-time") + Core::XmlAttribute("total", wordEndHypBuildingTime_.elapsedMilliseconds());
+        statisticsChannel_ << Core::XmlOpen("lm-history-time") << lmHistoryTime_.elapsedMilliseconds() << Core::XmlClose("lm-history-time");
+        statisticsChannel_ << Core::XmlOpen("lm-lookahead-time") << lmLookaheadTime_.elapsedMilliseconds() << Core::XmlClose("lm-lookahead-time");
+        statisticsChannel_ << Core::XmlClose("word-end-hyp-building-time");
+        statisticsChannel_ << Core::XmlOpen("word-end-recombination-time") << wordEndRecombinationTime_.elapsedMilliseconds() << Core::XmlClose("word-end-recombination-time");
+        statisticsChannel_ << Core::XmlOpen("word-end-beam-pruning-time") << wordEndBeamPruningTime_.elapsedMilliseconds() << Core::XmlClose("word-end-beam-pruning-time");
+        statisticsChannel_ << Core::XmlClose("word-end-expansion-time");
         statisticsChannel_ << Core::XmlOpen("recombination-time") << recombinationTime_.elapsedMilliseconds() << Core::XmlClose("recombination-time");
         statisticsChannel_ << Core::XmlOpen("beam-pruning-time") << beamPruningTime_.elapsedMilliseconds() << Core::XmlClose("beam-pruning-time");
         statisticsChannel_ << Core::XmlClose("recognition-time");

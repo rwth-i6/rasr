@@ -227,11 +227,23 @@ private:
     std::vector<Core::StopWatch> scoringTimes_;
     std::vector<Core::StopWatch> scoreReadoutTimes_;
     std::vector<Core::StopWatch> intermediatePruningTimes_;
-    Core::StopWatch              buildNewBeamTime_;
+    Core::StopWatch              buildWithinWordHypsTime_;
     Core::StopWatch              recombinationTime_;
     Core::StopWatch              beamPruningTime_;
-    Core::StopWatch              wordEndExpansionTime_;
-    Core::StopWatch              finalizeTime_;
+    /*
+     * Phases of `expandAndPruneWordEndHypotheses`, adding up to `wordEndExpansionTime_`.
+     * The language model calls within them are reported separately.
+     */
+    Core::StopWatch wordEndExpansionTime_;
+    Core::StopWatch wordEndExtensionTime_;
+    Core::StopWatch lmScoreTime_;
+    Core::StopWatch wordEndScorePruningTime_;
+    Core::StopWatch wordEndHypBuildingTime_;
+    Core::StopWatch lmHistoryTime_;
+    Core::StopWatch lmLookaheadTime_;
+    Core::StopWatch wordEndRecombinationTime_;
+    Core::StopWatch wordEndBeamPruningTime_;
+    Core::StopWatch finalizeTime_;
 
     Core::Statistics<u32>              numInputHyps_;
     Core::Statistics<u32>              numWithinWordExtensionsBeforeFirstPruning_;

@@ -1503,6 +1503,12 @@ AedTreeBuilder::AedTreeBuilder(Core::Configuration config, Bliss::Lexicon const&
             wordBoundaryRoot_ = createRoot();
             network_.otherRootStates.insert(wordBoundaryRoot_);
         }
+
+        // Any root state is a valid final state
+        network_.finalStates.insert(network_.rootState);
+        for (auto const& otherRootState : network_.otherRootStates) {
+            network_.finalStates.insert(otherRootState);
+        }
     }
 }
 

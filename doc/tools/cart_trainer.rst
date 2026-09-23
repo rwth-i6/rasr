@@ -35,7 +35,9 @@ The CART trainer can also be used to verify and dump a CART training setup, in p
 | ``cluster.xml``          : dump the clustered training examples in XML-format
 | ``cluster.plain``        : dump the clustered training examples in text-format
 
-**Example Configuration** ::
+**Example Configuration**
+
+.. code-block:: ini
 
     [*]
     # dry-run

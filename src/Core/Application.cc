@@ -300,6 +300,10 @@ int Application::run(const std::vector<std::string>& arguments) {
 }
 
 void Application::openLogging() {
+    if (channelManager_) {
+        return;
+    }
+
     if (paramLogConfiguration(config))
         config.enableLogging();
     channelManager_ = new Channel::Manager(select("channels"), defaultOutputXmlHeader_);
@@ -312,6 +316,10 @@ void Application::openLogging() {
 }
 
 void Application::closeLogging(bool configAvailable) {
+    if (not channelManager_) {
+        return;
+    }
+
     if (lowLevelErrorMessages_.size()) {
         Message                  m(error("There were %d low level error messages:",
                                          static_cast<int>(lowLevelErrorMessages_.size())));

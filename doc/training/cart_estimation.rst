@@ -7,12 +7,14 @@ Estimation of the phonetic decision tree.
 The current implementation optimizes the log-likelihood, where the log-likelihood for a class(or cluster) is modeled by a single Gaussian with diagonal co-variance matrix.
 
 **Inputs**
+
 * :doc:`file_formats/cart_accumulators.rst`
 * :doc:`file_formats/cart_question_file.rst`
 * :ref:`HMM configuration`
 * :ref:`Lexicon configuration`
 
 **Output**
+
 * CART tree
 
 **Parameters**
@@ -72,5 +74,5 @@ action: estimate-cart
 
 **References**
 
-* K. Beulen. `Phonetische Entscheidungsbäume für die automatische Spracherkennung mit großem Vokabular <http://www-i6.informatik.rwth-aachen.de/publications/download/262/BeulenK.--PhonetischeEntscheidungsb%7Ba%7Dumef%7Bu%7DrdieautomatischeSpracherkennungmitgro%7Bss%7DemVokabular--1999.pdf >`_. PhD Thesis, Aachen, Germany, July 1999.
+* K. Beulen. `Phonetische Entscheidungsbäume für die automatische Spracherkennung mit großem Vokabular <http://www-i6.informatik.rwth-aachen.de/publications/download/262/BeulenK.--PhonetischeEntscheidungsb%7Ba%7Dumef%7Bu%7DrdieautomatischeSpracherkennungmitgro%7Bss%7DemVokabular--1999.pdf>`_. PhD Thesis, Aachen, Germany, July 1999.
 

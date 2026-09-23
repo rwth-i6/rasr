@@ -22,6 +22,7 @@
 #include <Core/CollapsedVector.hh>
 #include <Core/XmlStream.hh>
 #include <Lattice/LatticeAdaptor.hh>
+#include <Math/Utilities.hh>
 #include <Nn/LabelScorer/LabelScorer.hh>
 #include <Nn/LabelScorer/ScoringContext.hh>
 #include <Search/Module.hh>
@@ -52,7 +53,15 @@ TreeTimesyncBeamSearch::LabelHypothesis::LabelHypothesis()
           lmHistory(),
           timeframe(0),
           score(0.0),
-          trace(Core::ref(new LatticeTrace(0, {0, 0}, {}))) {}
+          trace(Core::ref(new LatticeTrace(0, {0, 0}, {})))
+#ifdef SEARCHV2_DEBUG
+          ,
+          tokenSequence(),
+          tokenScoreDeltas(),
+          tokenTimeframes()
+#endif
+{
+}
 
 TreeTimesyncBeamSearch::LabelHypothesis::LabelHypothesis(
         TreeTimesyncBeamSearch::LabelHypothesis const&              base,
@@ -64,7 +73,19 @@ TreeTimesyncBeamSearch::LabelHypothesis::LabelHypothesis(
           lmHistory(base.lmHistory),
           timeframe(extension.timeframe),
           score(extension.score),
-          trace(base.trace) {
+          trace(base.trace)
+#ifdef SEARCHV2_DEBUG
+          ,
+          tokenSequence(base.tokenSequence),
+          tokenScoreDeltas(base.tokenScoreDeltas),
+          tokenTimeframes(base.tokenTimeframes)
+#endif
+{
+#ifdef SEARCHV2_DEBUG
+    tokenSequence.push_back(extension.nextToken);
+    tokenScoreDeltas.push_back(extension.score - base.score);
+    tokenTimeframes.push_back(extension.timeframe);
+#endif
 }
 
 TreeTimesyncBeamSearch::LabelHypothesis::LabelHypothesis(
@@ -76,7 +97,14 @@ TreeTimesyncBeamSearch::LabelHypothesis::LabelHypothesis(
           currentState(extension.rootState),
           lmHistory(newLmHistory),
           timeframe(base.timeframe),
-          score(extension.score) {
+          score(extension.score)
+#ifdef SEARCHV2_DEBUG
+          ,
+          tokenSequence(base.tokenSequence),
+          tokenScoreDeltas(base.tokenScoreDeltas),
+          tokenTimeframes(base.tokenTimeframes)
+#endif
+{
     auto newLmScore   = score - base.score;
     auto totalLmScore = base.trace->score.lm + newLmScore;
     auto totalAmScore = score - totalLmScore;
@@ -104,6 +132,22 @@ std::string TreeTimesyncBeamSearch::LabelHypothesis::toString() const {
             ss << item.pronunciation->lemma()->symbol() << " ";
         }
     }
+
+#ifdef SEARCHV2_DEBUG
+    ss << ", tokens: ";
+    for (auto token : tokenSequence) {
+        ss << token << " ";
+    }
+    ss << ", token score deltas: ";
+    for (auto scoreDelta : tokenScoreDeltas) {
+        ss << scoreDelta << " ";
+    }
+    ss << ", token timeframes: ";
+    for (auto tf : tokenTimeframes) {
+        ss << tf << " ";
+    }
+#endif
+
     return ss.str();
 }
 
@@ -604,6 +648,12 @@ bool TreeTimesyncBeamSearch::decodeStep() {
         if (logStepwiseStatistics_) {
             clog() << Core::XmlFull("num-hyps-after-intermediate-pruning-" + std::to_string(scorerIdx + 1), withinWordExtensions_.size());
         }
+        if (withinWordExtensions_.empty()) {
+            if (logStepwiseStatistics_) {
+                clog() << Core::XmlClose("search-step-stats");
+            }
+            return false;
+        }
 
         if (scorerIdx < labelScorers_.size() - 1) {
             // Prepare scoring context list for next iteration
@@ -895,6 +945,19 @@ Nn::TransitionType TreeTimesyncBeamSearch::inferTransitionType(Nn::LabelIndex pr
 
 template<typename Element>
 void TreeTimesyncBeamSearch::scorePruning(std::vector<Element>& hypotheses, Score relativeThreshold, size_t maxBeamSize) {
+    hypotheses.erase(
+            std::remove_if(
+                    hypotheses.begin(),
+                    hypotheses.end(),
+                    [](auto const& hyp) {
+                        return Math::isinf(hyp.score) or hyp.score >= Core::Type<Score>::max;
+                    }),
+            hypotheses.end());
+
+    if (hypotheses.empty()) {
+        return;
+    }
+
     if (hypotheses.size() <= maxBeamSize and relativeThreshold == Core::Type<Score>::max) {
         // Neither relative score pruning nor max beam size pruning triggers
         return;

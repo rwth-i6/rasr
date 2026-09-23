@@ -221,7 +221,7 @@ public:
     virtual ~ComplexVectorFunctionNode() {}
 
     virtual bool configure() {
-        Core::Ref<const Flow::Attributes> a = getInputAttributes(0);
+        std::shared_ptr<const Flow::Attributes> a = getInputAttributes(0);
         if (!configureDatatype(a, Flow::Vector<ResultType>::type()))
             return false;
         return putOutputAttributes(0, a);

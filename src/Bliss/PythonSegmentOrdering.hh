@@ -33,12 +33,12 @@ class DataSource;
 namespace Bliss {
 
 class PythonSegmentOrderingVisitor : public SegmentOrderingVisitor {
-    Python::Initializer           pythonInitializer;
-    Python::ObjRef                pyMod_;
-    std::string                   pyConfig_;
-    bool                          allowCopy_;
-    bool                          withInfo_;
-    Core::Ref<Speech::DataSource> dataSource_;  // used to get seq len
+    Python::Initializer                 pythonInitializer;
+    Python::ObjRef                      pyMod_;
+    std::string                         pyConfig_;
+    bool                                allowCopy_;
+    bool                                withInfo_;
+    std::shared_ptr<Speech::DataSource> dataSource_;  // used to get seq len
 
     size_t    getSegmentNumFramesViaDataSourceSlow();
     size_t    getSegmentNumFramesViaDataSource();

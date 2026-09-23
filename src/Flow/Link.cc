@@ -103,7 +103,7 @@ void Link::setDatatype(const std::string& dt) {
 
 /******************************************************************************/
 
-void Link::setAttributes(Core::Ref<const Attributes> a) {
+void Link::setAttributes(std::shared_ptr<const Attributes> a) {
     ensure(a);
 
     attributes_ = a;

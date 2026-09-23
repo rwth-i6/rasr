@@ -69,7 +69,7 @@ installs the executables and libraries in `arch/...`. The installation prefix ca
 
 ## Documentation
 
-Additional documentation is available in `doc/`.
+Additional documentation can be found [here](https://rwth-i6.github.io/rasr/).
 
 ## License and citation
 

@@ -45,7 +45,7 @@ public:
 
 protected:
     // checks whether we have aggregated or simple Flow features
-    bool configureDataType(Core::Ref<const Flow::Attributes> a, const Flow::Datatype* d);
+    bool configureDataType(std::shared_ptr<const Flow::Attributes> a, const Flow::Datatype* d);
     bool putData(Mm::FeatureScorer::Scorer scorer);
     template<class T>
     bool work();

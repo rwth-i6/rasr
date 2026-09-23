@@ -284,10 +284,6 @@ std::vector<std::optional<ScoreAccessorRef>> FixedContextOnnxLabelScorer::comput
         }
         contextPreparationTime_.stop();
 
-        if (uniqueUncachedContexts.empty()) {
-            continue;
-        }
-
         numScoreAccessorsComputed_ += uniqueUncachedContexts.size();
 
         std::vector<SeqStepScoringContextRef> contextBatch;

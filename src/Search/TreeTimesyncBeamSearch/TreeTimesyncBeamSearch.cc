@@ -1008,9 +1008,7 @@ void TreeTimesyncBeamSearch::expandAndPruneWordEndHypotheses() {
         if (sts.size() != 0) {
             require(sts.size() == 1);
             const Bliss::SyntacticToken* st = sts.front();
-            lmTime_.start();
-            newLmHistory = languageModel_->extendedHistory(newLmHistory, st);
-            lmTime_.stop();
+            newLmHistory                    = languageModel_->extendedHistory(newLmHistory, st);
 
             if (enableLmLookahead_) {
                 lmLookaheadTime_.start();
@@ -1103,14 +1101,15 @@ void TreeTimesyncBeamSearch::logStatistics() const {
         }
         statisticsChannel_ << Core::XmlOpen("build-within-word-hyps-time") << buildWithinWordHypsTime_.elapsedMilliseconds() << Core::XmlClose("build-within-word-hyps-time");
         statisticsChannel_ << Core::XmlOpen("word-end-expansion-time") + Core::XmlAttribute("total", wordEndExpansionTime_.elapsedMilliseconds());
-        statisticsChannel_ << Core::XmlOpen("word-end-extension-time") << wordEndExtensionTime_.elapsedMilliseconds() << Core::XmlClose("word-end-extension-time");
+        statisticsChannel_ << Core::XmlOpen("word-end-extension-time") + Core::XmlAttribute("total", wordEndExtensionTime_.elapsedMilliseconds());
+        statisticsChannel_ << Core::XmlOpen("lm-time") << lmTime_.elapsedMilliseconds() << Core::XmlClose("lm-time");
+        statisticsChannel_ << Core::XmlClose("word-end-extension-time");
         statisticsChannel_ << Core::XmlOpen("word-end-score-pruning-time") << wordEndScorePruningTime_.elapsedMilliseconds() << Core::XmlClose("word-end-score-pruning-time");
-        statisticsChannel_ << Core::XmlOpen("word-end-hyp-building-time") << wordEndHypBuildingTime_.elapsedMilliseconds() << Core::XmlClose("word-end-hyp-building-time");
+        statisticsChannel_ << Core::XmlOpen("word-end-hyp-building-time") + Core::XmlAttribute("total", wordEndHypBuildingTime_.elapsedMilliseconds());
+        statisticsChannel_ << Core::XmlOpen("lm-lookahead-time") << lmLookaheadTime_.elapsedMilliseconds() << Core::XmlClose("lm-lookahead-time");
+        statisticsChannel_ << Core::XmlClose("word-end-hyp-building-time");
         statisticsChannel_ << Core::XmlOpen("word-end-recombination-time") << wordEndRecombinationTime_.elapsedMilliseconds() << Core::XmlClose("word-end-recombination-time");
         statisticsChannel_ << Core::XmlOpen("word-end-beam-pruning-time") << wordEndBeamPruningTime_.elapsedMilliseconds() << Core::XmlClose("word-end-beam-pruning-time");
-        // Cuts across the phases above, so not part of their sum
-        statisticsChannel_ << Core::XmlOpen("lm-time") << lmTime_.elapsedMilliseconds() << Core::XmlClose("lm-time");
-        statisticsChannel_ << Core::XmlOpen("lm-lookahead-time") << lmLookaheadTime_.elapsedMilliseconds() << Core::XmlClose("lm-lookahead-time");
         statisticsChannel_ << Core::XmlClose("word-end-expansion-time");
         statisticsChannel_ << Core::XmlOpen("recombination-time") << recombinationTime_.elapsedMilliseconds() << Core::XmlClose("recombination-time");
         statisticsChannel_ << Core::XmlOpen("beam-pruning-time") << beamPruningTime_.elapsedMilliseconds() << Core::XmlClose("beam-pruning-time");

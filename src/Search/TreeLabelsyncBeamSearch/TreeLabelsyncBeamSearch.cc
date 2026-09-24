@@ -1147,9 +1147,7 @@ void TreeLabelsyncBeamSearch::expandAndPruneWordEndHypotheses() {
         if (baseHyp.isActive and sts.size() != 0) {
             require(sts.size() == 1);
             const Bliss::SyntacticToken* st = sts.front();
-            lmTime_.start();
-            newLmHistory = languageModel_->extendedHistory(newLmHistory, st);
-            lmTime_.stop();
+            newLmHistory                    = languageModel_->extendedHistory(newLmHistory, st);
         }
 
         wordEndHypotheses_.push_back({baseHyp, extension, newLmHistory, lengthNormScale_});
@@ -1299,11 +1297,11 @@ void TreeLabelsyncBeamSearch::logStatistics() const {
         }
         statisticsChannel_ << Core::XmlOpen("build-within-word-hyps-time") << buildWithinWordHypsTime_.elapsedMilliseconds() << Core::XmlClose("build-within-word-hyps-time");
         statisticsChannel_ << Core::XmlOpen("word-end-expansion-time") + Core::XmlAttribute("total", wordEndExpansionTime_.elapsedMilliseconds());
-        statisticsChannel_ << Core::XmlOpen("word-end-extension-time") << wordEndExtensionTime_.elapsedMilliseconds() << Core::XmlClose("word-end-extension-time");
+        statisticsChannel_ << Core::XmlOpen("word-end-extension-time") + Core::XmlAttribute("total", wordEndExtensionTime_.elapsedMilliseconds());
+        statisticsChannel_ << Core::XmlOpen("lm-time") << lmTime_.elapsedMilliseconds() << Core::XmlClose("lm-time");
+        statisticsChannel_ << Core::XmlClose("word-end-extension-time");
         statisticsChannel_ << Core::XmlOpen("word-end-score-pruning-time") << wordEndScorePruningTime_.elapsedMilliseconds() << Core::XmlClose("word-end-score-pruning-time");
         statisticsChannel_ << Core::XmlOpen("word-end-hyp-building-time") << wordEndHypBuildingTime_.elapsedMilliseconds() << Core::XmlClose("word-end-hyp-building-time");
-        // Cuts across the phases above, so not part of their sum
-        statisticsChannel_ << Core::XmlOpen("lm-time") << lmTime_.elapsedMilliseconds() << Core::XmlClose("lm-time");
         statisticsChannel_ << Core::XmlClose("word-end-expansion-time");
         statisticsChannel_ << Core::XmlOpen("recombination-time") << recombinationTime_.elapsedMilliseconds() << Core::XmlClose("recombination-time");
         statisticsChannel_ << Core::XmlOpen("beam-pruning-time") << beamPruningTime_.elapsedMilliseconds() << Core::XmlClose("beam-pruning-time");

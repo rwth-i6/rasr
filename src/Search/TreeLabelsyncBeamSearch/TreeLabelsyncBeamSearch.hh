@@ -248,14 +248,14 @@ private:
     Core::StopWatch              beamPruningTime_;
     /*
      * Phases of `expandAndPruneWordEndHypotheses`, adding up to `wordEndExpansionTime_`.
-     * The language model calls within them are reported separately.
+     * `lmTime_` covers the language model calls wherever in those phases they happen, so it cuts
+     * across the phases and is not part of that sum.
      */
     Core::StopWatch wordEndExpansionTime_;
     Core::StopWatch wordEndExtensionTime_;
-    Core::StopWatch lmScoreTime_;
     Core::StopWatch wordEndScorePruningTime_;
     Core::StopWatch wordEndHypBuildingTime_;
-    Core::StopWatch lmHistoryTime_;
+    Core::StopWatch lmTime_;
     Core::StopWatch finalizeTime_;
 
     Core::Statistics<u32>              numInputHyps_;

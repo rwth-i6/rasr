@@ -106,6 +106,7 @@ protected:
         Nn::TransitionType               transitionType;  // Type of transition towward `rootState`
         size_t                           baseHypIndex;    // Index of base hypothesis in beam
         bool                             isActive;        // Indicates whether the base hypothesis has not produced a sentence-end label yet
+        Lm::History                      lmHistory;       // LM history of the base hypothesis extended by the syntactic tokens of `pron` (unchanged if not active)
 
         inline Score pruningScore() const {
             return score;
@@ -143,7 +144,7 @@ protected:
         LabelHypothesis(LabelHypothesis const& base, WithinWordExtensionCandidate const& extension, std::vector<Nn::ScoringContextRef> const& newScoringContexts, float lengthNormScale);
 
         // Word-end constructor from base and word-end extension
-        LabelHypothesis(LabelHypothesis const& base, WordEndExtensionCandidate const& extension, Lm::History const& newLmHistory, float lengthNormScale);
+        LabelHypothesis(LabelHypothesis const& base, WordEndExtensionCandidate const& extension, float lengthNormScale);
 
         inline Score pruningScore() const {
             return scaledScore;

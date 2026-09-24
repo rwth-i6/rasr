@@ -104,12 +104,11 @@ TreeLabelsyncBeamSearch::LabelHypothesis::LabelHypothesis(
 TreeLabelsyncBeamSearch::LabelHypothesis::LabelHypothesis(
         LabelHypothesis const&                                    base,
         TreeLabelsyncBeamSearch::WordEndExtensionCandidate const& extension,
-        Lm::History const&                                        newLmHistory,
         float                                                     lengthNormScale)
         : scoringContexts(base.scoringContexts),
           currentToken(base.currentToken),
           currentState(extension.rootState),
-          lmHistory(newLmHistory),
+          lmHistory(extension.lmHistory),
           timeframe(extension.timeframe),
           length(base.length),
           score(extension.score),
@@ -809,17 +808,13 @@ bool TreeLabelsyncBeamSearch::decodeStep() {
                         .transitionType = Nn::TransitionType::SENTENCE_END,
                         .baseHypIndex   = hypIndex,
                         .isActive       = false,
+                        .lmHistory      = hyp.lmHistory,  // Not extended since sentence-end is the last LM scoring step
                 });
                 continue;
             }
 
-            Score       lmScore = 0;
-            auto const& sts     = lemma->syntacticTokenSequence();
-            if (sts.size() != 0) {
-                require(sts.size() == 1);
-                auto const* st = sts.front();
-                lmScore        = languageModel_->score(hyp.lmHistory, st);
-            }
+            Lm::History newLmHistory;
+            Score       lmScore = languageModel_->scoreTokenSequence(hyp.lmHistory, lemma->syntacticTokenSequence(), newLmHistory);
 
             Score              penalty               = 0.0;
             Nn::TransitionType wordEndtransitionType = Nn::TransitionType::WORD_EXIT;
@@ -848,6 +843,7 @@ bool TreeLabelsyncBeamSearch::decodeStep() {
                     .transitionType = wordEndtransitionType,
                     .baseHypIndex   = hypIndex,
                     .isActive       = true,
+                    .lmHistory      = newLmHistory,
             });
         }
     }
@@ -890,22 +886,10 @@ bool TreeLabelsyncBeamSearch::decodeStep() {
         clog() << Core::XmlFull("num-word-end-hyps-after-pruning", wordEndExtensions_.size());
     }
 
-    // Create new word-end label hypotheses from word-end extension candidates and update the LM history
+    // Create new word-end label hypotheses from word-end extension candidates
     wordEndHypotheses_.clear();
     for (auto& extension : wordEndExtensions_) {
-        auto const& baseHyp = newBeam_[extension.baseHypIndex];
-
-        auto        newLmHistory = baseHyp.lmHistory;
-        auto const& sts          = extension.pron->lemma()->syntacticTokenSequence();
-
-        // The LM history is not extended for terminated hypotheses since sentence-end is the last LM scoring step
-        if (baseHyp.isActive and sts.size() != 0) {
-            require(sts.size() == 1);
-            const Bliss::SyntacticToken* st = sts.front();
-            newLmHistory                    = languageModel_->extendedHistory(newLmHistory, st);
-        }
-
-        wordEndHypotheses_.push_back({baseHyp, extension, newLmHistory, lengthNormScale_});
+        wordEndHypotheses_.push_back({newBeam_[extension.baseHypIndex], extension, lengthNormScale_});
     }
 
     // Freshly terminated hypotheses have been expanded to word-end hypotheses, so the base hypotheses are removed
@@ -1646,6 +1630,7 @@ void TreeLabelsyncBeamSearch::finalizeHypotheses() {
                 .timeframe      = hyp.timeframe,
                 .transitionType = Nn::TransitionType::SENTENCE_END,
                 .baseHypIndex   = hypIndex,
+                .lmHistory      = hyp.lmHistory,
         });
     }
 
@@ -1653,7 +1638,7 @@ void TreeLabelsyncBeamSearch::finalizeHypotheses() {
     for (size_t extensionIdx = 0ul; extensionIdx < wordEndExtensions_.size(); ++extensionIdx) {
         auto&       ext     = wordEndExtensions_[extensionIdx];
         auto const& baseHyp = newBeam_[ext.baseHypIndex];
-        tempHypotheses_.push_back({baseHyp, ext, baseHyp.lmHistory, lengthNormScale_});
+        tempHypotheses_.push_back({baseHyp, ext, lengthNormScale_});
     }
 
     beam_.swap(tempHypotheses_);

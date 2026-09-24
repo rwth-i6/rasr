@@ -90,12 +90,11 @@ TreeTimesyncBeamSearch::LabelHypothesis::LabelHypothesis(
 
 TreeTimesyncBeamSearch::LabelHypothesis::LabelHypothesis(
         LabelHypothesis const&                                   base,
-        TreeTimesyncBeamSearch::WordEndExtensionCandidate const& extension,
-        Lm::History const&                                       newLmHistory)
+        TreeTimesyncBeamSearch::WordEndExtensionCandidate const& extension)
         : scoringContexts(base.scoringContexts),
           currentToken(base.currentToken),
           currentState(extension.rootState),
-          lmHistory(newLmHistory),
+          lmHistory(extension.lmHistory),
           timeframe(base.timeframe),
           score(extension.score)
 #ifdef SEARCHV2_DEBUG
@@ -713,13 +712,8 @@ bool TreeTimesyncBeamSearch::decodeStep() {
             auto const*                     lemmaPron = lexicon_->lemmaPronunciation(exit.pronunciation);
             auto const*                     lemma     = lemmaPron->lemma();
 
-            Score                               lmScore = 0;
-            const Bliss::SyntacticTokenSequence sts     = lemma->syntacticTokenSequence();
-            if (sts.size() != 0) {
-                require(sts.size() == 1);
-                auto const* st = sts.front();
-                lmScore        = languageModel_->score(hyp.lmHistory, st);
-            }
+            Lm::History newLmHistory;
+            Score       lmScore = languageModel_->scoreTokenSequence(hyp.lmHistory, lemma->syntacticTokenSequence(), newLmHistory);
 
             Score              penalty               = 0.0;
             Nn::TransitionType wordEndtransitionType = Nn::TransitionType::WORD_EXIT;
@@ -746,6 +740,7 @@ bool TreeTimesyncBeamSearch::decodeStep() {
                     .score          = hyp.score + lmScore + penalty,
                     .transitionType = wordEndtransitionType,
                     .baseHypIndex   = hypIndex,
+                    .lmHistory      = newLmHistory,
             });
         }
     }
@@ -759,21 +754,10 @@ bool TreeTimesyncBeamSearch::decodeStep() {
         clog() << Core::XmlFull("num-word-end-hyps-after-score-pruning", wordEndExtensions_.size());
     }
 
-    // Create new word-end label hypotheses from word-end extension candidates and update the LM history
+    // Create new word-end label hypotheses from word-end extension candidates
     wordEndHypotheses_.clear();
     for (auto& extension : wordEndExtensions_) {
-        auto const& baseHyp = newBeam_[extension.baseHypIndex];
-
-        auto        newLmHistory = baseHyp.lmHistory;
-        auto const& sts          = extension.pron->lemma()->syntacticTokenSequence();
-
-        if (sts.size() != 0) {
-            require(sts.size() == 1);
-            const Bliss::SyntacticToken* st = sts.front();
-            newLmHistory                    = languageModel_->extendedHistory(newLmHistory, st);
-        }
-
-        wordEndHypotheses_.push_back({baseHyp, extension, newLmHistory});
+        wordEndHypotheses_.push_back({newBeam_[extension.baseHypIndex], extension});
     }
 
     recombination(wordEndHypotheses_, true);
@@ -1208,6 +1192,7 @@ void TreeTimesyncBeamSearch::finalizeHypotheses() {
                     .score          = hyp.score + sentenceEndScore,
                     .transitionType = Nn::TransitionType::SENTENCE_END,
                     .baseHypIndex   = hypIndex,
+                    .lmHistory      = hyp.lmHistory,
             });
         }
 
@@ -1215,7 +1200,7 @@ void TreeTimesyncBeamSearch::finalizeHypotheses() {
         for (size_t extensionIdx = 0ul; extensionIdx < wordEndExtensions_.size(); ++extensionIdx) {
             auto&       ext     = wordEndExtensions_[extensionIdx];
             auto const& baseHyp = newBeam_[ext.baseHypIndex];
-            tempHypotheses_.push_back({baseHyp, ext, baseHyp.lmHistory});
+            tempHypotheses_.push_back({baseHyp, ext});
         }
     }
     else {  // No valid final hypotheses and no sentence-end fallback

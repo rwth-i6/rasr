@@ -107,10 +107,15 @@ protected:
     struct WordEndExtensionCandidate {
         Bliss::LemmaPronunciation const* pron;            // Proposed lemma pronunciation
         StateId                          rootState;       // Proposed root-state to transition to
-        Nn::LabelIndex                   exitLabel;       // LabelScorer token associated with this exit
+        Nn::LabelIndex                   exitLabel;       // Last syntactic token of `pron` as LabelScorer token, the scoring contexts are extended by it after pruning
         Score                            score;           // Would-be total score of the full hypothesis after LM score contribution
         Nn::TransitionType               transitionType;  // Type of transition towward `rootState`
         size_t                           baseHypIndex;    // Index of base hypothesis in beam
+        Lm::History                      lmHistory;       // LM history of the base hypothesis extended by the syntactic tokens of `pron`
+
+        // Scoring contexts of the base hypothesis extended by all but the last syntactic token of `pron` for the label
+        // scorers that score the word-end transition. Empty if there is no such token, i.e. the base contexts apply.
+        std::vector<Nn::ScoringContextRef> scoringContexts;
 
         bool operator<(WordEndExtensionCandidate const& other) {
             return score < other.score;
@@ -145,7 +150,7 @@ protected:
         LabelHypothesis(LabelHypothesis const& base, WithinWordExtensionCandidate const& extension, std::vector<Nn::ScoringContextRef> const& newScoringContexts);
 
         // Word-end constructor from base and word-end extension
-        LabelHypothesis(LabelHypothesis const& base, WordEndExtensionCandidate const& extension, Lm::History const& newLmHistory, LanguageModelLookahead::ContextLookaheadReference const newLookahead, Lm::History const& newLookaheadHistory, Score newLookaheadBackOff, std::vector<Nn::ScoringContextRef> const& newScoringContexts);
+        LabelHypothesis(LabelHypothesis const& base, WordEndExtensionCandidate const& extension, LanguageModelLookahead::ContextLookaheadReference const newLookahead, Lm::History const& newLookaheadHistory, Score newLookaheadBackOff, std::vector<Nn::ScoringContextRef> const& newScoringContexts);
 
         bool operator<(LabelHypothesis const& other) const {
             return score < other.score;
@@ -239,7 +244,6 @@ private:
     Core::StopWatch lmScoreTime_;
     Core::StopWatch wordEndScorePruningTime_;
     Core::StopWatch wordEndHypBuildingTime_;
-    Core::StopWatch lmHistoryTime_;
     Core::StopWatch lmLookaheadTime_;
     Core::StopWatch wordEndRecombinationTime_;
     Core::StopWatch wordEndBeamPruningTime_;
@@ -300,6 +304,12 @@ private:
      * Populates `wordEndHypotheses_`.
      */
     void expandAndPruneWordEndHypotheses();
+
+    /*
+     * Add the label scorer scores of all but the first syntactic token of each word-end extension in
+     * `wordEndExtensions_` and store the correspondingly extended scoring contexts in the extensions.
+     */
+    void scoreRemainingWordEndTokens(size_t maxTokenSequenceLength);
 
     /*
      * Log the per-step statistics and debug output for the current beam.

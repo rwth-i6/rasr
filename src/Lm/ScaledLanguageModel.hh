@@ -87,6 +87,9 @@ public:
     virtual Score score(const History& h, Token w) const {
         return scale() * languageModel_->score(h, w);
     }
+    virtual Score scoreTokenSequence(const History& h, const Bliss::SyntacticTokenSequence& tokens, History& resultHistory) const {
+        return scale() * languageModel_->scoreTokenSequence(h, tokens, resultHistory);
+    }
     virtual Score sentenceEndScore(const History& h) const {
         return scale() * languageModel_->sentenceEndScore(h);
     }
@@ -111,7 +114,7 @@ public:
         return languageModel_->isSparse(h);
     }
     virtual HistorySuccessors getHistorySuccessors(const History& h) const {
-        HistorySuccessors res;
+        HistorySuccessors res = languageModel_->getHistorySuccessors(h);
         res.backOffScore *= scale();
         for (auto& ws : res) {
             ws.score_ *= scale();

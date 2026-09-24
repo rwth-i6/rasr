@@ -24,6 +24,8 @@
 #include <Core/CollapsedVector.hh>
 #include <Core/XmlStream.hh>
 #include <Lattice/LatticeAdaptor.hh>
+#include <Lm/BackingOff.hh>
+#include <Lm/Module.hh>
 #include <Math/Utilities.hh>
 #include <Nn/LabelScorer/LabelScorer.hh>
 #include <Nn/LabelScorer/ScoringContext.hh>
@@ -52,9 +54,13 @@ TreeTimesyncBeamSearch::LabelHypothesis::LabelHypothesis()
         : scoringContexts(),
           currentToken(Nn::invalidLabelIndex),
           currentState(invalidTreeNodeIndex),
+          lookahead(),
           lmHistory(),
+          lookaheadHistory(),
           timeframe(0),
           score(0.0),
+          lookaheadScore(0.0),
+          lookaheadBackOff(0.0),
           trace(Core::ref(new LatticeTrace(0, {0, 0}, {}))),
           oov(),
           unknownLookahead(0.0)
@@ -74,9 +80,13 @@ TreeTimesyncBeamSearch::LabelHypothesis::LabelHypothesis(
         : scoringContexts(newScoringContexts),
           currentToken(extension.nextToken),
           currentState(extension.nextState),
+          lookahead(extension.lookahead),
           lmHistory(base.lmHistory),
+          lookaheadHistory(base.lookaheadHistory),
           timeframe(extension.timeframe),
           score(extension.score),
+          lookaheadScore(extension.lookaheadScore),
+          lookaheadBackOff(extension.lookaheadBackOff),
           trace(base.trace),
           oov(base.oov),
           unknownLookahead(extension.unknownLookahead)
@@ -97,13 +107,19 @@ TreeTimesyncBeamSearch::LabelHypothesis::LabelHypothesis(
 TreeTimesyncBeamSearch::LabelHypothesis::LabelHypothesis(
         LabelHypothesis const&                                   base,
         TreeTimesyncBeamSearch::WordEndExtensionCandidate const& extension,
-        Lm::History const&                                       newLmHistory)
+        LanguageModelLookahead::ContextLookaheadReference const  newLookahead,
+        Lm::History const&                                       newLookaheadHistory,
+        Score                                                    newLookaheadBackOff)
         : scoringContexts(base.scoringContexts),
           currentToken(base.currentToken),
           currentState(extension.rootState),
-          lmHistory(newLmHistory),
+          lookahead(newLookahead),
+          lmHistory(extension.lmHistory),
+          lookaheadHistory(newLookaheadHistory),
           timeframe(base.timeframe),
           score(extension.score),
+          lookaheadScore(0.0),
+          lookaheadBackOff(newLookaheadBackOff),
           oov(extension.oov),
           unknownLookahead(0.0)
 #ifdef SEARCHV2_DEBUG
@@ -205,6 +221,21 @@ const Core::ParameterBool TreeTimesyncBeamSearch::paramCollapseRepeatedLabels(
         "Collapse repeated emission of the same label into one output. If false, every emission is treated like a new output.",
         false);
 
+const Core::ParameterBool TreeTimesyncBeamSearch::paramLmLookahead(
+        "lm-lookahead",
+        "Enable language model lookahead.",
+        false);
+
+const Core::ParameterBool TreeTimesyncBeamSearch::paramSeparateLookaheadLm(
+        "separate-lookahead-lm",
+        "Use a separate LM for lookahead.",
+        false);
+
+const Core::ParameterBool TreeTimesyncBeamSearch::paramSparseLmLookAhead(
+        "sparse-lm-lookahead",
+        "Use sparse n-gram LM lookahead.",
+        true);
+
 const Core::ParameterBool TreeTimesyncBeamSearch::paramSentenceEndFallBack(
         "sentence-end-fall-back",
         "Allow for fallback solution if no active word-end hypothesis exists at the end of a segment.",
@@ -273,9 +304,13 @@ TreeTimesyncBeamSearch::TreeTimesyncBeamSearch(Core::Configuration const& config
           excludeKnownWordsFromFallback_(false),
           unknownWordRoot_(invalidTreeNodeIndex),
           unknownSyntacticToken_(nullptr),
+          unknownTokenSequence_(),
           unknownWordPenalty_(0.0),
           unknownPiecePenalty_(0.0),
           initialOovState_(),
+          enableLmLookahead_(paramLmLookahead(config)),
+          separateLookaheadLm_(paramSeparateLookaheadLm(config)),
+          sparseLmLookahead_(paramSparseLmLookAhead(config)),
           hypIndexToContextIndexMap_(),
           withinWordExtensions_(),
           wordEndExtensions_(),
@@ -344,21 +379,15 @@ bool TreeTimesyncBeamSearch::setModelCombination(Speech::ModelCombination const&
 
     nonWordLemmas_ = lexicon_->specialLemmas("nonword");
 
-    // The word-end expansion can apply only one syntactic token per exit. Report the
-    // offending lemma up front instead of failing on a `require` mid-segment.
-    for (auto lemmaIters = lexicon_->lemmas(); lemmaIters.first != lemmaIters.second; ++lemmaIters.first) {
-        auto const* lemma = *lemmaIters.first;
-        if (lemma->syntacticTokenSequence().size() > 1) {
-            error() << "Lemma \"" << lemma->name().str() << "\" has " << lemma->syntacticTokenSequence().size()
-                    << " syntactic tokens. " << name() << " supports at most one syntactic token per lexical exit.";
-        }
-    }
-
     unknownWordFallback_           = std::make_unique<UnknownWordFallback>(config, *lexicon_);
     excludeKnownWordsFromFallback_ = unknownWordFallback_->excludesKnownWords();
     unknownSyntacticToken_         = unknownWordFallback_->unknownSyntacticToken();
     unknownWordPenalty_            = unknownWordFallback_->unknownWordPenalty();
     unknownPiecePenalty_           = unknownWordFallback_->unknownPiecePenalty();
+    if (unknownSyntacticToken_ != nullptr) {
+        // A view onto the member itself, which lives as long as this search.
+        unknownTokenSequence_ = Bliss::SyntacticTokenSequence(&unknownSyntacticToken_, &unknownSyntacticToken_ + 1);
+    }
 
     network_ = Core::ref(new PersistentStateTree(
             config,
@@ -487,6 +516,34 @@ bool TreeTimesyncBeamSearch::setModelCombination(Speech::ModelCombination const&
         initialOovState_     = initial;
     }
 
+    // Set lookahead LM
+    if (enableLmLookahead_) {
+        if (separateLookaheadLm_) {
+            log() << "Use separate lookahead LM";
+            lookaheadLm_ = Lm::Module::instance().createScaledLanguageModel(select("lookahead-lm"), lexicon_);
+        }
+        else if (languageModel_->lookaheadLanguageModel().get() != nullptr) {
+            lookaheadLm_ = Core::Ref<Lm::ScaledLanguageModel>(new Lm::LanguageModelScaling(select("lookahead-lm"),
+                                                                                           Core::Ref<Lm::LanguageModel>(const_cast<Lm::LanguageModel*>(languageModel_->lookaheadLanguageModel().get()))));
+        }
+        else {
+            lookaheadLm_ = languageModel_;
+        }
+
+        if (sparseLmLookahead_ && !dynamic_cast<const Lm::BackingOffLm*>(lookaheadLm_->unscaled().get())) {
+            warning() << "Not using sparse LM lookahead, because the LM is not a backing-off LM.";
+            sparseLmLookahead_ = false;
+        }
+
+        lmLookahead_ = std::make_unique<LanguageModelLookahead>(Core::Configuration(config, "lm-lookahead"),
+                                                                modelCombination.pronunciationScale(),
+                                                                lookaheadLm_,
+                                                                network_->structure,
+                                                                network_->rootState,
+                                                                network_->exits,
+                                                                acousticModel_);
+    }
+
     return true;
 }
 
@@ -536,14 +593,28 @@ void TreeTimesyncBeamSearch::enterSegment(Bliss::SpeechSegment const* segment) {
         beam_.back().currentState = unknownWordRoot_;
     }
 
+    if (enableLmLookahead_) {
+        beam_.front().lookaheadHistory = lookaheadLm_->startHistory();
+    }
+
     currentSearchStep_ = 0ul;
     finishedSegment_   = false;
 
     initializationTime_.stop();
     if (segment != nullptr) {
         languageModel_->setSegment(segment);
+        // Only set the segment if the lookahead LM is configured separately
+        // Otherwise the segment counter is increased
+        if (enableLmLookahead_ and separateLookaheadLm_) {
+            lookaheadLm_->setSegment(segment);
+        }
         for (auto& hyp : beam_) {
             hyp.lmHistory = languageModel_->startHistory();
+            if (enableLmLookahead_) {
+                // Re-fetched after `setSegment` for the same reason as `lmHistory`: the start
+                // history of a segment-conditioned LM is only valid for the current segment.
+                hyp.lookaheadHistory = lookaheadLm_->startHistory();
+            }
         }
     }
 }
@@ -709,15 +780,24 @@ bool TreeTimesyncBeamSearch::decodeStep() {
                         continue;
                     }
                     currentBestScore = std::min(currentBestScore, extScore);
-
                     withinWordExtensions_.push_back(
                             {.nextToken        = tokenIdx,
                              .nextState        = successorState,
                              .timeframe        = extTime,
                              .score            = extScore,
+                             .lookaheadScore   = 0,
+                             .lookahead        = {},
+                             .lookaheadBackOff = 0,
                              .transitionType   = transitionType,
                              .baseHypIndex     = hypIndex,
                              .unknownLookahead = unknownLookahead});
+
+                    // Add the LM lookahead score to the extensions' scores for pruning
+                    if (enableLmLookahead_) {
+                        auto lookaheadScore                         = getLmLookaheadScore(withinWordExtensions_.back());
+                        withinWordExtensions_.back().lookaheadScore = lookaheadScore;
+                        withinWordExtensions_.back().score += lookaheadScore;
+                    }
                 }
             }
         }
@@ -827,6 +907,12 @@ bool TreeTimesyncBeamSearch::decodeStep() {
         hyp.score -= hyp.unknownLookahead;
         hyp.unknownLookahead = 0.0;
 
+        if (enableLmLookahead_) {
+            // Subtract the LM lookahead score again
+            hyp.score -= hyp.lookaheadScore;
+            hyp.lookaheadScore = 0.0;
+        }
+
         // Create one word-end hypothesis for each exit
         for (size_t i = stateExitsOffset_[hyp.currentState]; i < stateExitsOffset_[hyp.currentState + 1]; ++i) {
             const PersistentStateTree::Exit exit      = stateExits_[i];
@@ -843,21 +929,16 @@ bool TreeTimesyncBeamSearch::decodeStep() {
                 continue;
             }
 
-            WordLmEvent                         lmEvent;
-            Score                               lmScore = 0;
-            const Bliss::SyntacticTokenSequence sts     = lemma->syntacticTokenSequence();
-            if (sts.size() != 0) {
-                require(sts.size() == 1);
-                lmEvent.token = sts.front();
-                lmScore       = languageModel_->score(hyp.lmHistory, lmEvent.token);
-                // An ordinary lemma may carry the unknown token too: that is how a
-                // lexicon adds words which should be recognized but are outside the
-                // word LM's vocabulary. Such a word is an unknown word and takes the
-                // unknown-word penalty, on this route just as on the fallback one.
-                if (lmEvent.token == unknownSyntacticToken_) {
-                    lmEvent.unknownBias = unknownWordPenalty_;
-                }
-            }
+            // An ordinary lemma may carry the unknown token too: that is how a
+            // lexicon adds words which should be recognized but are outside the
+            // word LM's vocabulary. Such a word is an unknown word and takes the
+            // unknown-word penalty, on this route just as on the fallback one.
+            WordLmEvent lmEvent;
+            lmEvent.tokens      = lemma->syntacticTokenSequence();
+            lmEvent.unknownBias = unknownWordPenalty_ * numUnknownTokens(lmEvent.tokens);
+
+            Lm::History newLmHistory;
+            Score       lmScore = languageModel_->scoreTokenSequence(hyp.lmHistory, lmEvent.tokens, newLmHistory);
 
             Nn::TransitionType wordEndtransitionType = Nn::TransitionType::WORD_EXIT;
             if (lemma == blankLemma_) {
@@ -874,7 +955,7 @@ bool TreeTimesyncBeamSearch::decodeStep() {
             // A completed ordinary word clears any fallback bookkeeping; blank,
             // silence and neutral exits leave a pending fallback word untouched.
             OovStateRef newOov = hyp.oov;
-            if (lmEvent.token != nullptr and excludeKnownWordsFromFallback_) {
+            if (not lmEvent.tokens.isEpsilon() and excludeKnownWordsFromFallback_) {
                 newOov = emptyOovState();
             }
 
@@ -886,6 +967,7 @@ bool TreeTimesyncBeamSearch::decodeStep() {
                     .baseHypIndex   = hypIndex,
                     .lmEvent        = lmEvent,
                     .oov            = newOov,
+                    .lmHistory      = newLmHistory,
             });
         }
     }
@@ -899,27 +981,40 @@ bool TreeTimesyncBeamSearch::decodeStep() {
         clog() << Core::XmlFull("num-word-end-hyps-after-score-pruning", wordEndExtensions_.size());
     }
 
-    // Create new word-end label hypotheses from word-end extension candidates and update the LM history.
-    // The history is advanced with exactly the token that was scored above, so score and
+    // Create new word-end label hypotheses from word-end extension candidates and prepare the new lookahead if its history has changed.
+    // The LM history of each candidate was advanced with exactly the tokens that were scored above, so score and
     // successor history can never disagree.
     wordEndHypotheses_.clear();
     for (auto& extension : wordEndExtensions_) {
         auto const& baseHyp = newBeam_[extension.baseHypIndex];
 
-        auto newLmHistory = baseHyp.lmHistory;
-        if (extension.lmEvent.token != nullptr) {
-            newLmHistory = languageModel_->extendedHistory(newLmHistory, extension.lmEvent.token);
-        }
-
-        if (extension.lmEvent.token != nullptr and extension.lmEvent.token == unknownSyntacticToken_) {
-            ++numUnknownWordEvents_;
-        }
-        if (extension.oov and not extension.lmEvent.viaUnknownRoute and extension.lmEvent.token != nullptr and
+        numUnknownWordEvents_ += numUnknownTokens(extension.lmEvent.tokens);
+        if (extension.oov and not extension.lmEvent.viaUnknownRoute and not extension.lmEvent.tokens.isEpsilon() and
             unknownWordFallback_->isFallbackLemma(extension.pron->lemma())) {
             ++numKnownResolvedFallbackWords_;
         }
 
-        wordEndHypotheses_.push_back({baseHyp, extension, newLmHistory});
+        LanguageModelLookahead::ContextLookaheadReference newLookahead        = baseHyp.lookahead;
+        Lm::History                                       newLookaheadHistory = baseHyp.lookaheadHistory;
+        Score                                             newLookaheadBackOff = baseHyp.lookaheadBackOff;
+
+        if (enableLmLookahead_) {
+            // Advance with the tokens of the word-LM event rather than those of `pron`: for a
+            // fallback piece they differ, since the search resolves the piece sequence into
+            // the known or unknown word it spells.
+            for (u32 ti = 0; ti < extension.lmEvent.tokens.length(); ++ti) {
+                newLookaheadHistory = lookaheadLm_->extendedHistory(newLookaheadHistory, extension.lmEvent.tokens[ti]);
+            }
+
+            if (!(newLookaheadHistory == baseHyp.lookaheadHistory)) {
+                // The lookahead context changed, so a table the base may have backed off to no
+                // longer applies: start the new word from the table for the new context.
+                getLmLookahead(newLookahead, newLookaheadHistory);
+                newLookaheadBackOff = 0.0;
+            }
+        }
+
+        wordEndHypotheses_.push_back({baseHyp, extension, newLookahead, newLookaheadHistory, newLookaheadBackOff});
     }
 
     recombination(wordEndHypotheses_, true);
@@ -1037,6 +1132,10 @@ void TreeTimesyncBeamSearch::logStatistics() const {
         // scored with their known LM token; in known-excluding mode none of them can
         // reach the unknown route.
         clog() << Core::XmlFull("num-known-resolved-fallback-words", numKnownResolvedFallbackWords_);
+    }
+
+    if (enableLmLookahead_) {
+        lmLookahead_->logStatistics();
     }
 }
 
@@ -1257,7 +1356,7 @@ void TreeTimesyncBeamSearch::recombination(std::vector<TreeTimesyncBeamSearch::L
             }
 
             auto* existingHyp = it->second;
-            if (hyp.score < existingHyp->score) {
+            if (hyp.score - hyp.lookaheadScore < existingHyp->score - existingHyp->lookaheadScore) {
                 // New hyp is better
                 if (createTraceSiblings) {
                     hyp.trace->sibling = existingHyp->trace;
@@ -1378,8 +1477,7 @@ void TreeTimesyncBeamSearch::createUnknownWordLookahead() {
             // and is corrected exactly at completion.
             return false;
         }
-        auto const& sts = lemma->syntacticTokenSequence();
-        return not(sts.size() == 1 and sts.front() == unknownSyntacticToken_);
+        return numUnknownTokens(lemma->syntacticTokenSequence()) == 0u;
     };
     auto exitIsNeutral = [this](PersistentStateTree::Exit const& exit) {
         auto const* lemma = lexicon_->lemmaPronunciation(exit.pronunciation)->lemma();
@@ -1482,18 +1580,19 @@ void TreeTimesyncBeamSearch::resolveWordLmEvents(OovState const& oov, std::vecto
 
     collectKnownLemmas(oov, knownLemmaBuffer_);
     for (auto const* lemma : knownLemmaBuffer_) {
-        auto const& sts = lemma->syntacticTokenSequence();
         WordLmEvent event;
-        event.token = sts.size() == 1 ? sts.front() : nullptr;
-        if (event.token != nullptr and event.token == unknownSyntacticToken_) {
-            // A lexical entry outside the word LM's vocabulary: unknown to the LM, so
-            // it takes `beta`, but its spelling is attested by the lexicon, so it does
-            // not keep the per-piece cost.
-            event.unknownBias = unknownWordPenalty_;
-        }
-        // Several known interpretations can carry the same LM token (pronunciation
+        event.tokens = lemma->syntacticTokenSequence();
+        // A lexical entry outside the word LM's vocabulary: unknown to the LM, so it
+        // takes `beta`, but its spelling is attested by the lexicon, so it does not
+        // keep the per-piece cost.
+        event.unknownBias = unknownWordPenalty_ * numUnknownTokens(event.tokens);
+        // Several known interpretations can carry the same LM tokens (pronunciation
         // variants, homophones). They would produce identical hypotheses, so keep one.
-        if (std::none_of(events.begin(), events.end(), [&](WordLmEvent const& seen) { return seen.token == event.token; })) {
+        auto const sameTokens = [&](WordLmEvent const& seen) {
+            return seen.tokens.length() == event.tokens.length() and
+                   std::equal(seen.tokens.begin(), seen.tokens.end(), event.tokens.begin());
+        };
+        if (std::none_of(events.begin(), events.end(), sameTokens)) {
             events.push_back(event);
         }
     }
@@ -1506,7 +1605,7 @@ void TreeTimesyncBeamSearch::resolveWordLmEvents(OovState const& oov, std::vecto
     }
 
     WordLmEvent unknownEvent;
-    unknownEvent.token           = unknownSyntacticToken_;
+    unknownEvent.tokens          = unknownTokenSequence_;
     unknownEvent.unknownBias     = unknownWordPenalty_;
     unknownEvent.viaUnknownRoute = true;
     events.push_back(unknownEvent);
@@ -1525,6 +1624,13 @@ Score TreeTimesyncBeamSearch::wordEndTransitionScore(LabelHypothesis const& hyp,
         score += (*scoreAccessor)->getScore(transitionType);
     }
     return score;
+}
+
+u32 TreeTimesyncBeamSearch::numUnknownTokens(Bliss::SyntacticTokenSequence const& tokens) const {
+    if (unknownSyntacticToken_ == nullptr or tokens.isEpsilon()) {
+        return 0u;
+    }
+    return static_cast<u32>(std::count(tokens.begin(), tokens.end(), unknownSyntacticToken_));
 }
 
 void TreeTimesyncBeamSearch::expandFallbackExit(LabelHypothesis const&           hyp,
@@ -1589,10 +1695,8 @@ void TreeTimesyncBeamSearch::expandFallbackExit(LabelHypothesis const&          
     Score const              transitionScore = wordEndTransitionScore(hyp, transitionType);
 
     for (auto const& event : wordLmEventBuffer_) {
-        Score lmScore = 0.0;
-        if (event.token != nullptr) {
-            lmScore = languageModel_->score(hyp.lmHistory, event.token);
-        }
+        Lm::History newLmHistory;
+        Score       lmScore = languageModel_->scoreTokenSequence(hyp.lmHistory, event.tokens, newLmHistory);
 
         // A word which turns out to be attested by the lexicon gets the provisional
         // per-piece cost of all its pieces refunded, so that both routes score it
@@ -1608,6 +1712,7 @@ void TreeTimesyncBeamSearch::expandFallbackExit(LabelHypothesis const&          
                 .baseHypIndex   = hypIndex,
                 .lmEvent        = event,
                 .oov            = pendingAfterExit,
+                .lmHistory      = newLmHistory,
         });
     }
 }
@@ -1632,12 +1737,15 @@ void TreeTimesyncBeamSearch::finalizeHypotheses() {
         for (size_t hypIndex = 0ul; hypIndex < tempHypotheses_.size(); ++hypIndex) {
             auto& hyp = tempHypotheses_[hypIndex];
             withinWordExtensions_.push_back(
-                    {sentenceEndLabelIndex_,
-                     hyp.currentState,
-                     hyp.trace->time,
-                     hyp.score,
-                     Nn::TransitionType::SENTENCE_END,
-                     hypIndex});
+                    {.nextToken        = sentenceEndLabelIndex_,
+                     .nextState        = hyp.currentState,
+                     .timeframe        = hyp.trace->time,
+                     .score            = hyp.score,
+                     .lookaheadScore   = 0,
+                     .lookahead        = {},
+                     .lookaheadBackOff = 0,
+                     .transitionType   = Nn::TransitionType::SENTENCE_END,
+                     .baseHypIndex     = hypIndex});
         }
 
         // Score sentence-end with all label scorers
@@ -1697,20 +1805,14 @@ void TreeTimesyncBeamSearch::finalizeHypotheses() {
             if (hyp.oov and hyp.oov->wordPending()) {
                 resolveWordLmEvents(*hyp.oov, wordLmEventBuffer_);
                 for (auto const& event : wordLmEventBuffer_) {
-                    Lm::History pendingHistory = hyp.lmHistory;
-                    Score       pendingScore   = event.unknownBias;
+                    Lm::History pendingHistory;
+                    Score       pendingScore = event.unknownBias + languageModel_->scoreTokenSequence(hyp.lmHistory, event.tokens, pendingHistory);
                     if (not event.viaUnknownRoute) {
                         // Refund the provisional per-piece cost of a pending word which
                         // the segment end resolves into a known pronunciation.
                         pendingScore -= unknownPiecePenalty_ * static_cast<Score>(hyp.oov->numPieces - 1u);
                     }
-                    if (event.token != nullptr) {
-                        pendingScore += languageModel_->score(hyp.lmHistory, event.token);
-                        pendingHistory = languageModel_->extendedHistory(hyp.lmHistory, event.token);
-                    }
-                    if (event.token != nullptr and event.token == unknownSyntacticToken_) {
-                        ++numUnknownWordEvents_;
-                    }
+                    numUnknownWordEvents_ += numUnknownTokens(event.tokens);
                     if (not event.viaUnknownRoute) {
                         ++numKnownResolvedFallbackWords_;
                     }
@@ -1723,6 +1825,7 @@ void TreeTimesyncBeamSearch::finalizeHypotheses() {
                             .baseHypIndex   = hypIndex,
                             .lmEvent        = event,
                             .oov            = emptyOovState(),
+                            .lmHistory      = hyp.lmHistory,
                     });
                 }
                 continue;
@@ -1739,6 +1842,7 @@ void TreeTimesyncBeamSearch::finalizeHypotheses() {
                     .baseHypIndex   = hypIndex,
                     .lmEvent        = WordLmEvent{},
                     .oov            = hyp.oov,
+                    .lmHistory      = hyp.lmHistory,
             });
         }
 
@@ -1750,7 +1854,7 @@ void TreeTimesyncBeamSearch::finalizeHypotheses() {
             // step. The whole difference to the base score (the finalization of a
             // pending fallback word plus the sentence-end score) is attributed to the
             // language model in the resulting trace.
-            tempHypotheses_.push_back({baseHyp, ext, baseHyp.lmHistory});
+            tempHypotheses_.push_back({baseHyp, ext, baseHyp.lookahead, baseHyp.lookaheadHistory, baseHyp.lookaheadBackOff});
         }
     }
     else {  // No valid final hypotheses and no sentence-end fallback
@@ -1781,6 +1885,56 @@ void TreeTimesyncBeamSearch::finalizeHypotheses() {
         ss << "\n";
         debugChannel_ << ss.str();
     }
+}
+
+void TreeTimesyncBeamSearch::getLmLookahead(LanguageModelLookahead::ContextLookaheadReference& lookahead, Lm::History history) {
+    lookahead = lmLookahead_->getLookahead(history);
+    lmLookahead_->fill(lookahead, sparseLmLookahead_);
+}
+
+Score TreeTimesyncBeamSearch::getLmLookaheadScore(TreeTimesyncBeamSearch::WithinWordExtensionCandidate& extension) {
+    // The resolved table/back-off belong to `extension.nextState`, not the base hypothesis, so
+    // they're stored on the candidate rather than written back to `baseHyp`
+    auto const& baseHyp = beam_[extension.baseHypIndex];
+
+    extension.lookahead        = baseHyp.lookahead;
+    extension.lookaheadBackOff = baseHyp.lookaheadBackOff;
+    if (!extension.lookahead) {
+        getLmLookahead(extension.lookahead, baseHyp.lookaheadHistory);
+        extension.lookaheadBackOff = 0.0;
+    }
+
+    Score lookaheadScore = 0;
+    bool  scoreFound     = false;
+    do {
+        if (extension.lookahead->isSparse()) {  // Sparse lookahead
+            auto lookaheadHash = lmLookahead_->lookaheadHash(extension.nextState);
+            scoreFound         = extension.lookahead->getScoreForLookAheadHashSparse(lookaheadHash, lookaheadScore);
+        }
+        else {  // Non-sparse lookahead
+            auto lookaheadId = lmLookahead_->lookaheadId(extension.nextState);
+            lookaheadScore   = extension.lookahead->scoreForLookAheadIdNormal(lookaheadId);
+            scoreFound       = true;
+        }
+
+        if (!scoreFound) {  // No lookahead table entry, use back-off
+            const Lm::BackingOffLm* lm = dynamic_cast<const Lm::BackingOffLm*>(lookaheadLm_->unscaled().get());
+            // Accumulated separately from lookaheadScore, since a successful lookup assigns rather than adds to it
+            extension.lookaheadBackOff += extension.lookahead->backOffScore();
+            // Reduce the active table's history (not the base hypothesis' one, which may differ
+            // under history-limit) to avoid re-selecting the same table and double-charging its back-off
+            Lm::History tableHistory   = extension.lookahead->history();
+            u32         lengthLimit    = std::max(lm->historyLength(tableHistory), 1u) - 1u;
+            auto        reducedHistory = lm->reducedHistory(tableHistory, lengthLimit);
+            if (reducedHistory == tableHistory) {
+                // Additional fail-safe for the loop. If we cannot reduce the history further we abort.
+                break;
+            }
+            getLmLookahead(extension.lookahead, reducedHistory);
+        }
+    } while (!scoreFound);
+
+    return lookaheadScore + extension.lookaheadBackOff;
 }
 
 void TreeTimesyncBeamSearch::maximumStableDelayPruning() {

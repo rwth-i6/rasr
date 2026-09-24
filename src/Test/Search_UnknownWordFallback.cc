@@ -542,6 +542,28 @@ TEST_F(Search, WordStartFallbackSearchTest, KnownWordIsResolvedOnTheFallbackRout
     EXPECT_DOUBLE_EQ(result.lmScore, costUnknown + costCat + costSentenceEnd, 1e-4);
 }
 
+TEST_F(Search, WordStartFallbackSearchTest, MultiTokenKnownWordIsResolvedWithAllItsTokens) {
+    // A lemma may advance the word LM by several syntactic tokens. On both routes the
+    // word must be scored with all of them, and an unknown token among them is one
+    // unknown word taking beta.
+    addLemma("the_cat", {"_the cat"}, "", {"THE", "CAT"});
+    addLemma("un_s", {"_un s s"}, "", {"<UNK>", "<UNK>"});
+    setParameter("*.unknown-word-penalty", "3.0");
+    buildSearch();
+
+    auto ordinary = decode({"_the", "cat"});
+    EXPECT_DOUBLE_EQ(ordinary.lmScore, costThe + costCat + costSentenceEnd, 1e-4);
+
+    // The unmarked first piece forces the fallback route, which resolves "_the cat"
+    // into the known lemma at the segment end.
+    auto fallback = decode({"zz", "_the", "cat"});
+    EXPECT_DOUBLE_EQ(fallback.lmScore, costUnknown + 3.0 + costThe + costCat + costSentenceEnd, 1e-4);
+
+    // The blank keeps CTC from collapsing the repeated piece.
+    auto twoUnknown = decode({"_un", "s", "blank", "s"});
+    EXPECT_DOUBLE_EQ(twoUnknown.lmScore, 2.0 * (costUnknown + 3.0) + costSentenceEnd, 1e-4);
+}
+
 TEST_F(Search, WordStartFallbackSearchTest, AlternateTokenizationOfAKnownSpellingStaysUnknown) {
     buildSearch();
     // "_un fam iliar" detokenizes to the known spelling "unfamiliar", but it is not the

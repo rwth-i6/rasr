@@ -30,8 +30,14 @@ Core::Ref<ScaledLabelScorer> EncoderDecoderLabelScorer::getDecoderLabelScorer() 
 }
 
 void EncoderDecoderLabelScorer ::reset() {
+    LabelScorer::reset();
     encoder_->reset();
     decoder_->reset();
+}
+
+void EncoderDecoderLabelScorer::logStatistics() const {
+    encoder_->logStatistics();
+    decoder_->logStatistics();
 }
 
 ScoringContextRef EncoderDecoderLabelScorer::getInitialScoringContext() {
@@ -64,11 +70,11 @@ void EncoderDecoderLabelScorer::signalNoMoreFeatures() {
     decoder_->signalNoMoreFeatures();
 }
 
-std::optional<ScoreAccessorRef> EncoderDecoderLabelScorer::getScoreAccessor(ScoringContextRef scoringContext) {
+std::optional<ScoreAccessorRef> EncoderDecoderLabelScorer::computeScoreAccessor(ScoringContextRef scoringContext) {
     return decoder_->getScoreAccessor(scoringContext);
 }
 
-std::vector<std::optional<ScoreAccessorRef>> EncoderDecoderLabelScorer::getScoreAccessors(std::vector<ScoringContextRef> const& scoringContexts) {
+std::vector<std::optional<ScoreAccessorRef>> EncoderDecoderLabelScorer::computeScoreAccessors(std::vector<ScoringContextRef> const& scoringContexts) {
     return decoder_->getScoreAccessors(scoringContexts);
 }
 

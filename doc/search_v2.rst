@@ -223,7 +223,28 @@ an optional blank label (for CTC/transducer) and optional silence and sentence-e
   further back than this many frames. This makes the traceback "stabilize" after at most this many frames,
   which is useful for low-latency streaming output. Default: disabled (unbounded).
 * ``maximum-stable-delay-pruning-interval`` (int): how often (in search steps) the above pruning is applied. Default ``10``.
-* ``log-stepwise-statistics`` (bool): log beam statistics at every search step, useful for tuning and debugging. Default ``false``.
+Logging channels
+^^^^^^^^^^^^^^^^
+
+Statistics are written to dedicated channels rather than to the component log directly, so each kind of
+output can be redirected or switched off independently. All of them are disabled unless a target is
+configured, so nothing is logged until you ask for it:
+
+* ``statistics``: per-segment timing and beam statistics.
+* ``stepwise-statistics``: beam statistics at every search step, useful for tuning and debugging.
+* ``debug``: per-hypothesis dumps for every search step.
+
+The label scorers and encoders each have their own ``statistics`` channel with the same meaning, so the
+statistics of an individual model can be enabled or disabled independently of those of the search.
+
+Point them at the same target as the log to get the statistics inside the log file, for example::
+
+    *.statistics.channel            = <log-target>
+    *.stepwise-statistics.channel   = <log-target>
+
+Note that a channel with no configured target falls back to ``stdout``, not to the target of the
+component log. If ``stdout`` is redirected to the log file by the surrounding job, that would be a
+second writer on the same file with its own file offset, which corrupts the output.
 
 Order of operations for one time-synchronous decoding step, assuming two label scorers ``L_1`` and ``L_2`` with
 ``max-beam-size = b_1 b_2`` and ``score-threshold = s_1 s_2``:
@@ -257,7 +278,7 @@ transition model. Hypotheses are terminated by an explicit sentence-end symbol r
 input frames. Its main purpose is open-vocabulary search with attention encoder-decoder (AED) or similar
 models.
 
-* ``max-beam-size`` (int list), ``num-histogram-bins`` (int), ``recombination-mode``, ``log-stepwise-statistics``,
+* ``max-beam-size`` (int list), ``num-histogram-bins`` (int), ``recombination-mode``,
   ``cache-cleanup-interval``: same meaning as for ``lexiconfree-timesync-beam-search`` above.
 * ``score-threshold`` (float list): same meaning as for ``lexiconfree-timesync-beam-search`` above. Always
   expressed in un-normalized score units, regardless of ``length-norm-scale``. When comparing hypotheses of
@@ -347,7 +368,7 @@ and state tying, not for scoring) and a language model, in addition to the label
 * ``separate-lookahead-lm`` (bool): use a separate LM for the lookahead instead of reusing ``language-model``.
   Default ``false``.
 * ``sparse-lm-lookahead`` (bool): use sparse instead of dense lookahead tables. Default ``true``.
-* ``recombination-mode``, ``log-stepwise-statistics``, ``cache-cleanup-interval``,
+* ``recombination-mode``, ``cache-cleanup-interval``,
   ``maximum-stable-delay``, ``maximum-stable-delay-pruning-interval``: same meaning as for
   ``lexiconfree-timesync-beam-search`` above.
 * ``tree-builder-type`` (enum): which tree builder is used to construct the search tree from the lexicon and
@@ -499,7 +520,7 @@ pronunciation) rather than being configurable as a separate parameter, so that i
 index used for the search tree itself.
 
 * ``max-beam-size``, ``max-word-end-beam-size``, ``word-end-score-threshold``, ``num-histogram-bins``,
-  ``sentence-end-fall-back``, ``recombination-mode``, ``log-stepwise-statistics``, ``cache-cleanup-interval``,
+  ``sentence-end-fall-back``, ``recombination-mode``, ``cache-cleanup-interval``,
   ``maximum-stable-delay``, ``maximum-stable-delay-pruning-interval``: same meaning and defaults as for
   ``tree-timesync-beam-search`` above.
 * ``score-threshold``: same meaning as for ``tree-timesync-beam-search`` above. Also interacts with
@@ -1364,7 +1385,7 @@ Tuning tips
   results change noticeably when tightening only one of the two, the other is likely already the binding
   constraint. To get the best speech-accuracy trade-off, you should usually have a well-tuned ``score-threshold``
   (as low as possible) with an additional high ``max-beam-size`` that mitigates peaks in the number of hypotheses.
-* Enable ``log-stepwise-statistics = true`` temporarily to see beam sizes and score spreads per step in the
+* Set ``stepwise-statistics.channel = log`` temporarily to see beam sizes and score spreads per step in the
   log, which helps decide which pruning parameter is actually limiting the beam.
 * For ``tree-timesync-beam-search``, tune ``max-word-end-beam-size``/``word-end-score-threshold``
   independently from the within-word beam if word-end hypotheses are pruned too aggressively (or not enough)

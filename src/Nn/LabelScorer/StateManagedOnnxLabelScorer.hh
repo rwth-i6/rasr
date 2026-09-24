@@ -76,11 +76,10 @@ public:
     ScoringContextRef getInitialScoringContext() override;
     ScoringContextRef extendedScoringContext(ScoringContextRef scoringContext, LabelIndex nextToken, TransitionType transitionType) override;
 
-    std::optional<ScoreAccessorRef>              getScoreAccessor(ScoringContextRef scoringContext) override;
-    std::vector<std::optional<ScoreAccessorRef>> getScoreAccessors(std::vector<ScoringContextRef> const& scoringContexts) override;
-
 protected:
-    size_t getMinActiveInputIndex(Core::CollapsedVector<ScoringContextRef> const& activeContexts) const override;
+    std::optional<ScoreAccessorRef>              computeScoreAccessor(ScoringContextRef scoringContext) override;
+    std::vector<std::optional<ScoreAccessorRef>> computeScoreAccessors(std::vector<ScoringContextRef> const& scoringContexts) override;
+    size_t                                       getMinActiveInputIndex(Core::CollapsedVector<ScoringContextRef> const& activeContexts) const override;
 
 private:
     void setupEncoderStatesValue();
@@ -110,6 +109,11 @@ private:
 
     Onnx::Value encoderStatesValue_;
     Onnx::Value encoderStatesSizeValue_;
+
+    void logScoringBreakdown() const override;
+
+    Core::StopWatch onnxSessionTime_;
+    Core::StopWatch contextPreparationTime_;
 
     Core::FIFOCache<StateManagedOnnxScoringContextRef, std::shared_ptr<std::vector<Score>>, ScoringContextHash, ScoringContextEq> scoreCache_;
     Core::FIFOCache<StateManagedOnnxScoringContextRef, std::shared_ptr<HistoryState>, ScoringContextHash, ScoringContextEq>       stateCache_;

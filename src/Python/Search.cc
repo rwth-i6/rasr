@@ -34,16 +34,48 @@ SearchAlgorithm::SearchAlgorithm(const Core::Configuration& c)
     searchAlgorithm_->setModelCombination(modelCombination_);
 }
 
+SearchAlgorithm::~SearchAlgorithm() {
+    closeSegmentLog();
+}
+
 Speech::ModelCombination& SearchAlgorithm::modelCombination() {
     return modelCombination_;
 }
 
-void SearchAlgorithm::enterSegment() {
+void SearchAlgorithm::enterSegment(std::string const& name) {
+    if (segmentOpen_) {
+        warning() << "enter_segment was called while segment " << segmentIndex_ << " is still open; closing it implicitly";
+        closeSegmentLog();
+    }
+
+    auto open = Core::XmlOpen("segment") + Core::XmlAttribute("index", segmentIndex_);
+    if (not name.empty()) {
+        open += Core::XmlAttribute("name", name);
+    }
+    clog() << open;
+    segmentOpen_ = true;
+
     searchAlgorithm_->enterSegment();
 }
 
 void SearchAlgorithm::finishSegment() {
+    // Run the search first so that its statistics are logged inside the segment element
     searchAlgorithm_->finishSegment();
+
+    if (not segmentOpen_) {
+        warning() << "finish_segment was called without a matching enter_segment";
+        return;
+    }
+    closeSegmentLog();
+}
+
+void SearchAlgorithm::closeSegmentLog() {
+    if (not segmentOpen_) {
+        return;
+    }
+    clog() << Core::XmlClose("segment");
+    segmentOpen_ = false;
+    ++segmentIndex_;
 }
 
 void SearchAlgorithm::putFeature(py::array_t<f32> const& feature) {
@@ -184,15 +216,15 @@ std::vector<Traceback> SearchAlgorithm::getCurrentNBestList(size_t nBestSize) {
     return result;
 }
 
-Traceback SearchAlgorithm::recognizeSegment(py::array_t<f32> const& features) {
-    enterSegment();
+Traceback SearchAlgorithm::recognizeSegment(py::array_t<f32> const& features, std::string const& name) {
+    enterSegment(name);
     putFeatures(features);
     finishSegment();
     return getCurrentBestTraceback();
 }
 
-std::vector<Traceback> SearchAlgorithm::recognizeSegmentNBest(py::array_t<f32> const& features, size_t nBestSize) {
-    enterSegment();
+std::vector<Traceback> SearchAlgorithm::recognizeSegmentNBest(py::array_t<f32> const& features, size_t nBestSize, std::string const& name) {
+    enterSegment(name);
     putFeatures(features);
     finishSegment();
     return getCurrentNBestList(nBestSize);

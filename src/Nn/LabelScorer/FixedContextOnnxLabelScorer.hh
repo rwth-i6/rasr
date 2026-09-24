@@ -74,15 +74,14 @@ public:
     // Clean up input buffer as well as cached score vectors that are no longer needed
     void cleanupCaches(Core::CollapsedVector<ScoringContextRef> const& activeContexts) override;
 
+protected:
     // If scores for the given scoring contexts are not yet cached, prepare and run an ONNX session to
     // compute the scores and cache them
-    std::vector<std::optional<ScoreAccessorRef>> getScoreAccessors(std::vector<ScoringContextRef> const& scoringContexts) override;
+    std::vector<std::optional<ScoreAccessorRef>> computeScoreAccessors(std::vector<ScoringContextRef> const& scoringContexts) override;
 
-    // Uses `getScoreAccessors` internally with some wrapping for vector packing/expansion
-    std::optional<ScoreAccessorRef> getScoreAccessor(ScoringContextRef scoringContext) override;
-
-protected:
-    size_t getMinActiveInputIndex(Core::CollapsedVector<ScoringContextRef> const& activeContexts) const override;
+    // Uses `computeScoreAccessors` internally with some wrapping for vector packing/expansion
+    std::optional<ScoreAccessorRef> computeScoreAccessor(ScoringContextRef scoringContext) override;
+    size_t                          getMinActiveInputIndex(Core::CollapsedVector<ScoringContextRef> const& activeContexts) const override;
 
 private:
     // Forward a batch of histories through the ONNX model and put the resulting scores into the score cache
@@ -102,6 +101,11 @@ private:
     std::string inputFeatureName_;
     std::string historyName_;
     std::string scoresName_;
+
+    void logScoringBreakdown() const override;
+
+    Core::StopWatch onnxSessionTime_;
+    Core::StopWatch contextPreparationTime_;
 
     std::unordered_map<SeqStepScoringContextRef, std::shared_ptr<std::vector<Score>>, ScoringContextHash, ScoringContextEq> scoreCache_;
 };

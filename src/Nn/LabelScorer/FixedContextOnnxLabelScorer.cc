@@ -239,10 +239,6 @@ std::vector<std::optional<ScoreAccessorRef>> FixedContextOnnxLabelScorer::getSco
             }
         }
 
-        if (uniqueUncachedContexts.empty()) {
-            continue;
-        }
-
         std::vector<SeqStepScoringContextRef> contextBatch;
         contextBatch.reserve(std::min(uniqueUncachedContexts.size(), maxBatchSize_));
         for (auto context : uniqueUncachedContexts) {

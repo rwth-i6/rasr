@@ -178,6 +178,14 @@ const Core::ParameterBool ChunkedOnnxEncoder::paramZeroPadding(
         "If set, add zero-padding features at beginning and end of segment so that these chunks have the same total size as the others.",
         false);
 
+const Core::ParameterBool ChunkedOnnxEncoder::paramKeepTrailingOutputs(
+        "keep-trailing-outputs",
+        "If set, the last chunk of a segment also emits the outputs whose associated input start lies at or beyond the last input feature. "
+        "An encoder that pads its input internally (e.g. a causal subsampling stack with offline padding) computes these from that padding, "
+        "and offline decoding of the same model sees them; without this they are dropped because no input range can be associated with them. "
+        "Their input range is clamped to the last input feature.",
+        false);
+
 const Core::Choice ChunkedOnnxEncoder::windowTypeChoice(
         "none", WindowType::None,
         "triangular", WindowType::Triangular,
@@ -211,6 +219,7 @@ ChunkedOnnxEncoder::ChunkedOnnxEncoder(Core::Configuration const& config, Nn::Mo
           leftPadding_(paramLeftPadding(config)),
           rightPadding_(paramRightPadding(config)),
           zeroPadding_(paramZeroPadding(config)),
+          keepTrailingOutputs_(paramKeepTrailingOutputs(config)),
           interpolationMode_(static_cast<InterpolationMode>(paramInterpolationMode(config))),
           chunkCenterStart_(0ul),
           numDiscardedFeatures_(0ul),
@@ -267,8 +276,13 @@ void ChunkedOnnxEncoder::encode() {
     size_t inputsPerOutput    = (inputsPerOutput_ != 0ul) ? inputsPerOutput_ : (totalSessionInputs / nOutputs + (totalSessionInputs % nOutputs != 0ul));
     size_t inputStep          = (inputStepSize_ != 0ul) ? inputStepSize_ : inputsPerOutput;
 
+    bool isLastChunk = not expectMoreFeatures_ and chunkCenterEnd == availableEnd;
+
     // Buffer all outputs for which the start input lies inside the interval [chunkCenterStart_, chunkCenterEnd)
     // The rest corresponds to the padding frames and gets skipped.
+    // Exception: on the last chunk of a segment with `keep-trailing-outputs`, the outputs past the chunk center are kept as well.
+    // These are the outputs the encoder computes from its own internal end-padding; their input range is clamped to the last feature.
+    bool   keepTrailing   = keepTrailingOutputs_ and isLastChunk;
     size_t startInput     = chunkStart;
     auto   weightIterator = window_.begin();
     for (size_t t = 0ul; t < nOutputs; ++t) {
@@ -276,24 +290,28 @@ void ChunkedOnnxEncoder::encode() {
         if (startInput >= chunkCenterStart_) {
             Nn::EncodedSpan output{
                     .encoding    = {outputView, outputSize, t * outputSize},
-                    .input_start = startInput,
+                    .input_start = std::min(startInput, availableEnd - 1ul),
                     .input_end   = endInput};
             if (interpolationMode_ == InterpolationMode::NoInterpolation) {
                 outputBuffer_.push_back(output);
             }
             else {
-                accumulatePendingOutput(output, *weightIterator);
+                // A trailing output lies outside the window and is the only contribution to its frame, so any weight
+                // is neutral after `PendingOutput::finalize`; 1 is neutral for the linear and the log-linear modes.
+                f32 weight = weightIterator != window_.end() ? *weightIterator : 1.0f;
+                accumulatePendingOutput(output, weight);
             }
-            ++weightIterator;
+            if (weightIterator != window_.end()) {
+                ++weightIterator;
+            }
         }
         startInput += inputStep;
 
-        if (startInput >= chunkCenterEnd) {
+        if (startInput >= chunkCenterEnd and not keepTrailing) {
             break;
         }
     }
 
-    bool isLastChunk  = not expectMoreFeatures_ and chunkCenterEnd == availableEnd;
     chunkCenterStart_ = isLastChunk ? availableEnd : chunkCenterStart_ + stepSize_;
 
     if (interpolationMode_ != InterpolationMode::NoInterpolation) {

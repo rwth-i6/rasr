@@ -1,54 +1,53 @@
-/** Copyright 2025 RWTH Aachen University. All rights reserved.
+/** Copyright 2026 RWTH Aachen University. All rights reserved.
  *
- *  Licensed under the RWTH ASR License (the "License");
- *  you may not use this file except in compliance with the License.
- *  You may obtain a copy of the License at
+ * Licensed under the RWTH ASR License (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
  *
- *      http://www.hltpr.rwth-aachen.de/rwth-asr/rwth-asr-license.html
+ * http://www.hltpr.rwth-aachen.de/rwth-asr/rwth-asr-license.html
  *
- *  Unless required by applicable law or agreed to in writing, software
- *  distributed under the License is distributed on an "AS IS" BASIS,
- *  WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
- *  See the License for the specific language governing permissions and
- *  limitations under the License.
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
  */
-
-#include "FixedContextOnnxLabelScorer.hh"
+#include "FullContextOnnxLabelScorer.hh"
 #include "ScoreAccessor.hh"
+
+#include <algorithm>
+#include <unordered_set>
+
+#include <Onnx/Value.hh>
 
 namespace Nn {
 
-const Core::ParameterInt FixedContextOnnxLabelScorer::paramStartLabelIndex(
+const Core::ParameterInt FullContextOnnxLabelScorer::paramStartLabelIndex(
         "start-label-index",
         "Initial history in the first step is filled with this label index.",
         0);
 
-const Core::ParameterInt FixedContextOnnxLabelScorer::paramHistoryLength(
-        "history-length",
-        "Number of previous labels that are passed as history.",
-        1);
-
-const Core::ParameterBool FixedContextOnnxLabelScorer::paramBlankUpdatesHistory(
+const Core::ParameterBool FullContextOnnxLabelScorer::paramBlankUpdatesHistory(
         "blank-updates-history",
         "Whether previously emitted blank labels should be included in the history.",
         false);
 
-const Core::ParameterBool FixedContextOnnxLabelScorer::paramSilenceUpdatesHistory(
+const Core::ParameterBool FullContextOnnxLabelScorer::paramSilenceUpdatesHistory(
         "silence-updates-history",
         "Whether previously emitted silence labels should be included in the history.",
         false);
 
-const Core::ParameterBool FixedContextOnnxLabelScorer::paramLoopUpdatesHistory(
+const Core::ParameterBool FullContextOnnxLabelScorer::paramLoopUpdatesHistory(
         "loop-updates-history",
         "Whether in the case of loop transitions every repeated emission should be separately included in the history.",
         false);
 
-const Core::ParameterInt FixedContextOnnxLabelScorer::paramMaxBatchSize(
+const Core::ParameterInt FullContextOnnxLabelScorer::paramMaxBatchSize(
         "max-batch-size",
         "Max number of histories that can be fed into the ONNX model at once.",
         Core::Type<int>::max);
 
-const Core::ParameterBool FixedContextOnnxLabelScorer::paramVerticalLabelTransition(
+const Core::ParameterBool FullContextOnnxLabelScorer::paramVerticalLabelTransition(
         "vertical-label-transition",
         "Whether (non-blank) label transitions should be vertical, i.e. not increase the time step.",
         false);
@@ -81,20 +80,26 @@ static const std::vector<Onnx::IOSpecification> ioSpec = {
                 false,
                 {Onnx::ValueType::TENSOR},
                 {Onnx::ValueDataType::INT32},
-                {{-1, -2}}},
+                {{-1, -2}}},  // [B, historyLength]
+        Onnx::IOSpecification{
+                "history-size",
+                Onnx::IODirection::INPUT,
+                false,
+                {Onnx::ValueType::TENSOR},
+                {Onnx::ValueDataType::INT32},
+                {{1}, {-1}}},  // [1] or [B]
         Onnx::IOSpecification{
                 "scores",
                 Onnx::IODirection::OUTPUT,
                 false,
                 {Onnx::ValueType::TENSOR},
                 {Onnx::ValueDataType::FLOAT},
-                {{-1, -2}}}};
+                {{-1, -2}}}};  // [B, numLabels]
 
-FixedContextOnnxLabelScorer::FixedContextOnnxLabelScorer(Core::Configuration const& config, ModelCache& modelCache)
+FullContextOnnxLabelScorer::FullContextOnnxLabelScorer(Core::Configuration const& config, ModelCache& modelCache)
         : Core::Component(config),
-          Precursor(config, TransitionPresetType::TRANSDUCER),
+          Precursor(config, TransitionPresetType::AED),
           startLabelIndex_(paramStartLabelIndex(config)),
-          historyLength_(paramHistoryLength(config)),
           blankUpdatesHistory_(paramBlankUpdatesHistory(config)),
           silenceUpdatesHistory_(paramSilenceUpdatesHistory(config)),
           loopUpdatesHistory_(paramLoopUpdatesHistory(config)),
@@ -106,21 +111,23 @@ FixedContextOnnxLabelScorer::FixedContextOnnxLabelScorer(Core::Configuration con
     Core::Configuration modelConfig(config, "onnx-model");
     auto                key = modelConfig.getSelection();
     onnxModel_              = modelCache.getOrCreate<Onnx::Model>(key, modelConfig, ioSpec);
-    inputFeatureName_       = onnxModel_->mapping.getOnnxName("input-feature");
-    encoderStatesName_      = onnxModel_->mapping.getOnnxName("encoder-states");
-    encoderStatesSizeName_  = onnxModel_->mapping.getOnnxName("encoder-states-size");
-    historyName_            = onnxModel_->mapping.getOnnxName("history");
-    scoresName_             = onnxModel_->mapping.getOnnxName("scores");
+
+    inputFeatureName_      = onnxModel_->mapping.getOnnxName("input-feature");
+    encoderStatesName_     = onnxModel_->mapping.getOnnxName("encoder-states");
+    encoderStatesSizeName_ = onnxModel_->mapping.getOnnxName("encoder-states-size");
+    historyName_           = onnxModel_->mapping.getOnnxName("history");
+    historySizeName_       = onnxModel_->mapping.getOnnxName("history-size");
+    scoresName_            = onnxModel_->mapping.getOnnxName("scores");
 }
 
-void FixedContextOnnxLabelScorer::reset() {
+void FullContextOnnxLabelScorer::reset() {
     Precursor::reset();
     scoreCache_.clear();
     encoderStatesValue_     = Onnx::Value();
     encoderStatesSizeValue_ = Onnx::Value();
 }
 
-void FixedContextOnnxLabelScorer::addInput(DataView const& input) {
+void FullContextOnnxLabelScorer::addInput(DataView const& input) {
     Precursor::addInput(input);
 
     if (not encoderStatesValue_.empty()) {  // Any previously computed encoder-states values are outdated now, so reset them
@@ -129,13 +136,13 @@ void FixedContextOnnxLabelScorer::addInput(DataView const& input) {
     }
 }
 
-ScoringContextRef FixedContextOnnxLabelScorer::getInitialScoringContext() {
+ScoringContextRef FullContextOnnxLabelScorer::getInitialScoringContext() {
     auto hist = Core::ref(new SeqStepScoringContext());
-    hist->labelSeq.resize(historyLength_, startLabelIndex_);
+    hist->labelSeq.push_back(startLabelIndex_);
     return hist;
 }
 
-size_t FixedContextOnnxLabelScorer::getMinActiveInputIndex(Core::CollapsedVector<ScoringContextRef> const& activeContexts) const {
+size_t FullContextOnnxLabelScorer::getMinActiveInputIndex(Core::CollapsedVector<ScoringContextRef> const& activeContexts) const {
     if (encoderStatesName_ != "" or encoderStatesSizeName_ != "") {
         // Full encoder-states sequence is needed for every scoring call, so the input buffer must not be trimmed
         return 0u;
@@ -150,7 +157,7 @@ size_t FixedContextOnnxLabelScorer::getMinActiveInputIndex(Core::CollapsedVector
     return minTimeIndex;
 }
 
-void FixedContextOnnxLabelScorer::cleanupCaches(Core::CollapsedVector<ScoringContextRef> const& activeContexts) {
+void FullContextOnnxLabelScorer::cleanupCaches(Core::CollapsedVector<ScoringContextRef> const& activeContexts) {
     Precursor::cleanupCaches(activeContexts);
 
     std::unordered_set<ScoringContextRef, ScoringContextHash, ScoringContextEq> activeContextSet(activeContexts.internalData().begin(), activeContexts.internalData().end());
@@ -165,7 +172,7 @@ void FixedContextOnnxLabelScorer::cleanupCaches(Core::CollapsedVector<ScoringCon
     }
 }
 
-ScoringContextRef FixedContextOnnxLabelScorer::extendedScoringContext(ScoringContextRef scoringContext, LabelIndex nextToken, TransitionType transitionType) {
+ScoringContextRef FullContextOnnxLabelScorer::extendedScoringContext(ScoringContextRef scoringContext, LabelIndex nextToken, TransitionType transitionType) {
     bool   pushToken     = false;
     size_t timeIncrement = 0ul;
     switch (transitionType) {
@@ -211,9 +218,10 @@ ScoringContextRef FixedContextOnnxLabelScorer::extendedScoringContext(ScoringCon
     SeqStepScoringContextRef seqStepScoringContext(dynamic_cast<SeqStepScoringContext const*>(scoringContext.get()));
 
     std::vector<LabelIndex> newLabelSeq;
-    newLabelSeq.reserve(seqStepScoringContext->labelSeq.size());
     if (pushToken) {
-        newLabelSeq.insert(newLabelSeq.end(), seqStepScoringContext->labelSeq.begin() + 1, seqStepScoringContext->labelSeq.end());
+        // Copy the complete old history and append the new token
+        newLabelSeq.reserve(seqStepScoringContext->labelSeq.size() + 1);
+        newLabelSeq.insert(newLabelSeq.end(), seqStepScoringContext->labelSeq.begin(), seqStepScoringContext->labelSeq.end());
         newLabelSeq.push_back(nextToken);
     }
     else {
@@ -223,7 +231,7 @@ ScoringContextRef FixedContextOnnxLabelScorer::extendedScoringContext(ScoringCon
     return Core::ref(new SeqStepScoringContext(std::move(newLabelSeq), seqStepScoringContext->currentStep + timeIncrement));
 }
 
-std::vector<std::optional<ScoreAccessorRef>> FixedContextOnnxLabelScorer::getScoreAccessors(std::vector<ScoringContextRef> const& scoringContexts) {
+std::vector<std::optional<ScoreAccessorRef>> FullContextOnnxLabelScorer::getScoreAccessors(std::vector<ScoringContextRef> const& scoringContexts) {
     if (scoringContexts.empty()) {
         return {};
     }
@@ -250,12 +258,15 @@ std::vector<std::optional<ScoreAccessorRef>> FixedContextOnnxLabelScorer::getSco
     for (size_t contextIndex = 0ul; contextIndex < scoringContexts.size(); ++contextIndex) {
         auto step = seqStepScoringContexts[contextIndex]->currentStep;
 
-        // If no input exists for this step (e.g. past the end of the segment), this context can't be forwarded
-        if (not getInput(step)) {
-            continue;
+        size_t groupKey = 0ul;
+        if (inputFeatureName_ != "") {
+            auto input = getInput(step);
+            if (not input) {
+                // If input is not available, this context can't be forwarded
+                continue;
+            }
+            groupKey = step;
         }
-
-        size_t groupKey = inputFeatureName_ != "" ? step : 0ul;
 
         contextsByTimestep[groupKey].push_back(contextIndex);
     }
@@ -287,7 +298,6 @@ std::vector<std::optional<ScoreAccessorRef>> FixedContextOnnxLabelScorer::getSco
                 contextBatch.clear();
             }
         }
-
         forwardBatch(contextBatch);  // Forward remaining histories
 
         // Create score accessors from cache
@@ -300,11 +310,11 @@ std::vector<std::optional<ScoreAccessorRef>> FixedContextOnnxLabelScorer::getSco
     return scoreAccessors;
 }
 
-std::optional<ScoreAccessorRef> FixedContextOnnxLabelScorer::getScoreAccessor(ScoringContextRef scoringContext) {
+std::optional<ScoreAccessorRef> FullContextOnnxLabelScorer::getScoreAccessor(ScoringContextRef scoringContext) {
     return getScoreAccessors({scoringContext})[0];
 }
 
-void FixedContextOnnxLabelScorer::forwardBatch(std::vector<SeqStepScoringContextRef> const& scoringContextBatch) {
+void FullContextOnnxLabelScorer::forwardBatch(std::vector<SeqStepScoringContextRef> const& scoringContextBatch) {
     if (scoringContextBatch.empty()) {
         return;
     }
@@ -331,14 +341,29 @@ void FixedContextOnnxLabelScorer::forwardBatch(std::vector<SeqStepScoringContext
         sessionInputs.emplace_back(encoderStatesSizeName_, encoderStatesSizeValue_);
     }
 
+    // Requests in this batch may have different history lengths, therefore the history tensor is
+    // padded to the longest one and history-size tells the model the true length of each entry
+    size_t maxHistoryLength = 0ul;
+    for (auto const& context : scoringContextBatch) {
+        maxHistoryLength = std::max(maxHistoryLength, context->labelSeq.size());
+    }
+
+    Math::FastMatrix<s32> historyMat(maxHistoryLength, scoringContextBatch.size());
+    historyMat.fill(0);
+
+    std::vector<s32> historySizes(scoringContextBatch.size());
+
     // Create batched context input
-    Math::FastMatrix<s32> historyMat(historyLength_, scoringContextBatch.size());
     for (size_t b = 0ul; b < scoringContextBatch.size(); ++b) {
-        auto context = scoringContextBatch[b];
-        std::copy(context->labelSeq.begin(), context->labelSeq.end(), &(historyMat.at(0, b)));  // Pointer to first element in column b
+        auto const& context = scoringContextBatch[b];
+        historySizes[b]     = static_cast<s32>(context->labelSeq.size());
+        if (not context->labelSeq.empty()) {
+            std::copy(context->labelSeq.begin(), context->labelSeq.end(), &(historyMat.at(0, b)));  // Pointer to first element in column b
+        }
     }
 
     sessionInputs.emplace_back(historyName_, Onnx::Value::create(historyMat, true));
+    sessionInputs.emplace_back(historySizeName_, Onnx::Value::create(historySizes));
 
     /*
      * Run session
@@ -356,7 +381,7 @@ void FixedContextOnnxLabelScorer::forwardBatch(std::vector<SeqStepScoringContext
     }
 }
 
-void FixedContextOnnxLabelScorer::setupEncoderStatesValue() {
+void FullContextOnnxLabelScorer::setupEncoderStatesValue() {
     if (not encoderStatesValue_.empty()) {
         return;
     }
@@ -372,7 +397,7 @@ void FixedContextOnnxLabelScorer::setupEncoderStatesValue() {
     }
 }
 
-void FixedContextOnnxLabelScorer::setupEncoderStatesSizeValue() {
+void FullContextOnnxLabelScorer::setupEncoderStatesSizeValue() {
     if (not encoderStatesSizeValue_.empty()) {
         return;
     }

@@ -1,22 +1,27 @@
-/** Copyright 2025 RWTH Aachen University. All rights reserved.
+/** Copyright 2026 RWTH Aachen University. All rights reserved.
  *
- *  Licensed under the RWTH ASR License (the "License");
- *  you may not use this file except in compliance with the License.
- *  You may obtain a copy of the License at
+ * Licensed under the RWTH ASR License (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
  *
- *      http://www.hltpr.rwth-aachen.de/rwth-asr/rwth-asr-license.html
+ * http://www.hltpr.rwth-aachen.de/rwth-asr/rwth-asr-license.html
  *
- *  Unless required by applicable law or agreed to in writing, software
- *  distributed under the License is distributed on an "AS IS" BASIS,
- *  WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
- *  See the License for the specific language governing permissions and
- *  limitations under the License.
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
  */
-
-#ifndef FIXED_CONTEXT_ONNX_LABEL_SCORER_HH
-#define FIXED_CONTEXT_ONNX_LABEL_SCORER_HH
+#ifndef FULL_CONTEXT_ONNX_LABEL_SCORER_HH
+#define FULL_CONTEXT_ONNX_LABEL_SCORER_HH
 
 #include <Onnx/Model.hh>
+
+#include <memory>
+#include <optional>
+#include <string>
+#include <unordered_map>
+#include <vector>
 
 #include "BufferedLabelScorer.hh"
 #include "ModelCache.hh"
@@ -24,9 +29,17 @@
 namespace Nn {
 
 /*
- * Label Scorer that performs scoring by forwarding some form of acoustic input together with a
- * fixed-size sequence of history tokens through an ONNX model.
- * A common use case would be a neural transducer model with a fixed-size history.
+ * Label scorer that forwards the complete label history together with some form of
+ * acoustic input through a single ONNX model.
+ *
+ * This is stateless with respect to the ONNX model: the full history is supplied
+ * as input on every scoring call. Unlike FixedContextOnnxLabelScorer, the history
+ * is never truncated.
+ *
+ * Since histories in a batch can have different lengths, the "history" input is padded
+ * to the longest one in the batch and the "history-size" input tells the model the true
+ * length of each entry, so the model itself is responsible for handling the padding
+ * correctly (e.g. via masking).
  *
  * The acoustic input can be given to the ONNX model in one of two ways, depending on
  * which inputs are mapped in the model's ONNX I/O spec:
@@ -40,11 +53,10 @@ namespace Nn {
  * Both can also be mapped at once, in which case the model receives both the current
  * frame and the full sequence.
  */
-class FixedContextOnnxLabelScorer : public BufferedLabelScorer {
+class FullContextOnnxLabelScorer : public BufferedLabelScorer {
     using Precursor = BufferedLabelScorer;
 
     static const Core::ParameterInt  paramStartLabelIndex;
-    static const Core::ParameterInt  paramHistoryLength;
     static const Core::ParameterBool paramBlankUpdatesHistory;
     static const Core::ParameterBool paramSilenceUpdatesHistory;
     static const Core::ParameterBool paramLoopUpdatesHistory;
@@ -52,8 +64,8 @@ class FixedContextOnnxLabelScorer : public BufferedLabelScorer {
     static const Core::ParameterInt  paramMaxBatchSize;
 
 public:
-    FixedContextOnnxLabelScorer(Core::Configuration const& config, ModelCache& modelCache);
-    virtual ~FixedContextOnnxLabelScorer() = default;
+    FullContextOnnxLabelScorer(Core::Configuration const& config, ModelCache& modelCache);
+    virtual ~FullContextOnnxLabelScorer() = default;
 
     // Clear feature buffer and cached scores
     void reset() override;
@@ -61,7 +73,7 @@ public:
     // Add a single input feature to the buffer
     void addInput(DataView const& input) override;
 
-    // Initial scoring context contains step 0 and a history vector filled with the start label index
+    // Initial scoring context contains step 0 and a single start-label-index as history
     ScoringContextRef getInitialScoringContext() override;
 
     // May increment the step by 1 (except for vertical transitions) and may append the next token to the
@@ -84,6 +96,7 @@ protected:
 
 private:
     // Forward a batch of histories through the ONNX model and put the resulting scores into the score cache
+    // The history tensor is padded to the longest one and history-size contains the true length of each entry.
     // If a per-frame input-feature is used, all histories in the batch must be based on the same timestep
     void forwardBatch(std::vector<SeqStepScoringContextRef> const& scoringContextBatch);
 
@@ -92,7 +105,6 @@ private:
     void setupEncoderStatesSizeValue();
 
     size_t startLabelIndex_;
-    size_t historyLength_;
     bool   blankUpdatesHistory_;
     bool   silenceUpdatesHistory_;
     bool   loopUpdatesHistory_;
@@ -105,6 +117,7 @@ private:
     std::string encoderStatesName_;
     std::string encoderStatesSizeName_;
     std::string historyName_;
+    std::string historySizeName_;
     std::string scoresName_;
 
     // Store the onnx values with all encoder states and lengths inside so that it doesn't have to be recomputed every time
@@ -116,4 +129,4 @@ private:
 
 }  // namespace Nn
 
-#endif  // FIXED_CONTEXT_ONNX_LABEL_SCORER_HH
+#endif  // FULL_CONTEXT_ONNX_LABEL_SCORER_HH

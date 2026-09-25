@@ -158,6 +158,17 @@ Fsa::ConstAutomatonRef LanguageModel::getFsa() const {
     return Fsa::ConstAutomatonRef();
 }
 
+Score LanguageModel::scoreTokenSequence(const History& h, const Bliss::SyntacticTokenSequence& tokens, History& resultHistory) const {
+    Score   result  = 0.0;
+    History history = h;
+    for (u32 ti = 0; ti < tokens.length(); ++ti) {
+        result += score(history, tokens[ti]);
+        history = extendedHistory(history, tokens[ti]);
+    }
+    resultHistory = history;
+    return result;
+}
+
 History LanguageModel::reducedHistory(const History& h, u32) const {
     return h;
 }

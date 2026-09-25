@@ -515,6 +515,23 @@ public:
     virtual Score score(const History&, Token w) const = 0;
 
     /**
+     * Probability of a sequence of tokens to follow a given history.
+     * Since the history has to be extended by the tokens for scoring
+     * anyway, the fully extended history is returned as well.
+     *
+     * @param resultHistory: set to the given history extended by all
+     * tokens in order (unchanged for an empty sequence)
+     * @return: sum of the scores of each token given the history
+     * extended by all preceding tokens of the sequence, i.e.
+     * -log(p(w_1 ... w_n | h)).  An empty sequence has score 0.
+     * The default implementation calls score() and
+     * extendedHistory() for each token.  Language models may
+     * override this if they can score multiple tokens more
+     * efficiently at once.
+     */
+    virtual Score scoreTokenSequence(const History&, const Bliss::SyntacticTokenSequence& tokens, History& resultHistory) const;
+
+    /**
      * Some LMs might cache scores and thus provide fast
      * access. If we use the skip heuristic in the combined
      * LM we do not have to skip if the score is computed

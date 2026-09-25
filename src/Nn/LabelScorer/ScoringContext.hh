@@ -19,6 +19,7 @@
 #include <Core/ReferenceCounting.hh>
 #include <Mm/Types.hh>
 #include <Nn/AbstractStateManager.hh>
+#include <Onnx/Value.hh>
 
 #include "Types.hh"
 
@@ -68,6 +69,18 @@ struct StepScoringContext : public ScoringContext {
 };
 
 typedef Core::Ref<StepScoringContext const> StepScoringContextRef;
+
+/*
+ * Hidden state represented by a dictionary of named ONNX values
+ */
+struct OnnxHiddenState : public Core::ReferenceCounted {
+    std::unordered_map<std::string, Onnx::Value> stateValueMap;
+
+    OnnxHiddenState();
+    OnnxHiddenState(std::vector<std::string>&& names, std::vector<Onnx::Value>&& values);
+};
+
+typedef Core::Ref<OnnxHiddenState const> OnnxHiddenStateRef;
 
 }  // namespace Nn
 

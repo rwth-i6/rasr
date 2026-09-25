@@ -15,7 +15,11 @@
 #ifndef SEARCH_HELPERS_HH
 #define SEARCH_HELPERS_HH
 
+#include <algorithm>
+#include <cmath>
+
 #include <Core/Types.hh>
+#include <Search/Types.hh>
 
 namespace Search {
 
@@ -36,6 +40,19 @@ inline f32 scaledLogAdd(f32 a, f32 b, f32 scale, f32 invertedScale) {
 inline bool approximatelyEqual(double a, double b, const double threshold = 0.001) {
     double diff = a - b;
     return diff > -threshold && diff < threshold;
+}
+
+/*
+ * Penalty charged on every BLANK_EXIT so that among the otherwise identically scored segmentations of
+ * a sequence of blank frames, the one with the fewest blank exits wins the recombination.
+ *
+ * It scales with the score because `Score` is a 32-bit float: a constant epsilon would round away once
+ * the accumulated score grows. At ~8-16 ULP it always changes the score and never outweighs a real one.
+ */
+inline Score blankExitPenalty(Score score) {
+    static constexpr Score relativeEpsilon = 8 * Core::Type<Score>::epsilon;
+    // The lower bound on the magnitude keeps the penalty well-defined for a score of (close to) zero.
+    return relativeEpsilon * std::max(std::abs(score), static_cast<Score>(1.0));
 }
 
 }  // namespace Search

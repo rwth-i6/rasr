@@ -26,6 +26,7 @@
 #include <Math/Utilities.hh>
 #include <Nn/LabelScorer/LabelScorer.hh>
 #include <Nn/LabelScorer/ScoringContext.hh>
+#include <Search/Helpers.hh>
 #include <Search/Module.hh>
 #include <Search/Traceback.hh>
 #include <Search/TracebackHelper.hh>
@@ -823,7 +824,10 @@ bool TreeLabelsyncBeamSearch::decodeStep() {
 
             Score              penalty               = 0.0;
             Nn::TransitionType wordEndtransitionType = Nn::TransitionType::WORD_EXIT;
-            if (lemma == lexicon_->specialLemma("silence")) {
+            if (lemma == lexicon_->specialLemma("blank")) {
+                wordEndtransitionType = Nn::TransitionType::BLANK_EXIT;
+            }
+            else if (lemma == lexicon_->specialLemma("silence")) {
                 wordEndtransitionType = Nn::TransitionType::SILENCE_EXIT;
             }
             else if (nonWordLemmas_.contains(lemma)) {
@@ -838,6 +842,10 @@ bool TreeLabelsyncBeamSearch::decodeStep() {
                     continue;
                 }
                 penalty += (*scoreAccessor)->getScore(wordEndtransitionType);
+            }
+
+            if (wordEndtransitionType == Nn::TransitionType::BLANK_EXIT) {
+                penalty += blankExitPenalty(hyp.score);
             }
 
             wordEndExtensions_.push_back({

@@ -783,12 +783,22 @@ single ``encoder-only`` label scorer instead.
 fixed-context-onnx
 ^^^^^^^^^^^^^^^^^^^^
 
-Forwards the input feature of the current timestep together with a fixed-size window of previous label-history
+Forwards some form of acoustic input together with a fixed-size window of previous label-history
 tokens through an ONNX model. A typical use case is a neural transducer prediction network with a fixed-size
-history instead of a recurrent state.
+history instead of a recurrent state. The acoustic input can be given to the model in one of two
+ways, depending on which inputs are mapped in the model's ONNX I/O spec (both can also be mapped at once, in
+which case the model receives both):
 
-* ``onnx-model.io-map.input-feature`` / ``history`` / ``scores`` : ONNX tensor names for the current feature,
-  the history-token tensor and the resulting score vector, respectively.
+* ``input-feature``: only the input feature at the hypothesis' current timestep is fed in, re-selected on every
+  scoring call. This works incrementally as features arrive.
+* ``encoder-states`` / ``encoder-states-size``: the complete input sequence collected so far is fed in as one
+  tensor, together with its length. Since this requires the whole sequence, scoring only starts once all
+  features of the segment have been passed (i.e. after ``signalNoMoreFeatures``/``finishSegment``), and the
+  input buffer is never trimmed. Hypotheses can still only be scored for timesteps that exist in the input sequence.
+
+* ``onnx-model.io-map.input-feature`` / ``encoder-states`` / ``encoder-states-size`` / ``history`` /
+  ``scores`` : ONNX tensor names for the respective inputs/outputs. ``history`` and ``scores`` are always
+  required and at least one of ``input-feature`` or ``encoder-states`` must be mapped.
 * ``start-label-index`` (int): label index used to pad the history before any label has been emitted. Default ``0``.
 * ``history-length`` (int): number of previous labels kept and passed as history. Default ``1``.
 * ``blank-updates-history`` / ``silence-updates-history`` / ``loop-updates-history`` (bool): whether a

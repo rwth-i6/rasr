@@ -123,6 +123,8 @@ FullContextOnnxLabelScorer::FullContextOnnxLabelScorer(Core::Configuration const
 void FullContextOnnxLabelScorer::reset() {
     Precursor::reset();
     scoreCache_.clear();
+    encoderStatesValue_     = Onnx::Value();
+    encoderStatesSizeValue_ = Onnx::Value();
 }
 
 void FullContextOnnxLabelScorer::addInput(DataView const& input) {

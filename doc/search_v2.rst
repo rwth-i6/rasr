@@ -324,7 +324,7 @@ can emit more than one non-blank label within the same input timestep, so the se
 each timestep: a hypothesis keeps being extended with further non-blank labels until it emits blank (finishing
 it for that timestep) or the per-timestep label limit is reached.
 
-* ``max-beam-size`` (int list), ``score-threshold`` (float list): same meaning as for
+* ``max-beam-size`` (int list), ``score-threshold`` (float list), ``num-histogram-bins``: same meaning as for
   ``lexiconfree-timesync-beam-search`` above.
 * ``length-norm-scale`` (float): same meaning as for ``lexiconfree-labelsync-beam-search`` above.
   Only the beam pruning done at the end of each timestep (across that timestep's finished hypotheses)

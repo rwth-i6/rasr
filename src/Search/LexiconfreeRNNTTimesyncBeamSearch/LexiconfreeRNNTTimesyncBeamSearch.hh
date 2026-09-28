@@ -23,6 +23,7 @@
 #include <Nn/LabelScorer/DataView.hh>
 #include <Nn/LabelScorer/LabelScorer.hh>
 #include <Nn/LabelScorer/ScoringContext.hh>
+#include <Search/Histogram.hh>
 #include <Search/SearchV2.hh>
 #include <Search/Traceback.hh>
 
@@ -44,6 +45,7 @@ class LexiconfreeRNNTTimesyncBeamSearch : public SearchAlgorithmV2 {
 public:
     static const Core::ParameterIntVector   paramMaxBeamSizes;
     static const Core::ParameterFloatVector paramScoreThresholds;
+    static const Core::ParameterInt         paramNumHistogramBins;
     static const Core::ParameterFloat       paramLengthNormScale;
     static const Core::ParameterInt         paramMaxLabelsPerFrame;
     static const Core::ParameterInt         paramBlankLabelIndex;
@@ -122,6 +124,7 @@ private:
     std::vector<size_t> maxBeamSizes_;
     std::vector<bool>   useScorePruning_;
     std::vector<Score>  scoreThresholds_;
+    Histogram           scoreHistogram_;
     float               lengthNormScale_;
     size_t              maxLabelsPerFrame_;
     Nn::LabelIndex      blankLabelIndex_;
@@ -178,8 +181,8 @@ private:
     Nn::TransitionType inferTransitionType(Nn::LabelIndex prevLabel, Nn::LabelIndex nextLabel) const;
 
     /*
-     * Score `extensions` with labelScorers_[1..], applying intermediate score-threshold and
-     * max-beam-size pruning after each of them except the last
+     * Score `extensions` (raw score) with labelScorers_[1..], applying intermediate score-threshold
+     * and max-beam-size pruning after each of them except the last
      */
     void scoreWithRemainingLabelScorers(std::vector<ExtensionCandidate>& extensions, std::vector<LabelHypothesis> const& baseHyps);
 
@@ -189,16 +192,12 @@ private:
     std::vector<Nn::ScoringContextRef> extendedScoringContexts(LabelHypothesis const& baseHyp, ExtensionCandidate const& extension);
 
     /*
-     * Helper functions for pruning to maxBeamSizes_.back()
+     * Helper function for pruning to a given score-threshold/max-beam-size, approximated via
+     * scoreHistogram_. Compares elements via `scoreFn`, so the caller states explicitly whether that
+     * means raw or length-normalized (scaled) score for the given Element type
      */
-    void beamSizePruning(std::vector<LabelHypothesis>& hypotheses) const;
-    void beamSizePruningLengthnormalized(std::vector<LabelHypothesis>& hypotheses) const;
-
-    /*
-     * Helper functions for pruning to a given score-threshold/max-beam-size
-     */
-    void scorePruning(std::vector<ExtensionCandidate>& extensions, Score relativeThreshold, size_t maxBeamSize) const;
-    void scorePruningLengthnormalized(std::vector<LabelHypothesis>& hypotheses) const;
+    template<typename Element, typename ScoreFn>
+    void scorePruning(std::vector<Element>& elements, Score relativeThreshold, size_t maxBeamSize, ScoreFn scoreFn);
 
     /*
      * Helper function for recombination of hypotheses with the same scoring context

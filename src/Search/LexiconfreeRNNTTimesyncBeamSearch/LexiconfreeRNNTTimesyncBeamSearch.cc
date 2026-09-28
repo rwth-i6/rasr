@@ -133,6 +133,12 @@ const Core::ParameterFloatVector LexiconfreeRNNTTimesyncBeamSearch::paramScoreTh
         0,
         Core::Type<Score>::max);
 
+const Core::ParameterInt LexiconfreeRNNTTimesyncBeamSearch::paramNumHistogramBins(
+        "num-histogram-bins",
+        "Number of bins for histogram pruning of hypotheses (very minor effect).",
+        100,
+        2);
+
 const Core::ParameterFloat LexiconfreeRNNTTimesyncBeamSearch::paramLengthNormScale(
         "length-norm-scale",
         "Exponent of length for the hypothesis length normalization. Scaled scores are computed as score / length^length_norm_scale.",
@@ -201,6 +207,7 @@ const Core::ParameterChoice LexiconfreeRNNTTimesyncBeamSearch::paramRecombinatio
 LexiconfreeRNNTTimesyncBeamSearch::LexiconfreeRNNTTimesyncBeamSearch(Core::Configuration const& config)
         : Core::Component(config),
           SearchAlgorithmV2(config),
+          scoreHistogram_(paramNumHistogramBins(config)),
           lengthNormScale_(paramLengthNormScale(config)),
           maxLabelsPerFrame_(paramMaxLabelsPerFrame(config)),
           blankLabelIndex_(paramBlankLabelIndex(config)),
@@ -546,7 +553,7 @@ bool LexiconfreeRNNTTimesyncBeamSearch::decodeStep() {
             if (labelScorers_.size() > 1ul) {
                 maxBeamSize = maxBeamSizes_.front();
             }
-            scorePruning(extensions_, scoreThresholds_.front(), maxBeamSize);
+            scorePruning(extensions_, scoreThresholds_.front(), maxBeamSize, [](auto const& ext) { return ext.score; });
         }
         scoreWithRemainingLabelScorers(extensions_, innerHyps_);
 
@@ -558,7 +565,7 @@ bool LexiconfreeRNNTTimesyncBeamSearch::decodeStep() {
         }
 
         // Prune new inner hyps down to maxBeamSize based on the raw score
-        beamSizePruning(newBeam_);
+        scorePruning(newBeam_, Core::Type<Score>::max, maxBeamSizes_.back(), [](auto const& hyp) { return hyp.score; });
 
         // If there are already more than maxBeamSize outer hyps,
         // remove all inner hyps with a score that is lower than the worst score of the max-beam-size best outer hyps
@@ -596,9 +603,15 @@ bool LexiconfreeRNNTTimesyncBeamSearch::decodeStep() {
 
     // Prune all hyps of this timestep at the end of this timestep based on the length-normalized score
     if (useScorePruning_.back()) {
-        scorePruningLengthnormalized(outerHyps_);
+        // convert score-threshold to an equivalent length-normalized-score gap using the current best hypothesis's length
+        Score relativeThreshold = scoreThresholds_.back();
+        if (lengthNormScale_ != 0.0f and not outerHyps_.empty()) {
+            auto const& bestHyp = *std::min_element(outerHyps_.begin(), outerHyps_.end());
+            relativeThreshold /= std::pow(bestHyp.length, lengthNormScale_);
+        }
+        scorePruning(outerHyps_, relativeThreshold, outerHyps_.size(), [](auto const& hyp) { return hyp.scaledScore; });
     }
-    beamSizePruningLengthnormalized(outerHyps_);
+    scorePruning(outerHyps_, Core::Type<Score>::max, maxBeamSizes_.back(), [](auto const& hyp) { return hyp.scaledScore; });
 
     // The leftover outer hyps of this timestep will be the inner hyps to start with in the next timestep
     beam_ = outerHyps_;
@@ -784,13 +797,11 @@ void LexiconfreeRNNTTimesyncBeamSearch::scoreWithRemainingLabelScorers(
         if (scorerIdx < labelScorers_.size() - 1) {
             maxBeamSize = maxBeamSizes_[scorerIdx];
         }
-        scorePruning(extensions, scoreThresholds_[scorerIdx], maxBeamSize);
+        scorePruning(extensions, scoreThresholds_[scorerIdx], maxBeamSize, [](auto const& ext) { return ext.score; });
     }
 }
 
-std::vector<Nn::ScoringContextRef> LexiconfreeRNNTTimesyncBeamSearch::extendedScoringContexts(
-        LabelHypothesis const&    baseHyp,
-        ExtensionCandidate const& extension) {
+std::vector<Nn::ScoringContextRef> LexiconfreeRNNTTimesyncBeamSearch::extendedScoringContexts(LabelHypothesis const& baseHyp, ExtensionCandidate const& extension) {
     contextExtensionTime_.start();
     std::vector<Nn::ScoringContextRef> newScoringContexts;
     newScoringContexts.reserve(labelScorers_.size());
@@ -804,83 +815,69 @@ std::vector<Nn::ScoringContextRef> LexiconfreeRNNTTimesyncBeamSearch::extendedSc
     return newScoringContexts;
 }
 
-void LexiconfreeRNNTTimesyncBeamSearch::beamSizePruning(std::vector<LabelHypothesis>& hypotheses) const {
-    if (hypotheses.size() <= maxBeamSizes_.back()) {
-        return;
-    }
-
-    // Reorder the hypotheses by associated score value such that the first `beamSize_` elements are the best
-    std::nth_element(hypotheses.begin(), hypotheses.begin() + maxBeamSizes_.back(), hypotheses.end(),
-                     [](auto const& a, auto const& b) { return a.score < b.score; });
-    hypotheses.resize(maxBeamSizes_.back());  // Get rid of excessive elements
-}
-
-void LexiconfreeRNNTTimesyncBeamSearch::beamSizePruningLengthnormalized(std::vector<LabelHypothesis>& hypotheses) const {
-    if (hypotheses.size() <= maxBeamSizes_.back()) {
-        return;
-    }
-
-    // Reorder the hypotheses by associated scaledScore value such that the first `beamSize_` elements are the best
-    std::nth_element(hypotheses.begin(), hypotheses.begin() + maxBeamSizes_.back(), hypotheses.end());
-    hypotheses.resize(maxBeamSizes_.back());  // Get rid of excessive elements
-}
-
-void LexiconfreeRNNTTimesyncBeamSearch::scorePruning(std::vector<ExtensionCandidate>& extensions, Score relativeThreshold, size_t maxBeamSize) const {
-    // Remove extensions that could not be scored by some label scorer
-    extensions.erase(
+template<typename Element, typename ScoreFn>
+void LexiconfreeRNNTTimesyncBeamSearch::scorePruning(std::vector<Element>& elements, Score relativeThreshold, size_t maxBeamSize, ScoreFn scoreFn) {
+    // Remove elements that could not be scored by some label scorer
+    elements.erase(
             std::remove_if(
-                    extensions.begin(),
-                    extensions.end(),
-                    [](auto const& ext) { return Math::isinf(ext.score) or ext.score >= Core::Type<Score>::max; }),
-            extensions.end());
+                    elements.begin(),
+                    elements.end(),
+                    [](auto const& elem) { return Math::isinf(elem.score) or elem.score >= Core::Type<Score>::max; }),
+            elements.end());
 
-    if (extensions.empty()) {
+    if (elements.empty()) {
         return;
     }
+
+    if (elements.size() <= maxBeamSize and relativeThreshold == Core::Type<Score>::max) {
+        // Neither relative score pruning nor max beam size pruning triggers
+        return;
+    }
+
+    Score lowerScore = Core::Type<Score>::max;
+    Score upperScore = Core::Type<Score>::min;
+    for (auto const& elem : elements) {
+        lowerScore = std::min(lowerScore, scoreFn(elem));
+        upperScore = std::max(upperScore, scoreFn(elem));
+    }
+
+    if (lowerScore == upperScore) {
+        // All scores are the same (usually only happens when exactly 1 element is active)
+        if (elements.size() > maxBeamSize) {
+            elements.resize(maxBeamSize);
+        }
+        return;
+    }
+
+    Score absoluteThreshold = upperScore;
 
     // Prune by relative score threshold
     if (relativeThreshold != Core::Type<Score>::max) {
-        auto bestScore = std::min_element(
-                                 extensions.begin(),
-                                 extensions.end(),
-                                 [](auto const& a, auto const& b) { return a.score < b.score; })
-                                 ->score;
-        auto pruningThreshold = bestScore + relativeThreshold;
-
-        extensions.erase(
-                std::remove_if(
-                        extensions.begin(),
-                        extensions.end(),
-                        [=](auto const& ext) { return ext.score > pruningThreshold; }),
-                extensions.end());
+        absoluteThreshold = lowerScore + relativeThreshold;
     }
 
-    // Prune by max beam size
-    if (extensions.size() > maxBeamSize) {
-        std::nth_element(extensions.begin(), extensions.begin() + maxBeamSize, extensions.end(),
-                         [](auto const& a, auto const& b) { return a.score < b.score; });
-        extensions.resize(maxBeamSize);
+    // Prune by max beam size, approximated via a histogram instead of an exact nth_element
+    if (elements.size() > maxBeamSize) {
+        scoreHistogram_.clear();
+        scoreHistogram_.setLimits(lowerScore, upperScore);
+        for (auto const& elem : elements) {
+            scoreHistogram_ += scoreFn(elem);
+        }
+        absoluteThreshold = std::min(absoluteThreshold, scoreHistogram_.quantile(maxBeamSize));
     }
-}
 
-void LexiconfreeRNNTTimesyncBeamSearch::scorePruningLengthnormalized(std::vector<LabelHypothesis>& hypotheses) const {
-    if (hypotheses.empty()) {
+    if (absoluteThreshold >= upperScore) {
+        // Nothing will be pruned
         return;
     }
 
-    // Compute the pruning threshold
-    auto bestHyp = *std::min_element(
-            hypotheses.begin(),
-            hypotheses.end());
-    auto pruningThreshold = (bestHyp.score + scoreThresholds_.back()) / std::pow(bestHyp.length, lengthNormScale_);
-
-    // Remove elements with scaledScore > pruningThreshold
-    hypotheses.erase(
+    // Remove elements with scoreFn(elem) > absoluteThreshold
+    elements.erase(
             std::remove_if(
-                    hypotheses.begin(),
-                    hypotheses.end(),
-                    [=](auto const& hyp) { return hyp.scaledScore > pruningThreshold; }),
-            hypotheses.end());
+                    elements.begin(),
+                    elements.end(),
+                    [&scoreFn, absoluteThreshold](auto const& elem) { return scoreFn(elem) > absoluteThreshold; }),
+            elements.end());
 }
 
 void LexiconfreeRNNTTimesyncBeamSearch::recombination(std::vector<LexiconfreeRNNTTimesyncBeamSearch::LabelHypothesis>& hypotheses) {

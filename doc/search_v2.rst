@@ -356,6 +356,11 @@ after the *first* label scorer -- with only one candidate per hypothesis there i
 intermediate cut there. They are still scored by every configured label scorer, and pruned like the non-blank
 extensions from the second scorer onward.
 
+Every configured label scorer should have ``vertical-label-transition = true`` set (where that parameter is
+available, e.g. :ref:`fixed-context-onnx`), so that its internal notion of time only advances on blank.
+The search itself has no way to enforce or check this, it just takes each label scorer's reported time as-is
+for a hypothesis's traceback timestamp.
+
 Order of operations for one time-synchronous decoding step, assuming two label scorers ``L_1`` and ``L_2`` with
 ``max-beam-size = b_1 b_2`` and ``score-threshold = s_1 s_2``:
 
@@ -796,7 +801,8 @@ history instead of a recurrent state.
   previously emitted blank/silence/repeated (looped) label is pushed into the history, or skipped over. All
   default to ``false`` (i.e. those labels do not update the history).
 * ``vertical-label-transition`` (bool): whether non-blank label transitions are "vertical", i.e. do not advance
-  the time step (relevant for certain transducer topologies). Default ``false``.
+  the time step (relevant for certain transducer topologies). Should be set to ``true`` when used with
+  :ref:`lexiconfree-rnnt-timesync-beam-search`. Default ``false``.
 * ``max-batch-size`` (int): maximum number of histories forwarded through the ONNX model in one call, hypotheses
   beyond this are split into further calls. Default unbounded.
 * Default :ref:`transition-preset <Transition types and presets>`: ``transducer``.

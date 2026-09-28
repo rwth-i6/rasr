@@ -151,7 +151,7 @@ const Core::ParameterInt LexiconfreeRNNTTimesyncBeamSearch::paramMaxLabelsPerFra
 
 const Core::ParameterInt LexiconfreeRNNTTimesyncBeamSearch::paramBlankLabelIndex(
         "blank-label-index",
-        "Index of the blank label in the lexicon. Can also be inferred from lexicon if it has a lemma with `special='blank'`. If not set, the search will not use blank.",
+        "Index of the blank label in the lexicon. Can also be inferred from lexicon if it has a lemma with `special='blank'`.",
         Nn::invalidLabelIndex);
 
 const Core::ParameterInt LexiconfreeRNNTTimesyncBeamSearch::paramSentenceEndLabelIndex(
@@ -480,17 +480,13 @@ bool LexiconfreeRNNTTimesyncBeamSearch::decodeStep() {
 
         // Unlike the non-blank extensions below, the blank extensions are not pruned after the first label scorer
         // because there is only one blank candidate per inner hyp, so an intermediate cut isn't needed for performance here
-        scoreWithRemainingLabelScorers(extensions_, innerHyps_);
+        scoreAndPruneWithRemainingLabelScorers(extensions_, innerHyps_);
 
-        // Create new label hypotheses from extension candidates
-        newBeam_.clear();
+        // Create new label hypotheses from extension candidates and add them to the set of all outer hyps of this timestep
         for (auto const& extension : extensions_) {
             auto const& baseHyp = innerHyps_[extension.baseHypIndex];
-            newBeam_.push_back({baseHyp, extension, extendedScoringContexts(baseHyp, extension), lengthNormScale_});
+            outerHyps_.push_back({baseHyp, extension, extendedScoringContexts(baseHyp, extension), lengthNormScale_});
         }
-
-        // Add these new outer hyps to the set of all outer hyps of this timestep
-        outerHyps_.insert(outerHyps_.end(), newBeam_.begin(), newBeam_.end());
 
         recombination(outerHyps_);
 
@@ -524,7 +520,8 @@ bool LexiconfreeRNNTTimesyncBeamSearch::decodeStep() {
                 const Bliss::Lemma* lemma(*lemmaIt);
                 Nn::LabelIndex      tokenIdx = lemma->id();
 
-                // Blank is not allowed as an extension for the inner hyps
+                // Blank turns an inner hyp into an outer hyp (handled above)
+                // it can't extend an inner hyp into another inner hyp, so skip it here
                 if (tokenIdx == blankLabelIndex_) {
                     continue;
                 }
@@ -555,7 +552,7 @@ bool LexiconfreeRNNTTimesyncBeamSearch::decodeStep() {
             }
             scorePruning(extensions_, scoreThresholds_.front(), maxBeamSize, [](auto const& ext) { return ext.score; });
         }
-        scoreWithRemainingLabelScorers(extensions_, innerHyps_);
+        scoreAndPruneWithRemainingLabelScorers(extensions_, innerHyps_);
 
         // Create new label hypotheses from extension candidates
         newBeam_.clear();
@@ -568,7 +565,7 @@ bool LexiconfreeRNNTTimesyncBeamSearch::decodeStep() {
         scorePruning(newBeam_, Core::Type<Score>::max, maxBeamSizes_.back(), [](auto const& hyp) { return hyp.score; });
 
         // If there are already more than maxBeamSize outer hyps,
-        // remove all inner hyps with a score that is lower than the worst score of the max-beam-size best outer hyps
+        // remove all inner hyps with a score that is worse than the worst score of the max-beam-size best outer hyps
         Score outerHypsThreshold = std::numeric_limits<Score>::infinity();
         if (outerHyps_.size() >= maxBeamSizes_.back()) {
             auto kth = outerHyps_.begin() + (maxBeamSizes_.back() - 1);
@@ -744,9 +741,7 @@ Nn::TransitionType LexiconfreeRNNTTimesyncBeamSearch::inferTransitionType(Nn::La
     }
 }
 
-void LexiconfreeRNNTTimesyncBeamSearch::scoreWithRemainingLabelScorers(
-        std::vector<ExtensionCandidate>&    extensions,
-        std::vector<LabelHypothesis> const& baseHyps) {
+void LexiconfreeRNNTTimesyncBeamSearch::scoreAndPruneWithRemainingLabelScorers(std::vector<ExtensionCandidate>& extensions, std::vector<LabelHypothesis> const& baseHyps) {
     for (size_t scorerIdx = 1ul; scorerIdx < labelScorers_.size(); ++scorerIdx) {
         auto const& labelScorer = labelScorers_[scorerIdx];
 

@@ -184,7 +184,7 @@ private:
      * Score `extensions` (raw score) with labelScorers_[1..], applying intermediate score-threshold
      * and max-beam-size pruning after each of them except the last
      */
-    void scoreWithRemainingLabelScorers(std::vector<ExtensionCandidate>& extensions, std::vector<LabelHypothesis> const& baseHyps);
+    void scoreAndPruneWithRemainingLabelScorers(std::vector<ExtensionCandidate>& extensions, std::vector<LabelHypothesis> const& baseHyps);
 
     /*
      * Extend `baseHyp`'s scoring context of every label scorer according to `extension`

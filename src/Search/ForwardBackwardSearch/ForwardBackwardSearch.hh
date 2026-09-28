@@ -20,6 +20,7 @@
 #include <Search/Traceback.hh>
 #include <Search/Types.hh>
 
+#include <cstdint>
 #include <optional>
 #include <unordered_map>
 #include <vector>
@@ -52,14 +53,22 @@ namespace Search {
  *
  *   gamma[t][label] += exp(partitionCost - (alpha(src) + arcCost + beta(dst)))
  *
- * The final probability mass is over all states in the final layer.
- * No sentence-end score is added by default.
+ * The final probability mass is over all states in the final layer. With
+ * apply-sentence-end-score, a final state s additionally pays the LM's
+ * sentence-end cost:
+ *
+ *   partitionCost = scoreSum_s(alpha(s) + lmSentenceEnd(s)),  beta(s) = lmSentenceEnd(s)
  *
  *
- * Build a time-layered search graph in the forward direction.
- * Store all arcs.
- * Then run a backward pass over the stored graph.
- * Finally turn arc posteriors into label gammas.
+ * Build a time-layered search graph in the forward direction, then run a
+ * backward pass over it and turn arc posteriors into label gammas.
+ *
+ * Only what the backward pass needs is kept for past layers. Each step
+ * expands the current layer into candidate states, prunes the candidates, and
+ * stores only the survivors (alpha, beta, token) and the arcs into them, as an arc
+ * into a pruned state would get posterior 0 anyway. Scoring contexts and LM
+ * histories are held for the current layer only. Alpha, beta and the partition
+ * are accumulated in double precision.
  */
 
 // TODO label loop collapse?
@@ -76,6 +85,7 @@ public:
     static const Core::ParameterInt   paramMaxBeamSize;
     static const Core::ParameterFloat paramScoreThreshold;
     static const Core::ParameterInt   paramNumHistogramBins;
+    static const Core::ParameterBool  paramApplySentenceEndScore;
 
     explicit ForwardBackwardSearch(Core::Configuration const& config);
 
@@ -102,7 +112,7 @@ public:
      *   partitionCost = -log sum_paths exp(-pathCost)
      */
     Score partitionCost() const {
-        return partitionCost_;
+        return static_cast<Score>(partitionCost_);
     }
 
     /**
@@ -111,7 +121,7 @@ public:
      *   log P = -partitionCost
      */
     Score logLikelihood() const {
-        return -partitionCost_;
+        return static_cast<Score>(-partitionCost_);
     }
 
     /**
@@ -138,31 +148,35 @@ public:
     void dumpGraphToDot(std::string const& filename) const;
 
 protected:
-    // position of the State in the states_ vector
-    using StateId = size_t;
+    // position of a stored State in the states_ vector
+    using StateId = uint32_t;
 
     static constexpr StateId invalidStateId = static_cast<StateId>(-1);
 
-    // represents where we are after some number of emitted labels
-    // states are recombined by currentToken and scoringContexts
-    // the probabilities of such equivalent states are summed
+    // A state that survived pruning
     struct State {
-        Speech::TimeframeIndex layer;
-        Nn::LabelIndex         currentToken;
-        Nn::ScoringContextRef  scoringContext;
-        Lm::History            lmHistory;
-        Score                  alpha;
-        Score                  beta;
+        double         alpha;
+        double         beta;
+        Nn::LabelIndex currentToken;
+    };
+
+    // The expansion data of a state in the current (last) layer. Only this
+    // layer is ever expanded, so scoring contexts and LM histories of earlier
+    // layers are not kept alive.
+    struct ActiveState {
+        StateId               id;
+        Nn::LabelIndex        currentToken;
+        Nn::ScoringContextRef scoringContext;
+        Lm::History           lmHistory;
     };
 
     struct Arc {
         StateId            src;
         StateId            dst;
         Nn::LabelIndex     label;
-        Nn::TransitionType transitionType;
         Nn::TimeframeIndex time;
         Score              score;
-        double             gamma;
+        Nn::TransitionType transitionType;
     };
 
     // Key for state recombination
@@ -191,8 +205,6 @@ protected:
         }
     };
 
-    using StateMap = std::unordered_map<StateKey, StateId, StateKeyHash>;
-
 private:
     Bliss::LexiconRef                  lexicon_;
     Core::Ref<Nn::LabelScorer>         labelScorer_;
@@ -220,17 +232,21 @@ private:
     Score           scoreThreshold_;
     Histogram       scoreHistogram_;
 
-    // all states of all layers
+    bool            applySentenceEndScore_;
+
+    // surviving states of all layers; the states of a layer are contiguous
     std::vector<State>              states_;
-    // set of states at one search depth (layers_[t] = states after t search steps)
-    std::vector<std::vector<StateId>> layers_;
-    // arcByLayer_[t] contains all arcs from layers_[t] -> layers_[t+1]
-    std::vector<std::vector<Arc>>     arcsByLayer_;
+    // layerStart_[t] = id of the first state of layer t (states after t search steps)
+    std::vector<StateId>            layerStart_;
+    // expansion data of the states of the last layer
+    std::vector<ActiveState>        activeStates_;
+    // arcsByLayer_[t] contains the arcs from layer t into surviving states of layer t+1
+    std::vector<std::vector<Arc>>   arcsByLayer_;
 
     // labelGammas_[t][label] = posterior probability that label was emitted at layer t
     std::vector<std::vector<double>> labelGammas_;
 
-    Score partitionCost_;
+    double partitionCost_;
 
     size_t currentSearchStep_;
     bool   finishedSegment_;
@@ -239,25 +255,16 @@ private:
     void initializeLabelsFromLexicon();
 
     // one call = one acoustic timestep/one label emission, every successful step advances the forward-backward graph by one layer
-    // for each current state (from the current layer) and for each label extension, new states (+arcs to states) are created with
-    // arcScore = scorer score for this transition and label
-    // alpha = alpha of current state + arcScore
-    // overall:
-    // 1. Expand all currently reachable states by all possible labels.
-    // 2. Recombine equivalent destination states using log-sum, not Viterbi max/min.
-    // 3. Store arcs so that the backward pass can later walk the same graph in reverse.
+    // 1. Expand all states of the current layer by all possible labels into candidate states
+    // 2. Recombine equivalent candidates using log-sum
+    // 3. Prune the candidates, then store only the survivors and the arcs into them
     bool buildForwardStep();
 
-    // Prune `layer` down to at most maxBeamSize_ states (score-histogram-based, like the
-    // other beam searches' scorePruning()) and drop states whose alpha is worse than the
-    // layer's best alpha by more than scoreThreshold_.
-    //
-    // This does not require any special handling elsewhere: a pruned state simply never
-    // becomes part of `currentLayer` again, so it never gets outgoing arcs recorded in
-    // arcsByLayer_, so its beta (initialized to infinity) is never updated by the backward
-    // pass, so every arc pointing into it naturally gets posterior 0. partitionCost_ then
-    // becomes an approximation of the true partition function over the surviving beam.
-    void pruneLayer(std::vector<StateId>& layer);
+    // Score threshold above which a candidate alpha is pruned, keeping at most maxBeamSize_
+    // (score-histogram-based, like the other beam searches' scorePruning()) and dropping
+    // alphas worse than the best by more than scoreThreshold_
+    // Returns +inf if nothing is pruned
+    double pruningThreshold(std::vector<double> const& alphas);
 
     // this runs after all forward layers are built
     // - frist, it computes the total sequence probability mass by summing over all final-layer states (stored in partitionCost_)
@@ -267,16 +274,17 @@ private:
     // - the label gammas are then the accumulated arc posteriors by layer and label
     void computeBackwardAndGammas();
 
-    Nn::TransitionType inferTransitionType(Nn::LabelIndex prevLabel, Nn::LabelIndex nextLabel) const;
+    // posterior of an arc, valid after computeBackwardAndGammas()
+    double arcPosterior(Arc const& arc) const;
 
-    StateId getOrCreateState(std::vector<StateId>& nextLayer, StateMap& nextLayerMap, Speech::TimeframeIndex layer, Nn::LabelIndex currentToken, Nn::ScoringContextRef scoringContext, Lm::History lmHistory);
+    Nn::TransitionType inferTransitionType(Nn::LabelIndex prevLabel, Nn::LabelIndex nextLabel) const;
 
     /**
      * Cost-domain log-add:
      *
      *   scoreSum(a, b) = -log(exp(-a) + exp(-b))
      */
-    static Score scoreSum(Score a, Score b);
+    static double scoreSum(double a, double b);
 };
 
 }  // namespace Search

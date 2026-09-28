@@ -89,17 +89,17 @@ std::string dotEscapeId(std::string const& input) {
     return output;
 }
 
-std::string scoreToString(Score score) {
-    if (std::isinf(static_cast<double>(score))) {
+std::string scoreToString(double score) {
+    if (std::isinf(score)) {
         return "inf";
     }
 
-    if (std::isnan(static_cast<double>(score))) {
+    if (std::isnan(score)) {
         return "nan";
     }
 
     std::ostringstream os;
-    os << std::setprecision(8) << static_cast<double>(score);
+    os << std::setprecision(8) << score;
     return os.str();
 }
 
@@ -168,6 +168,11 @@ const Core::ParameterInt ForwardBackwardSearch::paramNumHistogramBins(
         100,
         2);
 
+const Core::ParameterBool ForwardBackwardSearch::paramApplySentenceEndScore(
+        "apply-sentence-end-score",
+        "Add the LM sentence-end score to every final state, i.e. to the partition and to the final betas.",
+        false);
+
 ForwardBackwardSearch::ForwardBackwardSearch(Core::Configuration const& config)
         : Core::Component(config),
           SearchAlgorithmV2(config),
@@ -185,11 +190,13 @@ ForwardBackwardSearch::ForwardBackwardSearch(Core::Configuration const& config)
           maxBeamSize_(static_cast<size_t>(paramMaxBeamSize(config))),
           scoreThreshold_(paramScoreThreshold(config)),
           scoreHistogram_(paramNumHistogramBins(config)),
+          applySentenceEndScore_(paramApplySentenceEndScore(config)),
           states_(),
-          layers_(),
+          layerStart_(),
+          activeStates_(),
           arcsByLayer_(),
           labelGammas_(),
-          partitionCost_(std::numeric_limits<Score>::infinity()),
+          partitionCost_(std::numeric_limits<double>::infinity()),
           currentSearchStep_(0ul),
           finishedSegment_(false) {
 }
@@ -264,25 +271,28 @@ void ForwardBackwardSearch::enterSegment(Bliss::SpeechSegment const* segment) {
     labelScorer_->reset();
 
     states_.clear();
-    layers_.clear();
+    layerStart_.clear();
+    activeStates_.clear();
     arcsByLayer_.clear();
     labelGammas_.clear();
 
-    partitionCost_ = std::numeric_limits<Score>::infinity();
+    partitionCost_ = std::numeric_limits<double>::infinity();
 
     currentSearchStep_ = 0ul;
     finishedSegment_   = false;
 
-    State initialState {
-            .layer           = 0u,
-            .currentToken    = Nn::invalidLabelIndex,
-            .scoringContext  = labelScorer_->getInitialScoringContext(),
-            .lmHistory       = languageModel_->startHistory(),
-            .alpha           = 0.0,
-            .beta            = std::numeric_limits<Score>::infinity(),
-    };
-    states_.push_back(initialState);
-    layers_.push_back({0ul});
+    states_.push_back(State{
+            .alpha        = 0.0,
+            .beta         = std::numeric_limits<double>::infinity(),
+            .currentToken = Nn::invalidLabelIndex,
+    });
+    layerStart_.push_back(0u);
+    activeStates_.push_back(ActiveState{
+            .id             = 0u,
+            .currentToken   = Nn::invalidLabelIndex,
+            .scoringContext = labelScorer_->getInitialScoringContext(),
+            .lmHistory      = languageModel_->startHistory(),
+    });
 
     if (segment != nullptr) {
         languageModel_->setSegment(segment);
@@ -296,11 +306,14 @@ void ForwardBackwardSearch::finishSegment() {
 
     computeBackwardAndGammas();
 
+    // The contexts of the final layer are not needed once the gammas exist.
+    activeStates_.clear();
+
     finishedSegment_  = true;
 
     if (logStatistics_) {
         clog() << Core::XmlOpen("forward-backward-statistics");
-        clog() << Core::XmlFull("num-layers", layers_.size());
+        clog() << Core::XmlFull("num-layers", layerStart_.size());
         clog() << Core::XmlFull("num-states", states_.size());
 
         size_t numArcs = 0ul;
@@ -309,6 +322,7 @@ void ForwardBackwardSearch::finishSegment() {
         }
 
         clog() << Core::XmlFull("num-arcs", numArcs);
+        clog() << Core::XmlFull("sentence-end-score-applied", applySentenceEndScore_);
         clog() << Core::XmlFull("partition-cost", partitionCost_);
         clog() << Core::XmlFull("log-likelihood", -partitionCost_);
         clog() << Core::XmlClose("forward-backward-statistics");
@@ -362,8 +376,8 @@ bool ForwardBackwardSearch::decodeStep() {
 
         if (currentSearchStep_ % cacheCleanupInterval_ == 0) {
             Core::CollapsedVector<Nn::ScoringContextRef> activeContexts;
-            for (StateId stateId : layers_.back()) {
-                activeContexts.push_back(states_[stateId].scoringContext);
+            for (ActiveState const& active : activeStates_) {
+                activeContexts.push_back(active.scoringContext);
             }
             labelScorer_->cleanupCaches(activeContexts);
         }
@@ -440,19 +454,15 @@ void ForwardBackwardSearch::initializeLabelsFromLexicon() {
 
 
 bool ForwardBackwardSearch::buildForwardStep() {
-    verify(!layers_.empty());
-
-    auto currentLayer = layers_.back();
-
-    if (currentLayer.empty()) {
+    if (activeStates_.empty()) {
         return false;
     }
 
     std::vector<Nn::ScoringContextRef> scoringContexts;
-    scoringContexts.reserve(currentLayer.size());
+    scoringContexts.reserve(activeStates_.size());
 
-    for (StateId stateId : currentLayer) {
-        scoringContexts.push_back(states_[stateId].scoringContext);
+    for (ActiveState const& active : activeStates_) {
+        scoringContexts.push_back(active.scoringContext);
     }
 
     auto scoreAccessors = labelScorer_->getScoreAccessors(scoringContexts);
@@ -464,35 +474,45 @@ bool ForwardBackwardSearch::buildForwardStep() {
         }
     }
 
-    std::vector<StateId> nextLayer;
-    nextLayer.reserve(currentLayer.size() * labels_.size());
+    // Candidate states of the next layer, recombined by StateKey. They only live
+    // for this step: after pruning, the survivors are stored and the rest (with
+    // their scoring contexts and LM histories) is freed.
+    size_t const maxCandidates = activeStates_.size() * labels_.size();
 
-    StateMap nextLayerMap;
-    nextLayerMap.reserve(currentLayer.size() * labels_.size());
+    std::vector<StateKey> candidateKeys;
+    std::vector<double>   candidateAlphas;
+    std::unordered_map<StateKey, uint32_t, StateKeyHash> candidateIndex;
+    candidateKeys.reserve(maxCandidates);
+    candidateAlphas.reserve(maxCandidates);
+    candidateIndex.reserve(maxCandidates);
 
-    std::vector<Arc> arcs;
-    arcs.reserve(currentLayer.size() * labels_.size());
+    struct PendingArc {
+        StateId            src;
+        uint32_t           candidate;
+        Nn::LabelIndex     label;
+        Nn::TimeframeIndex time;
+        Score              score;
+        Nn::TransitionType transitionType;
+    };
+    std::vector<PendingArc> pendingArcs;
+    pendingArcs.reserve(maxCandidates);
 
-    Speech::TimeframeIndex nextLayerIndex = static_cast<Speech::TimeframeIndex>(layers_.size());
+    for (size_t statePos = 0ul; statePos < activeStates_.size(); ++statePos) {
+        ActiveState const& src = activeStates_[statePos];
+        double srcAlpha = states_[src.id].alpha;
 
-    for (size_t statePos = 0ul; statePos < currentLayer.size(); ++statePos) {
-        StateId srcStateId = currentLayer[statePos];
-        Score srcAlpha = states_[srcStateId].alpha;
-        Nn::LabelIndex srcCurrentToken = states_[srcStateId].currentToken;
-        Nn::ScoringContextRef srcScoringContext = states_[srcStateId].scoringContext;
-        Lm::History srcLmHistory = states_[srcStateId].lmHistory;
-
-        if (std::isinf(static_cast<double>(srcAlpha))) {
+        if (std::isinf(srcAlpha)) {
             continue;
         }
 
         auto const& scoreAccessor = scoreAccessors[statePos];
+        Nn::TimeframeIndex time = (*scoreAccessor)->getTime();
 
         for (size_t labelPos = 0ul; labelPos < labels_.size(); ++labelPos) {
             Nn::LabelIndex label = labels_[labelPos];
             Bliss::Lemma const* lemma = labelLemmas_[labelPos];
 
-            Nn::TransitionType transitionType = inferTransitionType(srcCurrentToken, label);
+            Nn::TransitionType transitionType = inferTransitionType(src.currentToken, label);
 
             if (!labelScorer_->scoresTransition(transitionType)) {
                 continue;
@@ -501,16 +521,15 @@ bool ForwardBackwardSearch::buildForwardStep() {
             Score acousticScore = (*scoreAccessor)->getScore(transitionType, label);
 
             Score lmScore = 0.0;
-            Lm::History newLmHistory = srcLmHistory;
+            Lm::History newLmHistory = src.lmHistory;
             if (not (transitionType == Nn::TransitionType::LABEL_LOOP or transitionType == Nn::TransitionType::BLANK_LOOP)) {
                 Bliss::SyntacticTokenSequence const& sts = lemma->syntacticTokenSequence();
                 if (sts.size() != 0) {
                     auto const* st = sts.front();
-                    lmScore = languageModel_->score(srcLmHistory, st);
-                    newLmHistory = languageModel_->extendedHistory(srcLmHistory, st);
+                    lmScore = languageModel_->score(src.lmHistory, st);
+                    newLmHistory = languageModel_->extendedHistory(src.lmHistory, st);
                 }
             }
-
 
             Score arcScore = acousticScore + lmScore;
 
@@ -519,147 +538,178 @@ bool ForwardBackwardSearch::buildForwardStep() {
             }
 
             Nn::ScoringContextRef nextScoringContext = labelScorer_->extendedScoringContext(
-                                                            srcScoringContext,
+                                                            src.scoringContext,
                                                             label,
                                                             transitionType);
 
-            StateId dstStateId = getOrCreateState(
-                    nextLayer,
-                    nextLayerMap,
-                    nextLayerIndex,
-                    label,
-                    nextScoringContext,
-                    newLmHistory);
+            StateKey key{
+                    .currentToken   = label,
+                    .scoringContext = nextScoringContext,
+                    .lmHistory      = newLmHistory};
 
-            Score pathCost = srcAlpha + arcScore;
-            states_[dstStateId].alpha = scoreSum(states_[dstStateId].alpha, pathCost);
+            auto [it, inserted] = candidateIndex.emplace(key, static_cast<uint32_t>(candidateKeys.size()));
+            if (inserted) {
+                candidateKeys.push_back(std::move(key));
+                candidateAlphas.push_back(std::numeric_limits<double>::infinity());
+            }
+            uint32_t candidate = it->second;
 
-            Arc arc;
-            arc.src            = srcStateId;
-            arc.dst            = dstStateId;
-            arc.label          = label;
-            arc.transitionType = transitionType;
-            arc.time           = (*scoreAccessor)->getTime();
-            arc.score          = arcScore;
-            arc.gamma          = 0.0;
-            arcs.push_back(arc);
+            candidateAlphas[candidate] = scoreSum(candidateAlphas[candidate], srcAlpha + static_cast<double>(arcScore));
+
+            pendingArcs.push_back(PendingArc{
+                    .src            = src.id,
+                    .candidate      = candidate,
+                    .label          = label,
+                    .time           = time,
+                    .score          = arcScore,
+                    .transitionType = transitionType});
         }
     }
 
-    if (arcs.empty()) {
+    if (pendingArcs.empty()) {
         return false;
     }
 
-    pruneLayer(nextLayer);
+    // Prune the candidates. Same rule as before storing was deferred: keep alphas
+    // at or below the threshold; if all alphas are equal, keep the first
+    // maxBeamSize_ candidates.
+    size_t const numCandidates = candidateAlphas.size();
+    double threshold = std::numeric_limits<double>::infinity();
+    size_t keepLimit = numCandidates;
 
-    arcsByLayer_.push_back(arcs);
-    layers_.push_back(std::move(nextLayer));
+    if (numCandidates > maxBeamSize_ or scoreThreshold_ != Core::Type<Score>::max) {
+        auto [lowerIt, upperIt] = std::minmax_element(candidateAlphas.begin(), candidateAlphas.end());
+        double lowerScore = *lowerIt;
+        double upperScore = *upperIt;
+
+        if (lowerScore == upperScore) {
+            keepLimit = std::min(numCandidates, maxBeamSize_);
+        }
+        else {
+            threshold = pruningThreshold(candidateAlphas);
+        }
+    }
+
+    // Store the surviving candidates as the next layer.
+    StateId const firstNewState = static_cast<StateId>(states_.size());
+    std::vector<StateId> newStateId(numCandidates, invalidStateId);
+    std::vector<ActiveState> nextActiveStates;
+    nextActiveStates.reserve(std::min(numCandidates, maxBeamSize_));
+
+    for (size_t candidate = 0ul; candidate < numCandidates and nextActiveStates.size() < keepLimit; ++candidate) {
+        if (candidateAlphas[candidate] > threshold) {
+            continue;
+        }
+        verify(states_.size() < static_cast<size_t>(invalidStateId));
+        StateId id = static_cast<StateId>(states_.size());
+        newStateId[candidate] = id;
+
+        StateKey const& key = candidateKeys[candidate];
+        states_.push_back(State{
+                .alpha        = candidateAlphas[candidate],
+                .beta         = std::numeric_limits<double>::infinity(),
+                .currentToken = key.currentToken});
+        nextActiveStates.push_back(ActiveState{
+                .id             = id,
+                .currentToken   = key.currentToken,
+                .scoringContext = key.scoringContext,
+                .lmHistory      = key.lmHistory});
+    }
+
+    // Keep only the arcs into surviving states: an arc into a pruned state would
+    // get posterior 0 in the backward pass anyway.
+    std::vector<Arc> arcs;
+    for (PendingArc const& pending : pendingArcs) {
+        StateId dst = newStateId[pending.candidate];
+        if (dst == invalidStateId) {
+            continue;
+        }
+        arcs.push_back(Arc{
+                .src            = pending.src,
+                .dst            = dst,
+                .label          = pending.label,
+                .time           = pending.time,
+                .score          = pending.score,
+                .transitionType = pending.transitionType});
+    }
+    arcs.shrink_to_fit();
+
+    arcsByLayer_.push_back(std::move(arcs));
+    layerStart_.push_back(firstNewState);
+    activeStates_ = std::move(nextActiveStates);
 
     return true;
 }
 
-void ForwardBackwardSearch::pruneLayer(std::vector<StateId>& layer) {
-    if (layer.size() <= maxBeamSize_ and scoreThreshold_ == Core::Type<Score>::max) {
-        // Neither relative score pruning nor max beam size pruning triggers
-        return;
-    }
+double ForwardBackwardSearch::pruningThreshold(std::vector<double> const& alphas) {
+    auto [lowerIt, upperIt] = std::minmax_element(alphas.begin(), alphas.end());
+    double lowerScore = *lowerIt;
+    double upperScore = *upperIt;
 
-    Score lowerScore = Core::Type<Score>::max;
-    Score upperScore = Core::Type<Score>::min;
-
-    for (StateId stateId : layer) {
-        Score alpha = states_[stateId].alpha;
-        lowerScore  = std::min(lowerScore, alpha);
-        upperScore  = std::max(upperScore, alpha);
-    }
-
-    if (lowerScore == upperScore) {
-        // All alphas are the same (usually only happens when exactly 1 state is active)
-        if (layer.size() > maxBeamSize_) {
-            layer.resize(maxBeamSize_);
-        }
-        return;
-    }
-
-    Score absoluteThreshold = upperScore;
+    double absoluteThreshold = upperScore;
 
     // Pruning by relative score threshold
     if (scoreThreshold_ != Core::Type<Score>::max) {
-        absoluteThreshold = lowerScore + scoreThreshold_;
+        absoluteThreshold = lowerScore + static_cast<double>(scoreThreshold_);
     }
 
     // Pruning by max beam size
-    if (layer.size() > maxBeamSize_) {
+    if (alphas.size() > maxBeamSize_) {
         scoreHistogram_.clear();
-        scoreHistogram_.setLimits(lowerScore, upperScore);
+        scoreHistogram_.setLimits(static_cast<Score>(lowerScore), static_cast<Score>(upperScore));
 
-        for (StateId stateId : layer) {
-            scoreHistogram_ += states_[stateId].alpha;
+        for (double alpha : alphas) {
+            scoreHistogram_ += static_cast<Score>(alpha);
         }
 
-        absoluteThreshold = std::min(absoluteThreshold, scoreHistogram_.quantile(maxBeamSize_));
+        absoluteThreshold = std::min(absoluteThreshold, static_cast<double>(scoreHistogram_.quantile(maxBeamSize_)));
     }
 
     if (absoluteThreshold >= upperScore) {
         // Nothing will be pruned
-        return;
+        return std::numeric_limits<double>::infinity();
     }
 
-    // Remove states with alpha > absoluteThreshold.
-    // Such states simply become dead ends: they will not be part of the next currentLayer,
-    // so they get no outgoing arcs, so their beta stays infinite, so every arc pointing into
-    // them naturally gets posterior 0 in computeBackwardAndGammas() -- no separate handling
-    // of the arcsByLayer_ history is needed.
-    layer.erase(
-            std::remove_if(
-                    layer.begin(),
-                    layer.end(),
-                    [this, absoluteThreshold](StateId stateId) { return states_[stateId].alpha > absoluteThreshold; }),
-            layer.end());
+    return absoluteThreshold;
 }
 
 void ForwardBackwardSearch::computeBackwardAndGammas() {
-    partitionCost_ = std::numeric_limits<Score>::infinity();
+    partitionCost_ = std::numeric_limits<double>::infinity();
 
-    if (layers_.empty()) {
+    if (layerStart_.empty()) {
         return;
     }
 
-    // The final layer contains all states after the last forward step, the partition is the log-sum over all final-state alphas
-    std::vector<StateId> const& finalLayer = layers_.back();
+    // The final layer contains all states after the last forward step, the partition is the log-sum over all final-state alphas.
+    // activeStates_ still holds the final layer (one entry per final state), which is where the LM histories are.
+    verify_eq(activeStates_.size(), states_.size() - layerStart_.back());
+    for (ActiveState const& finalState : activeStates_) {
+        // beta(final) is the cost of the remaining suffix: 0, or the LM's sentence-end cost
+        double endCost = applySentenceEndScore_ ? static_cast<double>(languageModel_->sentenceEndScore(finalState.lmHistory)) : 0.0;
 
-    for (StateId stateId : finalLayer) {
-        partitionCost_ = scoreSum(partitionCost_, states_[stateId].alpha);
-
-        // beta(final) = 0 because the remaining suffix has probability 1, i.e. cost 0
-        states_[stateId].beta = 0.0;
+        partitionCost_ = scoreSum(partitionCost_, states_[finalState.id].alpha + endCost);
+        states_[finalState.id].beta = endCost;
     }
 
-    if (std::isinf(static_cast<double>(partitionCost_))) {
+    if (std::isinf(partitionCost_)) {
         warning() << "ForwardBackwardSearch partition cost is infinite. No valid path mass was found.";
         return;
     }
 
     // Backward recursion: For every arc src -> dst: beta(src) += arc.score + beta(dst)
-    if (!arcsByLayer_.empty()) {
-        for (size_t layerIdx = arcsByLayer_.size(); layerIdx-- > 0;) {
-            for (Arc const& arc : arcsByLayer_[layerIdx]) {
-                Score pathCost = arc.score + states_[arc.dst].beta;
-                states_[arc.src].beta = scoreSum(states_[arc.src].beta, pathCost);
-            }
+    for (size_t layerIdx = arcsByLayer_.size(); layerIdx-- > 0;) {
+        for (Arc const& arc : arcsByLayer_[layerIdx]) {
+            double pathCost = static_cast<double>(arc.score) + states_[arc.dst].beta;
+            states_[arc.src].beta = scoreSum(states_[arc.src].beta, pathCost);
         }
     }
 
     // Compute arc posteriors and accumulate them into frame/label gammas
     // posterior(arc) = exp(partitionCost - (alpha(src) + arcCost + beta(dst)))
     // labelGammas_[time][label] stores the posterior probability that `label` was emitted at scorer time `time`
-    for (std::vector<Arc>& layerArcs : arcsByLayer_) {
-        for (Arc& arc : layerArcs) {
-            Score arcPathCost = states_[arc.src].alpha + arc.score + states_[arc.dst].beta;
-
-            double posterior = std::exp(static_cast<double>(partitionCost_) - static_cast<double>(arcPathCost));
-
-            arc.gamma = posterior;
+    for (std::vector<Arc> const& layerArcs : arcsByLayer_) {
+        for (Arc const& arc : layerArcs) {
+            double posterior = arcPosterior(arc);
 
             size_t frame = static_cast<size_t>(arc.time);
 
@@ -679,6 +729,11 @@ void ForwardBackwardSearch::computeBackwardAndGammas() {
             labelGammas_[frame][arc.label] += posterior;
         }
     }
+}
+
+double ForwardBackwardSearch::arcPosterior(Arc const& arc) const {
+    double arcPathCost = states_[arc.src].alpha + static_cast<double>(arc.score) + states_[arc.dst].beta;
+    return std::exp(partitionCost_ - arcPathCost);
 }
 
 Nn::TransitionType ForwardBackwardSearch::inferTransitionType(Nn::LabelIndex prevLabel, Nn::LabelIndex nextLabel) const {
@@ -715,49 +770,19 @@ Nn::TransitionType ForwardBackwardSearch::inferTransitionType(Nn::LabelIndex pre
     }
 }
 
-ForwardBackwardSearch::StateId ForwardBackwardSearch::getOrCreateState(std::vector<StateId>& nextLayer, StateMap& nextLayerMap, Speech::TimeframeIndex layer, Nn::LabelIndex currentToken, Nn::ScoringContextRef scoringContext, Lm::History lmHistory) {
-    StateKey key = StateKey{
-                    .currentToken   = currentToken,
-                    .scoringContext = scoringContext,
-                    .lmHistory = lmHistory};
-
-    auto [it, inserted] = nextLayerMap.emplace(key, invalidStateId);
-
-    if (!inserted) {
-        return it->second;
-    }
-
-    StateId newStateId = states_.size();
-
-    State newState;
-    newState.layer           = layer;
-    newState.currentToken    = currentToken;
-    newState.scoringContext = scoringContext;
-    newState.lmHistory      = lmHistory;
-    newState.alpha           = std::numeric_limits<Score>::infinity();
-    newState.beta            = std::numeric_limits<Score>::infinity();
-
-    states_.push_back(newState);
-    nextLayer.push_back(newStateId);
-
-    it->second = newStateId;
-
-    return newStateId;
-}
-
-Score ForwardBackwardSearch::scoreSum(Score a, Score b) {
-    if (std::isinf(static_cast<double>(a))) {
+double ForwardBackwardSearch::scoreSum(double a, double b) {
+    if (std::isinf(a)) {
         return b;
     }
 
-    if (std::isinf(static_cast<double>(b))) {
+    if (std::isinf(b)) {
         return a;
     }
 
-    Score m = std::min(a, b);
-    Score M = std::max(a, b);
+    double m = std::min(a, b);
+    double M = std::max(a, b);
 
-    return static_cast<Score>(static_cast<double>(m) - std::log1p(std::exp(-static_cast<double>(M - m))));
+    return m - std::log1p(std::exp(-(M - m)));
 }
 
 
@@ -789,22 +814,24 @@ void ForwardBackwardSearch::dumpGraphToDot(std::string const& filename) const {
 
     out << "  label=\"" << dotEscapeLabel(graphLabel.str()) << "\";\n\n";
 
-    // Write nodes grouped by layer
-    for (size_t layer = 0ul; layer < layers_.size(); ++layer) {
+    // Write nodes grouped by layer (only states that survived pruning are kept)
+    for (size_t layer = 0ul; layer < layerStart_.size(); ++layer) {
+        StateId first = layerStart_[layer];
+        StateId last  = layer + 1ul < layerStart_.size() ? layerStart_[layer + 1ul] : static_cast<StateId>(states_.size());
+
         out << "  subgraph cluster_layer_" << layer << " {\n";
         out << "    label=\"layer " << layer << "\";\n";
         out << "    color=lightgrey;\n";
         out << "    style=dashed;\n";
         out << "    rank=same;\n";
 
-        for (StateId stateId : layers_[layer]) {
+        for (StateId stateId = first; stateId < last; ++stateId) {
             State const& state = states_[stateId];
 
             std::ostringstream label;
             label << "s" << stateId
-                  << "\nlayer=" << state.layer
+                  << "\nlayer=" << layer
                   << "\ntoken=" << state.currentToken
-                  << "\nctxHash=" << Nn::ScoringContextHash{}(state.scoringContext)
                   << "\nalpha=" << scoreToString(state.alpha)
                   << "\nbeta=" << scoreToString(state.beta);
 
@@ -815,7 +842,8 @@ void ForwardBackwardSearch::dumpGraphToDot(std::string const& filename) const {
         out << "  }\n\n";
     }
 
-    // Write arcs
+    // Write arcs; posteriors are computed from alpha/beta rather than stored
+    bool const havePosteriors = std::isfinite(partitionCost_);
     for (size_t layer = 0ul; layer < arcsByLayer_.size(); ++layer) {
         for (size_t arcIdx = 0ul; arcIdx < arcsByLayer_[layer].size(); ++arcIdx) {
             Arc const& arc = arcsByLayer_[layer][arcIdx];
@@ -826,7 +854,7 @@ void ForwardBackwardSearch::dumpGraphToDot(std::string const& filename) const {
                   << "\nlabel=" << arc.label
                   << "\ntrans=" << toString(arc.transitionType)
                   << "\nscore=" << scoreToString(arc.score)
-                  << "\ngamma=" << probabilityToString(arc.gamma);
+                  << "\ngamma=" << probabilityToString(havePosteriors ? arcPosterior(arc) : 0.0);
 
             out << "  s" << arc.src
                 << " -> s" << arc.dst

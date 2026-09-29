@@ -104,6 +104,7 @@ protected:
         Score                              score;               // Full score of hypothesis
         Score                              scaledScore;         // Length-normalized score of hypothesis
         std::vector<int>                   outputTokens;        // Previously predicted non-blank output tokens of hypothesis
+        size_t                             outputTokensHash;    // Hash of `outputTokens`, updated incrementally on extension to avoid rehashing the full vector for recombination
         Core::Ref<LatticeTrace>            trace;               // Associated trace for traceback or lattice building off of hypothesis
         bool                               reachedSentenceEnd;  // Flag whether hypothesis trace contains a sentence end emission
 

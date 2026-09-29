@@ -52,6 +52,7 @@ LexiconfreeRNNTTimesyncBeamSearch::LabelHypothesis::LabelHypothesis()
           score(0.0),
           scaledScore(0.0),
           outputTokens(),
+          outputTokensHash(0ul),
           trace(Core::ref(new LatticeTrace(0, {0, 0}, {}))),
           reachedSentenceEnd(false) {}
 
@@ -66,11 +67,12 @@ LexiconfreeRNNTTimesyncBeamSearch::LabelHypothesis::LabelHypothesis(
           score(extension.score),
           scaledScore(score / std::pow(length, lengthNormScale)),
           outputTokens(base.outputTokens),
+          outputTokensHash(base.outputTokensHash),
           trace(),
           reachedSentenceEnd(base.reachedSentenceEnd or extension.transitionType == Nn::SENTENCE_END) {
     // In an inner hyp (a non-blank label was predicted):
-    // increment length, update the scaled score and
-    // append new label to the vector of predicted labels
+    // increment length, update the scaled score,
+    // append new label to the vector of predicted labels and fold it into the running hash of that vector
     switch (extension.transitionType) {
         case Nn::INITIAL_LABEL:
         case Nn::LABEL_TO_LABEL:
@@ -78,6 +80,7 @@ LexiconfreeRNNTTimesyncBeamSearch::LabelHypothesis::LabelHypothesis(
             length += 1;
             scaledScore = score / std::pow(length, lengthNormScale);
             outputTokens.push_back(currentToken);
+            outputTokensHash = Core::combineHashes(outputTokensHash, std::hash<uint32_t>()(outputTokens.back()));
             break;
         default:
             break;
@@ -887,24 +890,26 @@ void LexiconfreeRNNTTimesyncBeamSearch::recombination(std::vector<LexiconfreeRNN
         return;
     }
 
-    // Represents a unique combination of currentToken, scoringContexts and the previous (non-blank) output tokens
+    // Unique combination of currentToken, scoringContexts and, in sum mode only, outputTokens (sum mode merges
+    // by summing probabilities, which is only valid for hyps with the same output label sequence, while Viterbi
+    // mode just keeps the better hyp, so it stays exact without that check and gets more merges by skipping it).
+    // Points at a LabelHypothesis instead of copying it, to avoid copying/rehashing the growing outputTokens.
     struct RecombinationContext {
-        Nn::LabelIndex                     currentToken;
-        std::vector<Nn::ScoringContextRef> scoringContexts;
-        std::vector<int>                   outputTokens;
-
-        RecombinationContext(LabelHypothesis const& hyp)
-                : currentToken(hyp.currentToken), scoringContexts(hyp.scoringContexts), outputTokens(hyp.outputTokens) {}
+        LabelHypothesis const* hyp;
+        bool                    ignoreOutputTokens;
 
         bool operator==(RecombinationContext const& other) const {
-            if (currentToken != other.currentToken or outputTokens != other.outputTokens) {
+            if (hyp->currentToken != other.hyp->currentToken) {
                 return false;
             }
-            if (scoringContexts.size() != other.scoringContexts.size()) {
+            if (not ignoreOutputTokens and (hyp->outputTokensHash != other.hyp->outputTokensHash or hyp->outputTokens != other.hyp->outputTokens)) {
                 return false;
             }
-            for (size_t i = 0ul; i < scoringContexts.size(); ++i) {
-                if (not Nn::ScoringContextEq{}(scoringContexts[i], other.scoringContexts[i])) {
+            if (hyp->scoringContexts.size() != other.hyp->scoringContexts.size()) {
+                return false;
+            }
+            for (size_t i = 0ul; i < hyp->scoringContexts.size(); ++i) {
+                if (not Nn::ScoringContextEq{}(hyp->scoringContexts[i], other.hyp->scoringContexts[i])) {
                     return false;
                 }
             }
@@ -913,32 +918,35 @@ void LexiconfreeRNNTTimesyncBeamSearch::recombination(std::vector<LexiconfreeRNN
     };
     struct RecombinationContextHash {
         size_t operator()(RecombinationContext const& context) const {
-            size_t h1 = context.currentToken;
+            size_t h1 = context.hyp->currentToken;
             size_t h2 = 0;
-            for (auto const& scoringContext : context.scoringContexts) {
+            for (auto const& scoringContext : context.hyp->scoringContexts) {
                 h2 = Core::combineHashes(h2, Nn::ScoringContextHash{}(scoringContext));
             }
-            size_t h3 = 0;
-            for (size_t i = 0; i < context.outputTokens.size(); ++i) {
-                h3 = Core::combineHashes(h3, std::hash<uint32_t>()(context.outputTokens[i]));
-            }
+            size_t h3 = context.ignoreOutputTokens ? 0ul : context.hyp->outputTokensHash;
             return Core::combineHashes(Core::combineHashes(h1, h2), h3);
         }
     };
 
+    bool ignoreOutputTokens = recombinationMode_ == RecombinationModeViterbi;
+
     tempHypotheses_.clear();
-    // Reserve capacity because future reallocations would break the raw pointer we are storing later
-    tempHypotheses_.reserve(hypotheses.size());
-    // Map each unique ScoringContext in newHypotheses to its hypothesis
+    tempHypotheses_.reserve(hypotheses.size()); // Reserve capacity because future reallocations would break the raw pointers
+    // Map each unique RecombinationContext in `hypotheses` to its representative hyp
     std::unordered_map<RecombinationContext, LabelHypothesis*, RecombinationContextHash> seenScoringContexts;
 
     for (auto& hyp : hypotheses) {
-        auto [it, inserted] = seenScoringContexts.try_emplace({hyp}, nullptr);
+        // Probe with a key pointing at `hyp` in its original location. That pointer is only dereferenced
+        // for this lookup and never stored, since `hyp` may be moved-from right after.
+        auto it = seenScoringContexts.find(RecombinationContext{&hyp, ignoreOutputTokens});
 
-        if (inserted) {
-            // First time seeing this context -> keep this hyp as representative
+        if (it == seenScoringContexts.end()) {
+            // First time seeing this context -> keep this hyp as representative.
+            // Move it into the stable tempHypotheses_ storage first and key the map entry off of that
+            // address, so the stored pointer stays valid even though `hyp` itself is now moved-from
             tempHypotheses_.push_back(std::move(hyp));
-            it->second = &tempHypotheses_.back();
+            LabelHypothesis* stableHyp = &tempHypotheses_.back();
+            seenScoringContexts.emplace(RecombinationContext{stableHyp, ignoreOutputTokens}, stableHyp);
         }
         else {
             verify(not hyp.trace->sibling);

@@ -896,7 +896,7 @@ void LexiconfreeRNNTTimesyncBeamSearch::recombination(std::vector<LexiconfreeRNN
     // Points at a LabelHypothesis instead of copying it, to avoid copying/rehashing the growing outputTokens.
     struct RecombinationContext {
         LabelHypothesis const* hyp;
-        bool                    ignoreOutputTokens;
+        bool                   ignoreOutputTokens;
 
         bool operator==(RecombinationContext const& other) const {
             if (hyp->currentToken != other.hyp->currentToken) {
@@ -931,7 +931,7 @@ void LexiconfreeRNNTTimesyncBeamSearch::recombination(std::vector<LexiconfreeRNN
     bool ignoreOutputTokens = recombinationMode_ == RecombinationModeViterbi;
 
     tempHypotheses_.clear();
-    tempHypotheses_.reserve(hypotheses.size()); // Reserve capacity because future reallocations would break the raw pointers
+    tempHypotheses_.reserve(hypotheses.size());  // Reserve capacity because future reallocations would break the raw pointers
     // Map each unique RecombinationContext in `hypotheses` to its representative hyp
     std::unordered_map<RecombinationContext, LabelHypothesis*, RecombinationContextHash> seenScoringContexts;
 

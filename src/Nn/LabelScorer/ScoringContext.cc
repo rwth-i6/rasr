@@ -55,4 +55,29 @@ bool StepScoringContext::isEqual(ScoringContextRef const& other) const {
     return o != nullptr and currentStep == o->currentStep;
 }
 
+/*
+ * ================================
+ * ==== SeqStepScoringContext =====
+ * ================================
+ */
+size_t SeqStepScoringContext::hash() const {
+    return Core::combineHashes(currentStep, labelSeqHash(labelSeq));
+}
+
+bool SeqStepScoringContext::isEqual(ScoringContextRef const& other) const {
+    auto* otherPtr = dynamic_cast<SeqStepScoringContext const*>(other.get());
+    if (otherPtr == nullptr) {
+        return false;
+    }
+    if (currentStep != otherPtr->currentStep) {
+        return false;
+    }
+    if (labelSeq.size() != otherPtr->labelSeq.size()) {
+        return false;
+    }
+    return labelSeqEqual(labelSeq, otherPtr->labelSeq);
+}
+
+typedef Core::Ref<SeqStepScoringContext const> FullSeqStepScoringContextRef;
+
 }  // namespace Nn

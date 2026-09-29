@@ -33,7 +33,8 @@ namespace {
 
 enum RecombinationMode {
     RecombinationModeOff,
-    RecombinationModeOn,
+    RecombinationModeSum,
+    RecombinationModeViterbi,
 };
 
 }  // namespace
@@ -195,14 +196,16 @@ const Core::ParameterInt LexiconfreeRNNTTimesyncBeamSearch::paramMaximumStableDe
 
 const Core::Choice LexiconfreeRNNTTimesyncBeamSearch::choiceRecombinationMode(
         "off", RecombinationModeOff,
-        "on", RecombinationModeOn,
+        "sum", RecombinationModeSum,
+        "viterbi", RecombinationModeViterbi,
         Core::Choice::endMark());
 
 const Core::ParameterChoice LexiconfreeRNNTTimesyncBeamSearch::paramRecombinationMode(
         "recombination-mode",
         &choiceRecombinationMode,
-        "Whether hypotheses with identical recombination state should be recombined.",
-        RecombinationModeOn);
+        "Whether hypotheses with identical recombination state should be recombined and how: by summing "
+        "their probabilities via log-sum-exp (sum) or by keeping only the better-scoring one (Viterbi).",
+        RecombinationModeSum);
 
 LexiconfreeRNNTTimesyncBeamSearch::LexiconfreeRNNTTimesyncBeamSearch(Core::Configuration const& config)
         : Core::Component(config),
@@ -218,7 +221,7 @@ LexiconfreeRNNTTimesyncBeamSearch::LexiconfreeRNNTTimesyncBeamSearch(Core::Confi
           cacheCleanupInterval_(paramCacheCleanupInterval(config)),
           maximumStableDelay_(paramMaximumStableDelay(config)),
           maximumStableDelayPruningInterval_(paramMaximumStableDelayPruningInterval(config)),
-          recombinationEnabled_(paramRecombinationMode(config) == RecombinationModeOn),
+          recombinationMode_(paramRecombinationMode(config)),
           logStepwiseStatistics_(paramLogStepwiseStatistics(config)),
           debugChannel_(config, "debug"),
           labelScorers_(),
@@ -876,7 +879,7 @@ void LexiconfreeRNNTTimesyncBeamSearch::scorePruning(std::vector<Element>& eleme
 }
 
 void LexiconfreeRNNTTimesyncBeamSearch::recombination(std::vector<LexiconfreeRNNTTimesyncBeamSearch::LabelHypothesis>& hypotheses) {
-    if (not recombinationEnabled_) {
+    if (recombinationMode_ == RecombinationModeOff) {
         return;
     }
 
@@ -938,9 +941,11 @@ void LexiconfreeRNNTTimesyncBeamSearch::recombination(std::vector<LexiconfreeRNN
 
             auto* existingHyp = it->second;
 
-            // Merge scores in probability space (log-sum-exp of the two path scores)
-            // numerically stable form: min(a, b) - log1p(exp(-|a - b|)), which is <= min(a, b)
-            Score mergedScore = std::min(existingHyp->score, hyp.score) - std::log1p(std::exp(-std::fabs(existingHyp->score - hyp.score)));
+            // In sum mode, merge scores in probability space (log-sum-exp of the two path scores)
+            // Numerically stable form: min(a, b) - log1p(exp(-|a - b|)), which is <= min(a, b)
+            // In viterbi mode, no merging happens, the better hyp's own score is kept as-is
+            bool  mergeScores = recombinationMode_ == RecombinationModeSum;
+            Score mergedScore = mergeScores ? std::min(existingHyp->score, hyp.score) - std::log1p(std::exp(-std::fabs(existingHyp->score - hyp.score))) : 0.0f;
 
             if (hyp.score < existingHyp->score) {
                 // New hyp is better -> keep it as representative and add existing one as sibling
@@ -953,10 +958,12 @@ void LexiconfreeRNNTTimesyncBeamSearch::recombination(std::vector<LexiconfreeRNN
                 existingHyp->trace->sibling = hyp.trace;
             }
 
-            // Recompute scaled score from the merged score
-            existingHyp->score       = mergedScore;
-            const auto len           = std::max<std::size_t>(1, existingHyp->length);
-            existingHyp->scaledScore = existingHyp->score / std::pow(static_cast<double>(len), static_cast<double>(lengthNormScale_));
+            if (mergeScores) {
+                // Recompute scaled score from the merged score
+                existingHyp->score       = mergedScore;
+                const auto len           = std::max<std::size_t>(1, existingHyp->length);
+                existingHyp->scaledScore = existingHyp->score / std::pow(static_cast<double>(len), static_cast<double>(lengthNormScale_));
+            }
         }
     }
 

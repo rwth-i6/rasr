@@ -136,7 +136,7 @@ private:
     size_t              cacheCleanupInterval_;
     size_t              maximumStableDelay_;
     size_t              maximumStableDelayPruningInterval_;
-    bool                recombinationEnabled_;
+    Core::Choice::Value recombinationMode_;
     bool                logStepwiseStatistics_;
 
     Core::Channel debugChannel_;

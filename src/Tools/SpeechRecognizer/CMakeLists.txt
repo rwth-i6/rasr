@@ -32,6 +32,10 @@ if(${MODULE_TENSORFLOW})
     list(APPEND libraries RasrTensorflow)
 endif()
 
+if (${MODULE_TORCH})
+    list(APPEND libraries RasrTorch)
+endif ()
+
 target_link_libraries(speech-recognizer PRIVATE ${libraries})
 
 if(${MODULE_SEARCH_WFST})

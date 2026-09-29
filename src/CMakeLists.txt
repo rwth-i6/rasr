@@ -45,3 +45,7 @@ endif()
 if(${MODULE_TEST})
     add_subdirectory(Test)
 endif()
+
+if (${MODULE_TORCH})
+    add_subdirectory(Torch)
+endif ()

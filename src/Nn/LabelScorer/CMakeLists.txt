@@ -39,3 +39,7 @@ endif()
 if(${MODULE_ONNX})
     target_link_libraries(RasrNn PUBLIC RasrOnnx)
 endif()
+
+if (${MODULE_TORCH})
+    target_link_libraries(RasrNn PUBLIC RasrTorch)
+endif ()

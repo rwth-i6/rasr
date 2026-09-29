@@ -158,7 +158,7 @@ void LmUtilityTool::computePerplexityFromTextFile() {
     if (eos_lemma == nullptr) {
         eos_lemma = lexicon->specialLemma("sentence-end");
     }
-    require_ne(eos_lemma, nullptr);
+    require_notnull(eos_lemma);
 
     Bliss::Lemma const* sos_lemma = lexicon->specialLemma("sentence-begin");
     if (sos_lemma == nullptr) {
@@ -166,7 +166,7 @@ void LmUtilityTool::computePerplexityFromTextFile() {
     }
 
     Bliss::Lemma const* unk_lemma = lexicon->specialLemma("unknown");
-    require_ne(unk_lemma, nullptr);
+    require_notnull(unk_lemma);
 
     do {
         std::string line;

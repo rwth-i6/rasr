@@ -66,4 +66,16 @@ DataView::DataView(pybind11::array_t<f32> const& array, size_t size, size_t offs
 }
 #endif
 
+#ifdef MODULE_TORCH
+DataView::DataView(Torch::Tensor&& tensor) {
+    auto tensorPtr = tensor.ptr();
+
+    dataPtr_ = std::shared_ptr<f32 const[]>(
+            tensor.data(),
+            [tensorPtr](f32 const[]) mutable {});
+
+    size_ = tensorPtr->numel();
+}
+#endif
+
 }  // namespace Nn

@@ -342,7 +342,7 @@ it for that timestep) or the per-timestep label limit is reached.
   emitted sentence-end by the end of the segment, controls what happens instead of failing: keep the beam as-is
   if enabled, or produce an empty hypothesis if disabled. Default ``true``.
 * ``recombination-mode`` (``off``/``sum``/``viterbi``): whether hypotheses that reach the same label scorer
-  state (and the same recent output tokens) get recombined into one instead of surviving the beam separately,
+  state and the same output token history get recombined into one instead of surviving the beam separately,
   and how their scores are combined if so. ``sum`` merges the two paths' scores via log-sum-exp, since both
   paths reach the same hypothesis and their probabilities should add up. ``viterbi`` instead keeps only the
   better-scoring path and discards the other's score. ``off`` disables recombination entirely. Default ``sum``.

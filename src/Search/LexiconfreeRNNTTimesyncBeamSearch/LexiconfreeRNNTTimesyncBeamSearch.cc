@@ -451,6 +451,10 @@ bool LexiconfreeRNNTTimesyncBeamSearch::decodeStep() {
         bool anyScored = std::any_of(scoreAccessors.begin(), scoreAccessors.end(),
                                      [](auto const& a) { return a.has_value(); });
         if (not anyScored) {
+            outerHyps_.clear();
+            if (logStepwiseStatistics_) {
+                clog() << Core::XmlClose("search-step-stats");
+            }
             return false;
         }
 
@@ -557,6 +561,9 @@ bool LexiconfreeRNNTTimesyncBeamSearch::decodeStep() {
         }
         scoreAndPruneWithRemainingLabelScorers(extensions_, innerHyps_);
 
+        // Prune extension candidates down to maxBeamSize based on the raw score
+        scorePruning(extensions_, Core::Type<Score>::max, maxBeamSizes_[labelScorers_.size() - 1], [](auto const& ext) { return ext.score; });
+
         // Create new label hypotheses from extension candidates
         newBeam_.clear();
         for (auto const& extension : extensions_) {
@@ -564,22 +571,19 @@ bool LexiconfreeRNNTTimesyncBeamSearch::decodeStep() {
             newBeam_.push_back({baseHyp, extension, extendedScoringContexts(baseHyp, extension), lengthNormScale_});
         }
 
-        // Prune new inner hyps down to maxBeamSize based on the raw score
-        scorePruning(newBeam_, Core::Type<Score>::max, maxBeamSizes_.back(), [](auto const& hyp) { return hyp.score; });
-
         // If there are already more than maxBeamSize outer hyps,
         // remove all inner hyps with a score that is worse than the worst score of the max-beam-size best outer hyps
         Score outerHypsThreshold = std::numeric_limits<Score>::infinity();
-        if (outerHyps_.size() >= maxBeamSizes_.back()) {
-            auto kth = outerHyps_.begin() + (maxBeamSizes_.back() - 1);
+        if (outerHyps_.size() >= maxBeamSizes_[labelScorers_.size() - 1]) {
+            auto kth = outerHyps_.begin() + (maxBeamSizes_[labelScorers_.size() - 1] - 1);
             std::nth_element(outerHyps_.begin(), kth, outerHyps_.end(),
                              [](auto const& a, auto const& b) { return a.score < b.score; });
             outerHypsThreshold = kth->score;
 
             innerHyps_.clear();
-            for (auto const& hyp : newBeam_) {
+            for (auto& hyp : newBeam_) {
                 if (hyp.score < outerHypsThreshold) {
-                    innerHyps_.push_back(hyp);
+                    innerHyps_.push_back(std::move(hyp));
                 }
             }
         }
@@ -602,19 +606,19 @@ bool LexiconfreeRNNTTimesyncBeamSearch::decodeStep() {
     }  // end of inner loop
 
     // Prune all hyps of this timestep at the end of this timestep based on the length-normalized score
-    if (useScorePruning_.back()) {
+    if (useScorePruning_[labelScorers_.size() - 1]) {
         // convert score-threshold to an equivalent length-normalized-score gap using the current best hypothesis's length
-        Score relativeThreshold = scoreThresholds_.back();
+        Score relativeThreshold = scoreThresholds_[labelScorers_.size() - 1];
         if (lengthNormScale_ != 0.0f and not outerHyps_.empty()) {
             auto const& bestHyp = *std::min_element(outerHyps_.begin(), outerHyps_.end());
             relativeThreshold /= std::pow(bestHyp.length, lengthNormScale_);
         }
         scorePruning(outerHyps_, relativeThreshold, outerHyps_.size(), [](auto const& hyp) { return hyp.scaledScore; });
     }
-    scorePruning(outerHyps_, Core::Type<Score>::max, maxBeamSizes_.back(), [](auto const& hyp) { return hyp.scaledScore; });
+    scorePruning(outerHyps_, Core::Type<Score>::max, maxBeamSizes_[labelScorers_.size() - 1], [](auto const& hyp) { return hyp.scaledScore; });
 
     // The leftover outer hyps of this timestep will be the inner hyps to start with in the next timestep
-    beam_ = outerHyps_;
+    beam_ = std::move(outerHyps_);
     outerHyps_.clear();
 
     numActiveHyps_ += beam_.size();

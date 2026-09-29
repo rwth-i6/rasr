@@ -31,7 +31,7 @@ ScoringContextRef StepwiseNoOpLabelScorer::extendedScoringContext(ScoringContext
     return Core::ref(new StepScoringContext(stepScoringContext->currentStep + 1));
 }
 
-std::optional<ScoreAccessorRef> StepwiseNoOpLabelScorer::getScoreAccessor(ScoringContextRef scoringContext) {
+std::optional<ScoreAccessorRef> StepwiseNoOpLabelScorer::computeScoreAccessor(ScoringContextRef scoringContext) {
     StepScoringContextRef stepScoringContext(dynamic_cast<StepScoringContext const*>(scoringContext.get()));
     auto                  input = getInput(stepScoringContext->currentStep);
     if (not input) {

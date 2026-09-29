@@ -16,6 +16,9 @@
 #include "NoContextOnnxLabelScorer.hh"
 
 #include <unordered_set>
+
+#include <Core/XmlStream.hh>
+
 #include "ScoreAccessor.hh"
 
 namespace Nn {
@@ -41,14 +44,20 @@ NoContextOnnxLabelScorer::NoContextOnnxLabelScorer(Core::Configuration const& co
           Precursor(config, TransitionPresetType::CTC),
           scoreCache_() {
     Core::Configuration modelConfig(config, "onnx-model");
-    auto                key = modelConfig.getSelection();
-    onnxModel_              = modelCache.getOrCreate<Onnx::Model>(key, modelConfig, ioSpec);
-    inputFeatureName_       = onnxModel_->mapping.getOnnxName("input-feature");
-    scoresName_             = onnxModel_->mapping.getOnnxName("scores");
+    auto                key   = modelConfig.getSelection();
+    onnxModel_                = modelCache.getOrCreate<Onnx::Model>(key, modelConfig, ioSpec);
+    inputFeatureName_         = onnxModel_->mapping.getOnnxName("input-feature");
+    scoresName_               = onnxModel_->mapping.getOnnxName("scores");
+    tracksScoreAccessorCache_ = true;
+}
+
+void NoContextOnnxLabelScorer::logScoringBreakdown() const {
+    statisticsChannel_ << Core::XmlOpen("onnx-session-time") << onnxSessionTime_.elapsedMilliseconds() << Core::XmlClose("onnx-session-time");
 }
 
 void NoContextOnnxLabelScorer::reset() {
     Precursor::reset();
+    onnxSessionTime_.reset();
     scoreCache_.clear();
 }
 
@@ -86,7 +95,7 @@ ScoringContextRef NoContextOnnxLabelScorer::extendedScoringContext(ScoringContex
     return Core::ref(new StepScoringContext(stepScoringContext->currentStep + 1));
 }
 
-std::vector<std::optional<ScoreAccessorRef>> NoContextOnnxLabelScorer::getScoreAccessors(std::vector<ScoringContextRef> const& scoringContexts) {
+std::vector<std::optional<ScoreAccessorRef>> NoContextOnnxLabelScorer::computeScoreAccessors(std::vector<ScoringContextRef> const& scoringContexts) {
     if (scoringContexts.empty()) {
         return {};
     }
@@ -101,6 +110,7 @@ std::vector<std::optional<ScoreAccessorRef>> NoContextOnnxLabelScorer::getScoreA
         }
         if (scoreCache_.find(stepScoringContext) == scoreCache_.end()) {
             forwardContext(stepScoringContext);
+            ++numScoreAccessorsComputed_;
         }
 
         scoreAccessors[contextIndex] = Core::ref(new VectorScoreAccessor(scoreCache_.at(stepScoringContext), stepScoringContext->currentStep));
@@ -109,8 +119,8 @@ std::vector<std::optional<ScoreAccessorRef>> NoContextOnnxLabelScorer::getScoreA
     return scoreAccessors;
 }
 
-std::optional<ScoreAccessorRef> NoContextOnnxLabelScorer::getScoreAccessor(ScoringContextRef scoringContext) {
-    return getScoreAccessors({scoringContext})[0];
+std::optional<ScoreAccessorRef> NoContextOnnxLabelScorer::computeScoreAccessor(ScoringContextRef scoringContext) {
+    return computeScoreAccessors({scoringContext})[0];
 }
 
 void NoContextOnnxLabelScorer::forwardContext(StepScoringContextRef const& scoringContext) {
@@ -128,7 +138,9 @@ void NoContextOnnxLabelScorer::forwardContext(StepScoringContextRef const& scori
      * Run session
      */
     std::vector<Onnx::Value> sessionOutputs;
+    onnxSessionTime_.start();
     onnxModel_->session.run(std::move(sessionInputs), {scoresName_}, sessionOutputs);
+    onnxSessionTime_.stop();
 
     /*
      * Put resulting scores into cache map

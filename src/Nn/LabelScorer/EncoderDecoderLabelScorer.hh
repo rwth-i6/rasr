@@ -43,6 +43,9 @@ public:
     // Resets both encoder and decoder component
     void reset() override;
 
+    // Forwarded to the encoder and the decoder scorer
+    void logStatistics() const override;
+
     // Signal end of feature stream to encoder, then encode features, pass them to the decoder and
     // finally signal end of feature stream to decoder.
     void signalNoMoreFeatures() override;
@@ -64,11 +67,12 @@ public:
     // Same as `addInput` but adds features for multiple timesteps at once
     void addInputs(DataView const& input, size_t nTimesteps) override;
 
+protected:
     // Return accessor from decoder component
-    std::optional<ScoreAccessorRef> getScoreAccessor(ScoringContextRef scoringContext) override;
+    std::optional<ScoreAccessorRef> computeScoreAccessor(ScoringContextRef scoringContext) override;
 
     // Return accessors from decoder component
-    std::vector<std::optional<ScoreAccessorRef>> getScoreAccessors(std::vector<ScoringContextRef> const& scoringContexts) override;
+    std::vector<std::optional<ScoreAccessorRef>> computeScoreAccessors(std::vector<ScoringContextRef> const& scoringContexts) override;
 
 private:
     Core::Ref<Encoder>           encoder_;

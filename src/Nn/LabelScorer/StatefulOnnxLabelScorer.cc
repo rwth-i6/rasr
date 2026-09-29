@@ -21,6 +21,7 @@
 
 #include <Core/Assertions.hh>
 #include <Core/ReferenceCounting.hh>
+#include <Core/XmlStream.hh>
 #include <Flow/Timestamp.hh>
 #include <Math/FastMatrix.hh>
 #include <Mm/Module.hh>
@@ -240,10 +241,23 @@ StatefulOnnxLabelScorer::StatefulOnnxLabelScorer(Core::Configuration const& conf
     if (scorerInputToStateNameMap_.empty()) {
         error() << "Scorer does not take any input";
     }
+
+    tracksScoreAccessorCache_ = true;
+}
+
+void StatefulOnnxLabelScorer::logScoringBreakdown() const {
+    statisticsChannel_ << Core::XmlOpen("state-update-session-time") << stateUpdateSessionTime_.elapsedMilliseconds() << Core::XmlClose("state-update-session-time");
+    statisticsChannel_ << Core::XmlOpen("scorer-session-time") << scorerSessionTime_.elapsedMilliseconds() << Core::XmlClose("scorer-session-time");
+    statisticsChannel_ << Core::XmlOpen("state-marshalling-time") << stateMarshallingTime_.elapsedMilliseconds() << Core::XmlClose("state-marshalling-time");
+    statisticsChannel_ << Core::XmlOpen("context-preparation-time") << contextPreparationTime_.elapsedMilliseconds() << Core::XmlClose("context-preparation-time");
 }
 
 void StatefulOnnxLabelScorer::reset() {
     Precursor::reset();
+    stateUpdateSessionTime_.reset();
+    scorerSessionTime_.reset();
+    stateMarshallingTime_.reset();
+    contextPreparationTime_.reset();
     stateCache_.clear();
     scoreCache_.clear();
 }
@@ -319,7 +333,7 @@ ScoringContextRef StatefulOnnxLabelScorer::extendedScoringContext(ScoringContext
     return newScoringContext;
 }
 
-std::vector<std::optional<ScoreAccessorRef>> StatefulOnnxLabelScorer::getScoreAccessors(std::vector<ScoringContextRef> const& scoringContexts) {
+std::vector<std::optional<ScoreAccessorRef>> StatefulOnnxLabelScorer::computeScoreAccessors(std::vector<ScoringContextRef> const& scoringContexts) {
     if (scoringContexts.empty()) {
         return {};
     }
@@ -334,6 +348,7 @@ std::vector<std::optional<ScoreAccessorRef>> StatefulOnnxLabelScorer::getScoreAc
     /*
      * Identify unique scoring contexts that still need session runs
      */
+    contextPreparationTime_.start();
     std::unordered_set<OnnxHiddenStateScoringContextRef, ScoringContextHash, ScoringContextEq> uniqueUncachedScoringContexts;
 
     for (auto const& scoringContext : scoringContexts) {
@@ -345,6 +360,9 @@ std::vector<std::optional<ScoreAccessorRef>> StatefulOnnxLabelScorer::getScoreAc
             uniqueUncachedScoringContexts.emplace(onnxHiddenStateScoringContext);
         }
     }
+    contextPreparationTime_.stop();
+
+    numScoreAccessorsComputed_ += uniqueUncachedScoringContexts.size();
 
     /*
      * Fill state and score caches for all uncached scoring contexts
@@ -367,6 +385,7 @@ std::vector<std::optional<ScoreAccessorRef>> StatefulOnnxLabelScorer::getScoreAc
     /*
      * Assign states from cache to scoring contexts and scores from cache to result vector
      */
+    contextPreparationTime_.start();
     for (size_t contextIndex = 0ul; contextIndex < scoringContexts.size(); ++contextIndex) {
         OnnxHiddenStateScoringContextRef onnxHiddenStateScoringContext(dynamic_cast<OnnxHiddenStateScoringContext const*>(scoringContexts[contextIndex].get()));
 
@@ -382,12 +401,13 @@ std::vector<std::optional<ScoreAccessorRef>> StatefulOnnxLabelScorer::getScoreAc
         auto const  timeframe        = onnxHiddenStateScoringContext->labelSeq.size();
         scoreAccessors[contextIndex] = Core::ref(new VectorScoreAccessor(scoreVec, timeframe));
     }
+    contextPreparationTime_.stop();
 
     return scoreAccessors;
 }
 
-std::optional<ScoreAccessorRef> StatefulOnnxLabelScorer::getScoreAccessor(ScoringContextRef scoringContext) {
-    return getScoreAccessors({scoringContext})[0];
+std::optional<ScoreAccessorRef> StatefulOnnxLabelScorer::computeScoreAccessor(ScoringContextRef scoringContext) {
+    return computeScoreAccessors({scoringContext})[0];
 }
 
 void StatefulOnnxLabelScorer::setupEncoderStatesValue() {
@@ -424,32 +444,38 @@ OnnxHiddenStateRef StatefulOnnxLabelScorer::computeInitialHiddenState() {
          * Create session inputs
          */
         std::vector<std::pair<std::string, Onnx::Value>> sessionInputs;
+        std::vector<std::string>                         sessionOutputNames;
+        std::vector<std::string>                         stateNames;
+        {
+            Core::StopWatch::Scope marshallingTimer(stateMarshallingTime_);
 
-        if (initializerEncoderStatesName_ != "") {
-            setupEncoderStatesValue();
-            sessionInputs.emplace_back(initializerEncoderStatesName_, encoderStatesValue_);
-        }
-        if (initializerEncoderStatesSizeName_ != "") {
-            setupEncoderStatesSizeValue();
-            sessionInputs.emplace_back(initializerEncoderStatesSizeName_, encoderStatesSizeValue_);
-        }
+            if (initializerEncoderStatesName_ != "") {
+                setupEncoderStatesValue();
+                sessionInputs.emplace_back(initializerEncoderStatesName_, encoderStatesValue_);
+            }
+            if (initializerEncoderStatesSizeName_ != "") {
+                setupEncoderStatesSizeValue();
+                sessionInputs.emplace_back(initializerEncoderStatesSizeName_, encoderStatesSizeValue_);
+            }
 
-        std::vector<std::string> sessionOutputNames;
-        std::vector<std::string> stateNames;
-        for (auto const& [outputName, stateName] : initializerOutputToStateNameMap_) {
-            sessionOutputNames.push_back(outputName);
-            stateNames.push_back(stateName);
+            for (auto const& [outputName, stateName] : initializerOutputToStateNameMap_) {
+                sessionOutputNames.push_back(outputName);
+                stateNames.push_back(stateName);
+            }
         }
 
         /*
          * Run session
          */
         std::vector<Onnx::Value> sessionOutputs;
+        stateUpdateSessionTime_.start();
         stateInitializerOnnxModel_->session.run(std::move(sessionInputs), sessionOutputNames, sessionOutputs);
+        stateUpdateSessionTime_.stop();
 
         /*
          * Return resulting hidden state
          */
+        Core::StopWatch::Scope marshallingTimer(stateMarshallingTime_);
         initialHiddenState_ = Core::ref(new OnnxHiddenState(std::move(stateNames), std::move(sessionOutputs)));
     }
 
@@ -461,44 +487,50 @@ std::vector<OnnxHiddenStateRef> StatefulOnnxLabelScorer::updatedHiddenStates(std
      * Create session inputs
      */
     std::vector<std::pair<std::string, Onnx::Value>> sessionInputs;
+    std::vector<std::string>                         sessionOutputNames;
+    std::vector<std::string>                         stateNames;
+    {
+        Core::StopWatch::Scope marshallingTimer(stateMarshallingTime_);
 
-    if (updaterEncoderStatesName_ != "") {
-        setupEncoderStatesValue();
-        sessionInputs.emplace_back(updaterEncoderStatesName_, encoderStatesValue_);
-    }
-    if (updaterEncoderStatesSizeName_ != "") {
-        setupEncoderStatesSizeValue();
-        sessionInputs.emplace_back(updaterEncoderStatesSizeName_, encoderStatesSizeValue_);
-    }
-    if (updaterTokenName_ != "") {
-        sessionInputs.emplace_back(updaterTokenName_, Onnx::Value::create(nextTokensBatch));
-    }
-
-    for (auto const& [inputName, stateName] : updaterInputToStateNameMap_) {
-        std::vector<Onnx::Value const*> stateValues;
-        stateValues.reserve(hiddenStatesBatch.size());
-        for (size_t b = 0ul; b < hiddenStatesBatch.size(); ++b) {
-            stateValues.push_back(&hiddenStatesBatch[b]->stateValueMap.at(stateName));
+        if (updaterEncoderStatesName_ != "") {
+            setupEncoderStatesValue();
+            sessionInputs.emplace_back(updaterEncoderStatesName_, encoderStatesValue_);
         }
-        sessionInputs.emplace_back(inputName, Onnx::Value::concat(stateValues, 0));
+        if (updaterEncoderStatesSizeName_ != "") {
+            setupEncoderStatesSizeValue();
+            sessionInputs.emplace_back(updaterEncoderStatesSizeName_, encoderStatesSizeValue_);
+        }
+        if (updaterTokenName_ != "") {
+            sessionInputs.emplace_back(updaterTokenName_, Onnx::Value::create(nextTokensBatch));
+        }
+
+        for (auto const& [inputName, stateName] : updaterInputToStateNameMap_) {
+            std::vector<Onnx::Value const*> stateValues;
+            stateValues.reserve(hiddenStatesBatch.size());
+            for (size_t b = 0ul; b < hiddenStatesBatch.size(); ++b) {
+                stateValues.push_back(&hiddenStatesBatch[b]->stateValueMap.at(stateName));
+            }
+            sessionInputs.emplace_back(inputName, Onnx::Value::concat(stateValues, 0));
+        }
+
+        for (auto const& [outputName, stateName] : updaterOutputToStateNameMap_) {
+            sessionOutputNames.push_back(outputName);
+            stateNames.push_back(stateName);
+        }
     }
 
     /*
      * Run session
      */
-    std::vector<std::string> sessionOutputNames;
-    std::vector<std::string> stateNames;
-    for (auto const& [outputName, stateName] : updaterOutputToStateNameMap_) {
-        sessionOutputNames.push_back(outputName);
-        stateNames.push_back(stateName);
-    }
-
     std::vector<Onnx::Value> sessionOutputs;
+    stateUpdateSessionTime_.start();
     stateUpdaterOnnxModel_->session.run(std::move(sessionInputs), sessionOutputNames, sessionOutputs);
+    stateUpdateSessionTime_.stop();
 
     /*
      * Return resulting hidden states
      */
+    Core::StopWatch::Scope          marshallingTimer(stateMarshallingTime_);
     std::vector<OnnxHiddenStateRef> newHiddenStates;
     for (size_t b = 0ul; b < hiddenStatesBatch.size(); ++b) {
         OnnxHiddenStateRef       newHiddenState = Core::ref(new OnnxHiddenState());
@@ -554,37 +586,42 @@ void StatefulOnnxLabelScorer::cacheScores(std::vector<OnnxHiddenStateScoringCont
      * Create session inputs
      */
     std::vector<std::pair<std::string, Onnx::Value>> sessionInputs;
+    {
+        Core::StopWatch::Scope marshallingTimer(stateMarshallingTime_);
+        for (auto const& [inputName, stateName] : scorerInputToStateNameMap_) {
+            // Collect a vector of individual state values of shape [1, *] and afterwards concatenate
+            // them to a batched state tensor of shape [B, *]
+            std::vector<Onnx::Value const*> stateValues;
+            stateValues.reserve(scoringContextBatch.size());
 
-    for (auto const& [inputName, stateName] : scorerInputToStateNameMap_) {
-        // Collect a vector of individual state values of shape [1, *] and afterwards concatenate
-        // them to a batched state tensor of shape [B, *]
-        std::vector<Onnx::Value const*> stateValues;
-        stateValues.reserve(scoringContextBatch.size());
-
-        for (size_t b = 0ul; b < scoringContextBatch.size(); ++b) {
-            auto const&        scoringContext = scoringContextBatch[b];
-            OnnxHiddenStateRef hiddenState;
-            if (scoringContext->labelSeq.empty()) {
-                hiddenState = computeInitialHiddenState();
+            for (size_t b = 0ul; b < scoringContextBatch.size(); ++b) {
+                auto const&        scoringContext = scoringContextBatch[b];
+                OnnxHiddenStateRef hiddenState;
+                if (scoringContext->labelSeq.empty()) {
+                    hiddenState = computeInitialHiddenState();
+                }
+                else {
+                    hiddenState = (*stateCache_.get(scoringContext)).get();
+                }
+                verify(hiddenState);
+                stateValues.push_back(&hiddenState->stateValueMap.at(stateName));
             }
-            else {
-                hiddenState = (*stateCache_.get(scoringContext)).get();
-            }
-            verify(hiddenState);
-            stateValues.push_back(&hiddenState->stateValueMap.at(stateName));
+            sessionInputs.emplace_back(inputName, Onnx::Value::concat(stateValues, 0));
         }
-        sessionInputs.emplace_back(inputName, Onnx::Value::concat(stateValues, 0));
     }
 
     /*
      * Run session
      */
     std::vector<Onnx::Value> sessionOutputs;
+    scorerSessionTime_.start();
     scorerOnnxModel_->session.run(std::move(sessionInputs), {scorerScoresName_}, sessionOutputs);
+    scorerSessionTime_.stop();
 
     /*
      * Put resulting scores into cache map
      */
+    Core::StopWatch::Scope marshallingTimer(stateMarshallingTime_);
     for (size_t b = 0ul; b < scoringContextBatch.size(); ++b) {
         auto scoreVec = std::make_shared<std::vector<Score>>();
         sessionOutputs.front().get(b, *scoreVec);

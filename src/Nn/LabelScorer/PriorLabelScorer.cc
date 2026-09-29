@@ -75,8 +75,8 @@ PriorLabelScorer::PriorLabelScorer(Core::Configuration const& config)
     }
 }
 
-std::optional<ScoreAccessorRef> PriorLabelScorer::getScoreAccessor(ScoringContextRef scoringContext) {
-    auto res = StepwiseNoOpLabelScorer::getScoreAccessor(scoringContext);
+std::optional<ScoreAccessorRef> PriorLabelScorer::computeScoreAccessor(ScoringContextRef scoringContext) {
+    auto res = StepwiseNoOpLabelScorer::computeScoreAccessor(scoringContext);
     if (res) {
         return Core::ref(new PriorScoreAccessor(*res, negateInput_, prior_));
     }

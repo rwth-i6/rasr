@@ -19,7 +19,9 @@
 #include <deque>
 #include <optional>
 
+#include <Core/Channel.hh>
 #include <Core/Component.hh>
+#include <Core/StopWatch.hh>
 
 #include "DataView.hh"
 
@@ -46,7 +48,11 @@ public:
     virtual ~Encoder() = default;
 
     // Clear buffers and reset segment end flag.
+    // Also resets the accumulated timing and statistics; overrides must call this base implementation.
     virtual void reset();
+
+    // Log the timing and statistics accumulated since the last `reset`.
+    virtual void logStatistics() const;
 
     // Signal that no more features are expected for the current segment.
     void signalNoMoreFeatures();
@@ -67,6 +73,19 @@ protected:
     std::deque<EncodedSpan> outputBuffer_;
 
     bool expectMoreFeatures_;
+
+    // Channel that `logStatistics` writes to. Defaults to the standard log target.
+    mutable Core::XmlChannel statisticsChannel_;
+
+    // Hook for subclasses to break down `encode-time`. Called inside that element, so only
+    // timers whose intervals are contained in it belong here.
+    virtual void logEncodeBreakdown() const {}
+
+    // Tracking only, so writable from const paths
+    mutable Core::StopWatch encodeTime_;
+
+    // Total number of input features (T) handed to this encoder in the current segment
+    mutable size_t numEncodedFeatures_ = 0ul;
 
     // Encode features inside the input buffer and put the results into the output buffer
     virtual void encode() = 0;

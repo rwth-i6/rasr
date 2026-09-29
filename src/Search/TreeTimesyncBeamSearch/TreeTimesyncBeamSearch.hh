@@ -111,7 +111,7 @@ protected:
         Score                            score;           // Would-be total score of the full hypothesis after LM score contribution
         Nn::TransitionType               transitionType;  // Type of transition towward `rootState`
         size_t                           baseHypIndex;    // Index of base hypothesis in beam
-        Lm::History                      lmHistory;       // LM history of the base hypothesis extended by the syntactic tokens of `pron`
+        Lm::History                      lmPrefixHistory; // LM history of the base hypothesis extended by all but the last syntactic token of `pron`
 
         // Scoring contexts of the base hypothesis extended by all but the last syntactic token of `pron` for the label
         // scorers that score the word-end transition. Empty if there is no such token, i.e. the base contexts apply.
@@ -150,7 +150,7 @@ protected:
         LabelHypothesis(LabelHypothesis const& base, WithinWordExtensionCandidate const& extension, std::vector<Nn::ScoringContextRef> const& newScoringContexts);
 
         // Word-end constructor from base and word-end extension
-        LabelHypothesis(LabelHypothesis const& base, WordEndExtensionCandidate const& extension, LanguageModelLookahead::ContextLookaheadReference const newLookahead, Lm::History const& newLookaheadHistory, Score newLookaheadBackOff, std::vector<Nn::ScoringContextRef> const& newScoringContexts);
+        LabelHypothesis(LabelHypothesis const& base, WordEndExtensionCandidate const& extension, Lm::History const& newLmHistory, LanguageModelLookahead::ContextLookaheadReference const newLookahead, Lm::History const& newLookaheadHistory, Score newLookaheadBackOff, std::vector<Nn::ScoringContextRef> const& newScoringContexts);
 
         bool operator<(LabelHypothesis const& other) const {
             return score < other.score;

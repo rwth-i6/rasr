@@ -101,6 +101,7 @@ TreeTimesyncBeamSearch::LabelHypothesis::LabelHypothesis(
 TreeTimesyncBeamSearch::LabelHypothesis::LabelHypothesis(
         LabelHypothesis const&                                   base,
         TreeTimesyncBeamSearch::WordEndExtensionCandidate const& extension,
+        Lm::History const&                                       newLmHistory,
         LanguageModelLookahead::ContextLookaheadReference const  newLookahead,
         Lm::History const&                                       newLookaheadHistory,
         Score                                                    newLookaheadBackOff)
@@ -108,7 +109,7 @@ TreeTimesyncBeamSearch::LabelHypothesis::LabelHypothesis(
           currentToken(base.currentToken),
           currentState(extension.rootState),
           lookahead(newLookahead),
-          lmHistory(extension.lmHistory),
+          lmHistory(newLmHistory),
           lookaheadHistory(newLookaheadHistory),
           timeframe(base.timeframe),
           score(extension.score),
@@ -804,8 +805,9 @@ bool TreeTimesyncBeamSearch::decodeStep() {
             auto const*                     lemmaPron = lexicon_->lemmaPronunciation(exit.pronunciation);
             auto const*                     lemma     = lemmaPron->lemma();
 
-            Lm::History newLmHistory;
-            Score       lmScore = languageModel_->scoreTokenSequence(hyp.lmHistory, lemma->syntacticTokenSequence(), newLmHistory);
+            // The last token is only appended to the LM history after pruning
+            Lm::History lmPrefixHistory;
+            Score       lmScore = languageModel_->scoreTokenSequence(hyp.lmHistory, lemma->syntacticTokenSequence(), lmPrefixHistory);
 
             Score              penalty               = 0.0;
             Nn::TransitionType wordEndtransitionType = Nn::TransitionType::WORD_EXIT;
@@ -827,12 +829,12 @@ bool TreeTimesyncBeamSearch::decodeStep() {
             }
 
             wordEndExtensions_.push_back({
-                    .pron           = lemmaPron,
-                    .rootState      = exit.transitState,
-                    .score          = hyp.score + lmScore + penalty,
-                    .transitionType = wordEndtransitionType,
-                    .baseHypIndex   = hypIndex,
-                    .lmHistory      = newLmHistory,
+                    .pron            = lemmaPron,
+                    .rootState       = exit.transitState,
+                    .score           = hyp.score + lmScore + penalty,
+                    .transitionType  = wordEndtransitionType,
+                    .baseHypIndex    = hypIndex,
+                    .lmPrefixHistory = lmPrefixHistory,
             });
         }
     }
@@ -846,10 +848,17 @@ bool TreeTimesyncBeamSearch::decodeStep() {
         clog() << Core::XmlFull("num-word-end-hyps-after-score-pruning", wordEndExtensions_.size());
     }
 
-    // Create new word-end label hypotheses from word-end extension candidates and prepare the new lookahead if its history has changed
+    // Create new word-end label hypotheses from word-end extension candidates, update the LM history and prepare the new lookahead if its history has changed
     wordEndHypotheses_.clear();
     for (auto& extension : wordEndExtensions_) {
         auto const& baseHyp = newBeam_[extension.baseHypIndex];
+
+        // The preceding syntactic tokens have already been appended during scoring
+        auto        newLmHistory = extension.lmPrefixHistory;
+        auto const& sts          = extension.pron->lemma()->syntacticTokenSequence();
+        if (sts.size() != 0) {
+            newLmHistory = languageModel_->extendedHistory(newLmHistory, sts[sts.size() - 1]);
+        }
 
         LanguageModelLookahead::ContextLookaheadReference newLookahead        = baseHyp.lookahead;
         Lm::History                                       newLookaheadHistory = baseHyp.lookaheadHistory;
@@ -866,7 +875,7 @@ bool TreeTimesyncBeamSearch::decodeStep() {
             }
         }
 
-        wordEndHypotheses_.push_back({baseHyp, extension, newLookahead, newLookaheadHistory, newLookaheadBackOff});
+        wordEndHypotheses_.push_back({baseHyp, extension, newLmHistory, newLookahead, newLookaheadHistory, newLookaheadBackOff});
     }
 
     recombination(wordEndHypotheses_, true);
@@ -1308,7 +1317,6 @@ void TreeTimesyncBeamSearch::finalizeHypotheses() {
                     .score          = hyp.score + sentenceEndScore,
                     .transitionType = Nn::TransitionType::SENTENCE_END,
                     .baseHypIndex   = hypIndex,
-                    .lmHistory      = hyp.lmHistory,
             });
         }
 
@@ -1316,7 +1324,7 @@ void TreeTimesyncBeamSearch::finalizeHypotheses() {
         for (size_t extensionIdx = 0ul; extensionIdx < wordEndExtensions_.size(); ++extensionIdx) {
             auto&       ext     = wordEndExtensions_[extensionIdx];
             auto const& baseHyp = newBeam_[ext.baseHypIndex];
-            tempHypotheses_.push_back({baseHyp, ext, baseHyp.lookahead, baseHyp.lookaheadHistory, baseHyp.lookaheadBackOff});
+            tempHypotheses_.push_back({baseHyp, ext, baseHyp.lmHistory, baseHyp.lookahead, baseHyp.lookaheadHistory, baseHyp.lookaheadBackOff});
         }
     }
     else {  // No valid final hypotheses and no sentence-end fallback

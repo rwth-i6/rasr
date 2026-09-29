@@ -87,8 +87,8 @@ public:
     virtual Score score(const History& h, Token w) const {
         return scale() * languageModel_->score(h, w);
     }
-    virtual Score scoreTokenSequence(const History& h, const Bliss::SyntacticTokenSequence& tokens, History& resultHistory) const {
-        return scale() * languageModel_->scoreTokenSequence(h, tokens, resultHistory);
+    virtual Score scoreTokenSequence(const History& h, const Bliss::SyntacticTokenSequence& tokens, History& prefixHistory) const {
+        return scale() * languageModel_->scoreTokenSequence(h, tokens, prefixHistory);
     }
     virtual Score sentenceEndScore(const History& h) const {
         return scale() * languageModel_->sentenceEndScore(h);

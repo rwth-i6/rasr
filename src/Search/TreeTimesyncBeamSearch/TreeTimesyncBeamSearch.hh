@@ -105,13 +105,13 @@ protected:
     };
 
     struct WordEndExtensionCandidate {
-        Bliss::LemmaPronunciation const* pron;            // Proposed lemma pronunciation
-        StateId                          rootState;       // Proposed root-state to transition to
-        Nn::LabelIndex                   exitLabel;       // Last syntactic token of `pron` as LabelScorer token, the scoring contexts are extended by it after pruning
-        Score                            score;           // Would-be total score of the full hypothesis after LM score contribution
-        Nn::TransitionType               transitionType;  // Type of transition towward `rootState`
-        size_t                           baseHypIndex;    // Index of base hypothesis in beam
-        Lm::History                      lmPrefixHistory; // LM history of the base hypothesis extended by all but the last syntactic token of `pron`
+        Bliss::LemmaPronunciation const* pron;             // Proposed lemma pronunciation
+        StateId                          rootState;        // Proposed root-state to transition to
+        Nn::LabelIndex                   exitLabel;        // Last syntactic token of `pron` as LabelScorer token, the scoring contexts are extended by it after pruning
+        Score                            score;            // Would-be total score of the full hypothesis after LM score contribution
+        Nn::TransitionType               transitionType;   // Type of transition towward `rootState`
+        size_t                           baseHypIndex;     // Index of base hypothesis in beam
+        Lm::History                      lmPrefixHistory;  // LM history of the base hypothesis extended by all but the last syntactic token of `pron`
 
         // Scoring contexts of the base hypothesis extended by all but the last syntactic token of `pron` for the label
         // scorers that score the word-end transition. Empty if there is no such token, i.e. the base contexts apply.

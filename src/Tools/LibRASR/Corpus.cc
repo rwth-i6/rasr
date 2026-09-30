@@ -36,22 +36,22 @@ class PyCorpusVisitor : public Speech::CorpusVisitor {
 public:
     using Speech::CorpusVisitor::CorpusVisitor;
     void enterCorpus(Bliss::Corpus* corpus) override {
-        PYBIND11_OVERRIDE(void, Speech::CorpusVisitor, enterCorpus, corpus);
+        PYBIND11_OVERRIDE_NAME(void, Speech::CorpusVisitor, "enter_corpus", enterCorpus, corpus);
     }
     void leaveCorpus(Bliss::Corpus* corpus) override {
-        PYBIND11_OVERRIDE(void, Speech::CorpusVisitor, leaveCorpus, corpus);
+        PYBIND11_OVERRIDE_NAME(void, Speech::CorpusVisitor, "leave_corpus", leaveCorpus, corpus);
     }
     void enterRecording(Bliss::Recording* recording) override {
-        PYBIND11_OVERRIDE(void, Speech::CorpusVisitor, enterRecording, recording);
+        PYBIND11_OVERRIDE_NAME(void, Speech::CorpusVisitor, "enter_recording", enterRecording, recording);
     }
     void leaveRecording(Bliss::Recording* recording) override {
-        PYBIND11_OVERRIDE(void, Speech::CorpusVisitor, leaveRecording, recording);
+        PYBIND11_OVERRIDE_NAME(void, Speech::CorpusVisitor, "leave_recording", leaveRecording, recording);
     }
     void visitSegment(Bliss::Segment* segment) override {
-        PYBIND11_OVERRIDE(void, Speech::CorpusVisitor, visitSegment, segment);
+        PYBIND11_OVERRIDE_NAME(void, Speech::CorpusVisitor, "visit_segment", visitSegment, segment);
     }
     void visitSpeechSegment(Bliss::SpeechSegment* segment) override {
-        PYBIND11_OVERRIDE(void, Speech::CorpusVisitor, visitSpeechSegment, segment);
+        PYBIND11_OVERRIDE_NAME(void, Speech::CorpusVisitor, "visit_speech_segment", visitSpeechSegment, segment);
     }
 };
 
@@ -235,8 +235,8 @@ void bindCorpus(py::module_& m) {
             .def("leave_corpus", &PublicCorpusVisitor::leaveCorpus)
             .def("enter_recording", &PublicCorpusVisitor::enterRecording)
             .def("leave_recording", &PublicCorpusVisitor::leaveRecording)
-            .def("visitSegment", &PublicCorpusVisitor::visitSegment)
-            .def("visitSpeechSegment", &PublicCorpusVisitor::visitSpeechSegment)
+            .def("visit_segment", &PublicCorpusVisitor::visitSegment)
+            .def("visit_speech_segment", &PublicCorpusVisitor::visitSpeechSegment)
             .def(
                     "sign_on",
                     py::overload_cast<Speech::CorpusProcessor*>(&Speech::CorpusVisitor::signOn),

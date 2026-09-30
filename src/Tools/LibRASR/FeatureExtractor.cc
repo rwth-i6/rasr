@@ -29,13 +29,13 @@ public:
     PyFeatureExtractor(const Core::Configuration& c, bool loadFromFile = true)
             : Core::Component(c), Speech::FeatureExtractor(c, loadFromFile) {}
     void setFeatureDescription(const Mm::FeatureDescription& description) override {
-        PYBIND11_OVERRIDE(void, Speech::FeatureExtractor, setFeatureDescription, description);
+        PYBIND11_OVERRIDE_NAME(void, Speech::FeatureExtractor, "set_feature_description", setFeatureDescription, description);
     }
     void processFeature(Core::Ref<const Speech::Feature> feature) override {
-        PYBIND11_OVERRIDE(void, Speech::FeatureExtractor, processFeature, feature);
+        PYBIND11_OVERRIDE_NAME(void, Speech::FeatureExtractor, "process_feature", processFeature, feature);
     }
     void processSegment(Bliss::Segment* segment) override {
-        PYBIND11_OVERRIDE(void, Speech::FeatureExtractor, processSegment, segment);
+        PYBIND11_OVERRIDE_NAME(void, Speech::FeatureExtractor, "process_segment", processSegment, segment);
     }
 };
 
@@ -54,5 +54,5 @@ void bindFeatureExtractor(py::module_& m) {
             .def(py::init<const Core::Configuration&, bool>())
             .def("process_segment", &PublicFeatureExtractor::processSegment)
             .def("process_feature", &PublicFeatureExtractor::processFeature)
-            .def("process_segment", &PublicFeatureExtractor::setFeatureDescription);
+            .def("set_feature_description", &PublicFeatureExtractor::setFeatureDescription);
 }

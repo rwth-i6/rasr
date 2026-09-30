@@ -24,6 +24,9 @@ public:
     using Speech::FeatureExtractor::setFeatureDescription;
 };
 
+// Trampoline class that forwards virtual C++ callbacks to overrides on Python
+// subclasses of FeatureExtractor. PYBIND11_OVERRIDE_NAME maps the C++
+// camelCase method names to the snake_case names exposed by the Python API.
 class PyFeatureExtractor : public Speech::FeatureExtractor {
 public:
     PyFeatureExtractor(const Core::Configuration& c, bool loadFromFile = true)

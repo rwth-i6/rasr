@@ -32,6 +32,9 @@ public:
     using Speech::CorpusVisitor::visitSpeechSegment;
 };
 
+// Trampoline class that forwards virtual C++ callbacks to overrides on Python
+// subclasses of SpeechCorpusVisitor. PYBIND11_OVERRIDE_NAME maps the C++
+// camelCase method names to the snake_case names exposed by the Python API.
 class PyCorpusVisitor : public Speech::CorpusVisitor {
 public:
     using Speech::CorpusVisitor::CorpusVisitor;

@@ -565,6 +565,7 @@ bool LexiconfreeRNNTTimesyncBeamSearch::decodeStep() {
         scoreAndPruneWithRemainingLabelScorers(extensions_, innerHyps_);
 
         // Prune extension candidates down to maxBeamSize based on the raw score
+        // Intentionally not length-normalized here, matching torchaudio's RNNTBeamSearch reference
         scorePruning(extensions_, Core::Type<Score>::max, maxBeamSizes_[labelScorers_.size() - 1], [](auto const& ext) { return ext.score; });
 
         // Create new label hypotheses from extension candidates

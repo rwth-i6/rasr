@@ -42,7 +42,7 @@ public:
 void bindFeatureExtractor(py::module_& m) {
     py::class_<Speech::DataExtractor, Speech::CorpusProcessor>(m, "DataExtractor")
             .def(py::init<const Core::Configuration&, bool>())
-            .def("sign_on", &Speech::DataExtractor::signOn)
+            .def("sign_on", &Speech::DataExtractor::signOn, py::keep_alive<2, 1>())
             .def("enter_corpus", &Speech::DataExtractor::enterCorpus)
             .def("leave_corpus", &Speech::DataExtractor::leaveCorpus)
             .def("enter_recording", &Speech::DataExtractor::enterRecording)

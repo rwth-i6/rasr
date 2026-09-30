@@ -244,7 +244,7 @@ void bindCorpus(py::module_& m) {
 
     py::class_<Speech::CorpusProcessor>(m, "CorpusProcessor")
             .def(py::init<const Core::Configuration&>())
-            .def("sign_on", &Speech::CorpusProcessor::signOn)
+            .def("sign_on", &Speech::CorpusProcessor::signOn, py::keep_alive<2, 1>())
             .def("enter_corpus", &Speech::CorpusProcessor::enterCorpus)
             .def("leave_corpus", &Speech::CorpusProcessor::leaveCorpus)
             .def("enter_recording", &Speech::CorpusProcessor::enterRecording)

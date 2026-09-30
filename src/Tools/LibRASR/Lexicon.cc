@@ -136,7 +136,7 @@ void bindLexicon(py::module_& m) {
             .def("is_valid_phoneme_id", &Bliss::PhonemeInventory::isValidPhonemeId)
             .def("new_phoneme", &Bliss::PhonemeInventory::newPhoneme, py::return_value_policy::reference_internal)
             .def("assign_symbol", &Bliss::PhonemeInventory::assignSymbol)
-            .def("phoneme_alphabet", &Bliss::PhonemeInventory::phonemeAlphabet)
+            .def("phoneme_alphabet", &Bliss::PhonemeInventory::phonemeAlphabet, py::return_value_policy::take_ownership)
             .def("parse_selection", &Bliss::PhonemeInventory::parseSelection)
             .def("write_xml", [](Bliss::PhonemeInventory& self, const std::string& name) {
                 std::ofstream file(name + ".xml");
@@ -193,7 +193,7 @@ void bindLexicon(py::module_& m) {
             });
 
     py::class_<Bliss::PhonemeAlphabet, Bliss::TokenAlphabet, Core::Ref<Bliss::PhonemeAlphabet>>(m, "PhonemeAlphabet", py::multiple_inheritance())
-            .def("phoneme_inventory", &Bliss::PhonemeAlphabet::phonemeInventory)
+            .def("phoneme_inventory", &Bliss::PhonemeAlphabet::phonemeInventory, py::return_value_policy::take_ownership)
             .def("phoneme", &Bliss::PhonemeAlphabet::phoneme, py::return_value_policy::reference_internal)
             .def("symbol", &Bliss::PhonemeAlphabet::symbol)
             .def("index", (Fsa::LabelId(Bliss::PhonemeAlphabet::*)(const std::string&) const) & Bliss::PhonemeAlphabet::index)
@@ -280,23 +280,23 @@ void bindLexicon(py::module_& m) {
             .def("num_lemmas", &Bliss::Lexicon::nLemmas)
             .def("lemmas", [](Bliss::Lexicon const& self) { auto begin_end = self.lemmas(); return py::make_iterator(begin_end.first, begin_end.second); }, py::keep_alive<0, 1>())
             .def("special_lemma", &Bliss::Lexicon::specialLemma, py::return_value_policy::reference_internal)
-            .def("lemma_alphabet", &Bliss::Lexicon::lemmaAlphabet)
+            .def("lemma_alphabet", &Bliss::Lexicon::lemmaAlphabet, py::return_value_policy::take_ownership)
             .def("set_phoneme_inventory", &Bliss::Lexicon::setPhonemeInventory)
-            .def("phoneme_inventory", &Bliss::Lexicon::phonemeInventory)
+            .def("phoneme_inventory", &Bliss::Lexicon::phonemeInventory, py::return_value_policy::take_ownership)
             .def("num_pronunciations", &Bliss::Lexicon::nPronunciations)
             .def("pronunciations", [](Bliss::Lexicon const& self) { auto begin_end = self.pronunciations(); return py::make_iterator(begin_end.first, begin_end.second); }, py::keep_alive<0, 1>())
             .def("num_lemma_pronunciations", &Bliss::Lexicon::nLemmaPronunciations)
             .def("lemma_pronunciations", [](Bliss::Lexicon const& self) { auto begin_end = self.lemmaPronunciations(); return py::make_iterator(begin_end.first, begin_end.second); }, py::keep_alive<0, 1>())
-            .def("lemma_pronunciation_alphabet", &Bliss::Lexicon::lemmaPronunciationAlphabet)
+            .def("lemma_pronunciation_alphabet", &Bliss::Lexicon::lemmaPronunciationAlphabet, py::return_value_policy::take_ownership)
             .def("lemma_pronunciation", &Bliss::Lexicon::lemmaPronunciation, py::return_value_policy::reference_internal)
             .def("num_syntactic_tokens", &Bliss::Lexicon::nSyntacticTokens)
             .def("syntactic_token", &Bliss::Lexicon::syntacticToken, py::return_value_policy::reference_internal)
             .def("syntactic_token_inventory", &Bliss::Lexicon::syntacticTokenInventory, py::return_value_policy::reference_internal)
-            .def("syntactic_token_alphabet", &Bliss::Lexicon::syntacticTokenAlphabet)
+            .def("syntactic_token_alphabet", &Bliss::Lexicon::syntacticTokenAlphabet, py::return_value_policy::take_ownership)
             .def("num_evaluation_tokens", &Bliss::Lexicon::nEvaluationTokens)
             .def("evaluation_token_inventory", &Bliss::Lexicon::evaluationTokenInventory, py::return_value_policy::reference_internal)
-            .def("evaluation_token_alphabet", &Bliss::Lexicon::evaluationTokenAlphabet)
+            .def("evaluation_token_alphabet", &Bliss::Lexicon::evaluationTokenAlphabet, py::return_value_policy::take_ownership)
             .def("letter", &Bliss::Lexicon::letter, py::return_value_policy::reference_internal)
             .def("letter_inventory", &Bliss::Lexicon::letterInventory, py::return_value_policy::reference_internal)
-            .def("letter_alphabet", &Bliss::Lexicon::letterAlphabet);
+            .def("letter_alphabet", &Bliss::Lexicon::letterAlphabet, py::return_value_policy::take_ownership);
 }

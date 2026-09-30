@@ -21,6 +21,8 @@
 
 PYBIND11_DECLARE_HOLDER_TYPE(T, Core::Ref<T>, true);
 
+// Publicist class that exposes protected CorpusVisitor callbacks to pybind11.
+// It does not change their implementation or participate in virtual dispatch.
 class PublicCorpusVisitor : public Speech::CorpusVisitor {
 public:
     using Speech::CorpusVisitor::CorpusVisitor;
@@ -33,8 +35,7 @@ public:
 };
 
 // Trampoline class that forwards virtual C++ callbacks to overrides on Python
-// subclasses of SpeechCorpusVisitor. PYBIND11_OVERRIDE_NAME maps the C++
-// camelCase method names to the snake_case names exposed by the Python API.
+// subclasses of SpeechCorpusVisitor.
 class PyCorpusVisitor : public Speech::CorpusVisitor {
 public:
     using Speech::CorpusVisitor::CorpusVisitor;

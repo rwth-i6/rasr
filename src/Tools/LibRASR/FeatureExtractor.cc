@@ -18,6 +18,9 @@
 
 PYBIND11_DECLARE_HOLDER_TYPE(T, Core::Ref<T>, true);
 
+// Publicist class that exposes protected FeatureExtractor callbacks to
+// pybind11. It does not change their implementation or participate in virtual
+// dispatch.
 class PublicFeatureExtractor : public Speech::FeatureExtractor {
 public:
     using Speech::FeatureExtractor::processFeature;
@@ -43,6 +46,14 @@ public:
 };
 
 void bindFeatureExtractor(py::module_& m) {
+    py::class_<Mm::FeatureDescription>(m, "FeatureDescription")
+            .def(py::init<const std::string&>())
+            .def("num_streams", &Mm::FeatureDescription::nStreams)
+            .def("verify_number_of_streams", &Mm::FeatureDescription::verifyNumberOfStreams, py::arg("expected_number"), py::arg("critical") = false)
+            .def_readonly_static("default_name", &Mm::FeatureDescription::defaultName)
+            .def_readonly_static("dimension_attribute", &Mm::FeatureDescription::nameDimension)
+            .def_readonly_static("port_name_attribute", &Mm::FeatureDescription::namePortName);
+
     py::class_<Speech::DataExtractor, Speech::CorpusProcessor>(m, "DataExtractor")
             .def(py::init<const Core::Configuration&, bool>())
             .def("sign_on", &Speech::DataExtractor::signOn, py::keep_alive<2, 1>())
@@ -55,7 +66,7 @@ void bindFeatureExtractor(py::module_& m) {
 
     py::class_<Speech::FeatureExtractor, Speech::DataExtractor, PyFeatureExtractor>(m, "FeatureExtractor")
             .def(py::init<const Core::Configuration&, bool>())
-            .def("process_segment", &PublicFeatureExtractor::processSegment)
+            .def("process_segment", &Speech::FeatureExtractor::processSegment)
             .def("process_feature", &PublicFeatureExtractor::processFeature)
             .def("set_feature_description", &PublicFeatureExtractor::setFeatureDescription);
 }

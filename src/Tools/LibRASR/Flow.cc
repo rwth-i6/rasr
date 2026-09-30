@@ -177,13 +177,22 @@ void bindFlow(py::module_& m) {
             .def("add_output", &Flow::Network::addOutput)
             .def("get_output", &Flow::Network::getOutput)
             .def("output_name", &Flow::Network::outputName, py::return_value_policy::reference_internal)
-            .def("outputs", &Flow::Network::outputs)
+            .def("outputs", [](const Flow::Network& self) {
+                std::vector<std::pair<Flow::PortId, std::string>> outputs;
+                self.outputs(outputs);
+                return outputs;
+            })
             .def("activate_output", &Flow::Network::activateOutput)
             .def("put_data", &Flow::Network::putData)
             .def("put_eos", &Flow::Network::putEos)
             .def("put_ood", &Flow::Network::putOod)
             .def("get_port_link", &Flow::Network::getPortLink, py::return_value_policy::reference_internal)
-            .def("get_data", (bool(Flow::Network::*)(Flow::PortId, Flow::DataPtr<Flow::Data>&)) & Flow::Network::getData)
+            .def("get_data", [](Flow::Network& self, Flow::PortId port) -> py::object {
+                Flow::DataPtr<Flow::Data> data;
+                if (!self.getData(port, data))
+                    return py::none();
+                return py::cast(data);
+            }, py::arg("port"))
             .def("put_attributes", &Flow::Network::putAttributes)
             .def("get_attribute", &Flow::Network::getAttribute)
             .def("set_parameter", &Flow::Network::setParameter)
@@ -198,20 +207,50 @@ void bindFlow(py::module_& m) {
 
     py::class_<Flow::DataSource, Flow::Network>(m, "FlowDataSource", py::multiple_inheritance())
             .def(py::init<const Core::Configuration&, bool>())
-            .def("get_data", (bool(Flow::DataSource::*)(Flow::PortId, Flow::DataPtr<Flow::Data>&)) & Flow::DataSource::getData);
+            .def("get_data", [](Flow::DataSource& self, Flow::PortId port) -> py::object {
+                Flow::DataPtr<Flow::Data> data;
+                if (!self.getData(port, data))
+                    return py::none();
+                return py::cast(data);
+            }, py::arg("port"));
 
     py::class_<Speech::DataSource, Flow::DataSource>(m, "DataSource")
             .def(py::init<const Core::Configuration&, bool>())
             .def("initialize", &Speech::DataSource::initialize)
             .def("finalize", &Speech::DataSource::finalize)
-            .def("get_data", (bool(Speech::DataSource::*)(Flow::PortId, Core::Ref<Speech::Feature>&)) & Speech::DataSource::getData)
-            .def("get_data", (bool(Speech::DataSource::*)(Core::Ref<Speech::Feature>&)) & Speech::DataSource::getData)
-            .def("get_data", (bool(Speech::DataSource::*)()) & Speech::DataSource::getData)
-            .def("convert", &Speech::DataSource::convert)
+            .def("get_feature", [](Speech::DataSource& self, Flow::PortId port) -> py::object {
+                Core::Ref<Speech::Feature> feature;
+                if (!self.getData(port, feature))
+                    return py::none();
+                return py::cast(feature);
+            }, py::arg("port"))
+            .def("get_feature", [](Speech::DataSource& self) -> py::object {
+                Core::Ref<Speech::Feature> feature;
+                if (!self.getData(feature))
+                    return py::none();
+                return py::cast(feature);
+            })
+            .def("consume_data", py::overload_cast<>(&Speech::DataSource::getData))
+            .def("convert", [](Speech::DataSource& self, Flow::DataPtr<Flow::Timestamp> data) -> py::object {
+                Core::Ref<Speech::Feature> feature;
+                if (!self.convert(data, feature))
+                    return py::none();
+                return py::cast(feature);
+            }, py::arg("data"))
             .def("main_port_id", &Speech::DataSource::mainPortId)
             .def("num_frames", &Speech::DataSource::nFrames, py::return_value_policy::reference_internal)
             .def("real_time", &Speech::DataSource::realTime)
             .def("set_progress_indication", &Speech::DataSource::setProgressIndication)
-            .def("get_data", (bool(Speech::DataSource::*)(Flow::PortId, Flow::DataPtr<Flow::Data>&)) & Speech::DataSource::getData)
-            .def("get_data", (bool(Speech::DataSource::*)(Flow::DataPtr<Flow::Data>&)) & Speech::DataSource::getData);
+            .def("get_data", [](Speech::DataSource& self, Flow::PortId port) -> py::object {
+                Flow::DataPtr<Flow::Data> data;
+                if (!self.getData(port, data))
+                    return py::none();
+                return py::cast(data);
+            }, py::arg("port"))
+            .def("get_data", [](Speech::DataSource& self) -> py::object {
+                Flow::DataPtr<Flow::Data> data;
+                if (!self.getData(self.mainPortId(), data))
+                    return py::none();
+                return py::cast(data);
+            });
 }

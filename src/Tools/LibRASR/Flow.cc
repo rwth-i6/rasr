@@ -17,23 +17,48 @@
 
 #include <Flow/Data.hh>
 #include <Flow/InputNode.hh>
+#include <Flow/Link.hh>
 #include <Flow/Module.hh>
 #include <Speech/Module.hh>
 
 PYBIND11_DECLARE_HOLDER_TYPE(T, Core::Ref<T>, true);
-PYBIND11_DECLARE_HOLDER_TYPE(T, Flow::DataPtr<T>, true);  // confirm
+PYBIND11_DECLARE_HOLDER_TYPE(T, Core::TsRef<T>, true);
+PYBIND11_DECLARE_HOLDER_TYPE(T, Flow::DataPtr<T>, true);
 
 void bindFlow(py::module_& m) {
     py::class_<Flow::Data, Flow::DataPtr<Flow::Data>>(m, "Data")
             .def(py::init<>())
             .def(py::init<const Flow::Data&>())
             .def_static("eos", &Flow::Data::eos, py::return_value_policy::reference)
-            .def("compare_address", [](Flow::Data& self, const Flow::Data* data) { return &self != data; })
+            .def("is_same_object", [](Flow::Data& self, const Flow::Data* data) { return &self == data; })
             .def("__eq__", &Flow::Data::operator==, py::is_operator())
             .def("datatype", &Flow::Data::datatype, py::return_value_policy::reference_internal);
 
     py::class_<Flow::Datatype>(m, "Datatype")
             .def("name", &Flow::Datatype::name, py::return_value_policy::reference_internal);
+
+    py::class_<Core::Choice>(m, "Choice")
+            .def("num_choices", &Core::Choice::nChoices)
+            .def("identifiers", [](const Core::Choice& self) {
+                std::vector<std::string> identifiers;
+                self.getIdentifiers(identifiers);
+                return identifiers;
+            })
+            .def("values", [](const Core::Choice& self) {
+                std::vector<Core::Choice::Value> values;
+                self.getValues(values);
+                return values;
+            })
+            .def("value", py::overload_cast<const std::string&>(&Core::Choice::operator[], py::const_))
+            .def("identifier", py::overload_cast<Core::Choice::Value>(&Core::Choice::operator[], py::const_), py::return_value_policy::reference_internal);
+
+    py::class_<Core::ParameterChoice>(m, "ParameterChoice")
+            .def("choice", &Core::ParameterChoice::choice, py::return_value_policy::reference_internal);
+
+    py::class_<Flow::Link>(m, "Link")
+            .def("clear", &Flow::Link::clear)
+            .def("is_data_available", &Flow::Link::isDataAvailable)
+            .def("get_remaining_data_len", &Flow::Link::getRemainingDataLen);
 
     py::class_<Flow::Timestamp, Flow::Data, Flow::DataPtr<Flow::Timestamp>>(m, "Timestamp")
             .def(py::init<Flow::Time, Flow::Time>())
@@ -54,6 +79,21 @@ void bindFlow(py::module_& m) {
             .def("contains", (bool(Flow::Timestamp::*)(Flow::Time) const) & Flow::Timestamp::contains)
             .def("contains", (bool(Flow::Timestamp::*)(const Flow::Timestamp&) const) & Flow::Timestamp::contains)
             .def("overlap", &Flow::Timestamp::overlap);
+
+    py::class_<Mm::Feature::Vector, Core::TsRef<Mm::Feature::Vector>>(m, "FeatureVector")
+            .def(py::init<size_t>())
+            .def("__len__", &Mm::Feature::Vector::size)
+            .def("__getitem__", [](const Mm::Feature::Vector& self, size_t index) {
+                if (index >= self.size())
+                    throw py::index_error();
+                return self[index];
+            })
+            .def("__setitem__", [](Mm::Feature::Vector& self, size_t index, Mm::FeatureType value) {
+                if (index >= self.size())
+                    throw py::index_error();
+                self[index] = value;
+            })
+            .def("__iter__", [](const Mm::Feature::Vector& self) { return py::make_iterator(self.begin(), self.end()); }, py::keep_alive<0, 1>());
 
     py::class_<Mm::Feature, Core::Ref<Mm::Feature>>(m, "MmFeature")
             .def(py::init<size_t>())
@@ -88,8 +128,8 @@ void bindFlow(py::module_& m) {
             .def("erase_output_attributes", &Flow::AbstractNode::eraseOutputAttributes)
             .def("configure", &Flow::AbstractNode::configure)
             .def("work", &Flow::AbstractNode::work)
-            .def("getRemaining_dataLen", &Flow::AbstractNode::getRemainingDataLen)
-            .def("addUnresolved_parameter", &Flow::AbstractNode::addUnresolvedParameter)
+            .def("get_remaining_data_len", &Flow::AbstractNode::getRemainingDataLen)
+            .def("add_unresolved_parameter", &Flow::AbstractNode::addUnresolvedParameter)
             .def("unresolved_attributes", &Flow::AbstractNode::unresolvedAttributes, py::return_value_policy::reference_internal)
             .def("__lt__", &Flow::AbstractNode::operator<);
 
@@ -169,9 +209,9 @@ void bindFlow(py::module_& m) {
             .def("get_data", (bool(Speech::DataSource::*)()) & Speech::DataSource::getData)
             .def("convert", &Speech::DataSource::convert)
             .def("main_port_id", &Speech::DataSource::mainPortId)
-            .def("nun_frames", &Speech::DataSource::nFrames, py::return_value_policy::reference_internal)
+            .def("num_frames", &Speech::DataSource::nFrames, py::return_value_policy::reference_internal)
             .def("real_time", &Speech::DataSource::realTime)
             .def("set_progress_indication", &Speech::DataSource::setProgressIndication)
             .def("get_data", (bool(Speech::DataSource::*)(Flow::PortId, Flow::DataPtr<Flow::Data>&)) & Speech::DataSource::getData)
-            .def("get_data", (bool(Speech::DataSource::*)(Flow::DataPtr<Flow::Data>&)) & Speech::DataSource::getData);  // be sure of template issue
+            .def("get_data", (bool(Speech::DataSource::*)(Flow::DataPtr<Flow::Data>&)) & Speech::DataSource::getData);
 }

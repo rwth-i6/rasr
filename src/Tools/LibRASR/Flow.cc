@@ -15,6 +15,8 @@
 
 #include "Flow.hh"
 
+#include <memory>
+
 #include <Flow/Data.hh>
 #include <Flow/InputNode.hh>
 #include <Flow/Link.hh>
@@ -102,7 +104,7 @@ void bindFlow(py::module_& m) {
             .def("set", (void(Mm::Feature::*)(size_t, const Core::TsRef<const Mm::Feature::Vector>&)) & Mm::Feature::set)
             .def("set", (void(Mm::Feature::*)(const std::vector<size_t>&, const Core::TsRef<const Mm::Feature::Vector>&)) & Mm::Feature::set)
             .def("clear", &Mm::Feature::clear)
-            .def("main_stream", &Mm::Feature::mainStream, py::return_value_policy::take_ownership)
+            .def("main_stream", &Mm::Feature::mainStream)
             .def("set_number_of_streams", &Mm::Feature::setNumberOfStreams)
             .def("num_streams", &Mm::Feature::nStreams);
 
@@ -167,11 +169,17 @@ void bindFlow(py::module_& m) {
             .def("build_from_file", &Flow::Network::buildFromFile)
             .def("set_type_name", &Flow::Network::setTypeName)
             .def("get_type_name", &Flow::Network::getTypeName, py::return_value_policy::reference_internal)
-            .def("add_node", &Flow::Network::addNode)
+            .def("add_input_node", [](Flow::Network& self, const Core::Configuration& config) -> Flow::InputNode* {
+                auto node = std::make_unique<Flow::InputNode>(config);
+                if (!self.addNode(node.get()))
+                    return nullptr;
+                return node.release();
+            }, py::arg("config"), py::return_value_policy::reference_internal,
+                    "Create an InputNode and transfer its ownership to this network. Returns None if the node could not be added.")
             .def("get_node", &Flow::Network::getNode, py::return_value_policy::reference_internal)
             .def("add_link", &Flow::Network::addLink)
             .def("declare_parameter", &Flow::Network::declareParameter)
-            .def("add_parameter_use", &Flow::Network::addParameterUse)
+            .def("add_parameter_use", &Flow::Network::addParameterUse, py::keep_alive<1, 2>())
             .def("add_input", &Flow::Network::addInput)
             .def("get_input", &Flow::Network::getInput)
             .def("add_output", &Flow::Network::addOutput)
@@ -183,7 +191,10 @@ void bindFlow(py::module_& m) {
                 return outputs;
             })
             .def("activate_output", &Flow::Network::activateOutput)
-            .def("put_data", &Flow::Network::putData)
+            .def("put_data", [](Flow::Network& self, Flow::PortId port, const Flow::DataPtr<Flow::Data>& data) {
+                return self.putData(port, data.get());
+            }, py::arg("port"), py::arg("data"),
+                    "Put data on an input port. The network retains an intrusive reference while the data is queued.")
             .def("put_eos", &Flow::Network::putEos)
             .def("put_ood", &Flow::Network::putOod)
             .def("get_port_link", &Flow::Network::getPortLink, py::return_value_policy::reference_internal)

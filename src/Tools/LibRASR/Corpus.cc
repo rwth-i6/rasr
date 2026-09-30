@@ -237,7 +237,6 @@ void bindCorpus(py::module_& m) {
             .def("leave_recording", &PublicCorpusVisitor::leaveRecording)
             .def("visitSegment", &PublicCorpusVisitor::visitSegment)
             .def("visitSpeechSegment", &PublicCorpusVisitor::visitSpeechSegment)
-            //.def("sign_on", (void (PublicCorpusVisitor::*)(Speech::CorpusProcessor*)) &PublicCorpusVisitor::signOn);
             .def(
                     "sign_on",
                     [](Speech::CorpusVisitor& self, Speech::CorpusProcessor* processor) { self.signOn(processor); },

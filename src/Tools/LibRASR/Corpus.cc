@@ -61,7 +61,7 @@ public:
 void bindCorpus(py::module_& m) {
     py::class_<Bliss::NamedCorpusEntity>(m, "NamedCorpusEntity")
             .def("parent", &Bliss::NamedCorpusEntity::parent, py::return_value_policy::reference_internal)
-            .def("set_parent", &Bliss::NamedCorpusEntity::setParent)
+            .def("set_parent", &Bliss::NamedCorpusEntity::setParent, py::keep_alive<1, 2>())
             .def("name", &Bliss::NamedCorpusEntity::name, py::return_value_policy::reference_internal)
             .def("full_name", &Bliss::NamedCorpusEntity::fullName)
             .def("set_name", &Bliss::NamedCorpusEntity::setName)
@@ -70,9 +70,9 @@ void bindCorpus(py::module_& m) {
 
     py::class_<Bliss::Speaker, Bliss::NamedCorpusEntity> speaker(m, "Speaker");
     speaker
-            .def(py::init<Bliss::ParentEntity*>())
+            .def(py::init<Bliss::ParentEntity*>(), py::keep_alive<1, 2>())
             .def("gender", &Bliss::Speaker::gender)
-            .def("set_parent", &Bliss::Speaker::setParent);
+            .def("set_parent", &Bliss::Speaker::setParent, py::keep_alive<1, 2>());
 
     py::enum_<Bliss::Speaker::Gender>(speaker, "Gender")
             .value("unknown", Bliss::Speaker::Gender::unknown)
@@ -82,8 +82,8 @@ void bindCorpus(py::module_& m) {
             .export_values();
 
     py::class_<Bliss::AcousticCondition, Bliss::NamedCorpusEntity>(m, "AcousticCondition")
-            .def(py::init<Bliss::ParentEntity*>())
-            .def("set_parent", &Bliss::AcousticCondition::setParent);
+            .def(py::init<Bliss::ParentEntity*>(), py::keep_alive<1, 2>())
+            .def("set_parent", &Bliss::AcousticCondition::setParent, py::keep_alive<1, 2>());
 
     py::class_<Bliss::ParentEntity, Bliss::NamedCorpusEntity>(m, "ParentEntity")
             .def("is_name_reserved", &Bliss::ParentEntity::isNameReserved)
@@ -104,7 +104,7 @@ void bindCorpus(py::module_& m) {
             .def("lookup", &Bliss::Directory<Bliss::AcousticCondition>::lookup, py::return_value_policy::reference_internal);
 
     py::class_<Bliss::CorpusSection, Bliss::ParentEntity>(m, "CorpusSection")
-            .def(py::init<Bliss::CorpusSection*>())
+            .def(py::init<Bliss::CorpusSection*>(), py::keep_alive<1, 2>())
             .def("parent", &Bliss::CorpusSection::parent, py::return_value_policy::reference_internal)
             .def("level", &Bliss::CorpusSection::level)
             .def("speaker", &Bliss::CorpusSection::speaker)
@@ -113,10 +113,10 @@ void bindCorpus(py::module_& m) {
             .def("default_condition", &Bliss::CorpusSection::defaultCondition);
 
     py::class_<Bliss::Corpus, Bliss::CorpusSection>(m, "Corpus")
-            .def(py::init<Bliss::Corpus*>());
+            .def(py::init<Bliss::Corpus*>(), py::keep_alive<1, 2>());
 
     py::class_<Bliss::Recording, Bliss::CorpusSection>(m, "Recording")
-            .def(py::init<Bliss::Corpus*>())
+            .def(py::init<Bliss::Corpus*>(), py::keep_alive<1, 2>())
             .def("audio", &Bliss::Recording::audio, py::return_value_policy::reference_internal)
             .def("set_audio", &Bliss::Recording::setAudio)
             .def("video", &Bliss::Recording::video, py::return_value_policy::reference_internal)
@@ -126,9 +126,9 @@ void bindCorpus(py::module_& m) {
 
     py::class_<Bliss::Segment, Bliss::ParentEntity> segment(m, "Segment");
     segment
-            .def(py::init<Bliss::Segment::Type, Bliss::Recording*>())
+            .def(py::init<Bliss::Segment::Type, Bliss::Recording*>(), py::keep_alive<1, 3>())
             .def("recording", &Bliss::Segment::recording, py::return_value_policy::reference_internal)
-            .def("set_recording", &Bliss::Segment::setRecording)
+            .def("set_recording", &Bliss::Segment::setRecording, py::keep_alive<1, 2>())
             .def("parent", &Bliss::Segment::parent, py::return_value_policy::reference_internal)
             .def("type", &Bliss::Segment::type)
             .def("set_type", &Bliss::Segment::setType)
@@ -139,7 +139,7 @@ void bindCorpus(py::module_& m) {
             .def("track", &Bliss::Segment::track)
             .def("set_track", &Bliss::Segment::setTrack)
             .def("condition", &Bliss::Segment::condition, py::return_value_policy::reference_internal)
-            .def("set_condition", &Bliss::Segment::setCondition)
+            .def("set_condition", &Bliss::Segment::setCondition, py::keep_alive<1, 2>())
             .def("accept", &Bliss::Segment::accept);
 
     py::enum_<Bliss::Segment::Type>(segment, "Type")
@@ -149,7 +149,7 @@ void bindCorpus(py::module_& m) {
             .export_values();
 
     py::class_<Bliss::SpeechSegment, Bliss::Segment>(m, "SpeechSegment")
-            .def(py::init<Bliss::Recording*>())
+            .def(py::init<Bliss::Recording*>(), py::keep_alive<1, 2>())
             .def("orth", &Bliss::SpeechSegment::orth, py::return_value_policy::reference_internal)
             .def("set_orth", &Bliss::SpeechSegment::setOrth)
             .def("left_context_orth", &Bliss::SpeechSegment::leftContextOrth, py::return_value_policy::reference_internal)
@@ -157,7 +157,7 @@ void bindCorpus(py::module_& m) {
             .def("right_context_orth", &Bliss::SpeechSegment::rightContextOrth, py::return_value_policy::reference_internal)
             .def("set_right_context_orth", &Bliss::SpeechSegment::setRightContextOrth)
             .def("speaker", &Bliss::SpeechSegment::speaker, py::return_value_policy::reference_internal)
-            .def("set_speaker", &Bliss::SpeechSegment::setSpeaker)
+            .def("set_speaker", &Bliss::SpeechSegment::setSpeaker, py::keep_alive<1, 2>())
             .def("accept", &Bliss::SpeechSegment::accept);
 
     py::class_<Bliss::SegmentVisitor>(m, "SegmentVisitor")
@@ -181,7 +181,7 @@ void bindCorpus(py::module_& m) {
     py::class_<Bliss::CorpusDescription>(m, "CorpusDescription")
             .def(py::init<const Core::Configuration&>())
             .def("file", &Bliss::CorpusDescription::file, py::return_value_policy::reference_internal)
-            .def("accept", &Bliss::CorpusDescription::accept)
+            .def("accept", &Bliss::CorpusDescription::accept, py::keep_alive<1, 2>())
             .def("total_segment_count", &Bliss::CorpusDescription::totalSegmentCount)
             .def_readonly_static("param_filename", &Bliss::CorpusDescription::paramFilename)
             .def_readonly_static("param_allow_empty_whitelist", &Bliss::CorpusDescription::paramAllowEmptyWhitelist)
@@ -203,7 +203,7 @@ void bindCorpus(py::module_& m) {
             .def_readonly_static("param_python_segment_order_config", &Bliss::CorpusDescription::paramPythonSegmentOrderConfig);
 
     py::class_<Bliss::ProgressReportingVisitorAdaptor, Bliss::CorpusVisitor>(m, "ProgressReportingVisitorAdaptor")
-            .def("set_visitor", &Bliss::ProgressReportingVisitorAdaptor::setVisitor)
+            .def("set_visitor", &Bliss::ProgressReportingVisitorAdaptor::setVisitor, py::keep_alive<1, 2>())
             .def("enter_corpus", &Bliss::ProgressReportingVisitorAdaptor::enterCorpus)
             .def("leave_corpus", &Bliss::ProgressReportingVisitorAdaptor::leaveCorpus)
             .def("enter_recording", &Bliss::ProgressReportingVisitorAdaptor::enterRecording)
@@ -224,7 +224,7 @@ void bindCorpus(py::module_& m) {
 
     py::class_<Bliss::CorpusDescriptionParser>(m, "CorpusDescriptionParser")
             .def(py::init<const Core::Configuration&>())
-            .def("accept", &Bliss::CorpusDescriptionParser::accept)
+            .def("accept", &Bliss::CorpusDescriptionParser::accept, py::keep_alive<1, 3>())
             .def_readonly_static("param_audio_dir", &Bliss::CorpusDescriptionParser::paramAudioDir)
             .def_readonly_static("param_video_dir", &Bliss::CorpusDescriptionParser::paramVideoDir)
             .def_readonly_static("param_remove_corpus_name_prefix", &Bliss::CorpusDescriptionParser::paramRemoveCorpusNamePrefix)

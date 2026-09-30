@@ -21,5 +21,4 @@ namespace py = pybind11;
 /*
  * Create bindings for Bliss::Corpus and related classes
  */
-
 void bindCorpus(py::module_& module);

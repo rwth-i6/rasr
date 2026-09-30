@@ -18,9 +18,7 @@
 
 PYBIND11_DECLARE_HOLDER_TYPE(T, Core::Ref<T>, true);
 
-// Publicist class that exposes protected FeatureExtractor callbacks to
-// pybind11. It does not change their implementation or participate in virtual
-// dispatch.
+// Publicist class that exposes protected FeatureExtractor callbacks to pybind11.
 class PublicFeatureExtractor : public Speech::FeatureExtractor {
 public:
     using Speech::FeatureExtractor::processFeature;
@@ -28,8 +26,7 @@ public:
 };
 
 // Trampoline class that forwards virtual C++ callbacks to overrides on Python
-// subclasses of FeatureExtractor. PYBIND11_OVERRIDE_NAME maps the C++
-// camelCase method names to the snake_case names exposed by the Python API.
+// subclasses of FeatureExtractor. 
 class PyFeatureExtractor : public Speech::FeatureExtractor {
 public:
     PyFeatureExtractor(const Core::Configuration& c, bool loadFromFile = true)

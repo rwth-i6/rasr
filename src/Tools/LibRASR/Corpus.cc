@@ -108,10 +108,10 @@ void bindCorpus(py::module_& m) {
             .def(py::init<Bliss::CorpusSection*>(), py::keep_alive<1, 2>())
             .def("parent", &Bliss::CorpusSection::parent, py::return_value_policy::reference_internal)
             .def("level", &Bliss::CorpusSection::level)
-            .def("speaker", &Bliss::CorpusSection::speaker)
-            .def("default_speaker", &Bliss::CorpusSection::defaultSpeaker)
-            .def("condition", &Bliss::CorpusSection::condition)
-            .def("default_condition", &Bliss::CorpusSection::defaultCondition);
+            .def("speaker", &Bliss::CorpusSection::speaker, py::return_value_policy::reference_internal)
+            .def("default_speaker", &Bliss::CorpusSection::defaultSpeaker, py::return_value_policy::reference_internal)
+            .def("condition", &Bliss::CorpusSection::condition, py::return_value_policy::reference_internal)
+            .def("default_condition", &Bliss::CorpusSection::defaultCondition, py::return_value_policy::reference_internal);
 
     py::class_<Bliss::Corpus, Bliss::CorpusSection>(m, "Corpus")
             .def(py::init<Bliss::Corpus*>(), py::keep_alive<1, 2>());

@@ -16,6 +16,7 @@
 #include "Corpus.hh"
 
 #include <Bliss/CorpusDescription.hh>
+#include <Bliss/CorpusKey.hh>
 #include <Bliss/CorpusParser.hh>
 #include <Speech/Module.hh>
 
@@ -222,6 +223,13 @@ void bindCorpus(py::module_& m) {
             .def("clear", (bool(Core::StringExpression::*)(const std::string&)) & Core::StringExpression::clear)
             .def("clear", (void(Core::StringExpression::*)()) & Core::StringExpression::clear);
 
+    py::class_<Bliss::CorpusKey, Core::Ref<Bliss::CorpusKey>>(m, "CorpusKey")
+            .def(py::init<const Core::Configuration&>())
+            .def_readonly_static("open_tag", &Bliss::CorpusKey::openTag)
+            .def_readonly_static("close_tag", &Bliss::CorpusKey::closeTag)
+            .def("resolve", &Bliss::CorpusKey::resolve)
+            .def_readonly_static("param_template", &Bliss::CorpusKey::paramTemplate);
+
     py::class_<Bliss::CorpusDescriptionParser>(m, "CorpusDescriptionParser")
             .def(py::init<const Core::Configuration&>())
             .def("accept", &Bliss::CorpusDescriptionParser::accept, py::keep_alive<1, 3>())
@@ -243,6 +251,16 @@ void bindCorpus(py::module_& m) {
             .def(
                     "sign_on",
                     static_cast<void (Speech::CorpusVisitor::*)(Speech::CorpusProcessor*)>(&Speech::CorpusVisitor::signOn),
+                    py::keep_alive<1, 2>())
+            .def(
+                    "sign_on",
+                    [](Speech::CorpusVisitor& self, Speech::DataSource& dataSource) {
+                        self.signOn(std::shared_ptr<Speech::DataSource>(&dataSource, [](Speech::DataSource*) {}));
+                    },
+                    py::keep_alive<1, 2>())
+            .def(
+                    "sign_on",
+                    static_cast<void (Speech::CorpusVisitor::*)(Core::Ref<Bliss::CorpusKey>)>(&Speech::CorpusVisitor::signOn),
                     py::keep_alive<1, 2>());
 
     py::class_<Speech::CorpusProcessor>(m, "CorpusProcessor")

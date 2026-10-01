@@ -44,12 +44,10 @@ def temporary_working_directory():
 
 def make_config():
     config = Configuration()
-    config.set_selection("lib-rasr.feature-extractor")
-    config.set("feature-extraction.file", str(FLOW_FILE))
-    config.set_selection("lib-rasr.corpus")
-    config.set("file", str(CORPUS_FILE))
-    config.set("audio-dir", str(TEST_DATA_DIR))
-    config.set("allow-empty-whitelist", "true")
+    config.set("lib-rasr.feature-extractor.feature-extraction.file", str(FLOW_FILE))
+    config.set("lib-rasr.corpus.file", str(CORPUS_FILE))
+    config.set("lib-rasr.corpus.audio-dir", str(TEST_DATA_DIR))
+    config.set("lib-rasr.corpus.allow-empty-whitelist", "true")
     return config
 
 
@@ -139,7 +137,7 @@ class LibRasrFeatureExtractorTest(unittest.TestCase):
 
     def test_flow_network_introspection_and_node_ownership(self):
         config = Configuration()
-        config.set("file", str(FLOW_FILE))
+        config.set("lib-rasr.file", str(FLOW_FILE))
         with temporary_working_directory():
             source = FlowDataSource(config, True)
 

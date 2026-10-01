@@ -242,7 +242,7 @@ void bindCorpus(py::module_& m) {
             .def("visit_speech_segment", &PublicCorpusVisitor::visitSpeechSegment)
             .def(
                     "sign_on",
-                    py::overload_cast<Speech::CorpusProcessor*>(&Speech::CorpusVisitor::signOn),
+                    static_cast<void (Speech::CorpusVisitor::*)(Speech::CorpusProcessor*)>(&Speech::CorpusVisitor::signOn),
                     py::keep_alive<1, 2>());
 
     py::class_<Speech::CorpusProcessor>(m, "CorpusProcessor")

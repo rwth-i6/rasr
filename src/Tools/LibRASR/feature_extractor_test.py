@@ -5,6 +5,7 @@ from contextlib import contextmanager
 from pathlib import Path
 
 from librasr import (
+    AbstractNode,
     Configuration,
     Corpus,
     CorpusDescription,
@@ -143,7 +144,7 @@ class LibRasrFeatureExtractorTest(unittest.TestCase):
 
             self.assertEqual(source.outputs(), [(0, "features")])
             self.assertEqual(source.output_name(0), "features")
-            self.assertIsInstance(source.get_node("samples"), InputNode)
+            self.assertIsInstance(source.get_node("samples"), AbstractNode)
 
             source.set_parameter("input-file", str(AUDIO_FILE))
             source.set_parameter("start-time", "0.0")

@@ -1388,9 +1388,7 @@ StateId CtcTreeBuilder::extendPronunciation(StateId startState, Bliss::Pronuncia
                 // Add new (non-blank) state
                 currentState = extendState(currentState, desc);
 
-                // The blank-lemma state always gets a loop so that a sequence of blank frames can be
-                // covered by a single blank segment, which `blankExitPenalty` then makes the search prefer.
-                if (labelLoop_ or allophoneIsBlank) {
+                if (allophoneIsBlank ? blankLoop_ : labelLoop_) {
                     // Add loop for this state
                     addTransition(currentState, currentState);
                 }

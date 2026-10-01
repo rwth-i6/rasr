@@ -26,7 +26,6 @@
 #include <Math/Utilities.hh>
 #include <Nn/LabelScorer/LabelScorer.hh>
 #include <Nn/LabelScorer/ScoringContext.hh>
-#include <Search/Helpers.hh>
 #include <Search/Module.hh>
 #include <Search/Traceback.hh>
 #include <Search/TracebackHelper.hh>
@@ -246,6 +245,8 @@ TreeLabelsyncBeamSearch::TreeLabelsyncBeamSearch(Core::Configuration const& conf
           scoreHistogram_(paramNumHistogramBins(config)),
           lengthNormScale_(paramLengthNormScale(config)),
           maxLabelsPerTimestep_(paramMaxLabelsPerTimestep(config)),
+          blankLemma_(),
+          silenceLemma_(),
           sentenceEndLemma_(),
           sentenceEndLabelIndex_(Nn::invalidLabelIndex),
           cacheCleanupInterval_(paramCacheCleanupInterval(config)),
@@ -327,6 +328,8 @@ bool TreeLabelsyncBeamSearch::setModelCombination(Speech::ModelCombination const
         warning() << "Number of label scorers (" << labelScorers_.size() << ") is less than number of configured max beam sizes (" << maxBeamSizes_.size() << ")";
     }
 
+    blankLemma_    = lexicon_->specialLemma("blank");
+    silenceLemma_  = lexicon_->specialLemma("silence");
     nonWordLemmas_ = lexicon_->specialLemmas("nonword");
 
     network_ = Core::ref(new PersistentStateTree(
@@ -374,7 +377,7 @@ bool TreeLabelsyncBeamSearch::setModelCombination(Speech::ModelCombination const
         error() << "No sentence end lemma or pronunciation defined";
     }
 
-    if (lexicon_->specialLemma("silence") and (lexicon_->specialLemma("silence")->syntacticTokenSequence()).size() != 0) {
+    if (silenceLemma_ and (silenceLemma_->syntacticTokenSequence()).size() != 0) {
         warning("Special lemma silence will be scored by the language model. To prevent the LM from scoring it, set an empty syntactic token sequence for it in the lexicon.");
     }
 
@@ -751,10 +754,10 @@ bool TreeLabelsyncBeamSearch::decodeStep() {
 
             Score              penalty               = 0.0;
             Nn::TransitionType wordEndtransitionType = Nn::TransitionType::WORD_EXIT;
-            if (lemma == lexicon_->specialLemma("blank")) {
+            if (lemma == blankLemma_) {
                 wordEndtransitionType = Nn::TransitionType::BLANK_EXIT;
             }
-            else if (lemma == lexicon_->specialLemma("silence")) {
+            else if (lemma == silenceLemma_) {
                 wordEndtransitionType = Nn::TransitionType::SILENCE_EXIT;
             }
             else if (nonWordLemmas_.contains(lemma)) {
@@ -769,10 +772,6 @@ bool TreeLabelsyncBeamSearch::decodeStep() {
                     continue;
                 }
                 penalty += (*scoreAccessor)->getScore(wordEndtransitionType);
-            }
-
-            if (wordEndtransitionType == Nn::TransitionType::BLANK_EXIT) {
-                penalty += blankExitPenalty(hyp.score);
             }
 
             wordEndExtensions_.push_back({

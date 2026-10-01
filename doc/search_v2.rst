@@ -423,7 +423,11 @@ listed below. Note that ``minimized-hmm``/``previousBehavior`` is still the code
   same ``search-algorithm`` configuration):
 
   * ``allow-label-loop`` (bool): allow a label to repeat via a self-loop. Default ``true``.
-  * ``allow-blank-loop`` (bool): allow blank to repeat via a self-loop. Default ``true``.
+  * ``allow-blank-loop`` (bool): allow blank to repeat via a self-loop, both on the blank states inside words
+    and on the state of the blank lemma between words. Default ``true``. The search never starts a new blank
+    lemma directly after a blank exit, so a sequence of blank frames between words is always one single blank
+    lemma in the result. Consequently, disabling this parameter also means that blank can't appear on two
+    consecutive frames between words.
   * ``force-blank-between-repeated-labels`` (bool): require a blank between two identical consecutive labels
     (only takes effect if ``allow-label-loop`` is disabled). Default ``true``.
 * ``rna``: a variant of the ``ctc`` tree builder tailored to RNA/monotonic-transducer topology, i.e. exactly
@@ -543,7 +547,7 @@ Recognized transition types, grouped by the state the transition originates from
 
 * at a word/segment boundary:
 
-  * ``word-exit``, ``nonword-exit``, ``silence-exit``, ``sentence-end``
+  * ``word-exit``, ``nonword-exit``, ``silence-exit``, ``blank-exit``, ``sentence-end``
 
 Which of these are enabled for a given label scorer is controlled by two parameters available on every label
 scorer:

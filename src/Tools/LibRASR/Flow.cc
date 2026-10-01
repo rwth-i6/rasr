@@ -241,7 +241,7 @@ void bindFlow(py::module_& m) {
                     return py::none();
                 return py::cast(feature);
             })
-            .def("consume_data", py::overload_cast<>(&Speech::DataSource::getData))
+            .def("consume_data", static_cast<bool (Speech::DataSource::*)()>(&Speech::DataSource::getData))
             .def("convert", [](Speech::DataSource& self, Flow::DataPtr<Flow::Timestamp> data) -> py::object {
                 Core::Ref<Speech::Feature> feature;
                 if (!self.convert(data, feature))

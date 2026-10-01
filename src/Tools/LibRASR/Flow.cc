@@ -113,7 +113,10 @@ void bindFlow(py::module_& m) {
             .def(py::init<Flow::DataPtr<Speech::Feature::FlowVector>&>())
             .def(py::init<Flow::DataPtr<Speech::Feature::FlowFeature>&>())
             .def("set_timestamp", &Speech::Feature::setTimestamp)
-            .def("timestamp", &Speech::Feature::timestamp, py::return_value_policy::reference_internal)
+            .def("timestamp", [](const Speech::Feature& self) {
+                const Flow::Timestamp& timestamp = self.timestamp();
+                return Flow::DataPtr<Flow::Timestamp>(new Flow::Timestamp(timestamp.startTime(), timestamp.endTime()));
+            })
             .def("take", (void(Speech::Feature::*)(Flow::DataPtr<Speech::Feature::FlowVector>&)) & Speech::Feature::take)
             .def("take", (void(Speech::Feature::*)(Flow::DataPtr<Speech::Feature::FlowFeature>&)) & Speech::Feature::take)
             .def("take", (bool(Speech::Feature::*)(Flow::DataPtr<Flow::Timestamp>&)) & Speech::Feature::take);

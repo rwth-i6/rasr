@@ -52,7 +52,7 @@ void bindFlow(py::module_& m) {
                 return values;
             })
             .def("value", py::overload_cast<const std::string&>(&Core::Choice::operator[], py::const_))
-            .def("identifier", py::overload_cast<Core::Choice::Value>(&Core::Choice::operator[], py::const_), py::return_value_policy::reference_internal);
+            .def("identifier", py::overload_cast<const Core::Choice::Value&>(&Core::Choice::operator[], py::const_), py::return_value_policy::reference_internal);
 
     py::class_<Core::ParameterChoice>(m, "ParameterChoice")
             .def("choice", &Core::ParameterChoice::choice, py::return_value_policy::reference_internal);

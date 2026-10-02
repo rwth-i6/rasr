@@ -64,7 +64,7 @@ endif()
 
 target_link_libraries(RasrMm PUBLIC RasrAm RasrCore RasrMath RasrMc RasrSpeech)
 
-if(${MODULE_MM_BATCH})
+if (${MODULE_MM_BATCH} AND CMAKE_SYSTEM_PROCESSOR MATCHES "^(x86_64|AMD64|i[3-6]86)$")
     target_compile_options(RasrMm PRIVATE "-msse2")
 endif()
 

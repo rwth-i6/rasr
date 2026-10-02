@@ -25,9 +25,10 @@ from librasr import (
 )
 
 
-SETUP_ROOT = Path(__file__).resolve().parents[5]
-TEST_DATA_DIR = Path(os.environ.get("LIBRASR_TEST_DATA_DIR", SETUP_ROOT / "test"))
-FLOW_FILE = Path(os.environ.get("LIBRASR_TEST_FLOW_FILE", SETUP_ROOT / "feature.flow.small"))
+REPOSITORY_ROOT = Path(__file__).resolve().parents[3]
+DEFAULT_TEST_DATA_DIR = REPOSITORY_ROOT / "src" / "Test" / "data" / "librasr_feature_extractor"
+TEST_DATA_DIR = Path(os.environ.get("LIBRASR_TEST_DATA_DIR", DEFAULT_TEST_DATA_DIR))
+FLOW_FILE = Path(os.environ.get("LIBRASR_TEST_FLOW_FILE", TEST_DATA_DIR / "feature.flow"))
 CORPUS_FILE = Path(os.environ.get("LIBRASR_TEST_CORPUS_FILE", TEST_DATA_DIR / "corpus.xml.gz"))
 AUDIO_FILE = Path(os.environ.get("LIBRASR_TEST_AUDIO_FILE", TEST_DATA_DIR / "8288-274162-0066.wav"))
 

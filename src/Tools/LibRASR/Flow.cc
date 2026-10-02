@@ -176,9 +176,7 @@ void bindFlow(py::module_& m) {
                 auto node = std::make_unique<Flow::InputNode>(config);
                 if (!self.addNode(node.get()))
                     return nullptr;
-                return node.release();
-            }, py::arg("config"), py::return_value_policy::reference_internal,
-                    "Create an InputNode and transfer its ownership to this network. Returns None if the node could not be added.")
+                return node.release(); }, py::arg("config"), py::return_value_policy::reference_internal, "Create an InputNode and transfer its ownership to this network. Returns None if the node could not be added.")
             .def("get_node", &Flow::Network::getNode, py::return_value_policy::reference_internal)
             .def("add_link", &Flow::Network::addLink)
             .def("declare_parameter", &Flow::Network::declareParameter)
@@ -191,13 +189,9 @@ void bindFlow(py::module_& m) {
             .def("outputs", [](const Flow::Network& self) {
                 std::vector<std::pair<Flow::PortId, std::string>> outputs;
                 self.outputs(outputs);
-                return outputs;
-            })
+                return outputs; })
             .def("activate_output", &Flow::Network::activateOutput)
-            .def("put_data", [](Flow::Network& self, Flow::PortId port, const Flow::DataPtr<Flow::Data>& data) {
-                return self.putData(port, data.get());
-            }, py::arg("port"), py::arg("data"),
-                    "Put data on an input port. The network retains an intrusive reference while the data is queued.")
+            .def("put_data", [](Flow::Network& self, Flow::PortId port, const Flow::DataPtr<Flow::Data>& data) { return self.putData(port, data.get()); }, py::arg("port"), py::arg("data"), "Put data on an input port. The network retains an intrusive reference while the data is queued.")
             .def("put_eos", &Flow::Network::putEos)
             .def("put_ood", &Flow::Network::putOod)
             .def("get_port_link", &Flow::Network::getPortLink, py::return_value_policy::reference_internal)
@@ -205,8 +199,7 @@ void bindFlow(py::module_& m) {
                 Flow::DataPtr<Flow::Data> data;
                 if (!self.getData(port, data))
                     return py::none();
-                return py::cast(data);
-            }, py::arg("port"))
+                return py::cast(data); }, py::arg("port"))
             .def("put_attributes", &Flow::Network::putAttributes)
             .def("get_attribute", &Flow::Network::getAttribute)
             .def("set_parameter", &Flow::Network::setParameter)
@@ -225,8 +218,7 @@ void bindFlow(py::module_& m) {
                 Flow::DataPtr<Flow::Data> data;
                 if (!self.getData(port, data))
                     return py::none();
-                return py::cast(data);
-            }, py::arg("port"));
+                return py::cast(data); }, py::arg("port"));
 
     py::class_<Speech::DataSource, Flow::DataSource>(m, "DataSource")
             .def(py::init<const Core::Configuration&, bool>())
@@ -236,21 +228,18 @@ void bindFlow(py::module_& m) {
                 Core::Ref<Speech::Feature> feature;
                 if (!self.getData(port, feature))
                     return py::none();
-                return py::cast(feature);
-            }, py::arg("port"))
+                return py::cast(feature); }, py::arg("port"))
             .def("get_feature", [](Speech::DataSource& self) -> py::object {
                 Core::Ref<Speech::Feature> feature;
                 if (!self.getData(feature))
                     return py::none();
-                return py::cast(feature);
-            })
+                return py::cast(feature); })
             .def("consume_data", static_cast<bool (Speech::DataSource::*)()>(&Speech::DataSource::getData))
             .def("convert", [](Speech::DataSource& self, Flow::DataPtr<Flow::Timestamp> data) -> py::object {
                 Core::Ref<Speech::Feature> feature;
                 if (!self.convert(data, feature))
                     return py::none();
-                return py::cast(feature);
-            }, py::arg("data"))
+                return py::cast(feature); }, py::arg("data"))
             .def("main_port_id", &Speech::DataSource::mainPortId)
             .def("num_frames", &Speech::DataSource::nFrames, py::return_value_policy::reference_internal)
             .def("real_time", &Speech::DataSource::realTime)
@@ -259,12 +248,10 @@ void bindFlow(py::module_& m) {
                 Flow::DataPtr<Flow::Data> data;
                 if (!self.getData(port, data))
                     return py::none();
-                return py::cast(data);
-            }, py::arg("port"))
+                return py::cast(data); }, py::arg("port"))
             .def("get_data", [](Speech::DataSource& self) -> py::object {
                 Flow::DataPtr<Flow::Data> data;
                 if (!self.getData(self.mainPortId(), data))
                     return py::none();
-                return py::cast(data);
-            });
+                return py::cast(data); });
 }

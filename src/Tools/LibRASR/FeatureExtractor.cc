@@ -26,7 +26,7 @@ public:
 };
 
 // Trampoline class that forwards virtual C++ callbacks to overrides on Python
-// subclasses of FeatureExtractor. 
+// subclasses of FeatureExtractor.
 class PyFeatureExtractor : public Speech::FeatureExtractor {
 public:
     PyFeatureExtractor(const Core::Configuration& c, bool loadFromFile = true)

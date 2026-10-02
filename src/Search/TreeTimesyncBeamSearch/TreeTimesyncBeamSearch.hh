@@ -190,6 +190,9 @@ private:
     std::vector<size_t>                    stateExitsOffset_;
     std::vector<PersistentStateTree::Exit> stateExits_;
 
+    // States of the blank and silence lemma, mapped to the lemma
+    robin_hood::unordered_map<StateId, Bliss::Lemma const*> pauseLemmaStates_;
+
     size_t currentSearchStep_;
     bool   finishedSegment_;
 

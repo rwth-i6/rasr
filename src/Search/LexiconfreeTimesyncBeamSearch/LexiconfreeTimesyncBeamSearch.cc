@@ -25,6 +25,7 @@
 #include <Nn/LabelScorer/LabelScorer.hh>
 #include <Nn/LabelScorer/ScoringContext.hh>
 #include <Search/Histogram.hh>
+#include <Search/StableDelayPruning.hh>
 #include <Search/Traceback.hh>
 #include <Search/TracebackHelper.hh>
 #include <numeric>
@@ -949,42 +950,34 @@ void LexiconfreeTimesyncBeamSearch::maximumStableDelayPruning() {
         return;
     }
 
-    auto cutoff = currentSearchStep_ + 1 - maximumStableDelay_;
-
-    // Find trace of current best hypothesis that has a recent word-end within the limit
-    Score                   bestScore = Core::Type<Score>::max;
-    Core::Ref<LatticeTrace> root;
-
-    for (auto const& hyp : beam_) {
-        if (hyp.score < bestScore and hyp.trace->time >= cutoff) {
-            bestScore = hyp.score;
-            root      = hyp.trace;
+    auto cutoff  = currentSearchStep_ + 1 - maximumStableDelay_;
+    auto isPause = [this](Bliss::Lemma const* lemma) {
+        if (not lemma) {
+            return false;
         }
+        Nn::LabelIndex tokenIdx = lemma->id();
+        return (useBlank_ and tokenIdx == blankLabelIndex_) or (useSilence_ and tokenIdx == silenceLabelIndex_);
+    };
+
+    std::vector<StableDelayPruning::Hypothesis> hyps;
+    hyps.reserve(beam_.size());
+    for (auto& hyp : beam_) {
+        // The head trace is the current token, which is replaced by a copy with a later end time on label loops
+        bool                traceIsOpen = hyp.currentToken != Nn::invalidLabelIndex;
+        Bliss::Lemma const* lemma       = (traceIsOpen and hyp.trace->pronunciation) ? hyp.trace->pronunciation->lemma() : nullptr;
+        hyps.push_back({&hyp.trace, traceIsOpen, isPause(lemma) ? lemma : nullptr, hyp.score});
     }
 
-    // No Hypothesis with a recent word-end was found so just take the overall best as fallback
-    if (not root) {
-        root = getBestHypothesis().trace;
+    StableDelayPruning pruning(cutoff, isPause);
+    std::vector<bool>  keep;
+    if (not pruning.apply(hyps, keep)) {
         warning() << "Most recent label in best hypothesis is before cutoff point for maximum-stable-delay-pruning so the limit will be surpassed";
     }
 
-    // Determine the right predecessor of best trace for pruning. `root->time` should be after the cutoff and `root->predecessor->time` before the cutoff
-    Core::Ref<LatticeTrace> preRoot = root->predecessor;
-
-    while (preRoot and preRoot->time >= cutoff) {
-        root    = preRoot;
-        preRoot = preRoot->predecessor;
-    }
-
-    // Perform pruning on root
     tempHypotheses_.clear();
-    for (auto const& hyp : beam_) {
-        auto curr = hyp.trace;
-        while (curr and curr != root and curr->time > root->time) {
-            curr = curr->predecessor;
-        }
-        if (curr == root) {
-            tempHypotheses_.push_back(hyp);
+    for (size_t hypIndex = 0ul; hypIndex < beam_.size(); ++hypIndex) {
+        if (keep[hypIndex]) {
+            tempHypotheses_.push_back(beam_[hypIndex]);
         }
     }
     beam_.swap(tempHypotheses_);

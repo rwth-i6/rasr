@@ -1288,7 +1288,7 @@ void TreeTimesyncBeamSearch::maximumStableDelayPruning() {
     StableDelayPruning pruning(cutoff, [this](Bliss::Lemma const* lemma) {
         return lemma and (lemma == blankLemma_ or lemma == silenceLemma_);
     });
-    std::vector<bool> keep;
+    std::vector<bool>  keep;
     if (not pruning.apply(hyps, keep)) {
         warning() << "Most recent word in best hypothesis is before cutoff point for maximum-stable-delay-pruning so the limit will be surpassed";
     }

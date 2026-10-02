@@ -19,6 +19,7 @@
 #include <sstream>
 #include <string>
 #include <libxml/SAX.h>
+#include <libxml/SAX2.h>
 #include <libxml/parserInternals.h>
 #include "Assertions.hh"
 
@@ -205,7 +206,8 @@ int XmlParser::hasExternalSubset() {
 }
 
 xmlParserInputPtr XmlParser::resolveEntity(const char* publicId, const char* systemId) {
-    return ::resolveEntity(ctxt_, c2x(publicId), c2x(systemId));
+    // xmlSAX2ResolveEntity: the SAX1 alias resolveEntity was removed in libxml2 2.14
+    return ::xmlSAX2ResolveEntity(ctxt_, c2x(publicId), c2x(systemId));
 }
 
 void XmlParser::internalSubset(const char* name, const char* ExternalID, const char* SystemID) {

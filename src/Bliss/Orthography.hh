@@ -15,6 +15,7 @@
 #ifndef _BLISS_ORTHOGRAPHY_HH
 #define _BLISS_ORTHOGRAPHY_HH
 
+#include <algorithm>
 #include <string>
 #include <variant>
 #include <vector>

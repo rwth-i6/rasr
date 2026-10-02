@@ -20,8 +20,10 @@
 #include <Mm/Utilities.hh>
 #include <algorithm>
 #include <functional>
+#if defined(__SSE2__)
 #include <emmintrin.h>
 #include <xmmintrin.h>
+#endif
 
 using namespace Mm;
 
@@ -214,9 +216,10 @@ void BatchFloatFeatureScorer::fillScoreCacheTpl(EmissionIndex e, u32 featureInde
         scores_[pos] = Core::Type<f32>::max;
         cached_[pos] = true;
     }
-    __m128       x1, x2, s1, s2, c;
     const size_t endDns    = offsets_[e + 1];
     f32*         scoreBase = scores_ + posOffset;
+#if defined(__SSE2__)
+    __m128 x1, x2, s1, s2, c;
     for (size_t dns = offsets_[e]; dns < endDns; ++dns) {
         const f32* mean     = means_ + dns * paddedDimension_;
         const f32* dnsConst = constants_ + dns;
@@ -245,6 +248,25 @@ void BatchFloatFeatureScorer::fillScoreCacheTpl(EmissionIndex e, u32 featureInde
             _mm_store_ss(score, _mm_min_ps(_mm_load_ss(score), s1));
         }
     }
+#else
+    // portable version (e.g. aarch64), the compiler auto-vectorizes the inner loop
+    for (size_t dns = offsets_[e]; dns < endDns; ++dns) {
+        const f32* mean = means_ + dns * paddedDimension_;
+        for (u32 t = startIdx; t < endIdx; ++t) {
+            const size_t rp = (t % bufferSize_);
+            if (!selector(rp, dns))
+                continue;
+            const f32* feature = features_ + (rp * paddedDimension_);
+            f32        s       = constants_[dns];
+            for (size_t d = 0; d < paddedDimension_; ++d) {
+                const f32 x = mean[d] - feature[d];
+                s += x * x;
+            }
+            f32* score = scoreBase + rp;
+            *score     = std::min(*score, s);
+        }
+    }
+#endif
     for (size_t t = startIdx; t < endIdx; ++t) {
         f32& s = *(scoreBase + (t % bufferSize_));
         if (s < Core::Type<f32>::max)
@@ -424,6 +446,7 @@ void BatchIntFeatureScorer::setFeature(size_t pos, const FeatureVector& f) const
 }
 
 namespace {
+#if defined(__SSE2__)
 static inline void addDistance(__m128i& x, __m128i& m, __m128i& sum) {
     x = _mm_or_si128(_mm_subs_epu8(m, x), _mm_subs_epu8(x, m));
     // x = | m - x | = (d15 d14 ... d0)
@@ -454,6 +477,31 @@ static inline s32 horizontalAdd(__m128i& sum) {
                                            _mm_shuffle_epi32(s, _MM_SHUFFLE(2, 3, 0, 1))));
     // = (s0+s1+s2+s3)
 }
+
+static inline void prefetch(const void* p, bool nonTemporal) {
+    if (nonTemporal)
+        _mm_prefetch(const_cast<char*>(reinterpret_cast<const char*>(p)), _MM_HINT_NTA);
+    else
+        _mm_prefetch(const_cast<char*>(reinterpret_cast<const char*>(p)), _MM_HINT_T1);
+}
+#else
+// portable version (e.g. aarch64) of the SSE2 code above, gives identical (exact integer) results
+static inline s32 squaredDistance(const u8* m, const u8* x, size_t size) {
+    s32 sum = 0;
+    for (size_t d = 0; d < size; ++d) {
+        const s32 diff = static_cast<s32>(m[d]) - static_cast<s32>(x[d]);
+        sum += diff * diff;
+    }
+    return sum;
+}
+
+static inline void prefetch(const void* p, bool nonTemporal) {
+    if (nonTemporal)
+        __builtin_prefetch(p, 1, 0);
+    else
+        __builtin_prefetch(p, 0, 2);
+}
+#endif
 }  // namespace
 
 template<class DensitySelector>
@@ -474,11 +522,12 @@ void BatchIntFeatureScorer::fillScoreCacheTpl(EmissionIndex e, u32 featureIndex,
         selector.seek(rp, startDns);
         const QuantizedType* feature = features_ + (rp * paddedDimension_);
         const QuantizedType* mean    = meanStart;
-        _mm_prefetch(const_cast<char*>(reinterpret_cast<const char*>(mean)), _MM_HINT_T1);
+        prefetch(mean, false);
         const s32* dnsConst = dnsConstStart;
         s32        best     = 2147483647;
         for (size_t dns = startDns; dns < endDns; ++dns) {
             if (selector.value()) {
+#if defined(__SSE2__)
                 __m128i sum = _mm_setzero_si128();
                 for (int d = 0; d < static_cast<int>(paddedDimension_); d += BlockSize) {
                     __m128i m, x;
@@ -488,8 +537,13 @@ void BatchIntFeatureScorer::fillScoreCacheTpl(EmissionIndex e, u32 featureIndex,
                     // x = feature[d .. d+15]
                     addDistance(x, m, sum);
                 }
+#endif
                 {
+#if defined(__SSE2__)
                     s32 tmp = horizontalAdd(sum);
+#else
+                    s32 tmp = squaredDistance(mean, feature, paddedDimension_);
+#endif
                     tmp += *dnsConst;
                     if (tmp < best)
                         best = tmp;
@@ -500,7 +554,7 @@ void BatchIntFeatureScorer::fillScoreCacheTpl(EmissionIndex e, u32 featureIndex,
             selector.next();
         }
         f32* result = scoreBase + rp;
-        _mm_prefetch(const_cast<char*>(reinterpret_cast<const char*>(result)), _MM_HINT_NTA);
+        prefetch(result, true);
         *result = static_cast<f32>(best) / scale_;
     }
 }
@@ -617,10 +671,11 @@ void BatchUnrolledIntFeatureScorer::fillScoreCache(EmissionIndex e, u32 featureI
         const size_t         rp      = (t % bufferSize_);
         const QuantizedType* feature = features_ + (rp * paddedDimension_);
         const QuantizedType* mean    = meanStart;
-        _mm_prefetch(const_cast<char*>(reinterpret_cast<const char*>(mean)), _MM_HINT_T1);
+        prefetch(mean, false);
         const s32* dnsConst = dnsConstStart;
         s32        best     = 2147483647;
         for (size_t dns = startDns; dns < endDns; ++dns) {
+#if defined(__SSE2__)
             __m128i sum = _mm_setzero_si128();
             {
                 __m128i m1, m2, m3, x1, x2, x3;
@@ -634,9 +689,12 @@ void BatchUnrolledIntFeatureScorer::fillScoreCache(EmissionIndex e, u32 featureI
                 addDistance(m2, x2, sum);
                 addDistance(m3, x3, sum);
             }
+            s32 tmp = horizontalAdd(sum);
+#else
+            s32 tmp = squaredDistance(mean, feature, Dimension);
+#endif
             mean += Dimension;
             {
-                s32 tmp = horizontalAdd(sum);
                 tmp += *dnsConst;
                 if (tmp < best)
                     best = tmp;
@@ -644,7 +702,7 @@ void BatchUnrolledIntFeatureScorer::fillScoreCache(EmissionIndex e, u32 featureI
             ++dnsConst;
         }
         f32* result = scoreBase + rp;
-        _mm_prefetch(const_cast<char*>(reinterpret_cast<const char*>(result)), _MM_HINT_NTA);
+        prefetch(result, true);
         *result = static_cast<f32>(best) / scale_;
     }
 }

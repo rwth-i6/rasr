@@ -1051,8 +1051,8 @@ void SearchSpace::initialize(bool buildBatches) {
 
     StaticSearchAutomaton* automaton = const_cast<StaticSearchAutomaton*>(automaton_);
 
-    PersistentStateTree& net   = automaton->network;
-    bool                 build = automaton->buildNetwork();
+    PersistentStateTree& net = automaton->network;
+    automaton->buildNetwork();
 
     automaton->buildDepths();
     log() << "depth of root-state: " << automaton->stateDepths[net.rootState] << " hmm-length " << automaton->hmmLength;

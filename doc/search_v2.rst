@@ -289,8 +289,24 @@ models.
 * ``length-norm-scale`` (float): exponent for length normalization; scaled scores are computed as
   ``score / length^length-norm-scale``. Default ``0.0`` (no normalization). If set, ``score-threshold`` is
   applied to the un-normalized score before normalization.
-* ``max-labels-per-timestep`` (float): maximum number of emitted labels per input timestep (as consumed via
-  ``putFeature``/``putFeatures``), used to bound hypothesis length relative to the input length. Default ``1.0``.
+* ``max-labels-per-timestep`` (float), ``max-labels-lower-bound`` (int), ``max-labels-upper-bound`` (int):
+  limit the number of emitted labels per segment (maximum output length). The search stops once the number of
+  search steps reaches
+
+      ``clamp(ceil(max-labels-per-timestep * #inputs), max-labels-lower-bound, max-labels-upper-bound)``
+
+  where ``#inputs`` is the number of inputs consumed via ``putFeature``/``putFeatures`` (counted as at least 1).
+
+  * ``max-labels-per-timestep`` (default ``1.0``) bounds the output length relative to the input length.
+  * ``max-labels-lower-bound`` (default ``0``, i.e. no effect) raises the limit for short inputs (e.g. spoken
+    question answering). It does *not* enforce a minimum output length because the search still ends as soon as
+    all hypotheses have reached sentence-end.
+  * ``max-labels-upper-bound`` (default: unlimited) caps the limit for long inputs, e.g. to limit runtime or to
+    respect the maximum context of the model. If it is smaller than ``max-labels-lower-bound``, the upper bound
+    takes precedence and a warning is logged at startup.
+
+  For example, ``3.2`` / ``64`` / ``256`` allows about 3.2 labels per input, but at least 64 and at most 256
+  labels in total.
 * ``pruning-strategy-type`` (enum): controls pruning of active and terminated extension candidates/hypotheses.
   ``joint`` keeps active and terminated items in one pruning pool. ``separate`` uses separate pools: active items
   are pruned against the overall best item, terminated items against the best terminated item, and max-beam-size
@@ -301,7 +317,7 @@ models.
     hold up to twice ``max-beam-size`` items, so decoding is correspondingly slower at an unchanged setting.
   * Because terminated hypotheses can no longer displace active ones, the search no longer ends by the beam
     filling up with terminated hypotheses; it ends once ``score-threshold`` retires the last active hypothesis
-    (or at the ``max-labels-per-timestep`` cap). A loose ``score-threshold`` therefore runs considerably longer
+    (or at the maximum output length). A loose ``score-threshold`` therefore runs considerably longer
     than in ``joint`` mode, and an unset one is rejected for this reason.
 
   With ``length-norm-scale = 0`` (the default), ``separate`` compares the two pools by raw accumulated score,
@@ -526,8 +542,8 @@ index used for the search tree itself.
 * ``score-threshold``: same meaning as for ``tree-timesync-beam-search`` above. Also interacts with
   ``length-norm-scale`` the same way as for ``lexiconfree-labelsync-beam-search`` above -- always expressed in
   un-normalized score units.
-* ``length-norm-scale``, ``max-labels-per-timestep``: same meaning and defaults as for
-  ``lexiconfree-labelsync-beam-search`` above.
+* ``length-norm-scale``, ``max-labels-per-timestep``, ``max-labels-lower-bound``, ``max-labels-upper-bound``:
+  same meaning and defaults as for ``lexiconfree-labelsync-beam-search`` above.
 * ``pruning-strategy-type``: same choices, default and caveats as for ``lexiconfree-labelsync-beam-search``
   above (including the requirement of a finite final ``score-threshold`` for ``separate``), applied to
   word-end pruning and to final score and max-beam pruning of the beam. Within-word extensions are always

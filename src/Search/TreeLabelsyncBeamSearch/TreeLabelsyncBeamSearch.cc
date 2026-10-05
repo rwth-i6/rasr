@@ -16,6 +16,8 @@
 #include "TreeLabelsyncBeamSearch.hh"
 
 #include <algorithm>
+#include <cmath>
+#include <limits>
 #include <numeric>
 #include <strings.h>
 
@@ -216,8 +218,24 @@ const Core::ParameterFloat TreeLabelsyncBeamSearch::paramLengthNormScale(
 
 const Core::ParameterFloat TreeLabelsyncBeamSearch::paramMaxLabelsPerTimestep(
         "max-labels-per-timestep",
-        "Maximum number of emitted labels per input timestep counted via `addInput`/`addInputs`.",
+        "Maximum number of emitted labels per input timestep counted via `addInput`/`addInputs`."
+        " The resulting limit (rounded up) is clamped to the range given by `max-labels-lower-bound` and `max-labels-upper-bound`.",
         1.0);
+
+const Core::ParameterInt TreeLabelsyncBeamSearch::paramMaxLabelsLowerBound(
+        "max-labels-lower-bound",
+        "Lower bound for the maximum number of emitted labels, so that short inputs are not cut off too early."
+        " Only raises the limit given by `max-labels-per-timestep`, but does not enforce a minimum output length,"
+        " the search still ends as soon as all hypotheses have reached sentence-end.",
+        0,
+        0);
+
+const Core::ParameterInt TreeLabelsyncBeamSearch::paramMaxLabelsUpperBound(
+        "max-labels-upper-bound",
+        "Upper bound for the maximum number of emitted labels, independent of the input length."
+        " If it is smaller than `max-labels-lower-bound`, the upper bound takes precedence.",
+        std::numeric_limits<int>::max(),
+        0);
 
 const Core::Choice TreeLabelsyncBeamSearch::choicePruningStrategyType(
         "joint", PruningStrategyJoint,
@@ -265,6 +283,8 @@ TreeLabelsyncBeamSearch::TreeLabelsyncBeamSearch(Core::Configuration const& conf
           terminatedScoreHistogram_(paramNumHistogramBins(config)),
           lengthNormScale_(paramLengthNormScale(config)),
           maxLabelsPerTimestep_(paramMaxLabelsPerTimestep(config)),
+          maxLabelsLowerBound_(paramMaxLabelsLowerBound(config)),
+          maxLabelsUpperBound_(paramMaxLabelsUpperBound(config)),
           sentenceEndLemma_(),
           sentenceEndLabelIndex_(Nn::invalidLabelIndex),
           cacheCleanupInterval_(paramCacheCleanupInterval(config)),
@@ -314,6 +334,10 @@ TreeLabelsyncBeamSearch::TreeLabelsyncBeamSearch(Core::Configuration const& conf
     }
     for (size_t i = 0; i < scoreThresholds_.size(); ++i) {
         useScorePruning_.push_back(scoreThresholds_[i] != Core::Type<Score>::max);
+    }
+
+    if (maxLabelsLowerBound_ > maxLabelsUpperBound_) {
+        warning() << "max-labels-lower-bound (" << maxLabelsLowerBound_ << ") is larger than max-labels-upper-bound (" << maxLabelsUpperBound_ << "). The upper bound takes precedence";
     }
 
     switch (pruningStrategyType_) {
@@ -619,8 +643,14 @@ bool TreeLabelsyncBeamSearch::decodeStep() {
     if (finishedSegment_) {
         return false;
     }
-    if (currentSearchStep_ >= maxLabelsPerTimestep_ * std::max(totalTimesteps_, 1ul)) {
-        warning() << "Terminated search due to reaching max number of label outputs given input count";
+    size_t const numInputs       = std::max(totalTimesteps_, 1ul);
+    size_t const ratioLimit      = static_cast<size_t>(std::ceil(std::max(maxLabelsPerTimestep_ * numInputs, 0.0f)));
+    size_t const maxOutputLength = std::min(std::max(ratioLimit, maxLabelsLowerBound_), maxLabelsUpperBound_);
+    if (currentSearchStep_ >= maxOutputLength) {
+        warning() << "Terminated search after " << currentSearchStep_ << " steps: reached the output length limit of "
+                  << maxOutputLength << " labels (" << maxLabelsPerTimestep_ << " labels per timestep * " << numInputs
+                  << " inputs = " << ratioLimit << " rounded up, lower bound " << maxLabelsLowerBound_ << ", upper bound "
+                  << (maxLabelsUpperBound_ == std::numeric_limits<int>::max() ? std::string("none") : std::to_string(maxLabelsUpperBound_)) << ")";
         finishedSegment_ = true;
         return false;
     }

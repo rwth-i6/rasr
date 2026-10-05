@@ -7,6 +7,7 @@
 #include "LabelScorer.hh"
 #include "Lexicon.hh"
 #include "LibRASR.hh"
+#include "LlmScorer.hh"
 #include "Search.hh"
 
 namespace py = pybind11;
@@ -54,5 +55,6 @@ PYBIND11_MODULE(librasr, m) {
 
     bindLabelScorer(m);
     bindLexicon(m);
+    bindLlmScorer(m);
     bindSearchAlgorithm(m);
 }

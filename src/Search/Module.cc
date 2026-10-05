@@ -16,6 +16,7 @@
 #include <Search/Module.hh>
 #include "LexiconfreeLabelsyncBeamSearch/LexiconfreeLabelsyncBeamSearch.hh"
 #include "LexiconfreeTimesyncBeamSearch/LexiconfreeTimesyncBeamSearch.hh"
+#include "LlmTimesyncBeamSearch/LlmTimesyncBeamSearch.hh"
 #include "TreeBuilder.hh"
 #include "TreeLabelsyncBeamSearch/TreeLabelsyncBeamSearch.hh"
 #include "TreeTimesyncBeamSearch/TreeTimesyncBeamSearch.hh"
@@ -40,6 +41,7 @@ const Core::Choice Module_::searchTypeV2Choice(
         "lexiconfree-timesync-beam-search", SearchTypeV2::LexiconfreeTimesyncBeamSearchType,
         "tree-labelsync-beam-search", SearchTypeV2::TreeLabelsyncBeamSearchType,
         "tree-timesync-beam-search", SearchTypeV2::TreeTimesyncBeamSearchType,
+        "llm-timesync-beam-search", SearchTypeV2::LlmTimesyncBeamSearchType,
         Core::Choice::endMark());
 
 const Core::ParameterChoice Module_::searchTypeV2Param(
@@ -131,6 +133,9 @@ SearchAlgorithmV2* Module_::createSearchAlgorithmV2(const Core::Configuration& c
             break;
         case TreeTimesyncBeamSearchType:
             searchAlgorithm = new Search::TreeTimesyncBeamSearch(config);
+            break;
+        case LlmTimesyncBeamSearchType:
+            searchAlgorithm = new Search::LlmTimesyncBeamSearch(config);
             break;
         default:
             Core::Application::us()->criticalError("Unknown search algorithm type: %d", searchTypeV2Param(config));

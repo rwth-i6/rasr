@@ -4,6 +4,7 @@ add_library(
     Configuration.cc
     Init.cc
     LabelScorer.cc
+    LlmScorer.cc
     Numpy.cc
     ScoringContext.cc
     Search.cc

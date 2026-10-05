@@ -19,6 +19,7 @@
 #include <Core/Singleton.hh>
 #include "SearchV2.hh"
 
+#include "LlmTimesyncBeamSearch/LlmScorer.hh"
 #include "TreeBuilder.hh"
 
 namespace Search {
@@ -46,7 +47,8 @@ enum SearchTypeV2 {
     LexiconfreeLabelsyncBeamSearchType,
     LexiconfreeTimesyncBeamSearchType,
     TreeLabelsyncBeamSearchType,
-    TreeTimesyncBeamSearchType
+    TreeTimesyncBeamSearchType,
+    LlmTimesyncBeamSearchType
 };
 
 class Module_ {
@@ -61,6 +63,14 @@ public:
     SearchAlgorithm*                     createRecognizer(SearchType type, const Core::Configuration& config) const;
     SearchAlgorithmV2*                   createSearchAlgorithmV2(const Core::Configuration& config) const;
     LatticeHandler*                      createLatticeHandler(const Core::Configuration& c) const;
+
+    // Registry of LLM scorer types used by `LlmTimesyncBeamSearch`
+    LlmScorerFactory& llmScorerFactory() {
+        return llmScorerFactory_;
+    }
+
+private:
+    LlmScorerFactory llmScorerFactory_;
 };
 
 typedef Core::SingletonHolder<Module_> Module;

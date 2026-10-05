@@ -114,6 +114,13 @@ void RecognizerNodeV2::work() {
 
 ConstLatticeRef convertSearchLatticeToFlf(LexiconRef lexicon, Core::Ref<const Search::LatticeAdaptor> latticeAdaptor, Flf::LatticeHandler const* handler, std::string segmentName, f32 lmScale) {
     verify(handler);
+    // The LM scores of the search lattice are scaled. They are divided by the scale here and the scale is kept in the
+    // semiring instead. Besides the LM scores, the LM part of the search lattice also holds everything else a search
+    // adds at word ends (e.g. word or unknown-word penalties). With a scale of 0 it cannot be divided, and dropping it
+    // would also drop those, so the LM part is kept as it is with a scale of 1 then.
+    if (lmScale == 0.0) {
+        lmScale = 1.0;
+    }
     auto semiring = Semiring::create(Fsa::SemiringTypeTropical, 2);
     semiring->setKey(0, "am");
     semiring->setScale(0, 1.0);
@@ -190,12 +197,7 @@ ConstLatticeRef convertSearchLatticeToFlf(LexiconRef lexicon, Core::Ref<const Se
         if (amFsaState->isFinal()) {
             auto scores = semiring->create();
             scores->set(0, amFsaState->weight());
-            if (lmScale) {
-                scores->set(1, static_cast<Score>(lmFsaState->weight()) / lmScale);
-            }
-            else {
-                scores->set(1, 0.0);
-            }
+            scores->set(1, static_cast<Score>(lmFsaState->weight()) / lmScale);
             flfState->newArc(1, scores, finalArcLabel(stateId));
             finalTime = std::max(finalTime, boundary.time() - timeOffset);
         }
@@ -210,19 +212,11 @@ ConstLatticeRef convertSearchLatticeToFlf(LexiconRef lexicon, Core::Ref<const Se
 
             auto scores = semiring->create();
             scores->set(0, amArc->weight());
-
-            if (lmScale) {
-                scores->set(1, static_cast<Score>(lmArc->weight()) / lmScale);
-            }
-            else {
-                scores->set(1, 0);
-            }
+            scores->set(1, static_cast<Score>(lmArc->weight()) / lmScale);
 
             if (targetAmState->isFinal() and targetLmState->isFinal() and amArc->input() == Fsa::Epsilon) {
                 scores->add(0, Score(targetAmState->weight()));
-                if (lmScale) {
-                    scores->add(1, Score(targetLmState->weight()) / lmScale);
-                }
+                scores->add(1, Score(targetLmState->weight()) / lmScale);
                 flfState->newArc(1, scores, finalArcLabel(stateId));
             }
             else {

@@ -122,8 +122,14 @@ std::vector<Traceback> SearchAlgorithm::getCurrentNBestList(size_t nBestSize) {
 
     auto lattice = searchAlgorithm_->getCurrentBestWordLattice();
 
+    // The search lattice contains LM scores with the LM scale already applied. The Flf lattice divides them by the
+    // scale and keeps it in its semiring instead, so it is multiplied back in below to report the LM scores scaled,
+    // exactly as `getCurrentBestTraceback` does. Searches without LM (e.g. the lexicon-free ones) have no scale to
+    // undo.
+    auto const lmScale = modelCombination_.languageModel() ? modelCombination_.languageModel()->scale() : 1.0;
+
     // Use Flf functions to convert search lattice to n-best lattice
-    auto flfLattice   = convertSearchLatticeToFlf(lexicon_, lattice, latticeHandler_.get(), "", modelCombination_.languageModel()->scale());
+    auto flfLattice   = convertSearchLatticeToFlf(lexicon_, lattice, latticeHandler_.get(), "", lmScale);
     auto mapLattice   = Flf::mapInput(flfLattice, Flf::MapToLemma);
     auto nBestLattice = Flf::nbest(mapLattice, nBestSize, true);
 
@@ -159,7 +165,7 @@ std::vector<Traceback> SearchAlgorithm::getCurrentNBestList(size_t nBestSize) {
                 auto label = alphabet->symbol(arc->input());
 
                 amScore += arc->score(amId);
-                lmScore += arc->score(lmId);
+                lmScore += arc->score(lmId) * lmScale;
 
                 tb.push_back({.lemma     = label,
                               .amScore   = amScore,

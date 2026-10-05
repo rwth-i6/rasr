@@ -180,7 +180,7 @@ ConstLatticeRef convertSearchLatticeToFlf(LexiconRef lexicon, Core::Ref<const Se
                 stateStack.push(amArc->target());
             }
             Fsa::ConstStateRef targetAmState = amFsa->getState(amArc->target());
-            Fsa::ConstStateRef targetLmState = amFsa->getState(lmArc->target());
+            Fsa::ConstStateRef targetLmState = lmFsa->getState(lmArc->target());
 
             auto scores = semiring->create();
             scores->set(0, amArc->weight());

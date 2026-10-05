@@ -13,11 +13,13 @@
  *  limitations under the License.
  */
 #include "RecognizerV2.hh"
+
 #include <Core/XmlStream.hh>
 #include <Fsa/Sort.hh>
 #include <Fsa/Types.hh>
 #include <Speech/ModelCombination.hh>
 #include <chrono>
+#include <unordered_set>
 #include "LatticeHandler.hh"
 #include "Module.hh"
 
@@ -145,6 +147,30 @@ ConstLatticeRef convertSearchLatticeToFlf(LexiconRef lexicon, Core::Ref<const Se
 
     Time timeOffset = (*boundaries)[amFsa->initialStateId()].time();
 
+    // The lattice gets a sentence-end arc into its final state. Searches which hypothesize the sentence end themselves
+    // already have one on every path, so for states entered by a sentence-end arc the arc into the final state stays
+    // epsilon instead of repeating it.
+    std::unordered_set<Fsa::StateId> afterSentenceEnd;
+    if (sentenceEndLabel != Fsa::Epsilon) {
+        std::unordered_set<Fsa::StateId> visited = {amFsa->initialStateId()};
+        Fsa::Stack<Fsa::StateId>         toVisit;
+        toVisit.push_back(amFsa->initialStateId());
+        while (not toVisit.isEmpty()) {
+            Fsa::ConstStateRef state = amFsa->getState(toVisit.pop());
+            for (Fsa::State::const_iterator arc = state->begin(); arc != state->end(); ++arc) {
+                if (arc->input() == sentenceEndLabel) {
+                    afterSentenceEnd.insert(arc->target());
+                }
+                if (visited.insert(arc->target()).second) {
+                    toVisit.push(arc->target());
+                }
+            }
+        }
+    }
+    auto finalArcLabel = [&](Fsa::StateId stateId) {
+        return afterSentenceEnd.count(stateId) ? Fsa::Epsilon : sentenceEndLabel;
+    };
+
     Fsa::Stack<Fsa::StateId>   stateStack;
     Core::Vector<Fsa::StateId> stateIdMap(amFsa->initialStateId() + 1, Fsa::InvalidStateId);
     stateIdMap[amFsa->initialStateId()] = 0;
@@ -170,7 +196,7 @@ ConstLatticeRef convertSearchLatticeToFlf(LexiconRef lexicon, Core::Ref<const Se
             else {
                 scores->set(1, 0.0);
             }
-            flfState->newArc(1, scores, sentenceEndLabel);
+            flfState->newArc(1, scores, finalArcLabel(stateId));
             finalTime = std::max(finalTime, boundary.time() - timeOffset);
         }
         for (Fsa::State::const_iterator amArc = amFsaState->begin(), lmArc = lmFsaState->begin(); (amArc != amFsaState->end()) && (lmArc != lmFsaState->end()); ++amArc, ++lmArc) {
@@ -180,7 +206,7 @@ ConstLatticeRef convertSearchLatticeToFlf(LexiconRef lexicon, Core::Ref<const Se
                 stateStack.push(amArc->target());
             }
             Fsa::ConstStateRef targetAmState = amFsa->getState(amArc->target());
-            Fsa::ConstStateRef targetLmState = amFsa->getState(lmArc->target());
+            Fsa::ConstStateRef targetLmState = lmFsa->getState(lmArc->target());
 
             auto scores = semiring->create();
             scores->set(0, amArc->weight());
@@ -197,7 +223,7 @@ ConstLatticeRef convertSearchLatticeToFlf(LexiconRef lexicon, Core::Ref<const Se
                 if (lmScale) {
                     scores->add(1, Score(targetLmState->weight()) / lmScale);
                 }
-                flfState->newArc(1, scores, sentenceEndLabel);
+                flfState->newArc(1, scores, finalArcLabel(stateId));
             }
             else {
                 flfState->newArc(stateIdMap[amArc->target()], scores, amArc->input());

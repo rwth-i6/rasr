@@ -33,13 +33,16 @@
 #include <cmath>
 #include <map>
 #include <memory>
+#include <set>
 #include <string>
 #include <vector>
 
 #include <Am/AcousticModel.hh>
 #include <Am/Module.hh>
+#include <Lattice/Lattice.hh>
 #include <Lm/Module.hh>
 #include <Nn/LabelScorer/NoOpLabelScorer.hh>
+#include <Search/LatticeHandler.hh>
 #include <Search/TreeTimesyncBeamSearch/TreeTimesyncBeamSearch.hh>
 #include <Speech/ModelCombination.hh>
 
@@ -99,6 +102,10 @@ protected:
     // listed score and every other label `suppressed`. Lets a test express that two
     // labels are acoustically close rather than mutually exclusive.
     Result decodeGraded(std::vector<std::map<std::string, float>> const& frameScores);
+
+    // Names of the lemmas on all arcs of the word lattice of the last decoding, i.e.
+    // of all hypotheses which reached the segment end, not only of the best one.
+    std::set<std::string> latticeLemmas() const;
 
     Core::Ref<Test::Lexicon>                        lexicon_;
     Core::Ref<Am::AcousticModel>                    acousticModel_;
@@ -245,6 +252,29 @@ FallbackSearchFixture::Result FallbackSearchFixture::decodeGraded(std::vector<st
     return result;
 }
 
+std::set<std::string> FallbackSearchFixture::latticeLemmas() const {
+    Search::LatticeHandler handler(config);
+    auto                   lattice = search_->getCurrentBestWordLattice()->wordLattice(&handler);
+    auto                   fsa     = lattice->part(Lattice::WordLattice::acousticFsa);
+
+    std::set<std::string>     lemmas;
+    std::set<Fsa::StateId>    visited = {fsa->initialStateId()};
+    std::vector<Fsa::StateId> toVisit = {fsa->initialStateId()};
+    while (not toVisit.empty()) {
+        auto state = fsa->getState(toVisit.back());
+        toVisit.pop_back();
+        for (auto arc = state->begin(); arc != state->end(); ++arc) {
+            if (arc->input() != Fsa::Epsilon) {
+                lemmas.insert(lexicon_->lemmaPronunciation(arc->input())->lemma()->name().str());
+            }
+            if (visited.insert(arc->target()).second) {
+                toVisit.push_back(arc->target());
+            }
+        }
+    }
+    return lemmas;
+}
+
 /*
  * ==========================================================================
  * === Word-start-marked (SentencePiece style) boundaries and exclusion   ===
@@ -377,6 +407,44 @@ TEST_F(Search, WordStartFallbackSearchTest, KnownAndUnknownWordsMixInOneSegment)
     auto result = decode({"_cat", "_xy", "zz", "_the"});
 
     EXPECT_DOUBLE_EQ(result.lmScore, costCat + costUnknown + costThe + costSentenceEnd, 1e-4);
+}
+
+TEST_F(Search, WordStartFallbackSearchTest, KnownWordIsLeftToTheOrdinaryRoute) {
+    // Only keep hypotheses close to the best one, so that the lattice holds the
+    // competing spellings of the recognized words and not every expensive detour.
+    setParameter("*.score-threshold", "5.0");
+    setParameter("*.word-end-score-threshold", "5.0");
+    buildSearch();
+    // The fallback pieces "_un familiar" spell the known word with exactly the score of
+    // the ordinary lemma. The search keeps only the ordinary spelling, so that the same
+    // words are not hypothesized twice and ties cannot be broken differently in
+    // different places, e.g. in the traceback and in an n-best list.
+    auto result = decode({"_un", "familiar", "_cat"});
+
+    EXPECT_EQ(result.lemmas, std::string("unfamiliar"
+                                         " "
+                                         "cat"));
+    EXPECT_DOUBLE_EQ(result.lmScore, costUnfamiliar + costCat + costSentenceEnd, 1e-4);
+
+    auto const lemmas = latticeLemmas();
+    EXPECT_TRUE(lemmas.count("unfamiliar") == 1ul);
+    EXPECT_TRUE(lemmas.count("_un") == 0ul);
+    EXPECT_TRUE(lemmas.count("familiar") == 0ul);
+}
+
+TEST_F(Search, WordStartFallbackSearchTest, KnownWordAfterAnUnknownWordStaysOnTheFallbackRoute) {
+    buildSearch();
+    // After an unknown word the hypothesis cannot return to the ordinary tree, so known
+    // words there have no ordinary counterpart and are still resolved on the fallback route.
+    auto result = decode({"_xy", "zz", "_cat"});
+
+    EXPECT_EQ(result.lemmas, std::string("_xy"
+                                         " "
+                                         "zz"
+                                         " "
+                                         "_cat"));
+    EXPECT_DOUBLE_EQ(result.lmScore, costUnknown + costCat + costSentenceEnd, 1e-4);
+    EXPECT_TRUE(latticeLemmas().count("_cat") == 1ul);
 }
 
 TEST_F(Search, WordStartFallbackSearchTest, BlanksCreateNoWordBoundary) {
@@ -660,6 +728,28 @@ TEST_F(Search, ContinuationMarkedFallbackSearchTest, ExactKnownPronunciationNeve
     // "kn@@ own" spells the known word even though both pieces are fallback pieces.
     auto result = decode({"kn@@", "own"});
     EXPECT_DOUBLE_EQ(result.lmScore, costKnownTwo + costSentenceEnd, 1e-4);
+}
+
+TEST_F(Search, ContinuationMarkedFallbackSearchTest, KnownWordIsLeftToTheOrdinaryRoute) {
+    setParameter("*.unknown-word-fallback", "known-excluding");
+    // Only keep hypotheses close to the best one, see the word-start-marked test.
+    setParameter("*.score-threshold", "5.0");
+    setParameter("*.word-end-score-threshold", "5.0");
+    buildSearch();
+
+    // Also after an unknown word: a final piece returns to the ordinary root, so the
+    // next word has an ordinary counterpart again.
+    auto result = decode({"ra@@", "word", "kn@@", "own"});
+    EXPECT_EQ(result.lemmas, std::string("ra@@"
+                                         " "
+                                         "word"
+                                         " "
+                                         "knowntwo"));
+    EXPECT_DOUBLE_EQ(result.lmScore, costUnknown + costKnownTwo + costSentenceEnd, 1e-4);
+
+    auto const lemmas = latticeLemmas();
+    EXPECT_TRUE(lemmas.count("knowntwo") == 1ul);
+    EXPECT_TRUE(lemmas.count("kn@@") == 0ul);
 }
 
 TEST_F(Search, ContinuationMarkedFallbackSearchTest, LegacyModeScoresKnownPieceSequenceAsUnknown) {

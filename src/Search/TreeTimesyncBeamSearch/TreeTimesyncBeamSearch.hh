@@ -103,6 +103,15 @@ protected:
      * `diverged` records that some emitted piece already left every known
      * pronunciation; once set it stays set until the pending word is closed.
      *
+     * `ordinaryAlternative` records that the pending word (or, if none is pending, the
+     * next one) starts where an ordinary hypothesis with the same history and score
+     * starts a word as well: at the ordinary root, or at the segment start. A piece
+     * sequence of such a word which spells a known pronunciation is left to that
+     * ordinary hypothesis, which reaches the same score, so that the same words are
+     * not hypothesized twice in different spellings. It is cleared where a fallback
+     * hypothesis has no ordinary counterpart: after a fallback word was closed in the
+     * pending-word root, and after a separator piece.
+     *
      * Instances are immutable and shared between hypotheses, so copying a hypothesis
      * only copies a reference.
      */
@@ -110,16 +119,18 @@ protected:
         std::vector<u32> prefixNodes;
         u32              numPieces;
         bool             diverged;
+        bool             ordinaryAlternative;
 
         OovState()
-                : prefixNodes(), numPieces(0u), diverged(false) {}
+                : prefixNodes(), numPieces(0u), diverged(false), ordinaryAlternative(true) {}
 
         bool wordPending() const {
             return numPieces > 0u;
         }
 
         bool operator==(OovState const& other) const {
-            return numPieces == other.numPieces and diverged == other.diverged and prefixNodes == other.prefixNodes;
+            return numPieces == other.numPieces and diverged == other.diverged and ordinaryAlternative == other.ordinaryAlternative and
+                   prefixNodes == other.prefixNodes;
         }
     };
     using OovStateRef = Core::Ref<const OovState>;
@@ -260,6 +271,7 @@ private:
     Score                                unknownWordPenalty_;
     Score                                unknownPiecePenalty_;
     OovStateRef                          initialOovState_;
+    OovStateRef                          pendingRootOovState_;
 
     bool                                    enableLmLookahead_;
     bool                                    separateLookaheadLm_;
@@ -337,6 +349,7 @@ private:
     // would only ever say "1" for an event counter.
     u32 numUnknownWordEvents_;
     u32 numKnownResolvedFallbackWords_;
+    u32 numFallbackWordsLeftToOrdinaryRoute_;
 
     LabelHypothesis const& getBestHypothesis() const;
     LabelHypothesis const& getWorstHypothesis() const;
@@ -395,10 +408,32 @@ private:
     }
 
     /*
-     * The fallback state a hypothesis has when no fallback word is pending.
+     * The fallback state a hypothesis has when no fallback word is pending and it may
+     * start the next word at the ordinary root.
      */
     OovStateRef emptyOovState() const {
         return initialOovState_;
+    }
+
+    /*
+     * The fallback state a hypothesis has in the pending-word root when no fallback
+     * word is pending and no ordinary hypothesis shares its history.
+     */
+    OovStateRef pendingRootOovState() const {
+        return pendingRootOovState_;
+    }
+
+    /*
+     * `oov` with `ordinaryAlternative` cleared.
+     */
+    OovStateRef withoutOrdinaryAlternative(OovStateRef const& oov) const;
+
+    /*
+     * Whether a fallback word closed with `oov` and resolved into `events` is left to
+     * the ordinary route, see `OovState::ordinaryAlternative`.
+     */
+    bool leftToOrdinaryRoute(OovState const& oov, std::vector<WordLmEvent> const& events) const {
+        return oov.ordinaryAlternative and not events.empty() and not events.front().viaUnknownRoute;
     }
 
     /*

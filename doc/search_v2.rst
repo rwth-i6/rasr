@@ -678,10 +678,21 @@ word is closed:
   still shows the acoustic pieces, so the recognized spelling is preserved;
 * otherwise exactly one unknown event is applied, with the unknown token of each configured word LM and ``beta``.
 
-Resolving rather than discarding matters: the fallback realization is never dropped by the exclusion check, so a
-known word cannot be lost because its ordinary hypothesis happened to be pruned while its fallback hypothesis was
-re-interpreted as unknown. Several genuinely different known interpretations are all kept; interpretations which
-would use the same LM token are collapsed because they yield identical hypotheses.
+A resolved fallback word costs exactly what the ordinary lexical entry costs, since the per-piece cost is refunded.
+Where an ordinary hypothesis with the same history spells the same word as well, the search would therefore carry
+two hypotheses of identical score that only differ in the spelling of the word. Ties between them could then be
+broken differently in different places, e.g. in the traceback and in the n-best list, and the n-best list would be
+filled with spelling variants of the same words. So a fallback word which resolves into a known word is **left to
+the ordinary route**, i.e. the fallback hypothesis is dropped, whenever the word starts where an ordinary hypothesis
+with the same history starts a word too: at the ordinary root and at the segment start. This loses nothing, because
+while the word is being spelled the fallback hypothesis carries the provisional per-piece cost and the unknown-word
+look-ahead, so the ordinary hypothesis is never worse and survives pruning whenever the fallback one does.
+
+Elsewhere the fallback hypothesis has no ordinary counterpart and is **resolved**: after a fallback word was closed
+in the pending-word root under ``word-start-marked`` (a hypothesis cannot return to the ordinary tree from there),
+and after a separator piece. Under ``continuation-marked`` a final piece returns to the ordinary root, so the next
+word has an ordinary counterpart again. Several genuinely different known interpretations are all kept;
+interpretations which would use the same LM token are collapsed because they yield identical hypotheses.
 
 An accepting prefix never blocks continuation: if ``_cat`` is known but ``_cat xyz`` is not, the longer word still
 reaches the fallback, and an unfinished proper prefix of a longer known word is itself a valid unknown word at a
@@ -704,7 +715,8 @@ Scoring details
   emitted/collapsed pieces.
 * A subword LM (configured as a further label scorer) sees the actual emitted pieces on both routes and keeps their
   actual history. It never receives a word-level unknown replacement.
-* Recombination keys include the fallback state (pending piece count, divergence flag and prefix-trie nodes)
+* Recombination keys include the fallback state (pending piece count, divergence flag, prefix-trie nodes and
+  whether an ordinary counterpart exists)
   alongside the tree state, all scoring contexts and the word-LM history. Two hypotheses which agree on all of this
   are interchangeable for everything that follows, so under Viterbi semantics the better-scoring one survives and
   its traceback stays a valid path even if the two spell their pending fallback word differently.
@@ -714,9 +726,11 @@ Scoring details
 Instrumentation, caching and limitations
 """"""""""""""""""""""""""""""""""""""""
 
-The search reports ``num-unknown-word-events`` and ``num-known-resolved-fallback-words`` per segment. The latter
-counts piece sequences that spelled an exact known pronunciation and were therefore scored with their known LM
-token; in ``known-excluding`` mode none of them can reach the unknown route. Both are counted over the word-end
+The search reports ``num-unknown-word-events``, ``num-known-resolved-fallback-words`` and
+``num-fallback-words-left-to-ordinary-route`` per segment. The second counts piece sequences that spelled an exact
+known pronunciation and were therefore scored with their known LM token; in ``known-excluding`` mode none of them can
+reach the unknown route. The third counts such piece sequences whose hypothesis was dropped in favor of an ordinary
+one with the same history, see :ref:`Known-word exclusion`. All are counted over the word-end
 extensions of the whole beam, not over the single best hypothesis, so they are a relative diagnostic of how much
 the fallback is being explored -- not the number of unknown words in the recognized output. That number has to come
 from the traceback, where the route of a word is recoverable without guessing: a fallback word appears as a sequence

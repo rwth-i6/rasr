@@ -308,6 +308,7 @@ TreeTimesyncBeamSearch::TreeTimesyncBeamSearch(Core::Configuration const& config
           unknownWordPenalty_(0.0),
           unknownPiecePenalty_(0.0),
           initialOovState_(),
+          pendingRootOovState_(),
           enableLmLookahead_(paramLmLookahead(config)),
           separateLookaheadLm_(paramSeparateLookaheadLm(config)),
           sparseLmLookahead_(paramSparseLmLookAhead(config)),
@@ -332,7 +333,8 @@ TreeTimesyncBeamSearch::TreeTimesyncBeamSearch(Core::Configuration const& config
           numActiveHyps_("num-active-hyps"),
           numActiveTrees_("num-active-trees"),
           numUnknownWordEvents_(0u),
-          numKnownResolvedFallbackWords_(0u) {
+          numKnownResolvedFallbackWords_(0u),
+          numFallbackWordsLeftToOrdinaryRoute_(0u) {
     auto maxBeamSizes = paramMaxBeamSizes(config);
     maxBeamSizes_.insert(maxBeamSizes_.begin(), maxBeamSizes.begin(), maxBeamSizes.end());
 
@@ -514,6 +516,11 @@ bool TreeTimesyncBeamSearch::setModelCombination(Speech::ModelCombination const&
         auto initial         = Core::ref(new OovState());
         initial->prefixNodes = {0u};  // the trie root
         initialOovState_     = initial;
+
+        auto pendingRoot                 = Core::ref(new OovState());
+        pendingRoot->prefixNodes         = {0u};
+        pendingRoot->ordinaryAlternative = false;
+        pendingRootOovState_             = pendingRoot;
     }
 
     // Set lookahead LM
@@ -561,8 +568,9 @@ void TreeTimesyncBeamSearch::enterSegment(Bliss::SpeechSegment const* segment) {
     numWordEndHypsAfterBeamPruning_.clear();
     numActiveHyps_.clear();
     numActiveTrees_.clear();
-    numUnknownWordEvents_          = 0u;
-    numKnownResolvedFallbackWords_ = 0u;
+    numUnknownWordEvents_                = 0u;
+    numKnownResolvedFallbackWords_       = 0u;
+    numFallbackWordsLeftToOrdinaryRoute_ = 0u;
 
     initializationTime_.start();
 
@@ -1132,6 +1140,10 @@ void TreeTimesyncBeamSearch::logStatistics() const {
         // scored with their known LM token; in known-excluding mode none of them can
         // reach the unknown route.
         clog() << Core::XmlFull("num-known-resolved-fallback-words", numKnownResolvedFallbackWords_);
+        // Piece sequences that spell an exact known pronunciation where an ordinary
+        // hypothesis with the same history spells the same word, so the fallback
+        // hypothesis was dropped in favor of the ordinary one.
+        clog() << Core::XmlFull("num-fallback-words-left-to-ordinary-route", numFallbackWordsLeftToOrdinaryRoute_);
     }
 
     if (enableLmLookahead_) {
@@ -1327,7 +1339,7 @@ void TreeTimesyncBeamSearch::recombination(std::vector<TreeTimesyncBeamSearch::L
                 hash = Core::combineHashes(hash, Nn::ScoringContextHash{}(scoringContext));
             }
             if (context.oov) {
-                hash = Core::combineHashes(hash, context.oov->numPieces * 2ul + (context.oov->diverged ? 1ul : 0ul));
+                hash = Core::combineHashes(hash, context.oov->numPieces * 4ul + (context.oov->diverged ? 2ul : 0ul) + (context.oov->ordinaryAlternative ? 1ul : 0ul));
                 for (u32 node : context.oov->prefixNodes) {
                     hash = Core::combineHashes(hash, node);
                 }
@@ -1524,9 +1536,25 @@ void TreeTimesyncBeamSearch::createUnknownWordLookahead() {
           << " of " << numStates << " states";
 }
 
+TreeTimesyncBeamSearch::OovStateRef TreeTimesyncBeamSearch::withoutOrdinaryAlternative(OovStateRef const& oov) const {
+    if (not oov->ordinaryAlternative) {
+        return oov;
+    }
+    if (not oov->wordPending()) {
+        return pendingRootOovState();
+    }
+    auto copy                 = Core::ref(new OovState());
+    copy->prefixNodes         = oov->prefixNodes;
+    copy->numPieces           = oov->numPieces;
+    copy->diverged            = oov->diverged;
+    copy->ordinaryAlternative = false;
+    return copy;
+}
+
 TreeTimesyncBeamSearch::OovStateRef TreeTimesyncBeamSearch::advanceOovState(OovStateRef const& base, Bliss::Pronunciation const& piece) const {
-    auto next       = Core::ref(new OovState());
-    next->numPieces = base->numPieces + 1u;
+    auto next                 = Core::ref(new OovState());
+    next->numPieces           = base->numPieces + 1u;
+    next->ordinaryAlternative = base->ordinaryAlternative;
 
     for (u32 node : base->prefixNodes) {
         u32  current = node;
@@ -1655,12 +1683,17 @@ void TreeTimesyncBeamSearch::expandFallbackExit(LabelHypothesis const&          
     OovStateRef pendingAfterExit;
 
     if (closesWordBefore) {
+        // The next word begins in the pending-word root, which no ordinary hypothesis
+        // reaches.
         eventOov         = hyp.oov;
-        pendingAfterExit = isSeparator ? emptyOovState() : advanceOovState(emptyOovState(), piece);
+        pendingAfterExit = isSeparator ? pendingRootOovState() : advanceOovState(pendingRootOovState(), piece);
     }
     else {
-        pendingAfterExit = isSeparator ? hyp.oov : advanceOovState(hyp.oov, piece);
+        // The ordinary route cannot emit a separator, so after one there is no
+        // ordinary counterpart any more.
+        pendingAfterExit = isSeparator ? withoutOrdinaryAlternative(hyp.oov) : advanceOovState(hyp.oov, piece);
         if (closesWordAfter and not isSeparator) {
+            // The exit returns to the ordinary root.
             eventOov         = pendingAfterExit;
             pendingAfterExit = emptyOovState();
         }
@@ -1668,6 +1701,12 @@ void TreeTimesyncBeamSearch::expandFallbackExit(LabelHypothesis const&          
 
     if (eventOov) {
         resolveWordLmEvents(*eventOov, wordLmEventBuffer_);
+        if (leftToOrdinaryRoute(*eventOov, wordLmEventBuffer_)) {
+            // An ordinary hypothesis with the same history spells this known word with
+            // the same score, see `OovState::ordinaryAlternative`.
+            ++numFallbackWordsLeftToOrdinaryRoute_;
+            return;
+        }
     }
     else {
         wordLmEventBuffer_.assign(1ul, WordLmEvent{});
@@ -1804,6 +1843,10 @@ void TreeTimesyncBeamSearch::finalizeHypotheses() {
             // no unknown word here.
             if (hyp.oov and hyp.oov->wordPending()) {
                 resolveWordLmEvents(*hyp.oov, wordLmEventBuffer_);
+                if (leftToOrdinaryRoute(*hyp.oov, wordLmEventBuffer_)) {
+                    ++numFallbackWordsLeftToOrdinaryRoute_;
+                    continue;
+                }
                 for (auto const& event : wordLmEventBuffer_) {
                     Lm::History pendingHistory;
                     Score       pendingScore = event.unknownBias + languageModel_->scoreTokenSequence(hyp.lmHistory, event.tokens, pendingHistory);

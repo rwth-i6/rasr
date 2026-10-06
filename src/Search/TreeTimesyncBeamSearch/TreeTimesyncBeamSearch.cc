@@ -901,6 +901,23 @@ bool TreeTimesyncBeamSearch::scoreAndPruneExtensions() {
     return not withinWordExtensions_.empty();
 }
 
+void TreeTimesyncBeamSearch::buildNewBeamFromExtensions() {
+    newBeam_.clear();
+    for (auto const& extension : withinWordExtensions_) {
+        auto const& baseHyp = beam_[extension.baseHypIndex];
+
+        std::vector<Nn::ScoringContextRef> newScoringContexts;
+        for (size_t scorerIdx = 0ul; scorerIdx < labelScorers_.size(); ++scorerIdx) {
+            newScoringContexts.push_back(labelScorers_[scorerIdx]->extendedScoringContext(
+                    baseHyp.scoringContexts[scorerIdx],
+                    extension.nextToken,
+                    extension.transitionType));
+        }
+
+        newBeam_.push_back({baseHyp, extension, newScoringContexts});
+    }
+}
+
 void TreeTimesyncBeamSearch::createWordEndExtensions() {
     wordEndExtensions_.clear();
 

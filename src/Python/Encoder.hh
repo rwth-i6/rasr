@@ -41,8 +41,6 @@ public:
     PythonEncoder(Core::Configuration const& config);
     virtual ~PythonEncoder() = default;
 
-    virtual void reset() override;
-
     // Keep track of python object as a member to make sure it doesn't get garbage collected.
     void setInstance(py::object const& instance);
 
@@ -61,6 +59,8 @@ public:
     }
 
 protected:
+    void resetInternal() override;
+
     virtual void encode() override;
     virtual void postEncodeCleanup() override;
     virtual bool canEncode() const override;

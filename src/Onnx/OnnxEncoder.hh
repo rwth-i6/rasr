@@ -37,10 +37,10 @@ public:
     OnnxEncoder(Core::Configuration const& config, Nn::ModelCache& modelCache);
     virtual ~OnnxEncoder() = default;
 
-    // Clear buffers and reset segment end flag.
-    virtual void reset() override;
-
 protected:
+    // Clear buffers, segment end flag and ONNX state variables
+    void resetInternal() override;
+
     struct SessionRunResult {
         Nn::DataView outputView;
         size_t       nOutputs;
@@ -97,9 +97,9 @@ public:
 
     ChunkedOnnxEncoder(Core::Configuration const& config, Nn::ModelCache& modelCache);
 
-    virtual void reset() override;
-
 protected:
+    void resetInternal() override;
+
     // Check if enough features are buffered to fill the chunk or segment end has been signaled
     virtual bool canEncode() const override;
 

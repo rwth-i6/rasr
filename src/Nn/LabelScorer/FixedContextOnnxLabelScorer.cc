@@ -100,12 +100,12 @@ FixedContextOnnxLabelScorer::FixedContextOnnxLabelScorer(Core::Configuration con
 }
 
 void FixedContextOnnxLabelScorer::logScoringBreakdown() const {
-    statisticsChannel_ << Core::XmlOpen("onnx-session-time") << onnxSessionTime_.elapsedMilliseconds() << Core::XmlClose("onnx-session-time");
-    statisticsChannel_ << Core::XmlOpen("context-preparation-time") << contextPreparationTime_.elapsedMilliseconds() << Core::XmlClose("context-preparation-time");
+    statisticsChannel_ << Core::XmlFull("onnx-session-time", onnxSessionTime_.elapsedMilliseconds());
+    statisticsChannel_ << Core::XmlFull("context-preparation-time", contextPreparationTime_.elapsedMilliseconds());
 }
 
-void FixedContextOnnxLabelScorer::reset() {
-    Precursor::reset();
+void FixedContextOnnxLabelScorer::resetInternal() {
+    Precursor::resetInternal();
     onnxSessionTime_.reset();
     contextPreparationTime_.reset();
     scoreCache_.clear();

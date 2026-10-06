@@ -151,11 +151,11 @@ StatefulOnnxLabelScorer::StatefulOnnxLabelScorer(Core::Configuration const& conf
 
 void StatefulOnnxLabelScorer::logScoringBreakdown() const {
     hiddenStateModel_.logStatistics(statisticsChannel_);
-    statisticsChannel_ << Core::XmlOpen("context-preparation-time") << contextPreparationTime_.elapsedMilliseconds() << Core::XmlClose("context-preparation-time");
+    statisticsChannel_ << Core::XmlFull("context-preparation-time", contextPreparationTime_.elapsedMilliseconds());
 }
 
-void StatefulOnnxLabelScorer::reset() {
-    Precursor::reset();
+void StatefulOnnxLabelScorer::resetInternal() {
+    Precursor::resetInternal();
     hiddenStateModel_.resetStatistics();
     contextPreparationTime_.reset();
     stateCache_.clear();

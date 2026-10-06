@@ -32,8 +32,8 @@ PythonEncoder::PythonEncoder(Core::Configuration const& config)
           inputOffset_(0ul) {
 }
 
-void PythonEncoder::reset() {
-    Precursor::reset();
+void PythonEncoder::resetInternal() {
+    Precursor::resetInternal();
     inputOffset_ = 0ul;
 
     py::gil_scoped_acquire gil;

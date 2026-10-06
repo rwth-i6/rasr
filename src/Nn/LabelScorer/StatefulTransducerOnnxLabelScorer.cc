@@ -136,8 +136,8 @@ void StatefulTransducerOnnxLabelScorer::logScoringBreakdown() const {
     hiddenStateModel_.logStatistics(statisticsChannel_);
 }
 
-void StatefulTransducerOnnxLabelScorer::reset() {
-    Precursor::reset();
+void StatefulTransducerOnnxLabelScorer::resetInternal() {
+    Precursor::resetInternal();
     hiddenStateModel_.resetStatistics();
     stateCache_.clear();
     scoreCache_.clear();

@@ -122,8 +122,8 @@ FullContextOnnxLabelScorer::FullContextOnnxLabelScorer(Core::Configuration const
     tracksScoreAccessorCache_ = true;
 }
 
-void FullContextOnnxLabelScorer::reset() {
-    Precursor::reset();
+void FullContextOnnxLabelScorer::resetInternal() {
+    Precursor::resetInternal();
     scoreCache_.clear();
 }
 

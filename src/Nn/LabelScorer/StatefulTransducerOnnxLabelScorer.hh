@@ -83,8 +83,6 @@ public:
     StatefulTransducerOnnxLabelScorer(Core::Configuration const& config, ModelCache& modelCache);
     virtual ~StatefulTransducerOnnxLabelScorer() = default;
 
-    void reset() override;
-
     // If startLabelIndex is set, forward that through the state updater to obtain the start ScoringContext
     ScoringContextRef getInitialScoringContext() override;
 
@@ -92,6 +90,8 @@ public:
     ScoringContextRef extendedScoringContext(ScoringContextRef scoringContext, LabelIndex nextToken, TransitionType transitionType) override;
 
 protected:
+    void resetInternal() override;
+
     // Update hidden state, run scorer and get an accessor for the output score vector
     std::optional<ScoreAccessorRef> computeScoreAccessor(ScoringContextRef scoringContext) override;
 

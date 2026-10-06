@@ -68,8 +68,8 @@ void TorchEncoder::initializeStatesFromModelSpec() {
     }
 }
 
-void TorchEncoder::reset() {
-    Encoder::reset();
+void TorchEncoder::resetInternal() {
+    Encoder::resetInternal();
     if (torchModel_->hasJsonIoSpec()) {
         initializeStatesFromModelSpec();
     }

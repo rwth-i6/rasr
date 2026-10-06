@@ -364,6 +364,10 @@ and state tying, not for scoring) and a language model, in addition to the label
   surviving hypothesis is still mid-word), controls what happens instead of failing. If enabled, each
   within-word hypothesis falls back to its last completed word, discarding the incomplete final word. If
   disabled, an empty hypothesis is produced instead. Default ``true``.
+* ``lm-lookahead`` (bool): turn LM lookahead on/off, see :ref:`LM lookahead` below for details. Default ``false``.
+* ``separate-lookahead-lm`` (bool): use a separate LM for the lookahead instead of reusing ``language-model``.
+  Default ``false``.
+* ``sparse-lm-lookahead`` (bool): use sparse instead of dense lookahead tables. Default ``true``.
 * ``recombination-mode``, ``cache-cleanup-interval``,
   ``maximum-stable-delay``, ``maximum-stable-delay-pruning-interval``: same meaning as for
   ``lexiconfree-timesync-beam-search`` above.
@@ -390,6 +394,12 @@ Order of operations for one time-synchronous decoding step, assuming two label s
 #. Recombine equivalent word-end hypotheses (if ``recombination-mode = on``).
 #. Prune word-end hypotheses with max-beam-size ``b_w``.
 #. Add surviving word-end hypotheses to the pruned within-word beam.
+
+If ``lm-lookahead`` is enabled, an approximate LM lookahead score (see :ref:`LM lookahead` below) is added to
+each within-word extension's score right after step 2 (the ``L_1`` contribution), so it participates in every
+within-word pruning decision (steps 3-5). It is subtracted again from the score before word-end
+extensions are built (step 8 onward), so it never becomes part of a hypothesis's actual accumulated score or of
+the final output score.
 
 Example config:
 
@@ -424,6 +434,73 @@ start up faster. This is however not automatic, no cache file is configured by d
     file = /path/to/tree-cache.bin
 
 See :ref:`Memory mapped archives` in :doc:`architecture` for this generic RASR caching mechanism.
+
+LM lookahead
+"""""""""""""
+
+Optionally prunes within-word hypotheses using an approximate LM score computed per search-tree node (the best
+LM score among all words whose pronunciation passes through that node), rather than only reacting to the real
+LM score once a hypothesis reaches the next word end. This is the same ``Search::LanguageModelLookahead``
+mechanism used by the classic search. The score is added only for within-word pruning, never to the actual/final
+hypothesis score.
+
+By default (``separate-lookahead-lm = false``) the lookahead reuses ``language-model``, or that LM's own
+dedicated lookahead component if it has one (e.g. a ``combine`` LM's ``lookahead-lm`` sub-selector, see
+:doc:`language_model`). Set ``separate-lookahead-lm = true`` to configure a distinct LM under its own
+``lookahead-lm`` selector instead:
+
+.. code-block:: ini
+
+    [*.search-algorithm]
+    lm-lookahead           = true
+    separate-lookahead-lm  = true
+
+    [*.search-algorithm.lookahead-lm]
+    type                   = ARPA
+    file                   = /path/to/small_lookahead_lm.gz
+    scale                  = 1.5
+
+The lookahead LM should be an n-gram backing-off LM: ``sparse-lm-lookahead`` (build sparse hash-based tables
+instead of dense arrays, which is cheaper when most continuations of a history back off anyway, e.g. large vocabulary
+with a high LM order) requires one and is silently disabled otherwise. More generally, whenever a hypothesis'
+tree node has no scored table entry (sparse table miss or a history truncated by ``history-limit``), the
+lookahead falls back to the LM's next-shorter history, adding that LM's back-off penalty, until a scored entry
+is found.
+
+**Further reading**
+
+* S. Ortmanns and H. Ney. Look-ahead techniques for fast beam search (https://doi.org/10.1006/csla.1999.0131).
+  Computer Speech & Language, 14(1):15-32, January 2000.
+* D. Nolden, H. Ney, and R. Schlüter. Exploiting sparseness of backing-off language models for efficient look-ahead
+  in LVCSR (https://doi.org/10.1109/ICASSP.2011.5947400). In IEEE International Conference on Acoustics, Speech and
+  Signal Processing (ICASSP), pages 4684-4687, Prague, Czech Republic, May 2011.
+
+Lookahead table construction is configured under a nested ``lm-lookahead`` selector, e.g.
+``*.search-algorithm.lm-lookahead.history-limit``:
+
+* ``history-limit`` (int): lookahead history length; ``-1`` for unlimited. Default ``-1``.
+* ``network-cutoff`` (int): maximum search-tree depth covered by the lookahead. Default: unbounded.
+* ``minimum-representation`` (int): minimum number of tree states one lookahead table entry must cover. Default ``1``.
+* ``cache-size-low`` / ``cache-size-high`` (int): number of lookahead tables kept before inactive ones start
+  being reused, respectively deleted. Default ``3500`` / ``4500``.
+* ``consider-pronunciation-score`` (bool): factor the pronunciation score into the lookahead. Default ``true``.
+* ``sparse-threshold`` (float): build a sparse table if the fraction of nodes with a real (non-back-off) score
+  would be below this. Default ``0.5``.
+* ``sparse-threshold-expectation-based`` (bool): estimate that fraction from previously built tables for
+  similarly-sized histories instead of measuring it exactly. Default ``true``.
+* ``sparse-hash-size-factor`` / ``sparse-hash-size-resize-at-fill`` (float): initial size (as a multiple of the
+  expected entry count) / resize load factor of a sparse table's hash map. Default ``1.8`` / ``0.75``.
+* ``lm-lookahead-scale`` (float): extra log-linear scale applied only to the lookahead score, on top of the
+  lookahead LM's own ``scale``. Default ``1.0``.
+* ``cache-archive`` (string): selector of the memory-mapped archive (see :ref:`Memory mapped archives` in
+  :doc:`architecture`) used to cache lookahead tables across runs. Default ``global-cache``.
+
+.. code-block:: ini
+
+    [*.search-algorithm.lm-lookahead]
+    history-limit    = 1
+    network-cutoff   = 30
+    sparse-threshold = 0.4
 
 tree-labelsync-beam-search
 ^^^^^^^^^^^^^^^^^^^^^^^^^^

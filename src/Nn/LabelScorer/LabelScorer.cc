@@ -34,6 +34,7 @@ void LabelScorer::reset() {
     scoringTime_.reset();
     numScoreAccessorsRequested_ = 0ul;
     numScoreAccessorsComputed_  = 0ul;
+    resetInternal();
 }
 
 void LabelScorer::logStatistics() const {
@@ -61,12 +62,18 @@ void LabelScorer::addInputs(DataView const& input, size_t nTimesteps) {
 }
 
 std::optional<ScoreAccessorRef> LabelScorer::getScoreAccessor(ScoringContextRef scoringContext) {
+    if (not tracksScoringStatistics_) {
+        return computeScoreAccessor(scoringContext);
+    }
     ++numScoreAccessorsRequested_;
     Core::StopWatch::Scope timer(scoringTime_);
     return computeScoreAccessor(scoringContext);
 }
 
 std::vector<std::optional<ScoreAccessorRef>> LabelScorer::getScoreAccessors(std::vector<ScoringContextRef> const& scoringContexts) {
+    if (not tracksScoringStatistics_) {
+        return computeScoreAccessors(scoringContexts);
+    }
     numScoreAccessorsRequested_ += scoringContexts.size();
     Core::StopWatch::Scope timer(scoringTime_);
     return computeScoreAccessors(scoringContexts);

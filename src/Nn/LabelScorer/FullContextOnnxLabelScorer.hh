@@ -67,9 +67,6 @@ public:
     FullContextOnnxLabelScorer(Core::Configuration const& config, ModelCache& modelCache);
     virtual ~FullContextOnnxLabelScorer() = default;
 
-    // Clear feature buffer and cached scores
-    void reset() override;
-
     // Add a single input feature to the buffer
     void addInput(DataView const& input) override;
 
@@ -85,6 +82,9 @@ public:
     void cleanupCaches(Core::CollapsedVector<ScoringContextRef> const& activeContexts) override;
 
 protected:
+    // Clear feature buffer and cached scores
+    void resetInternal() override;
+
     // If scores for the given scoring contexts are not yet cached, prepare and run an ONNX session to
     // compute the scores and cache them
     std::vector<std::optional<ScoreAccessorRef>> computeScoreAccessors(std::vector<ScoringContextRef> const& scoringContexts) override;

@@ -31,8 +31,12 @@ PythonLabelScorer::PythonLabelScorer(Core::Configuration const& config)
           Precursor(config) {
 }
 
-void PythonLabelScorer::reset() {
-    PYBIND11_OVERRIDE_PURE(void, LabelScorer, reset);
+void PythonLabelScorer::resetInternal() {
+    PYBIND11_OVERRIDE_PURE_NAME(
+            void,
+            LabelScorer,
+            "reset",
+            resetInternal);
 }
 
 void PythonLabelScorer::signalNoMoreFeatures() {

@@ -67,11 +67,11 @@ OnnxEncoder::OnnxEncoder(Core::Configuration const& config, Nn::ModelCache& mode
 }
 
 void OnnxEncoder::logEncodeBreakdown() const {
-    statisticsChannel_ << Core::XmlOpen("onnx-session-time") << onnxSessionTime_.elapsedMilliseconds() << Core::XmlClose("onnx-session-time");
+    statisticsChannel_ << Core::XmlFull("onnx-session-time", onnxSessionTime_.elapsedMilliseconds());
 }
 
-void OnnxEncoder::reset() {
-    Encoder::reset();
+void OnnxEncoder::resetInternal() {
+    Encoder::resetInternal();
     onnxSessionTime_.reset();
     stateManager_->setInitialStates(stateVariables_);
 }
@@ -230,8 +230,8 @@ ChunkedOnnxEncoder::ChunkedOnnxEncoder(Core::Configuration const& config, Nn::Mo
     initWindow(static_cast<WindowType>(paramWindowType(config)));
 }
 
-void ChunkedOnnxEncoder::reset() {
-    Precursor::reset();
+void ChunkedOnnxEncoder::resetInternal() {
+    Precursor::resetInternal();
     chunkCenterStart_     = 0ul;
     numDiscardedFeatures_ = 0ul;
     pendingOutputs_.clear();

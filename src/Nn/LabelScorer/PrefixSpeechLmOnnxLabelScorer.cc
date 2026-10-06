@@ -224,8 +224,8 @@ PrefixSpeechLmOnnxLabelScorer::PrefixSpeechLmOnnxLabelScorer(Core::Configuration
     tracksScoreAccessorCache_ = true;
 }
 
-void PrefixSpeechLmOnnxLabelScorer::reset() {
-    Precursor::reset();
+void PrefixSpeechLmOnnxLabelScorer::resetInternal() {
+    Precursor::resetInternal();
     encoderStatesValue_     = Onnx::Value();
     encoderStatesSizeValue_ = Onnx::Value();
     initialContext_         = PrefixSpeechLmScoringContextRef();

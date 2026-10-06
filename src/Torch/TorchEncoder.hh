@@ -37,10 +37,10 @@ public:
     TorchEncoder(const Core::Configuration& config, Nn::ModelCache& modelCache);
     virtual ~TorchEncoder() = default;
 
-    // Clear buffers and reset segment end flag
-    virtual void reset() override;
-
 protected:
+    // Clear buffers and reset segment end flag
+    void resetInternal() override;
+
     // Encode features inside the input buffer and put the results into the output buffer
     virtual void encode() override;
 

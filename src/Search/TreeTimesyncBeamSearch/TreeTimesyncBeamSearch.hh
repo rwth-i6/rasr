@@ -204,6 +204,14 @@ private:
     std::vector<Nn::ScoringContextRef>        scoringContexts_;
     std::vector<LabelHypothesis>              tempHypotheses_;
 
+    // Scores and timeframes read out of the accessors of the current label scorer, indexed like
+    // `scoringContexts_`
+    std::vector<std::optional<Nn::DenseScoreSpan>> denseScoreSpans_;
+    std::vector<Nn::TimeframeIndex>                scoreTimes_;
+
+    // Score accessors of the word-end hypothesis currently being expanded, indexed by label scorer
+    std::vector<Nn::ScoreAccessorRef> wordEndScoreAccessors_;
+
     // Precomputed successor/exit lookups (offset tables + contiguous data).
     std::vector<size_t>                    stateSuccessorsOffset_;
     std::vector<StateId>                   stateSuccessors_;
@@ -261,6 +269,11 @@ private:
     void logStatistics() const;
 
     /*
+     * Log the timing and statistics of the search itself, without the label scorers.
+     */
+    void logOwnStatistics() const;
+
+    /*
      * Infer type of transition between two tokens based on whether each of them is blank or silence,
      * and/or whether the state in the search tree changed
      */
@@ -287,6 +300,29 @@ private:
     bool scoreAndPruneExtensions();
 
     /*
+     * Read the scores and timeframes of the current label scorer into `denseScoreSpans_` and
+     * `scoreTimes_`. Lazily computing scorers do their work here.
+     */
+    void readOutScoreAccessors(std::vector<std::optional<Nn::ScoreAccessorRef>> const& scoreAccessors);
+
+    /*
+     * Create the within-word extension candidates from the scores of the first label scorer,
+     * pre-pruning by score while they are created.
+     */
+    void createWithinWordExtensions(std::vector<std::optional<Nn::ScoreAccessorRef>> const& scoreAccessors);
+
+    /*
+     * Add the scores of label scorer `scorerIdx` to the existing within-word extension candidates.
+     */
+    void updateWithinWordExtensionScores(size_t scorerIdx, std::vector<std::optional<Nn::ScoreAccessorRef>> const& scoreAccessors);
+
+    /*
+     * Collect the scoring contexts for the next label scorer into `scoringContexts_`, dropping the
+     * hypotheses whose extensions did not survive pruning.
+     */
+    void prepareNextScoringContexts(size_t scorerIdx);
+
+    /*
      * Create new beam hypotheses from the surviving within-word extensions.
      * Populates `newBeam_`.
      */
@@ -298,6 +334,19 @@ private:
      * Populates `wordEndHypotheses_`.
      */
     void expandAndPruneWordEndHypotheses();
+
+    /*
+     * Create one word-end extension candidate per exit of every hypothesis in `newBeam_`,
+     * applying the language model and the word-end transition scores.
+     * Populates `wordEndExtensions_`.
+     */
+    void createWordEndExtensions();
+
+    /*
+     * Create word-end hypotheses from the surviving extensions, updating the LM history and the
+     * lookahead. Populates `wordEndHypotheses_`.
+     */
+    void buildWordEndHypotheses();
 
     /*
      * Log the per-step statistics and debug output for the current beam.

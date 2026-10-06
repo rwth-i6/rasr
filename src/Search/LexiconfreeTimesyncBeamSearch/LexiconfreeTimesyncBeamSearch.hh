@@ -147,6 +147,11 @@ private:
     std::vector<Nn::ScoringContextRef> scoringContexts_;
     std::vector<LabelHypothesis>       tempHypotheses_;
 
+    // Scores and timeframes read out of the accessors of the current label scorer, indexed like
+    // `scoringContexts_`
+    std::vector<std::optional<Nn::DenseScoreSpan>> denseScoreSpans_;
+    std::vector<Nn::TimeframeIndex>                scoreTimes_;
+
     Core::StopWatch initializationTime_;
     Core::StopWatch featureProcessingTime_;
     Core::StopWatch finalizeScoringTime_;  // Scoring time during finalizeHypotheses
@@ -181,6 +186,11 @@ private:
     void logStatistics() const;
 
     /*
+     * Log the timing and statistics of the search itself, without the label scorers.
+     */
+    void logOwnStatistics() const;
+
+    /*
      * Infer type of transition between two tokens based on whether each of them is blank or silence
      * and/or whether they are the same
      */
@@ -204,6 +214,29 @@ private:
      * Populates `extensions_`. Returns false if no extensions survive (decode step should abort).
      */
     bool scoreAndPruneExtensions();
+
+    /*
+     * Read the scores and timeframes of the current label scorer into `denseScoreSpans_` and
+     * `scoreTimes_`. Lazily computing scorers do their work here.
+     */
+    void readOutScoreAccessors(std::vector<std::optional<Nn::ScoreAccessorRef>> const& scoreAccessors);
+
+    /*
+     * Create the extension candidates in `extensions_` from the scores of the first label scorer,
+     * pre-pruning by score while they are created.
+     */
+    void createExtensions(std::vector<std::optional<Nn::ScoreAccessorRef>> const& scoreAccessors);
+
+    /*
+     * Add the scores of label scorer `scorerIdx` to the existing extension candidates.
+     */
+    void updateExtensionScores(size_t scorerIdx, std::vector<std::optional<Nn::ScoreAccessorRef>> const& scoreAccessors);
+
+    /*
+     * Collect the scoring contexts for the next label scorer into `scoringContexts_`, dropping the
+     * hypotheses whose extensions did not survive pruning.
+     */
+    void prepareNextScoringContexts(size_t scorerIdx);
 
     /*
      * Create new beam hypotheses from the surviving extensions in `extensions_`.

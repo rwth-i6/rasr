@@ -268,6 +268,8 @@ TreeTimesyncBeamSearch::TreeTimesyncBeamSearch(Core::Configuration const& config
           scoreHistogram_(paramNumHistogramBins(config)),
           blankLabelIndex_(Nn::invalidLabelIndex),
           silenceLabelIndex_(Nn::invalidLabelIndex),
+          blankLemma_(),
+          silenceLemma_(),
           sentenceEndLemma_(),
           sentenceEndLabelIndex_(Nn::invalidLabelIndex),
           cacheCleanupInterval_(paramCacheCleanupInterval(config)),
@@ -373,6 +375,8 @@ bool TreeTimesyncBeamSearch::setModelCombination(Speech::ModelCombination const&
         intermediatePruningTimes_.resize(labelScorers_.size());
     }
 
+    blankLemma_    = lexicon_->specialLemma("blank");
+    silenceLemma_  = lexicon_->specialLemma("silence");
     nonWordLemmas_ = lexicon_->specialLemmas("nonword");
 
     network_ = Core::ref(new PersistentStateTree(
@@ -402,7 +406,7 @@ bool TreeTimesyncBeamSearch::setModelCombination(Speech::ModelCombination const&
         }
     }
 
-    if (lexicon_->specialLemma("blank")) {
+    if (blankLemma_) {
         blankLabelIndex_ = acousticModel_->emissionIndex(acousticModel_->blankAllophoneStateIndex());
         useBlank_        = true;
         log() << "Use blank label with index " << blankLabelIndex_;
@@ -412,7 +416,7 @@ bool TreeTimesyncBeamSearch::setModelCombination(Speech::ModelCombination const&
         useBlank_        = false;
     }
 
-    if (lexicon_->specialLemma("silence")) {
+    if (silenceLemma_) {
         silenceLabelIndex_ = acousticModel_->emissionIndex(acousticModel_->silenceAllophoneStateIndex());
         useSilence_        = true;
         log() << "Use silence label with index " << silenceLabelIndex_;
@@ -751,6 +755,15 @@ void TreeTimesyncBeamSearch::createWithinWordExtensions(std::vector<std::optiona
                 (not useSilence_ or tokenIdx != silenceLabelIndex_)) {
                 continue;
             }
+            // Right after a blank exit, don't start a new blank lemma, so each sequence of blank frames is a single
+            // blank segment. Consecutive blank frames between words are only possible via a self-loop of the
+            // blank-lemma state (see `AbstractTreeBuilder`).
+            if (useBlank_ and
+                network_->isRoot(hyp.currentState) and
+                hyp.currentToken == blankLabelIndex_ and
+                tokenIdx == blankLabelIndex_) {
+                continue;
+            }
             auto transitionType = inferTransitionType(hyp.currentToken, tokenIdx, hyp.currentState == successorState);
             auto extScore       = hyp.score;
             auto extTime        = hyp.timeframe;
@@ -965,10 +978,10 @@ void TreeTimesyncBeamSearch::createWordEndExtensions() {
             }
 
             Nn::TransitionType wordEndTransitionType = Nn::TransitionType::WORD_EXIT;
-            if (lemma == lexicon_->specialLemma("blank")) {
+            if (lemma == blankLemma_) {
                 wordEndTransitionType = Nn::TransitionType::BLANK_EXIT;
             }
-            else if (lemma == lexicon_->specialLemma("silence")) {
+            else if (lemma == silenceLemma_) {
                 wordEndTransitionType = Nn::TransitionType::SILENCE_EXIT;
             }
             else if (nonWordLemmas_.contains(lemma)) {

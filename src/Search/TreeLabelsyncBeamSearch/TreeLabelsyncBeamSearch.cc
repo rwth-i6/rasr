@@ -265,6 +265,8 @@ TreeLabelsyncBeamSearch::TreeLabelsyncBeamSearch(Core::Configuration const& conf
           terminatedScoreHistogram_(paramNumHistogramBins(config)),
           lengthNormScale_(paramLengthNormScale(config)),
           maxLabelsPerTimestep_(paramMaxLabelsPerTimestep(config)),
+          blankLemma_(),
+          silenceLemma_(),
           sentenceEndLemma_(),
           sentenceEndLabelIndex_(Nn::invalidLabelIndex),
           cacheCleanupInterval_(paramCacheCleanupInterval(config)),
@@ -414,6 +416,8 @@ bool TreeLabelsyncBeamSearch::setModelCombination(Speech::ModelCombination const
         }
     }
 
+    blankLemma_    = lexicon_->specialLemma("blank");
+    silenceLemma_  = lexicon_->specialLemma("silence");
     nonWordLemmas_ = lexicon_->specialLemmas("nonword");
 
     network_ = Core::ref(new PersistentStateTree(
@@ -461,7 +465,7 @@ bool TreeLabelsyncBeamSearch::setModelCombination(Speech::ModelCombination const
         error() << "No sentence end lemma or pronunciation defined";
     }
 
-    if (lexicon_->specialLemma("silence") and (lexicon_->specialLemma("silence")->syntacticTokenSequence()).size() != 0) {
+    if (silenceLemma_ and (silenceLemma_->syntacticTokenSequence()).size() != 0) {
         warning("Special lemma silence will be scored by the language model. To prevent the LM from scoring it, set an empty syntactic token sequence for it in the lexicon.");
     }
 
@@ -1067,10 +1071,10 @@ void TreeLabelsyncBeamSearch::createWordEndExtensions() {
             lmTime_.stop();
 
             Nn::TransitionType wordEndTransitionType = Nn::TransitionType::WORD_EXIT;
-            if (lemma == lexicon_->specialLemma("blank")) {
+            if (lemma == blankLemma_) {
                 wordEndTransitionType = Nn::TransitionType::BLANK_EXIT;
             }
-            else if (lemma == lexicon_->specialLemma("silence")) {
+            else if (lemma == silenceLemma_) {
                 wordEndTransitionType = Nn::TransitionType::SILENCE_EXIT;
             }
             else if (nonWordLemmas_.contains(lemma)) {

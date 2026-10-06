@@ -170,6 +170,8 @@ private:
     Histogram           scoreHistogram_;
     Nn::LabelIndex      blankLabelIndex_;
     Nn::LabelIndex      silenceLabelIndex_;
+    Bliss::Lemma const* blankLemma_;
+    Bliss::Lemma const* silenceLemma_;
     Bliss::Lemma const* sentenceEndLemma_;
     Nn::LabelIndex      sentenceEndLabelIndex_;
     size_t              cacheCleanupInterval_;

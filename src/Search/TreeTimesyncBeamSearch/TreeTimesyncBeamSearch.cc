@@ -28,6 +28,7 @@
 #include <Nn/LabelScorer/LabelScorer.hh>
 #include <Nn/LabelScorer/ScoringContext.hh>
 #include <Search/Module.hh>
+#include <Search/StableDelayPruning.hh>
 #include <Search/Traceback.hh>
 #include <Search/TracebackHelper.hh>
 
@@ -629,7 +630,8 @@ Core::Ref<const LatticeTrace> TreeTimesyncBeamSearch::getCommonPrefix() const {
         traces[hypIndex] = beam_[hypIndex].trace;
     }
 
-    RootTraceSearcher searcher(traces);
+    // The head trace of a hypothesis is its last word end, which is never replaced
+    RootTraceSearcher searcher(traces, true);
     if (not searcher.rootTrace()) {
         warning("Common prefix of all traces is a sentinel value");
     }
@@ -1496,7 +1498,12 @@ void TreeTimesyncBeamSearch::createSuccessorLookups() {
                 stateSuccessors_.push_back(*it);
             }
             else {
-                stateExits_.push_back(network_->exits[it.label()]);
+                auto const& exit = network_->exits[it.label()];
+                stateExits_.push_back(exit);
+                auto const* lemma = lexicon_->lemmaPronunciation(exit.pronunciation)->lemma();
+                if (lemma == blankLemma_ or lemma == silenceLemma_) {
+                    pauseLemmaStates_[state] = lemma;
+                }
             }
         }
     }
@@ -1692,40 +1699,25 @@ void TreeTimesyncBeamSearch::maximumStableDelayPruning() {
 
     auto cutoff = currentSearchStep_ + 1 - maximumStableDelay_;
 
-    // Find trace of current best hypothesis that has a recent word-end within the limit
-    Score                   bestScore = Core::Type<Score>::max;
-    Core::Ref<LatticeTrace> root;
-
-    for (auto const& hyp : beam_) {
-        if (hyp.score < bestScore and hyp.trace->time >= cutoff) {
-            bestScore = hyp.score;
-            root      = hyp.trace;
-        }
+    std::vector<StableDelayPruning::Hypothesis> hyps;
+    hyps.reserve(beam_.size());
+    for (auto& hyp : beam_) {
+        auto it = pauseLemmaStates_.find(hyp.currentState);
+        hyps.push_back({&hyp.trace, false, it != pauseLemmaStates_.end() ? it->second : nullptr, hyp.score});
     }
 
-    // No Hypothesis with a recent word-end was found so just take the overall best as fallback
-    if (not root) {
-        root = getBestHypothesis().trace;
+    StableDelayPruning pruning(cutoff, [this](Bliss::Lemma const* lemma) {
+        return lemma and (lemma == blankLemma_ or lemma == silenceLemma_);
+    });
+    std::vector<bool>  keep;
+    if (not pruning.apply(hyps, keep)) {
         warning() << "Most recent word in best hypothesis is before cutoff point for maximum-stable-delay-pruning so the limit will be surpassed";
     }
 
-    // Determine the right predecessor of best trace for pruning. `root->time` should be after the cutoff and `root->predecessor->time` before the cutoff
-    Core::Ref<LatticeTrace> preRoot = root->predecessor;
-
-    while (preRoot and preRoot->time >= cutoff) {
-        root    = preRoot;
-        preRoot = preRoot->predecessor;
-    }
-
-    // Perform pruning on root
     tempHypotheses_.clear();
-    for (auto const& hyp : beam_) {
-        auto curr = hyp.trace;
-        while (curr and curr != root and curr->time > root->time) {
-            curr = curr->predecessor;
-        }
-        if (curr == root) {
-            tempHypotheses_.push_back(hyp);
+    for (size_t hypIndex = 0ul; hypIndex < beam_.size(); ++hypIndex) {
+        if (keep[hypIndex]) {
+            tempHypotheses_.push_back(beam_[hypIndex]);
         }
     }
     beam_.swap(tempHypotheses_);

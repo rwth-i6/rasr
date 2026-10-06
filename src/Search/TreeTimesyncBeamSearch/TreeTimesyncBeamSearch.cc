@@ -926,6 +926,7 @@ void TreeTimesyncBeamSearch::buildNewBeamFromExtensions() {
 
 void TreeTimesyncBeamSearch::createWordEndExtensions() {
     wordEndExtensions_.clear();
+    size_t maxTokenSequenceLength = 0ul;
 
     for (size_t hypIndex = 0ul; hypIndex < newBeam_.size(); ++hypIndex) {
         auto& hyp = newBeam_[hypIndex];
@@ -946,16 +947,21 @@ void TreeTimesyncBeamSearch::createWordEndExtensions() {
             auto const*                     lemmaPron = lexicon_->lemmaPronunciation(exit.pronunciation);
             auto const*                     lemma     = lemmaPron->lemma();
 
-            Score                               lmScore   = 0;
-            const Bliss::SyntacticTokenSequence sts       = lemma->syntacticTokenSequence();
-            Nn::LabelIndex                      exitLabel = Nn::invalidLabelIndex;
+            auto const& sts = lemma->syntacticTokenSequence();
+
+            // The last token is only appended to the LM history after pruning
+            lmTime_.start();
+            Lm::History lmPrefixHistory;
+            Score       lmScore = languageModel_->scoreTokenSequence(hyp.lmHistory, sts, lmPrefixHistory);
+            lmTime_.stop();
+
+            // The label scorers score the first token here, the remaining ones are scored in `scoreRemainingWordEndTokens`
+            Nn::LabelIndex firstLabel = Nn::invalidLabelIndex;
+            Nn::LabelIndex exitLabel  = Nn::invalidLabelIndex;
             if (sts.size() != 0) {
-                require(sts.size() == 1);
-                auto const* st = sts.front();
-                lmTime_.start();
-                lmScore = languageModel_->score(hyp.lmHistory, st);
-                lmTime_.stop();
-                exitLabel = static_cast<Nn::LabelIndex>(st->id());
+                firstLabel             = static_cast<Nn::LabelIndex>(sts[0]->id());
+                exitLabel              = static_cast<Nn::LabelIndex>(sts[sts.size() - 1]->id());
+                maxTokenSequenceLength = std::max(maxTokenSequenceLength, static_cast<size_t>(sts.size()));
             }
 
             Nn::TransitionType wordEndTransitionType = Nn::TransitionType::WORD_EXIT;
@@ -982,17 +988,63 @@ void TreeTimesyncBeamSearch::createWordEndExtensions() {
                     }
                     scoreAccessor = *fetched;
                 }
-                penalty += scoreAccessor->getScore(wordEndTransitionType, exitLabel);
+                penalty += scoreAccessor->getScore(wordEndTransitionType, firstLabel);
             }
 
             wordEndExtensions_.push_back({
-                    .pron           = lemmaPron,
-                    .rootState      = exit.transitState,
-                    .exitLabel      = exitLabel,
-                    .score          = hyp.score + lmScore + penalty,
-                    .transitionType = wordEndTransitionType,
-                    .baseHypIndex   = hypIndex,
+                    .pron            = lemmaPron,
+                    .rootState       = exit.transitState,
+                    .exitLabel       = exitLabel,
+                    .score           = hyp.score + lmScore + penalty,
+                    .transitionType  = wordEndTransitionType,
+                    .baseHypIndex    = hypIndex,
+                    .lmPrefixHistory = lmPrefixHistory,
             });
+        }
+    }
+
+    scoreRemainingWordEndTokens(maxTokenSequenceLength);
+}
+
+void TreeTimesyncBeamSearch::scoreRemainingWordEndTokens(size_t maxTokenSequenceLength) {
+    /*
+     * Token `tokenIdx` of a lemma is scored on the base scoring context extended by all preceding tokens. The label
+     * scorers can only compute a context once its parent has been computed, so the contexts are extended and scored
+     * one token position at a time, batched over all word-end extensions.
+     */
+    std::vector<size_t>                extensionIndices;
+    std::vector<Nn::ScoringContextRef> contexts;
+    for (size_t tokenIdx = 1ul; tokenIdx < maxTokenSequenceLength; ++tokenIdx) {
+        for (size_t scorerIdx = 0ul; scorerIdx < labelScorers_.size(); ++scorerIdx) {
+            extensionIndices.clear();
+            contexts.clear();
+            for (size_t extensionIdx = 0ul; extensionIdx < wordEndExtensions_.size(); ++extensionIdx) {
+                auto&       extension = wordEndExtensions_[extensionIdx];
+                auto const& sts       = extension.pron->lemma()->syntacticTokenSequence();
+                if (sts.size() <= tokenIdx or not labelScorers_[scorerIdx]->scoresTransition(extension.transitionType)) {
+                    continue;
+                }
+                if (extension.scoringContexts.empty()) {
+                    extension.scoringContexts = newBeam_[extension.baseHypIndex].scoringContexts;
+                }
+                auto& context = extension.scoringContexts[scorerIdx];
+                context       = labelScorers_[scorerIdx]->extendedScoringContext(context, static_cast<Nn::LabelIndex>(sts[tokenIdx - 1]->id()), extension.transitionType);
+                extensionIndices.push_back(extensionIdx);
+                contexts.push_back(context);
+            }
+            if (contexts.empty()) {
+                continue;
+            }
+
+            auto scoreAccessors = labelScorers_[scorerIdx]->getScoreAccessors(contexts);
+            for (size_t i = 0ul; i < extensionIndices.size(); ++i) {
+                if (not scoreAccessors[i]) {
+                    continue;
+                }
+                auto&       extension = wordEndExtensions_[extensionIndices[i]];
+                auto const& sts       = extension.pron->lemma()->syntacticTokenSequence();
+                extension.score += (*scoreAccessors[i])->getScore(extension.transitionType, static_cast<Nn::LabelIndex>(sts[tokenIdx]->id()));
+            }
         }
     }
 }
@@ -1004,31 +1056,32 @@ void TreeTimesyncBeamSearch::buildWordEndHypotheses() {
     for (auto const& extension : wordEndExtensions_) {
         auto const& baseHyp = newBeam_[extension.baseHypIndex];
 
-        auto        newLmHistory = baseHyp.lmHistory;
+        // The preceding syntactic tokens have already been appended during scoring
+        auto        newLmHistory = extension.lmPrefixHistory;
         auto const& sts          = extension.pron->lemma()->syntacticTokenSequence();
+        if (sts.size() != 0) {
+            newLmHistory = languageModel_->extendedHistory(newLmHistory, sts[sts.size() - 1]);
+        }
 
         LanguageModelLookahead::ContextLookaheadReference newLookahead        = baseHyp.lookahead;
         Lm::History                                       newLookaheadHistory = baseHyp.lookaheadHistory;
         Score                                             newLookaheadBackOff = baseHyp.lookaheadBackOff;
 
-        if (sts.size() != 0) {
-            require(sts.size() == 1);
-            const Bliss::SyntacticToken* st = sts.front();
-            newLmHistory                    = languageModel_->extendedHistory(newLmHistory, st);
+        if (enableLmLookahead_) {
+            lmLookaheadTime_.start();
+            Lm::extendHistoryByLemma(lookaheadLm_, extension.pron->lemma(), newLookaheadHistory);
 
-            if (enableLmLookahead_) {
-                lmLookaheadTime_.start();
-                newLookaheadHistory = lookaheadLm_->extendedHistory(baseHyp.lookaheadHistory, st);
-
-                if (!(newLookaheadHistory == baseHyp.lookaheadHistory)) {
-                    // The lookahead context changed, so a table the base may have backed off to no
-                    // longer applies: start the new word from the table for the new context.
-                    getLmLookahead(newLookahead, newLookaheadHistory);
-                    newLookaheadBackOff = 0.0;
-                }
-                lmLookaheadTime_.stop();
+            if (!(newLookaheadHistory == baseHyp.lookaheadHistory)) {
+                // The lookahead context changed, so a table the base may have backed off to no
+                // longer applies: start the new word from the table for the new context.
+                getLmLookahead(newLookahead, newLookaheadHistory);
+                newLookaheadBackOff = 0.0;
             }
+            lmLookaheadTime_.stop();
         }
+
+        // Extend the scoring contexts by the last syntactic token, the preceding ones have been applied before pruning
+        auto const& baseScoringContexts = extension.scoringContexts.empty() ? baseHyp.scoringContexts : extension.scoringContexts;
 
         std::vector<Nn::ScoringContextRef> newScoringContexts;
         newScoringContexts.reserve(labelScorers_.size());
@@ -1036,12 +1089,12 @@ void TreeTimesyncBeamSearch::buildWordEndHypotheses() {
             if (labelScorers_[scorerIdx]->scoresTransition(extension.transitionType) and
                 extension.exitLabel != Nn::invalidLabelIndex) {
                 newScoringContexts.push_back(labelScorers_[scorerIdx]->extendedScoringContext(
-                        baseHyp.scoringContexts[scorerIdx],
+                        baseScoringContexts[scorerIdx],
                         extension.exitLabel,
                         extension.transitionType));
             }
             else {
-                newScoringContexts.push_back(baseHyp.scoringContexts[scorerIdx]);
+                newScoringContexts.push_back(baseScoringContexts[scorerIdx]);
             }
         }
 

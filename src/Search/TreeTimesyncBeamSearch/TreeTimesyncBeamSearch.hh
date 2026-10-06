@@ -105,12 +105,17 @@ protected:
     };
 
     struct WordEndExtensionCandidate {
-        Bliss::LemmaPronunciation const* pron;            // Proposed lemma pronunciation
-        StateId                          rootState;       // Proposed root-state to transition to
-        Nn::LabelIndex                   exitLabel;       // LabelScorer token associated with this exit
-        Score                            score;           // Would-be total score of the full hypothesis after LM score contribution
-        Nn::TransitionType               transitionType;  // Type of transition towward `rootState`
-        size_t                           baseHypIndex;    // Index of base hypothesis in beam
+        Bliss::LemmaPronunciation const* pron;             // Proposed lemma pronunciation
+        StateId                          rootState;        // Proposed root-state to transition to
+        Nn::LabelIndex                   exitLabel;        // Last syntactic token of `pron` as LabelScorer token, the scoring contexts are extended by it after pruning
+        Score                            score;            // Would-be total score of the full hypothesis after LM score contribution
+        Nn::TransitionType               transitionType;   // Type of transition towward `rootState`
+        size_t                           baseHypIndex;     // Index of base hypothesis in beam
+        Lm::History                      lmPrefixHistory;  // LM history of the base hypothesis extended by all but the last syntactic token of `pron`
+
+        // Scoring contexts of the base hypothesis extended by all but the last syntactic token of `pron` for the label
+        // scorers that score the word-end transition. Empty if there is no such token, i.e. the base contexts apply.
+        std::vector<Nn::ScoringContextRef> scoringContexts;
 
         bool operator<(WordEndExtensionCandidate const& other) {
             return score < other.score;
@@ -342,6 +347,12 @@ private:
      * Populates `wordEndExtensions_`.
      */
     void createWordEndExtensions();
+
+    /*
+     * Add the label scorer scores of all but the first syntactic token of each word-end extension in
+     * `wordEndExtensions_` and store the correspondingly extended scoring contexts in the extensions.
+     */
+    void scoreRemainingWordEndTokens(size_t maxTokenSequenceLength);
 
     /*
      * Create word-end hypotheses from the surviving extensions, updating the LM history and the

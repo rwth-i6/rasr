@@ -1060,14 +1060,11 @@ void TreeLabelsyncBeamSearch::createWordEndExtensions() {
                 continue;
             }
 
-            Score       lmScore = 0;
-            auto const& sts     = lemma->syntacticTokenSequence();
-            if (sts.size() != 0) {
-                require(sts.size() == 1);
-                lmTime_.start();
-                lmScore = languageModel_->score(hyp.lmHistory, sts.front());
-                lmTime_.stop();
-            }
+            // The last token is only appended to the LM history after pruning
+            lmTime_.start();
+            Lm::History lmPrefixHistory;
+            Score       lmScore = languageModel_->scoreTokenSequence(hyp.lmHistory, lemma->syntacticTokenSequence(), lmPrefixHistory);
+            lmTime_.stop();
 
             Nn::TransitionType wordEndTransitionType = Nn::TransitionType::WORD_EXIT;
             if (lemma == lexicon_->specialLemma("blank")) {
@@ -1097,13 +1094,14 @@ void TreeLabelsyncBeamSearch::createWordEndExtensions() {
             }
 
             wordEndExtensions_.push_back({
-                    .pron           = lemmaPron,
-                    .rootState      = exit.transitState,
-                    .score          = hyp.score + lmScore + penalty,
-                    .timeframe      = hyp.timeframe,
-                    .transitionType = wordEndTransitionType,
-                    .baseHypIndex   = hypIndex,
-                    .isActive       = true,
+                    .pron            = lemmaPron,
+                    .rootState       = exit.transitState,
+                    .score           = hyp.score + lmScore + penalty,
+                    .timeframe       = hyp.timeframe,
+                    .transitionType  = wordEndTransitionType,
+                    .baseHypIndex    = hypIndex,
+                    .isActive        = true,
+                    .lmPrefixHistory = lmPrefixHistory,
             });
         }
     }
@@ -1142,14 +1140,15 @@ void TreeLabelsyncBeamSearch::buildWordEndHypotheses() {
     for (auto const& extension : wordEndExtensions_) {
         auto const& baseHyp = newBeam_[extension.baseHypIndex];
 
-        auto        newLmHistory = baseHyp.lmHistory;
-        auto const& sts          = extension.pron->lemma()->syntacticTokenSequence();
-
         // The LM history is not extended for terminated hypotheses since sentence-end is the last LM scoring step
-        if (baseHyp.isActive and sts.size() != 0) {
-            require(sts.size() == 1);
-            const Bliss::SyntacticToken* st = sts.front();
-            newLmHistory                    = languageModel_->extendedHistory(newLmHistory, st);
+        auto newLmHistory = baseHyp.lmHistory;
+        if (baseHyp.isActive) {
+            // The preceding syntactic tokens have already been appended during scoring
+            newLmHistory    = extension.lmPrefixHistory;
+            auto const& sts = extension.pron->lemma()->syntacticTokenSequence();
+            if (sts.size() != 0) {
+                newLmHistory = languageModel_->extendedHistory(newLmHistory, sts[sts.size() - 1]);
+            }
         }
 
         wordEndHypotheses_.push_back({baseHyp, extension, newLmHistory, lengthNormScale_});

@@ -1032,10 +1032,11 @@ void LexiconfreeTimesyncBeamSearch::finalizeHypotheses() {
     }
 
     if (stepwiseStatisticsChannel_.isOpen()) {
+        stepwiseStatisticsChannel_ << Core::XmlOpen("final-beam-stats");
         stepwiseStatisticsChannel_ << Core::XmlFull("active-hyps", beam_.size());
         stepwiseStatisticsChannel_ << Core::XmlFull("best-hyp-score", getBestHypothesis().score);
         stepwiseStatisticsChannel_ << Core::XmlFull("worst-hyp-score", getWorstHypothesis().score);
-        stepwiseStatisticsChannel_ << Core::XmlClose("search-step-stats");
+        stepwiseStatisticsChannel_ << Core::XmlClose("final-beam-stats");
     }
 }
 

@@ -15,6 +15,8 @@
 
 #include "OnnxEncoder.hh"
 
+#include <Core/XmlStream.hh>
+
 namespace Onnx {
 
 /*
@@ -64,8 +66,13 @@ OnnxEncoder::OnnxEncoder(Core::Configuration const& config, Nn::ModelCache& mode
     stateManager_->setInitialStates(stateVariables_);
 }
 
+void OnnxEncoder::logEncodeBreakdown() const {
+    statisticsChannel_ << Core::XmlOpen("onnx-session-time") << onnxSessionTime_.elapsedMilliseconds() << Core::XmlClose("onnx-session-time");
+}
+
 void OnnxEncoder::reset() {
     Encoder::reset();
+    onnxSessionTime_.reset();
     stateManager_->setInitialStates(stateVariables_);
 }
 
@@ -102,7 +109,9 @@ OnnxEncoder::SessionRunResult OnnxEncoder::runSession(size_t inputStartIndex, si
 
     // Run session
     std::vector<Value> sessionOutputs;
+    onnxSessionTime_.start();
     onnxModel_->session.run(std::move(sessionInputs), outputNames, sessionOutputs);
+    onnxSessionTime_.stop();
 
     // Retrieve outputs
     size_t T_out      = sessionOutputs.front().dimSize(1);

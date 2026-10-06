@@ -26,6 +26,7 @@ BufferedLabelScorer::BufferedLabelScorer(Core::Configuration const& config, Tran
 }
 
 void BufferedLabelScorer::reset() {
+    Precursor::reset();
     inputBuffer_.clear();
     numDeletedInputs_   = 0ul;
     expectMoreFeatures_ = true;

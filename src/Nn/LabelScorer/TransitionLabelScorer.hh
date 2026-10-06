@@ -64,8 +64,9 @@ public:
     // No op
     void addInput(DataView const& input) override;
 
+protected:
     // Return transition score based on transition type of the request
-    std::optional<ScoreAccessorRef> getScoreAccessor(ScoringContextRef scoringContext) override;
+    std::optional<ScoreAccessorRef> computeScoreAccessor(ScoringContextRef scoringContext) override;
 
 private:
     Core::Ref<FixedTransitionScoreAccessor> transitionScoreAccessor_;

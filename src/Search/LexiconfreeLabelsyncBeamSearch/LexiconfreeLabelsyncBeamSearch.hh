@@ -55,7 +55,6 @@ public:
     static const Core::ParameterChoice      paramPruningStrategyType;
     static const Core::Choice               choiceRecombinationMode;
     static const Core::ParameterChoice      paramRecombinationMode;
-    static const Core::ParameterBool        paramLogStepwiseStatistics;
 
     LexiconfreeLabelsyncBeamSearch(Core::Configuration const&);
 
@@ -157,8 +156,11 @@ private:
     Nn::LabelIndex      sentenceEndLabelIndex_;
     Core::Choice::Value pruningStrategyType_;
     bool                recombinationEnabled_;
-    bool                logStepwiseStatistics_;
-    size_t              cacheCleanupInterval_;
+    // Per-segment timing and statistics. Defaults to the standard log target.
+    mutable Core::XmlChannel statisticsChannel_;
+    // Statistics for every search step. Disabled unless a target is configured.
+    Core::XmlChannel stepwiseStatisticsChannel_;
+    size_t           cacheCleanupInterval_;
 
     Core::Channel debugChannel_;
 
@@ -175,8 +177,22 @@ private:
 
     Core::StopWatch initializationTime_;
     Core::StopWatch featureProcessingTime_;
-    Core::StopWatch scoringTime_;
+    Core::StopWatch recognitionTime_;
+    /*
+     * Phases of `scoreAndPruneExtensions` per label scorer, adding up to the matching
+     * `scoreAndPruneExtensionsTimes_` entry. Scorers that compute scores lazily do that work
+     * during the score readout; the pruning phase also prepares the next scorer's contexts.
+     */
+    std::vector<Core::StopWatch> scoreAndPruneExtensionsTimes_;
+    std::vector<Core::StopWatch> scoringTimes_;
+    std::vector<Core::StopWatch> scoreReadoutTimes_;
+    std::vector<Core::StopWatch> intermediatePruningTimes_;
+    Core::StopWatch              buildNewBeamTime_;
+    Core::StopWatch              recombinationTime_;
+    Core::StopWatch              beamPruningTime_;
 
+    Core::Statistics<u32>              numInputHyps_;
+    Core::Statistics<u32>              numExtensionsBeforeFirstPruning_;
     std::vector<Core::Statistics<u32>> numHypsAfterIntermediatePruning_;
     Core::Statistics<u32>              numTerminatedHypsAfterScorePruning_;
     Core::Statistics<u32>              numTerminatedHypsAfterRecombination_;
@@ -201,6 +217,38 @@ private:
     LabelHypothesis const& getOutputHypothesis(std::vector<LabelHypothesis> const& hypotheses) const;
 
     void logStatistics() const;
+
+    /*
+     * Run the multi-scorer loop: create extensions from the first scorer, update scores with
+     * subsequent scorers, apply intermediate pruning after each scorer.
+     * Populates `extensions_`. Returns false if no extensions survive (decode step should abort).
+     */
+    bool scoreAndPruneExtensions();
+
+    /*
+     * Create new beam hypotheses from the surviving extensions in `extensions_`.
+     * Carries over terminated hypotheses from the current beam and adds new ones from extensions.
+     * Populates `newBeam_`.
+     */
+    void buildNewBeamFromExtensions();
+
+    /*
+     * Log the per-step statistics and debug output for the current beam.
+     */
+    void logStepStatistics();
+
+    /*
+     * Apply the final score-pruning stage to `newBeam_` according to the configured pruning strategy.
+     * In `joint` mode active and terminated hypotheses are pruned against the overall best hypothesis;
+     * in `separate` mode terminated ones are pruned against the best terminated hypothesis.
+     */
+    void pruneNewBeamByScore();
+
+    /*
+     * Apply the final max-beam-size pruning stage to `newBeam_` according to the configured pruning
+     * strategy. In `separate` mode active and terminated hypotheses each get their own beam size.
+     */
+    void pruneNewBeamBySize();
 
     /*
      * Helper function for acoustic pruning of hypotheses. Calculates an absolute threshold based on best score + relative threshold and

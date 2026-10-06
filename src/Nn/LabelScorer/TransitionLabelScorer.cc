@@ -60,7 +60,9 @@ TransitionLabelScorer::TransitionLabelScorer(Core::Configuration const& config)
     }
 }
 
-void TransitionLabelScorer::reset() {}
+void TransitionLabelScorer::reset() {
+    Precursor::reset();
+}
 
 void TransitionLabelScorer::signalNoMoreFeatures() {}
 
@@ -74,7 +76,7 @@ ScoringContextRef TransitionLabelScorer::extendedScoringContext(ScoringContextRe
     return Core::ref(new ScoringContext());
 }
 
-std::optional<ScoreAccessorRef> TransitionLabelScorer::getScoreAccessor(ScoringContextRef scoringContext) {
+std::optional<ScoreAccessorRef> TransitionLabelScorer::computeScoreAccessor(ScoringContextRef scoringContext) {
     return transitionScoreAccessor_;
 }
 

@@ -246,14 +246,14 @@ StatefulOnnxLabelScorer::StatefulOnnxLabelScorer(Core::Configuration const& conf
 }
 
 void StatefulOnnxLabelScorer::logScoringBreakdown() const {
-    statisticsChannel_ << Core::XmlOpen("state-update-session-time") << stateUpdateSessionTime_.elapsedMilliseconds() << Core::XmlClose("state-update-session-time");
-    statisticsChannel_ << Core::XmlOpen("scorer-session-time") << scorerSessionTime_.elapsedMilliseconds() << Core::XmlClose("scorer-session-time");
-    statisticsChannel_ << Core::XmlOpen("state-marshalling-time") << stateMarshallingTime_.elapsedMilliseconds() << Core::XmlClose("state-marshalling-time");
-    statisticsChannel_ << Core::XmlOpen("context-preparation-time") << contextPreparationTime_.elapsedMilliseconds() << Core::XmlClose("context-preparation-time");
+    statisticsChannel_ << Core::XmlFull("state-update-session-time", stateUpdateSessionTime_.elapsedMilliseconds());
+    statisticsChannel_ << Core::XmlFull("scorer-session-time", scorerSessionTime_.elapsedMilliseconds());
+    statisticsChannel_ << Core::XmlFull("state-marshalling-time", stateMarshallingTime_.elapsedMilliseconds());
+    statisticsChannel_ << Core::XmlFull("context-preparation-time", contextPreparationTime_.elapsedMilliseconds());
 }
 
-void StatefulOnnxLabelScorer::reset() {
-    Precursor::reset();
+void StatefulOnnxLabelScorer::resetInternal() {
+    Precursor::resetInternal();
     stateUpdateSessionTime_.reset();
     scorerSessionTime_.reset();
     stateMarshallingTime_.reset();

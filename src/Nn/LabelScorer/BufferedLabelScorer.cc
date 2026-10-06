@@ -25,8 +25,7 @@ BufferedLabelScorer::BufferedLabelScorer(Core::Configuration const& config, Tran
           numDeletedInputs_(0ul) {
 }
 
-void BufferedLabelScorer::reset() {
-    Precursor::reset();
+void BufferedLabelScorer::resetInternal() {
     inputBuffer_.clear();
     numDeletedInputs_   = 0ul;
     expectMoreFeatures_ = true;

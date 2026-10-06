@@ -41,9 +41,6 @@ public:
     PythonLabelScorer(Core::Configuration const& config);
     virtual ~PythonLabelScorer() = default;
 
-    // Must be overridden in python by name "reset"
-    virtual void reset() override;
-
     // Can be overridden in python. No-op per default.
     virtual void signalNoMoreFeatures() override;
 
@@ -74,6 +71,9 @@ public:
     virtual std::vector<std::optional<std::pair<std::vector<Nn::Score>, Nn::TimeframeIndex>>> getPythonScoresWithTimes(std::vector<py::object> const& pythonContexts);
 
 protected:
+    // Must be overridden in python by name "reset"
+    virtual void resetInternal() override;
+
     // Calls batched version
     virtual std::optional<Nn::ScoreAccessorRef> computeScoreAccessor(Nn::ScoringContextRef scoringContext) override;
 

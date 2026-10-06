@@ -181,8 +181,7 @@ Core::Ref<ScaledLabelScorer> CtcPrefixLabelScorer::getCtcLabelScorer() const {
     return ctcScorer_;
 }
 
-void CtcPrefixLabelScorer::reset() {
-    Precursor::reset();
+void CtcPrefixLabelScorer::resetInternal() {
     ctcScoreCollectionTime_.reset();
     prefixFinalizationTime_.reset();
     prefixExtensionTime_.reset();
@@ -191,12 +190,12 @@ void CtcPrefixLabelScorer::reset() {
 }
 
 void CtcPrefixLabelScorer::logScoringBreakdown() const {
-    statisticsChannel_ << Core::XmlOpen("prefix-finalization-time") << prefixFinalizationTime_.elapsedMilliseconds() << Core::XmlClose("prefix-finalization-time");
-    statisticsChannel_ << Core::XmlOpen("prefix-extension-time") << prefixExtensionTime_.elapsedMilliseconds() << Core::XmlClose("prefix-extension-time");
+    statisticsChannel_ << Core::XmlFull("prefix-finalization-time", prefixFinalizationTime_.elapsedMilliseconds());
+    statisticsChannel_ << Core::XmlFull("prefix-extension-time", prefixExtensionTime_.elapsedMilliseconds());
 }
 
 void CtcPrefixLabelScorer::logAdditionalStatistics() const {
-    statisticsChannel_ << Core::XmlOpen("ctc-score-collection-time") + Core::XmlAttribute("unit", "milliseconds") << ctcScoreCollectionTime_.elapsedMilliseconds() << Core::XmlClose("ctc-score-collection-time");
+    statisticsChannel_ << Core::XmlFull("ctc-score-collection-time", ctcScoreCollectionTime_.elapsedMilliseconds()) + Core::XmlAttribute("unit", "milliseconds");
 }
 
 void CtcPrefixLabelScorer::logStatistics() const {

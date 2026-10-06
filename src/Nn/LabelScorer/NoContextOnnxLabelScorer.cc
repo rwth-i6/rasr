@@ -52,11 +52,11 @@ NoContextOnnxLabelScorer::NoContextOnnxLabelScorer(Core::Configuration const& co
 }
 
 void NoContextOnnxLabelScorer::logScoringBreakdown() const {
-    statisticsChannel_ << Core::XmlOpen("onnx-session-time") << onnxSessionTime_.elapsedMilliseconds() << Core::XmlClose("onnx-session-time");
+    statisticsChannel_ << Core::XmlFull("onnx-session-time", onnxSessionTime_.elapsedMilliseconds());
 }
 
-void NoContextOnnxLabelScorer::reset() {
-    Precursor::reset();
+void NoContextOnnxLabelScorer::resetInternal() {
+    Precursor::resetInternal();
     onnxSessionTime_.reset();
     scoreCache_.clear();
 }

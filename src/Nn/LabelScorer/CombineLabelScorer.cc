@@ -129,6 +129,8 @@ CombineLabelScorer::CombineLabelScorer(Core::Configuration const& config, ModelC
         scorers_.push_back(Nn::Module::instance().labelScorerFactory().createLabelScorer(subConfig, modelCache));
         enabledTransitions_.enableIntersection(scorers_.back()->enabledTransitions());
     }
+
+    tracksScoringStatistics_ = false;
 }
 
 Core::Ref<ScaledLabelScorer> CombineLabelScorer::getSubScorer(size_t index) const {
@@ -136,8 +138,7 @@ Core::Ref<ScaledLabelScorer> CombineLabelScorer::getSubScorer(size_t index) cons
     return scorers_[index];
 }
 
-void CombineLabelScorer::reset() {
-    Precursor::reset();
+void CombineLabelScorer::resetInternal() {
     for (auto& scorer : scorers_) {
         scorer->reset();
     }

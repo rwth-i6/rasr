@@ -70,13 +70,14 @@ public:
     StateManagedOnnxLabelScorer(Core::Configuration const& config, ModelCache& modelCache);
     virtual ~StateManagedOnnxLabelScorer() = default;
 
-    void reset() override;
     void addInput(DataView const& input) override;
 
     ScoringContextRef getInitialScoringContext() override;
     ScoringContextRef extendedScoringContext(ScoringContextRef scoringContext, LabelIndex nextToken, TransitionType transitionType) override;
 
 protected:
+    void resetInternal() override;
+
     std::optional<ScoreAccessorRef>              computeScoreAccessor(ScoringContextRef scoringContext) override;
     std::vector<std::optional<ScoreAccessorRef>> computeScoreAccessors(std::vector<ScoringContextRef> const& scoringContexts) override;
     size_t                                       getMinActiveInputIndex(Core::CollapsedVector<ScoringContextRef> const& activeContexts) const override;

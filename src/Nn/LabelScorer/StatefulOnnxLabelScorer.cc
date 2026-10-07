@@ -246,14 +246,14 @@ StatefulOnnxLabelScorer::StatefulOnnxLabelScorer(Core::Configuration const& conf
 }
 
 void StatefulOnnxLabelScorer::logScoringBreakdown() const {
-    statisticsChannel_ << Core::XmlOpen("state-update-session-time") << stateUpdateSessionTime_.elapsedMilliseconds() << Core::XmlClose("state-update-session-time");
-    statisticsChannel_ << Core::XmlOpen("scorer-session-time") << scorerSessionTime_.elapsedMilliseconds() << Core::XmlClose("scorer-session-time");
-    statisticsChannel_ << Core::XmlOpen("state-marshalling-time") << stateMarshallingTime_.elapsedMilliseconds() << Core::XmlClose("state-marshalling-time");
-    statisticsChannel_ << Core::XmlOpen("context-preparation-time") << contextPreparationTime_.elapsedMilliseconds() << Core::XmlClose("context-preparation-time");
+    statisticsChannel_ << Core::XmlFull("state-update-session-time", stateUpdateSessionTime_.elapsedMilliseconds());
+    statisticsChannel_ << Core::XmlFull("scorer-session-time", scorerSessionTime_.elapsedMilliseconds());
+    statisticsChannel_ << Core::XmlFull("state-marshalling-time", stateMarshallingTime_.elapsedMilliseconds());
+    statisticsChannel_ << Core::XmlFull("context-preparation-time", contextPreparationTime_.elapsedMilliseconds());
 }
 
-void StatefulOnnxLabelScorer::reset() {
-    Precursor::reset();
+void StatefulOnnxLabelScorer::resetInternal() {
+    Precursor::resetInternal();
     stateUpdateSessionTime_.reset();
     scorerSessionTime_.reset();
     stateMarshallingTime_.reset();
@@ -582,6 +582,15 @@ void StatefulOnnxLabelScorer::cacheScores(std::vector<OnnxHiddenStateScoringCont
         return;
     }
 
+    // Fetched before the timed block below because it runs a session of its own
+    OnnxHiddenStateRef initialHiddenState;
+    for (auto const& scoringContext : scoringContextBatch) {
+        if (scoringContext->labelSeq.empty()) {
+            initialHiddenState = computeInitialHiddenState();
+            break;
+        }
+    }
+
     /*
      * Create session inputs
      */
@@ -594,15 +603,10 @@ void StatefulOnnxLabelScorer::cacheScores(std::vector<OnnxHiddenStateScoringCont
             std::vector<Onnx::Value const*> stateValues;
             stateValues.reserve(scoringContextBatch.size());
 
-            for (size_t b = 0ul; b < scoringContextBatch.size(); ++b) {
-                auto const&        scoringContext = scoringContextBatch[b];
-                OnnxHiddenStateRef hiddenState;
-                if (scoringContext->labelSeq.empty()) {
-                    hiddenState = computeInitialHiddenState();
-                }
-                else {
-                    hiddenState = (*stateCache_.get(scoringContext)).get();
-                }
+            for (auto const& scoringContext : scoringContextBatch) {
+                OnnxHiddenStateRef hiddenState = scoringContext->labelSeq.empty()
+                                                         ? initialHiddenState
+                                                         : (*stateCache_.get(scoringContext)).get();
                 verify(hiddenState);
                 stateValues.push_back(&hiddenState->stateValueMap.at(stateName));
             }

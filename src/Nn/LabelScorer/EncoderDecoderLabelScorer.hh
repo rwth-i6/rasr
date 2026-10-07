@@ -40,9 +40,6 @@ public:
     // Return the decoder label scorer
     Core::Ref<ScaledLabelScorer> getDecoderLabelScorer() const;
 
-    // Resets both encoder and decoder component
-    void reset() override;
-
     // Forwarded to the encoder and the decoder scorer
     void logStatistics() const override;
 
@@ -68,6 +65,9 @@ public:
     void addInputs(DataView const& input, size_t nTimesteps) override;
 
 protected:
+    // Resets both encoder and decoder component
+    void resetInternal() override;
+
     // Return accessor from decoder component
     std::optional<ScoreAccessorRef> computeScoreAccessor(ScoringContextRef scoringContext) override;
 

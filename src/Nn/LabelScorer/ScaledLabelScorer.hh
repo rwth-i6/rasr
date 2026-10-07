@@ -41,9 +41,6 @@ public:
     // Set the scale, overriding the value from the config
     void setScale(Score scale);
 
-    // Reset sub-scorer
-    void reset() override;
-
     // Forwarded to the wrapped scorer; scaling itself accumulates no statistics
     void logStatistics() const override;
 
@@ -66,6 +63,9 @@ public:
     virtual void addInputs(DataView const& input, size_t nTimesteps) override;
 
 protected:
+    // Reset sub-scorer
+    void resetInternal() override;
+
     // Score accessor wrapper that scales the scores
     std::optional<ScoreAccessorRef> computeScoreAccessor(ScoringContextRef scoringContext) override;
 

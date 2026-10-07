@@ -84,10 +84,9 @@ public:
     LabelScorer(Core::Configuration const& config, TransitionPresetType defaultPreset = TransitionPresetType::NONE);
     virtual ~LabelScorer() = default;
 
-    // Prepares the LabelScorer to receive new inputs
-    // e.g. by resetting input buffers and segmentEnd flags.
-    // Also resets the accumulated timing and statistics; overrides must call this base implementation.
-    virtual void reset() = 0;
+    // Prepares the LabelScorer to receive new inputs.
+    // Clears the accumulated timing and statistics and delegates to `resetInternal`.
+    void reset();
 
     // Log the timing and statistics accumulated since the last `reset`.
     virtual void logStatistics() const;
@@ -134,6 +133,10 @@ public:
     TransitionSet enabledTransitions() const;
 
 protected:
+    // Reset the state that belongs to the concrete LabelScorer, e.g. input buffers and
+    // segment-end flags. `reset` handles the statistics, so implementations must not touch them.
+    virtual void resetInternal() = 0;
+
     // Compute the score accessor for a single context. `getScoreAccessor` handles the
     // statistics, so implementations must not touch them.
     virtual std::optional<ScoreAccessorRef> computeScoreAccessor(ScoringContextRef scoringContext) = 0;
@@ -151,14 +154,18 @@ protected:
 
     // Time spent in `computeScoreAccessor(s)`. Scorers that compute scores lazily add those
     // intervals as well.
-    // Tracking only, so writable from const scoring paths
-    mutable Core::StopWatch scoringTime_;
-    mutable size_t          numScoreAccessorsRequested_ = 0;
+    Core::StopWatch scoringTime_;
+    size_t          numScoreAccessorsRequested_ = 0ul;
 
     // Contexts that had to be computed rather than served from an internal cache. Maintained and
     // logged only by scorers that have such a cache, indicated by the flag below.
-    mutable size_t numScoreAccessorsComputed_ = 0;
+    // Scorers that compute lazily count from const paths, hence mutable.
+    mutable size_t numScoreAccessorsComputed_ = 0ul;
     bool           tracksScoreAccessorCache_  = false;
+
+    // Set to false by scorers that only forward to sub-scorers, so that they don't pay for
+    // statistics that they never report.
+    bool tracksScoringStatistics_ = true;
 
     // Channel that `logStatistics` writes to. Defaults to the standard log target.
     mutable Core::XmlChannel statisticsChannel_;

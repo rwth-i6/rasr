@@ -92,8 +92,6 @@ public:
     // Return the CTC label scorer
     Core::Ref<ScaledLabelScorer> getCtcLabelScorer() const;
 
-    void reset() override;
-
     // Logs the prefix-scoring statistics of this scorer and forwards to the wrapped CTC scorer
     void logStatistics() const override;
     void signalNoMoreFeatures() override;
@@ -104,6 +102,8 @@ public:
     ScoringContextRef extendedScoringContext(ScoringContextRef scoringContext, LabelIndex nextToken, TransitionType transitionType) override;
 
 protected:
+    void resetInternal() override;
+
     std::optional<ScoreAccessorRef> computeScoreAccessor(ScoringContextRef scoringContext) override;
 
 private:
@@ -120,8 +120,9 @@ private:
     // Computing the time-wise prefix scores of a scoring context, and computing the score of a
     // prefix extended by one label. The latter is also reached from the former, in which case it
     // is counted as finalization.
+    // Finalization happens on a const path, hence mutable.
     mutable Core::StopWatch prefixFinalizationTime_;
-    mutable Core::StopWatch prefixExtensionTime_;
+    Core::StopWatch         prefixExtensionTime_;
 
     void logScoringBreakdown() const override;
     void logAdditionalStatistics() const override;

@@ -47,9 +47,9 @@ public:
     Encoder(Core::Configuration const& config);
     virtual ~Encoder() = default;
 
-    // Clear buffers and reset segment end flag.
-    // Also resets the accumulated timing and statistics; overrides must call this base implementation.
-    virtual void reset();
+    // Prepares the Encoder to receive new inputs.
+    // Clears the accumulated timing and statistics and delegates to `resetInternal`.
+    void reset();
 
     // Log the timing and statistics accumulated since the last `reset`.
     virtual void logStatistics() const;
@@ -77,15 +77,18 @@ protected:
     // Channel that `logStatistics` writes to. Defaults to the standard log target.
     mutable Core::XmlChannel statisticsChannel_;
 
+    // Clear the state that belongs to the concrete Encoder, e.g. input buffers and segment-end
+    // flags. `reset` handles the statistics, so implementations must not touch them.
+    virtual void resetInternal();
+
     // Hook for subclasses to break down `encode-time`. Called inside that element, so only
     // timers whose intervals are contained in it belong here.
     virtual void logEncodeBreakdown() const {}
 
-    // Tracking only, so writable from const paths
-    mutable Core::StopWatch encodeTime_;
+    Core::StopWatch encodeTime_;
 
     // Total number of input features (T) handed to this encoder in the current segment
-    mutable size_t numEncodedFeatures_ = 0ul;
+    size_t numInputFeatures_ = 0ul;
 
     // Encode features inside the input buffer and put the results into the output buffer
     virtual void encode() = 0;

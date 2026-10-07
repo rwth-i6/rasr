@@ -168,12 +168,12 @@ StateManagedOnnxLabelScorer::StateManagedOnnxLabelScorer(Core::Configuration con
 }
 
 void StateManagedOnnxLabelScorer::logScoringBreakdown() const {
-    statisticsChannel_ << Core::XmlOpen("onnx-session-time") << onnxSessionTime_.elapsedMilliseconds() << Core::XmlClose("onnx-session-time");
-    statisticsChannel_ << Core::XmlOpen("context-preparation-time") << contextPreparationTime_.elapsedMilliseconds() << Core::XmlClose("context-preparation-time");
+    statisticsChannel_ << Core::XmlFull("onnx-session-time", onnxSessionTime_.elapsedMilliseconds());
+    statisticsChannel_ << Core::XmlFull("context-preparation-time", contextPreparationTime_.elapsedMilliseconds());
 }
 
-void StateManagedOnnxLabelScorer::reset() {
-    Precursor::reset();
+void StateManagedOnnxLabelScorer::resetInternal() {
+    Precursor::resetInternal();
     onnxSessionTime_.reset();
     contextPreparationTime_.reset();
     encoderStatesValue_     = Onnx::Value();

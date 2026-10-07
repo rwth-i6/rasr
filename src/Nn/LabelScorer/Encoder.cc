@@ -35,13 +35,17 @@ void Encoder::logStatistics() const {
     statisticsChannel_ << Core::XmlOpen("encode-time") + Core::XmlAttribute("unit", "milliseconds") + Core::XmlAttribute("total", encodeTime_.elapsedMilliseconds());
     logEncodeBreakdown();
     statisticsChannel_ << Core::XmlClose("encode-time");
-    statisticsChannel_ << Core::XmlFull("num-encoded-features", numEncodedFeatures_);
+    statisticsChannel_ << Core::XmlFull("num-input-features", numInputFeatures_);
     statisticsChannel_ << Core::XmlClose("encoder-statistics");
 }
 
 void Encoder::reset() {
     encodeTime_.reset();
-    numEncodedFeatures_ = 0ul;
+    numInputFeatures_ = 0ul;
+    resetInternal();
+}
+
+void Encoder::resetInternal() {
     expectMoreFeatures_ = true;
     inputBuffer_.clear();
 
@@ -54,7 +58,7 @@ void Encoder::signalNoMoreFeatures() {
 
 void Encoder::addInput(DataView const& input) {
     inputBuffer_.push_back(input);
-    ++numEncodedFeatures_;
+    ++numInputFeatures_;
 }
 
 void Encoder::addInputs(DataView const& input, size_t nTimesteps) {

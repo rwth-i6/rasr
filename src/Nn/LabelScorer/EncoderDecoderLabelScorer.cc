@@ -22,15 +22,15 @@ EncoderDecoderLabelScorer::EncoderDecoderLabelScorer(Core::Configuration const& 
           LabelScorer(config),
           encoder_(encoder),
           decoder_(decoder) {
-    enabledTransitions_ = decoder_->enabledTransitions();
+    enabledTransitions_      = decoder_->enabledTransitions();
+    tracksScoringStatistics_ = false;
 }
 
 Core::Ref<ScaledLabelScorer> EncoderDecoderLabelScorer::getDecoderLabelScorer() const {
     return decoder_;
 }
 
-void EncoderDecoderLabelScorer ::reset() {
-    LabelScorer::reset();
+void EncoderDecoderLabelScorer::resetInternal() {
     encoder_->reset();
     decoder_->reset();
 }

@@ -39,9 +39,6 @@ public:
     NoContextOnnxLabelScorer(Core::Configuration const& config, ModelCache& modelCache);
     virtual ~NoContextOnnxLabelScorer() = default;
 
-    // Clear feature buffer and cached scores
-    void reset() override;
-
     // Initial scoring context contains step 0
     ScoringContextRef getInitialScoringContext() override;
 
@@ -52,6 +49,9 @@ public:
     void cleanupCaches(Core::CollapsedVector<ScoringContextRef> const& activeContexts) override;
 
 protected:
+    // Clear feature buffer and cached scores
+    void resetInternal() override;
+
     // If scores for the given scoring contexts are not yet cached, prepare and run an ONNX session to
     // compute the scores and cache them
     std::vector<std::optional<ScoreAccessorRef>> computeScoreAccessors(std::vector<ScoringContextRef> const& scoringContexts) override;

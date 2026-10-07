@@ -25,12 +25,8 @@ namespace py = pybind11;
 namespace Python {
 
 /*
- * Trampoline class that is used in order to expose the LlmScorer class via pybind,
- * so that it can be implemented in Python, e.g. with HuggingFace transformers.
- * Every call into Python acquires the GIL.
- *
- * See https://pybind11.readthedocs.io/en/stable/advanced/classes.html for official documentation
- * on the "trampoline" pattern.
+ * Trampoline that lets `Search::LlmScorer` be implemented in Python, see
+ * https://pybind11.readthedocs.io/en/stable/advanced/classes.html
  */
 class PythonLlmScorer : public Search::LlmScorer {
 public:
@@ -39,27 +35,19 @@ public:
     PythonLlmScorer(Core::Configuration const& config);
     virtual ~PythonLlmScorer() = default;
 
-    // Keep track of python object as a member to make sure it doesn't get garbage collected
+    // Keep the Python object alive as long as the scorer
     void setInstance(py::object const& instance);
 
-    // Must be overridden in python by name "reset"
-    void reset() override;
-
-    // Must be overridden in python by name "initial_tokens"
-    Search::LlmTokenSequence initialTokens() override;
-
-    // Must be overridden in python by name "sentence_end_tokens"
-    Search::LlmTokenSequence sentenceEndTokens() override;
-
-    // Must be overridden in python by name "tokenize"
-    std::vector<Search::LlmTokenSequenceVariants> tokenize(std::vector<std::string> const& texts) override;
-
-    // Must be overridden in python by name "score_continuations"
-    std::vector<std::vector<Search::Score>> scoreContinuations(std::vector<Search::LlmTokenSequence> const& prefixes,
-                                                               std::vector<Search::LlmTokenSequence> const& continuations) override;
+    void                                    reset() override;
+    Search::LlmTokenSequence                initialTokens() override;
+    Search::LlmTokenSequence                sentenceEndTokens() override;
+    std::vector<std::vector<std::string>>   spellingVariants(std::vector<std::string> const& words) override;
+    std::vector<Search::LlmTokenSequence>   tokenize(std::vector<std::string> const& texts) override;
+    std::vector<std::vector<Search::Score>> score(std::vector<Search::LlmScoringRequest> const& requests) override;
+    void                                    cleanup(std::vector<Search::LlmHistory> const& activeHistories) override;
 
 protected:
-    py::object pyInstance_;  // Hold the Python wrapper
+    py::object pyInstance_;
 };
 
 }  // namespace Python

@@ -28,25 +28,23 @@
 
 namespace Search {
 
-/*
- * Token index in the vocabulary of an external (large) language model.
- * Unrelated to the label indices of the acoustic model and to the syntactic tokens of the lexicon.
- */
-typedef s32                           LlmToken;
-typedef std::vector<LlmToken>         LlmTokenSequence;
-typedef std::vector<LlmTokenSequence> LlmTokenSequenceVariants;
+// Token of an external LM with its own vocabulary, e.g. an LLM
+typedef s32                   LlmToken;
+typedef std::vector<LlmToken> LlmTokenSequence;
+
+// Handle of a token sequence starting with the initial tokens; equal handles mean equal sequences within a segment
+typedef u32 LlmHistory;
+
+struct LlmScoringRequest {
+    LlmHistory              history;         // History to continue
+    LlmTokenSequence        prefix;          // Token sequence of `history`
+    LlmTokenSequence        tokens;          // Tokens to score after `history`
+    std::vector<LlmHistory> tokenHistories;  // History after each of `tokens`
+};
 
 /*
- * Abstract interface to a token-level language model with its own tokenizer, e.g. an LLM such as Qwen.
- *
- * The search hands finished words to `tokenize` as plain text and scores the resulting tokens with
- * `scoreContinuations`. A text may be tokenized into several variants, e.g. of different casing. The search
- * scores all of them and greedily continues with the cheapest one.
- *
- * The language model itself is stateless from the point of view of the search: a history is always passed as
- * the full token sequence it consists of, so an implementation is free to cache e.g. key/value states by token
- * prefix. Caching of tokenizations and of scores is done by the search, so the same request is never sent twice
- * within a segment.
+ * Token-level LM with its own tokenizer. Histories are identified by handles, so an implementation can keep
+ * states such as key/value caches per handle and fall back to the prefix for handles it does not know.
  */
 class LlmScorer : public virtual Core::Component,
                   public Core::ReferenceCounted {
@@ -55,37 +53,31 @@ public:
             : Core::Component(config) {}
     virtual ~LlmScorer() = default;
 
-    // Prepare for a new segment, e.g. drop key/value caches of the previous one.
+    // Start a new segment; handles of the previous one are not used again
     virtual void reset() = 0;
 
-    // Tokens every history starts with, e.g. a begin-of-sequence token and/or a prompt.
+    // Tokens every history starts with, e.g. a begin-of-sequence token or a prompt; must not be empty
     virtual LlmTokenSequence initialTokens() = 0;
 
-    // Tokens scored once at the end of a segment, e.g. an end-of-sequence token. May be empty.
+    // Tokens scored at the end of a segment; may be empty
     virtual LlmTokenSequence sentenceEndTokens() = 0;
 
-    /*
-     * Tokenize each of the given texts independently into one or more variants, e.g. the text as is, lowercased and
-     * capitalized. Each text needs at least one variant and every variant at least one token.
-     */
-    virtual std::vector<LlmTokenSequenceVariants> tokenize(std::vector<std::string> const& texts) = 0;
+    // Spellings to score for each word, e.g. in different casing; the cheapest one is used
+    virtual std::vector<std::vector<std::string>> spellingVariants(std::vector<std::string> const& words);
 
-    /*
-     * For each request `i`, return the cost (negative natural log-probability) of every token of
-     * `continuations[i]` given `prefixes[i]` and all preceding tokens of `continuations[i]`.
-     * The result for request `i` must have the same length as `continuations[i]`.
-     */
-    virtual std::vector<std::vector<Score>> scoreContinuations(std::vector<LlmTokenSequence> const& prefixes,
-                                                               std::vector<LlmTokenSequence> const& continuations) = 0;
+    virtual std::vector<LlmTokenSequence> tokenize(std::vector<std::string> const& texts) = 0;
+
+    // Cost (negative natural log-probability) of every token of every request
+    virtual std::vector<std::vector<Score>> score(std::vector<LlmScoringRequest> const& requests) = 0;
+
+    // Only `activeHistories` and their extensions are requested from now on
+    virtual void cleanup(std::vector<LlmHistory> const& activeHistories) {}
 };
 
-/*
- * Factory to register types of LlmScorers by name and create them from a config.
- * Allows registering implementations from other places, in particular from Python via librasr.
- */
+// Registry of `LlmScorer` types, e.g. implemented in Python and registered via librasr
 class LlmScorerFactory {
 private:
-    // Needs to be declared before `paramLlmScorerType` because the latter refers to it
+    // Declared before `paramLlmScorerType`, which refers to it
     Core::Choice choices_;
 
 public:
@@ -95,9 +87,7 @@ public:
 
     LlmScorerFactory();
 
-    void registerLlmScorer(const char* name, CreationFunction creationFunction);
-
-    // Create an instance of the type given by `paramLlmScorerType`.
+    void                 registerLlmScorer(const char* name, CreationFunction creationFunction);
     Core::Ref<LlmScorer> createLlmScorer(Core::Configuration const& config) const;
 
 private:

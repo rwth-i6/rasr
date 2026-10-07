@@ -14,11 +14,8 @@
  */
 
 /*
- * Tests for `llm-timesync-beam-search` and its LLM score cache.
- *
- * A deterministic toy "LLM" stands in for a real one: known words (including their leading separator) are single
- * tokens, every other text is spelled by one token per character, and every token costs a configurable bigram cost
- * given its predecessor. Optionally, a capitalized variant is offered for every text as well. The acoustic scores are handed to the search directly through a `StepwiseNoOpLabelScorer`.
+ * Tests for `llm-timesync-beam-search` and its components, with a deterministic toy LLM: known texts are single
+ * tokens, other texts are spelled by one token per character, and every token costs a configurable bigram cost.
  */
 
 #include <Test/Lexicon.hh>
@@ -33,40 +30,41 @@
 #include <vector>
 
 #include <Nn/LabelScorer/NoOpLabelScorer.hh>
-#include <Search/LlmTimesyncBeamSearch/LlmScoreCache.hh>
+#include <Search/LlmTimesyncBeamSearch/LlmHistoryTrie.hh>
 #include <Search/LlmTimesyncBeamSearch/LlmTimesyncBeamSearch.hh>
+#include <Search/LlmTimesyncBeamSearch/LlmWordScorer.hh>
+#include <Search/LlmTimesyncBeamSearch/WordAssembler.hh>
 #include <Search/Module.hh>
 #include <Speech/ModelCombination.hh>
-
-namespace {
 
 // SentencePiece word-start marker U+2581, for literal concatenation
 #define WORD_START "\xE2\x96\x81"
 
-// Score given to every label a frame is not supposed to emit
-constexpr f32 suppressed = 30.0f;
+namespace {
 
-// Cost of a token whose bigram is not listed
-constexpr Search::Score defaultCost = 5.0;
+constexpr f32           suppressed  = 30.0f;  // Score of every label a frame is not supposed to emit
+constexpr Search::Score defaultCost = 5.0;    // Cost of a token whose bigram is not listed
 
 class ToyLlm : public Search::LlmScorer {
 public:
-    static std::vector<std::string>                                                   vocabulary;
-    static std::map<std::pair<std::string, std::string>, Search::Score>               bigramCosts;  // (previous token, token) -> cost
-    static size_t                                                                     numResets;
-    static bool                                                                       capitalizedVariants;
-    static std::vector<std::string>                                                   tokenizedTexts;
-    static std::vector<std::pair<Search::LlmTokenSequence, Search::LlmTokenSequence>> scoredRequests;
+    static std::vector<std::string>                                     vocabulary;
+    static std::map<std::pair<std::string, std::string>, Search::Score> bigramCosts;  // (previous token, token) -> cost
+    static bool                                                         capitalizedVariants;
+    static size_t                                                       numResets;
+    static std::vector<std::string>                                     tokenizedTexts;
+    static std::vector<Search::LlmScoringRequest>                       requests;
+    static std::vector<std::vector<Search::LlmHistory>>                 cleanups;
 
     ToyLlm(Core::Configuration const& config)
             : Core::Component(config), Search::LlmScorer(config) {}
 
     static void clear() {
         bigramCosts.clear();
-        numResets           = 0ul;
         capitalizedVariants = false;
+        numResets           = 0ul;
         tokenizedTexts.clear();
-        scoredRequests.clear();
+        requests.clear();
+        cleanups.clear();
     }
 
     static Search::LlmToken token(std::string const& text) {
@@ -79,10 +77,7 @@ public:
     }
 
     static std::string text(Search::LlmToken token) {
-        if (token >= 1000) {
-            return std::string(1, static_cast<char>(token - 1000));
-        }
-        return vocabulary.at(token);
+        return token >= 1000 ? std::string(1, static_cast<char>(token - 1000)) : vocabulary.at(token);
     }
 
     void reset() override {
@@ -97,40 +92,42 @@ public:
         return {token("</s>")};
     }
 
-    static Search::LlmTokenSequence tokenizeOne(std::string const& t) {
-        if (std::find(vocabulary.begin(), vocabulary.end(), t) != vocabulary.end()) {
-            return {token(t)};
+    std::vector<std::vector<std::string>> spellingVariants(std::vector<std::string> const& words) override {
+        if (not capitalizedVariants) {
+            return LlmScorer::spellingVariants(words);
         }
-        Search::LlmTokenSequence result;
-        for (char c : t) {
-            result.push_back(token(std::string(1, c)));
+        std::vector<std::vector<std::string>> result;
+        for (auto const& word : words) {
+            std::string capitalized = word;
+            capitalized[0]          = std::toupper(capitalized[0]);
+            result.push_back({word, capitalized});
         }
         return result;
     }
 
-    std::vector<Search::LlmTokenSequenceVariants> tokenize(std::vector<std::string> const& texts) override {
-        std::vector<Search::LlmTokenSequenceVariants> result;
+    std::vector<Search::LlmTokenSequence> tokenize(std::vector<std::string> const& texts) override {
+        std::vector<Search::LlmTokenSequence> result;
         for (auto const& t : texts) {
             tokenizedTexts.push_back(t);
-            result.push_back({tokenizeOne(t)});
-            if (capitalizedVariants) {
-                std::string capitalized = t;
-                size_t      first       = capitalized.find_first_not_of(' ');
-                capitalized[first]      = std::toupper(capitalized[first]);
-                result.back().push_back(tokenizeOne(capitalized));
+            result.emplace_back();
+            if (std::find(vocabulary.begin(), vocabulary.end(), t) != vocabulary.end()) {
+                result.back().push_back(token(t));
+                continue;
+            }
+            for (char c : t) {
+                result.back().push_back(token(std::string(1, c)));
             }
         }
         return result;
     }
 
-    std::vector<std::vector<Search::Score>> scoreContinuations(std::vector<Search::LlmTokenSequence> const& prefixes,
-                                                               std::vector<Search::LlmTokenSequence> const& continuations) override {
+    std::vector<std::vector<Search::Score>> score(std::vector<Search::LlmScoringRequest> const& batch) override {
         std::vector<std::vector<Search::Score>> result;
-        for (size_t i = 0ul; i < prefixes.size(); ++i) {
-            scoredRequests.push_back({prefixes[i], continuations[i]});
+        for (auto const& request : batch) {
+            requests.push_back(request);
             result.emplace_back();
-            Search::LlmToken previous = prefixes[i].back();
-            for (Search::LlmToken t : continuations[i]) {
+            Search::LlmToken previous = request.prefix.back();
+            for (Search::LlmToken t : request.tokens) {
                 auto it = bigramCosts.find({text(previous), text(t)});
                 result.back().push_back(it != bigramCosts.end() ? it->second : defaultCost);
                 previous = t;
@@ -138,125 +135,209 @@ public:
         }
         return result;
     }
+
+    void cleanup(std::vector<Search::LlmHistory> const& activeHistories) override {
+        cleanups.push_back(activeHistories);
+    }
 };
 
-std::vector<std::string>                                                   ToyLlm::vocabulary = {"<s>", "</s>", "the", " the", " cat", " hat", " a", "The", " The", " Cat"};
-std::map<std::pair<std::string, std::string>, Search::Score>               ToyLlm::bigramCosts;
-size_t                                                                     ToyLlm::numResets           = 0ul;
-bool                                                                       ToyLlm::capitalizedVariants = false;
-std::vector<std::string>                                                   ToyLlm::tokenizedTexts;
-std::vector<std::pair<Search::LlmTokenSequence, Search::LlmTokenSequence>> ToyLlm::scoredRequests;
+std::vector<std::string>                                     ToyLlm::vocabulary = {"<s>", "</s>", "the", " the", " cat", " hat", " a", "The", " The", " Cat"};
+std::map<std::pair<std::string, std::string>, Search::Score> ToyLlm::bigramCosts;
+bool                                                         ToyLlm::capitalizedVariants = false;
+size_t                                                       ToyLlm::numResets           = 0ul;
+std::vector<std::string>                                     ToyLlm::tokenizedTexts;
+std::vector<Search::LlmScoringRequest>                       ToyLlm::requests;
+std::vector<std::vector<Search::LlmHistory>>                 ToyLlm::cleanups;
 
 void registerToyLlm() {
     static bool registered = false;
     if (not registered) {
         Search::Module::instance().llmScorerFactory().registerLlmScorer(
-                "toy",
-                [](Core::Configuration const& config) { return Core::Ref<Search::LlmScorer>(new ToyLlm(config)); });
+                "toy", [](Core::Configuration const& config) { return Core::Ref<Search::LlmScorer>(new ToyLlm(config)); });
         registered = true;
     }
+}
+
+Core::Ref<Test::Lexicon> pieceLexicon(std::vector<std::string> const& labels) {
+    auto lexicon = Core::ref(new Test::Lexicon());
+    for (size_t i = 0ul; i < labels.size(); ++i) {
+        lexicon->addPhoneme("p" + std::to_string(i), false);
+    }
+    for (size_t i = 0ul; i < labels.size(); ++i) {
+        lexicon->addLemma(labels[i], "p" + std::to_string(i), labels[i] == "<blank>" ? "blank" : "");
+    }
+    return lexicon;
 }
 
 }  // namespace
 
 /*
- * ===================
- * === Score cache ===
- * ===================
+ * =====================
+ * === WordAssembler ===
+ * =====================
  */
 
-class LlmScoreCacheTest : public Test::ConfigurableFixture {
+class WordAssemblerTest : public Test::ConfigurableFixture {
+protected:
+    std::unique_ptr<Search::WordAssembler> build(std::vector<std::string> const& labels) {
+        auto assembler = std::make_unique<Search::WordAssembler>(config);
+        assembler->setLexicon(Bliss::LexiconRef(pieceLexicon(labels).get()));
+        return assembler;
+    }
+};
+
+TEST_F(Search, WordAssemblerTest, WordStartMarked) {
+    auto assembler = build({WORD_START "the", WORD_START "ca", "t"});
+
+    auto first = assembler->extend(Search::WordAssembler::noWord, 0);
+    EXPECT_EQ(first.finished, Search::WordAssembler::noWord);
+    EXPECT_EQ(assembler->spelling(first.pending), std::string("the"));
+
+    auto second = assembler->extend(first.pending, 1);
+    EXPECT_EQ(assembler->spelling(second.finished), std::string("the"));
+    auto third = assembler->extend(second.pending, 2);
+    EXPECT_EQ(third.finished, Search::WordAssembler::noWord);
+    EXPECT_EQ(assembler->spelling(third.pending), std::string("cat"));
+}
+
+TEST_F(Search, WordAssemblerTest, ContinuationMarked) {
+    setParameter("*.word-piece-convention", "continuation-marked");
+    auto assembler = build({"the", "ca@@", "t"});
+
+    auto first = assembler->extend(Search::WordAssembler::noWord, 0);
+    EXPECT_EQ(assembler->spelling(first.finished), std::string("the"));
+    EXPECT_EQ(first.pending, Search::WordAssembler::noWord);
+
+    auto second = assembler->extend(first.pending, 1);
+    EXPECT_EQ(second.finished, Search::WordAssembler::noWord);
+    auto third = assembler->extend(second.pending, 2);
+    EXPECT_EQ(assembler->spelling(third.finished), std::string("cat"));
+}
+
+TEST_F(Search, WordAssemblerTest, EqualSpellingsHaveEqualIds) {
+    auto assembler = build({WORD_START "cat", WORD_START "ca", "t"});
+    auto whole     = assembler->extend(Search::WordAssembler::noWord, 0).pending;
+    auto pieces    = assembler->extend(assembler->extend(Search::WordAssembler::noWord, 1).pending, 2).pending;
+    EXPECT_EQ(whole, pieces);
+}
+
+/*
+ * ======================
+ * === LlmHistoryTrie ===
+ * ======================
+ */
+
+TEST(Search, LlmHistoryTrie, HistoriesAreSharedPrefixes) {
+    Search::LlmHistoryTrie trie;
+    trie.reset({7});
+    auto root = trie.initialHistory();
+    EXPECT_EQ(trie.length(root), 0u);
+
+    auto a  = trie.extend(root, 1);
+    auto ab = trie.extend(a, 2);
+    EXPECT_EQ(trie.extend(root, 1), a);
+    EXPECT_EQ(trie.length(ab), 2u);
+    EXPECT_FALSE(trie.hasCost(ab));
+    trie.setCost(ab, 1.5);
+    EXPECT_TRUE(trie.hasCost(ab));
+
+    Search::LlmTokenSequence tokens;
+    trie.tokens(ab, tokens);
+    EXPECT_EQ(tokens.size(), 3ul);
+    EXPECT_EQ(tokens[0], 7);
+    EXPECT_EQ(tokens[2], 2);
+}
+
+/*
+ * =====================
+ * === LlmWordScorer ===
+ * =====================
+ */
+
+class LlmWordScorerTest : public Test::ConfigurableFixture {
 public:
     void setUp() {
+        registerToyLlm();
         ToyLlm::clear();
-        cache_.setScorer(Core::ref(new ToyLlm(config)));
-        cache_.reset();
+        setParameter("*.type", "toy");
     }
 
 protected:
-    Search::LlmScoreCache::Result score(Search::LlmHistory history, Search::LlmTokenSequence const& tokens) {
-        std::vector<Search::LlmScoreCache::Result> results;
-        cache_.score({{history, tokens}}, results);
-        return results.front();
+    std::unique_ptr<Search::LlmWordScorer> scorer_;
+    std::string                            the_ = "the";
+    std::string                            cat_ = "cat";
+
+    void build() {
+        scorer_ = std::make_unique<Search::LlmWordScorer>(config);
+        scorer_->reset();
     }
 
-    Search::LlmScoreCache cache_;
+    Search::LlmWordScorer::Result score(Search::LlmHistory history, std::string const* word, bool sentenceEnd = false) {
+        std::vector<Search::LlmWordScorer::Result> results;
+        scorer_->score({{history, word, sentenceEnd}}, results);
+        return results.front();
+    }
 };
 
-TEST_F(Search, LlmScoreCacheTest, InitialHistoryHoldsTheInitialTokens) {
-    Search::LlmTokenSequence tokens;
-    cache_.historyTokens(cache_.initialHistory(), tokens);
-    EXPECT_EQ(tokens.size(), 1ul);
-    EXPECT_EQ(tokens.front(), ToyLlm::token("<s>"));
-    EXPECT_EQ(cache_.historyLength(cache_.initialHistory()), 0u);
-    EXPECT_EQ(ToyLlm::numResets, 1ul);
-}
-
-TEST_F(Search, LlmScoreCacheTest, ScoresAreCachedByHistoryAndTokens) {
+TEST_F(Search, LlmWordScorerTest, WordsAreScoredOnceAndAfterTheSeparator) {
+    build();
     ToyLlm::bigramCosts = {{{"<s>", "the"}, 1.0}, {{"the", " cat"}, 2.0}};
-    auto const root     = cache_.initialHistory();
-    auto const the      = ToyLlm::token("the");
-    auto const cat      = ToyLlm::token(" cat");
 
-    // Two identical requests in one batch are sent to the LLM once
-    std::vector<Search::LlmScoreCache::Result> results;
-    cache_.score({{root, {the, cat}}, {root, {the, cat}}}, results);
-    EXPECT_EQ(ToyLlm::scoredRequests.size(), 1ul);
-    EXPECT_DOUBLE_EQ(results[0].cost, 3.0, 1e-6);
+    auto the = score(scorer_->initialHistory(), &the_);
+    EXPECT_DOUBLE_EQ(the.cost, 1.0, 1e-6);
+    auto cat = score(the.history, &cat_);
+    EXPECT_DOUBLE_EQ(cat.cost, 2.0, 1e-6);
+    EXPECT_EQ(ToyLlm::requests.size(), 2ul);
+
+    // The request carries the history handle, its tokens and the handle after each token
+    auto const& request = ToyLlm::requests.back();
+    EXPECT_EQ(request.history, the.history);
+    EXPECT_EQ(request.prefix.size(), 2ul);
+    EXPECT_EQ(request.tokens.front(), ToyLlm::token(" cat"));
+    EXPECT_EQ(request.tokenHistories.back(), cat.history);
+
+    // Repeated words are answered from the cache
+    EXPECT_EQ(score(the.history, &cat_).history, cat.history);
+    EXPECT_EQ(ToyLlm::requests.size(), 2ul);
+    EXPECT_TRUE(ToyLlm::tokenizedTexts == std::vector<std::string>({"the", " cat"}));
+}
+
+TEST_F(Search, LlmWordScorerTest, EqualRequestsInABatchAreSentOnce) {
+    build();
+    std::vector<Search::LlmWordScorer::Result> results;
+    scorer_->score({{scorer_->initialHistory(), &the_, false}, {scorer_->initialHistory(), &the_, false}}, results);
+    EXPECT_EQ(ToyLlm::requests.size(), 1ul);
     EXPECT_EQ(results[0].history, results[1].history);
-    EXPECT_EQ(cache_.historyLength(results[0].history), 2u);
-
-    // A repeated request and a prefix of a scored request are answered from the cache
-    EXPECT_DOUBLE_EQ(score(root, {the, cat}).cost, 3.0, 1e-6);
-    auto prefix = score(root, {the});
-    EXPECT_DOUBLE_EQ(prefix.cost, 1.0, 1e-6);
-    EXPECT_EQ(ToyLlm::scoredRequests.size(), 1ul);
-
-    // Continuing from a history obtained by scoring gives the same history as scoring the whole sequence at once
-    auto continued = score(prefix.history, {cat});
-    EXPECT_EQ(continued.history, results[0].history);
-    EXPECT_DOUBLE_EQ(continued.cost, 2.0, 1e-6);
-    EXPECT_EQ(ToyLlm::scoredRequests.size(), 1ul);
-
-    // An empty request costs nothing and keeps the history
-    auto empty = score(prefix.history, {});
-    EXPECT_EQ(empty.history, prefix.history);
-    EXPECT_DOUBLE_EQ(empty.cost, 0.0, 1e-6);
 }
 
-TEST_F(Search, LlmScoreCacheTest, LlmSeesTheFullHistoryAsPrefix) {
-    auto const root = cache_.initialHistory();
-    auto       the  = score(root, {ToyLlm::token("the")});
-    score(the.history, {ToyLlm::token(" cat")});
+TEST_F(Search, LlmWordScorerTest, CheapestVariantGivesCostAndHistory) {
+    ToyLlm::capitalizedVariants = true;
+    build();
+    ToyLlm::bigramCosts = {{{"<s>", "the"}, 2.0}, {{"<s>", "The"}, 0.5}};
 
-    EXPECT_EQ(ToyLlm::scoredRequests.size(), 2ul);
-    auto const& prefix = ToyLlm::scoredRequests.back().first;
-    EXPECT_EQ(prefix.size(), 2ul);
-    EXPECT_EQ(prefix[0], ToyLlm::token("<s>"));
-    EXPECT_EQ(prefix[1], ToyLlm::token("the"));
+    auto result = score(scorer_->initialHistory(), &the_);
+    EXPECT_DOUBLE_EQ(result.cost, 0.5, 1e-6);
+    EXPECT_EQ(ToyLlm::requests.size(), 2ul);
+    EXPECT_EQ(ToyLlm::requests[1].tokenHistories.back(), result.history);
 }
 
-TEST_F(Search, LlmScoreCacheTest, TokenizationIsCachedByText) {
-    std::vector<Search::LlmTokenSequenceVariants const*> tokenizations;
-    cache_.tokenize({"the", " cat", "the"}, tokenizations);
-    EXPECT_EQ(ToyLlm::tokenizedTexts.size(), 2ul);
-    EXPECT_EQ(tokenizations[0], tokenizations[2]);
-
-    cache_.tokenize({" cat"}, tokenizations);
-    EXPECT_EQ(ToyLlm::tokenizedTexts.size(), 2ul);
-
-    // Tokenizations survive the segment reset
-    cache_.reset();
-    cache_.tokenize({"the"}, tokenizations);
-    EXPECT_EQ(ToyLlm::tokenizedTexts.size(), 2ul);
+TEST_F(Search, LlmWordScorerTest, LastVariantIsChosenTogetherWithTheSentenceEnd) {
+    ToyLlm::capitalizedVariants = true;
+    build();
+    // Alone "the" is cheaper, including the sentence end "The" is
+    ToyLlm::bigramCosts = {{{"<s>", "the"}, 1.0}, {{"<s>", "The"}, 2.0}, {{"the", "</s>"}, 5.0}, {{"The", "</s>"}, 0.5}};
+    EXPECT_DOUBLE_EQ(score(scorer_->initialHistory(), &the_, true).cost, 2.5, 1e-6);
+    EXPECT_DOUBLE_EQ(score(scorer_->initialHistory(), nullptr, true).cost, defaultCost, 1e-6);
 }
 
-TEST_F(Search, LlmScoreCacheTest, ScoresAreForgottenAtSegmentStart) {
-    auto const root = cache_.initialHistory();
-    score(root, {ToyLlm::token("the")});
-    cache_.reset();
-    score(cache_.initialHistory(), {ToyLlm::token("the")});
-    EXPECT_EQ(ToyLlm::scoredRequests.size(), 2ul);
+TEST_F(Search, LlmWordScorerTest, ScoresAreForgottenAtSegmentStart) {
+    build();
+    score(scorer_->initialHistory(), &the_);
+    scorer_->reset();
+    score(scorer_->initialHistory(), &the_);
+    EXPECT_EQ(ToyLlm::requests.size(), 2ul);
+    EXPECT_EQ(ToyLlm::tokenizedTexts.size(), 1ul);
+    EXPECT_EQ(ToyLlm::numResets, 2ul);
 }
 
 /*
@@ -289,16 +370,7 @@ protected:
 void LlmSearchTest::setUp() {
     registerToyLlm();
     ToyLlm::clear();
-
-    labels_  = {"<blank>", WORD_START "the", WORD_START "cat", WORD_START "hat", WORD_START "ca", "t", WORD_START "a"};
-    lexicon_ = Core::ref(new Test::Lexicon());
-    for (size_t i = 0ul; i < labels_.size(); ++i) {
-        lexicon_->addPhoneme("p" + std::to_string(i), false);
-    }
-    for (size_t i = 0ul; i < labels_.size(); ++i) {
-        lexicon_->addLemma(labels_[i], "p" + std::to_string(i), i == 0ul ? "blank" : "");
-    }
-
+    labels_ = {"<blank>", WORD_START "the", WORD_START "cat", WORD_START "hat", WORD_START "ca", "t", WORD_START "a"};
     setParameter("*.max-beam-size", "10");
     setParameter("*.collapse-repeated-labels", "true");
     setParameter("*.llm.type", "toy");
@@ -311,6 +383,7 @@ void LlmSearchTest::tearDown() {
 }
 
 void LlmSearchTest::buildSearch() {
+    lexicon_ = pieceLexicon(labels_);
     Bliss::LexiconRef const lexiconRef(lexicon_.get());
     modelCombination_ = Core::ref(new Speech::ModelCombination(config, lexiconRef, Core::Ref<Am::AcousticModel>(), Core::Ref<Lm::ScaledLanguageModel>()));
     modelCombination_->setLabelScorer(Core::ref(new Nn::StepwiseNoOpLabelScorer(select("label-scorer"))), 0ul);
@@ -375,27 +448,43 @@ TEST_F(Search, LlmSearchTest, WordOfSeveralPiecesIsOneWord) {
     auto result = decode({{{WORD_START "the", 0.0f}}, {{WORD_START "ca", 0.0f}}, {{"t", 0.0f}}});
     EXPECT_EQ(result.pieces, std::string(WORD_START "the " WORD_START "ca t"));
     EXPECT_DOUBLE_EQ(result.lmScore, 3 * defaultCost, 1e-4);
-    EXPECT_TRUE(std::find(ToyLlm::tokenizedTexts.begin(), ToyLlm::tokenizedTexts.end(), " cat") != ToyLlm::tokenizedTexts.end());
 }
 
-TEST_F(Search, LlmSearchTest, OnlyTheFirstWordGoesWithoutSeparator) {
+TEST_F(Search, LlmSearchTest, ContinuationMarkedPieces) {
+    labels_ = {"<blank>", "the", "ca@@", "t"};
+    setParameter("*.word-piece-convention", "continuation-marked");
     buildSearch();
-    // The blank keeps the repeated label from being collapsed into one
-    decode({{{WORD_START "the", 0.0f}}, {{"<blank>", 0.0f}}, {{WORD_START "the", 0.0f}}});
-    auto const& texts = ToyLlm::tokenizedTexts;
-    EXPECT_TRUE(std::find(texts.begin(), texts.end(), "the") != texts.end());
-    EXPECT_TRUE(std::find(texts.begin(), texts.end(), " the") != texts.end());
+    ToyLlm::bigramCosts = {{{"<s>", "the"}, 1.0}, {{"the", " cat"}, 0.5}};
+    auto result         = decode({{{"the", 0.0f}}, {{"ca@@", 0.0f}}, {{"t", 0.0f}}});
+    EXPECT_EQ(result.pieces, std::string("the ca@@ t"));
+    EXPECT_DOUBLE_EQ(result.lmScore, 1.0 + 0.5 + defaultCost, 1e-4);
 }
 
 TEST_F(Search, LlmSearchTest, LlmIsNeverAskedTwiceInASegment) {
     buildSearch();
     decode({{{WORD_START "the", 0.0f}}, {{"<blank>", 0.0f}}, {{WORD_START "cat", 1.0f}, {WORD_START "hat", 1.0f}}, {{"<blank>", 0.0f}}});
 
-    std::set<std::pair<Search::LlmTokenSequence, Search::LlmTokenSequence>> unique(ToyLlm::scoredRequests.begin(), ToyLlm::scoredRequests.end());
-    EXPECT_EQ(unique.size(), ToyLlm::scoredRequests.size());
-
+    std::set<Search::LlmHistory> scored;
+    for (auto const& request : ToyLlm::requests) {
+        EXPECT_TRUE(scored.insert(request.tokenHistories.back()).second);
+    }
     std::set<std::string> uniqueTexts(ToyLlm::tokenizedTexts.begin(), ToyLlm::tokenizedTexts.end());
     EXPECT_EQ(uniqueTexts.size(), ToyLlm::tokenizedTexts.size());
+}
+
+TEST_F(Search, LlmSearchTest, CleanupKeepsTheHistoriesOfTheBeam) {
+    setParameter("*.cache-cleanup-interval", "1");
+    buildSearch();
+    decode({{{WORD_START "the", 0.0f}}, {{WORD_START "cat", 0.0f}}, {{"<blank>", 0.0f}}});
+
+    EXPECT_EQ(ToyLlm::cleanups.size(), 3ul);
+    // After "▁cat" the word "the" is finished, so the best hypothesis continues a history scored by a request
+    auto const& active = ToyLlm::cleanups.back();
+    bool        found  = false;
+    for (auto const& request : ToyLlm::requests) {
+        found = found or std::find(active.begin(), active.end(), request.tokenHistories.back()) != active.end();
+    }
+    EXPECT_TRUE(found);
 }
 
 TEST_F(Search, LlmSearchTest, ScaleAndWordPenalty) {
@@ -404,30 +493,5 @@ TEST_F(Search, LlmSearchTest, ScaleAndWordPenalty) {
     buildSearch();
     // Two words plus sentence end, all at the default cost
     auto result = decode({{{WORD_START "the", 0.0f}}, {{WORD_START "a", 0.0f}}});
-    EXPECT_DOUBLE_EQ(result.lmScore, 2.0 * 3 * 5.0 - 2.0, 1e-4);
-}
-
-TEST_F(Search, LlmSearchTest, CheapestVariantGivesScoreAndHistory) {
-    ToyLlm::capitalizedVariants = true;
-    buildSearch();
-    // "The" is cheaper than "the" at the start, so the second word must be scored after "The"
-    ToyLlm::bigramCosts = {{{"<s>", "the"}, 2.0}, {{"<s>", "The"}, 0.5}, {{"The", " cat"}, 0.25}, {{"The", " Cat"}, 3.0}, {{" cat", "</s>"}, 0.125}};
-    auto result         = decode({{{WORD_START "the", 0.0f}}, {{WORD_START "cat", 0.0f}}});
-    EXPECT_DOUBLE_EQ(result.lmScore, 0.5 + 0.25 + 0.125, 1e-4);
-
-    bool sawPrefixWithCapitalizedThe = false;
-    for (auto const& [prefix, continuation] : ToyLlm::scoredRequests) {
-        sawPrefixWithCapitalizedThe = sawPrefixWithCapitalizedThe or (prefix.size() == 2ul and prefix[1] == ToyLlm::token("The"));
-        EXPECT_FALSE(prefix.size() == 2ul and prefix[1] == ToyLlm::token("the"));
-    }
-    EXPECT_TRUE(sawPrefixWithCapitalizedThe);
-}
-
-TEST_F(Search, LlmSearchTest, LastWordVariantIsChosenTogetherWithSentenceEnd) {
-    ToyLlm::capitalizedVariants = true;
-    buildSearch();
-    // Alone, "the" is cheaper than "The", but including the sentence end "The" is
-    ToyLlm::bigramCosts = {{{"<s>", "the"}, 1.0}, {{"<s>", "The"}, 2.0}, {{"the", "</s>"}, 5.0}, {{"The", "</s>"}, 0.5}};
-    auto result         = decode({{{WORD_START "the", 0.0f}}});
-    EXPECT_DOUBLE_EQ(result.lmScore, 2.0 + 0.5, 1e-4);
+    EXPECT_DOUBLE_EQ(result.lmScore, 2.0 * 3 * defaultCost - 2.0, 1e-4);
 }

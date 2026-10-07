@@ -35,39 +35,29 @@ void PythonLlmScorer::reset() {
 }
 
 Search::LlmTokenSequence PythonLlmScorer::initialTokens() {
-    PYBIND11_OVERRIDE_PURE_NAME(
-            Search::LlmTokenSequence,
-            Search::LlmScorer,
-            "initial_tokens",
-            initialTokens);
+    PYBIND11_OVERRIDE_PURE_NAME(Search::LlmTokenSequence, Search::LlmScorer, "initial_tokens", initialTokens);
 }
 
 Search::LlmTokenSequence PythonLlmScorer::sentenceEndTokens() {
-    PYBIND11_OVERRIDE_PURE_NAME(
-            Search::LlmTokenSequence,
-            Search::LlmScorer,
-            "sentence_end_tokens",
-            sentenceEndTokens);
+    PYBIND11_OVERRIDE_PURE_NAME(Search::LlmTokenSequence, Search::LlmScorer, "sentence_end_tokens", sentenceEndTokens);
 }
 
-std::vector<Search::LlmTokenSequenceVariants> PythonLlmScorer::tokenize(std::vector<std::string> const& texts) {
-    PYBIND11_OVERRIDE_PURE(
-            std::vector<Search::LlmTokenSequenceVariants>,
-            Search::LlmScorer,
-            tokenize,
-            texts);
+std::vector<std::vector<std::string>> PythonLlmScorer::spellingVariants(std::vector<std::string> const& words) {
+    using returnType = std::vector<std::vector<std::string>>;
+    PYBIND11_OVERRIDE_NAME(returnType, Search::LlmScorer, "spelling_variants", spellingVariants, words);
 }
 
-std::vector<std::vector<Search::Score>> PythonLlmScorer::scoreContinuations(std::vector<Search::LlmTokenSequence> const& prefixes,
-                                                                            std::vector<Search::LlmTokenSequence> const& continuations) {
-    using returnType = std::vector<std::vector<Search::Score>>;  // Macro can't handle types with commas inside properly
-    PYBIND11_OVERRIDE_PURE_NAME(
-            returnType,
-            Search::LlmScorer,
-            "score_continuations",
-            scoreContinuations,
-            prefixes,
-            continuations);
+std::vector<Search::LlmTokenSequence> PythonLlmScorer::tokenize(std::vector<std::string> const& texts) {
+    PYBIND11_OVERRIDE_PURE(std::vector<Search::LlmTokenSequence>, Search::LlmScorer, tokenize, texts);
+}
+
+std::vector<std::vector<Search::Score>> PythonLlmScorer::score(std::vector<Search::LlmScoringRequest> const& requests) {
+    using returnType = std::vector<std::vector<Search::Score>>;
+    PYBIND11_OVERRIDE_PURE(returnType, Search::LlmScorer, score, requests);
+}
+
+void PythonLlmScorer::cleanup(std::vector<Search::LlmHistory> const& activeHistories) {
+    PYBIND11_OVERRIDE(void, Search::LlmScorer, cleanup, activeHistories);
 }
 
 }  // namespace Python

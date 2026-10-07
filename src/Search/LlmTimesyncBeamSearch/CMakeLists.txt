@@ -1,3 +1,4 @@
 target_sources(
-    RasrSearch PRIVATE LlmScoreCache.cc LlmScorer.cc LlmTimesyncBeamSearch.cc
-)
+        RasrSearch
+                PRIVATE LlmHistoryTrie.cc LlmScorer.cc LlmTimesyncBeamSearch.cc
+                        LlmWordScorer.cc WordAssembler.cc)

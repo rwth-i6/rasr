@@ -21,6 +21,15 @@
 
 namespace Search {
 
+std::vector<std::vector<std::string>> LlmScorer::spellingVariants(std::vector<std::string> const& words) {
+    std::vector<std::vector<std::string>> variants;
+    variants.reserve(words.size());
+    for (auto const& word : words) {
+        variants.push_back({word});
+    }
+    return variants;
+}
+
 LlmScorerFactory::LlmScorerFactory()
         : choices_(), paramLlmScorerType("type", &choices_, "Choice from a set of LLM scorer types.", Core::Choice::IllegalValue), registry_() {}
 

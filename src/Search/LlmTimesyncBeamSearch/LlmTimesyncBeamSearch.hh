@@ -16,6 +16,7 @@
 #ifndef LLM_TIMESYNC_BEAM_SEARCH_HH
 #define LLM_TIMESYNC_BEAM_SEARCH_HH
 
+#include <optional>
 #include <string>
 #include <vector>
 
@@ -30,39 +31,15 @@
 #include <Search/SearchV2.hh>
 #include <Search/Traceback.hh>
 
-#include "LlmScoreCache.hh"
-#include "LlmScorer.hh"
+#include "LlmWordScorer.hh"
+#include "WordAssembler.hh"
 
 namespace Search {
 
 /*
- * Time synchronous beam search without pronunciation lexicon which integrates an external token-level
- * language model with its own tokenizer, e.g. an LLM such as Qwen, at the word level.
- *
- * The output labels are word pieces in SentencePiece convention: a piece whose orthography starts with
- * the word-start marker (`word-start-marker`, "▁" by default) begins a new word, every other piece continues
- * the current one. Each hypothesis accumulates the spelling of its pending word. When a piece begins a new
- * word, the pending word is finished: its surface spelling is tokenized with the LLM's tokenizer, every
- * resulting LLM token is scored, and the LLM history of the hypothesis is advanced by them. If the LLM scorer
- * tokenizes a spelling into several variants (e.g. of different casing), all of them are scored and the
- * hypothesis greedily continues with the cheapest one, both for its score and for its LLM history. At the segment end
- * the pending word is finished in the same way and the LLM's sentence-end tokens are scored.
- *
- * Tokenizations are cached by spelling and LLM scores by history plus token sequence, see `LlmScoreCache`.
- * All LLM requests of one search step are sent to the LLM as one batch.
- *
- * Within a step, the label scorers are applied first, with intermediate pruning as in the lexicon-free
- * timesync search. The surviving extensions are pruned once more (`pre-llm-max-beam-size`,
- * `pre-llm-score-threshold`) before the LLM scores the words they finish, so that the LLM is only asked
- * about hypotheses that may survive. Hypotheses are recombined if their label scorer contexts, last label,
- * LLM history and pending word are equal.
- *
- * The LLM costs are scaled by `llm-scale`, and every finished word additionally gets `word-penalty`. Both are
- * reported as LM score in the traceback.
- *
- * The search requires a lexicon that represents the vocabulary. Each lemma is viewed as a token with its index
- * in the lexicon corresponding to the associated output index of the label scorer, and its preferred
- * orthography is the text of the word piece.
+ * Time synchronous beam search without pronunciation lexicon which scores the words assembled from the
+ * word-piece labels with an LLM as soon as they are finished, see `WordAssembler` and `LlmWordScorer`.
+ * Each lemma of the lexicon is a word-piece label whose index is the output index of the label scorers.
  */
 class LlmTimesyncBeamSearch : public SearchAlgorithmV2 {
 public:
@@ -75,8 +52,6 @@ public:
     static const Core::ParameterInt         paramSilenceLabelIndex;
     static const Core::ParameterInt         paramSentenceEndLabelIndex;
     static const Core::ParameterBool        paramCollapseRepeatedLabels;
-    static const Core::ParameterString      paramWordStartMarker;
-    static const Core::ParameterString      paramWordSeparator;
     static const Core::ParameterFloat       paramLlmScale;
     static const Core::ParameterFloat       paramWordPenalty;
     static const Core::ParameterInt         paramCacheCleanupInterval;
@@ -84,7 +59,6 @@ public:
     static const Core::ParameterInt         paramMaximumStableDelayPruningInterval;
     static const Core::Choice               choiceRecombinationMode;
     static const Core::ParameterChoice      paramRecombinationMode;
-    static const Core::ParameterBool        paramLogStepwiseStatistics;
 
     LlmTimesyncBeamSearch(Core::Configuration const&);
 
@@ -105,9 +79,6 @@ public:
     bool decodeStep() override;
 
 protected:
-    /*
-     * Possible extension for some label hypothesis in the beam
-     */
     struct ExtensionCandidate {
         Nn::LabelIndex                   nextToken;       // Proposed token to extend the hypothesis with
         const Bliss::LemmaPronunciation* pron;            // Pronunciation of lemma corresponding to `nextToken` for traceback
@@ -116,39 +87,33 @@ protected:
         Nn::TransitionType               transitionType;  // Type of transition toward `nextToken`
         size_t                           baseHypIndex;    // Index of base hypothesis in global beam
 
-        // Only set for the extensions that survive until the LLM is applied
-        Score       lmScore;      // Would-be scaled LLM score (plus word penalties) of the full hypothesis
-        LlmHistory  lmHistory;    // LLM history after the extension
-        std::string pendingWord;  // Spelling of the pending word after the extension
-
         bool operator<(ExtensionCandidate const& other) const {
             return score < other.score;
         }
     };
 
-    /*
-     * Struct containing all information about a single hypothesis in the beam
-     */
+    // Word and LLM state of a hypothesis after an extension
+    struct WordState {
+        WordAssembler::WordId pendingWord;
+        LlmHistory            llmHistory;
+        Score                 llmScore;  // Scaled LLM costs and word penalties included in the score
+    };
+
     struct LabelHypothesis {
         std::vector<Nn::ScoringContextRef> scoringContexts;  // Context to compute scores based on this hypothesis
         Nn::LabelIndex                     currentToken;     // Most recent token in associated label sequence (useful to infer transition type)
         Score                              score;            // Full score of hypothesis
-        Score                              lmScore;          // Part of `score` that is due to the LLM (scaled, plus word penalties)
-        LlmHistory                         lmHistory;        // LLM history covering all finished words
-        std::string                        pendingWord;      // Spelling of the word which is not finished yet
+        WordState                          words;            // Words finished and pending
         Core::Ref<LatticeTrace>            trace;            // Associated trace for traceback or lattice building off of hypothesis
 
         LabelHypothesis();
-        LabelHypothesis(LabelHypothesis const& base, ExtensionCandidate const& extension, std::vector<Nn::ScoringContextRef> const& newScoringContexts);
+        LabelHypothesis(LabelHypothesis const& base, ExtensionCandidate const& extension, WordState const& words, std::vector<Nn::ScoringContextRef> const& newScoringContexts);
 
         bool operator<(LabelHypothesis const& other) const {
             return score < other.score;
         }
 
-        /*
-         * Get string representation for debugging.
-         */
-        std::string toString() const;
+        std::string toString(WordAssembler const& wordAssembler) const;
     };
 
 private:
@@ -166,48 +131,60 @@ private:
     Bliss::Lemma const* sentenceEndLemma_;
     Nn::LabelIndex      sentenceEndLabelIndex_;
     bool                collapseRepeatedLabels_;
-    std::string         wordStartMarker_;
-    std::string         wordSeparator_;
     Score               llmScale_;
     Score               wordPenalty_;
     size_t              cacheCleanupInterval_;
     size_t              maximumStableDelay_;
     size_t              maximumStableDelayPruningInterval_;
     bool                recombinationEnabled_;
-    bool                logStepwiseStatistics_;
 
-    Core::Channel debugChannel_;
+    mutable Core::XmlChannel statisticsChannel_;
+    Core::XmlChannel         stepwiseStatisticsChannel_;
+    Core::Channel            debugChannel_;
 
     std::vector<Core::Ref<Nn::LabelScorer>> labelScorers_;
     Bliss::LexiconRef                       lexicon_;
+    WordAssembler                           wordAssembler_;
+    LlmWordScorer                           llmWordScorer_;
     std::vector<LabelHypothesis>            beam_;
 
-    // Word piece of each label: text without the word-start marker, and whether it begins a word
-    std::vector<std::string> pieceTexts_;
-    std::vector<bool>        pieceStartsWord_;
-
-    LlmScoreCache llmCache_;
-
     // Pre-allocated intermediate vectors
-    std::vector<int>                             hypIndexToContextIndexMap_;
-    std::vector<ExtensionCandidate>              extensions_;
-    std::vector<LabelHypothesis>                 newBeam_;
-    std::vector<Nn::ScoringContextRef>           scoringContexts_;
-    std::vector<LabelHypothesis>                 tempHypotheses_;
-    std::vector<std::string>                     wordTexts_;
-    std::vector<LlmTokenSequenceVariants const*> wordTokenizations_;
-    std::vector<size_t>                          wordOwners_;
-    std::vector<LlmHistory>                      wordHistories_;
-    std::vector<LlmScoreCache::Request>          llmRequests_;
-    std::vector<LlmScoreCache::Result>           llmResults_;
-    std::vector<size_t>                          llmRequestOffsets_;
-    std::vector<LlmScoreCache::Result>           bestLlmResults_;
+    std::vector<int>                    hypIndexToContextIndexMap_;
+    std::vector<ExtensionCandidate>     extensions_;
+    std::vector<WordState>              extensionWords_;  // Word state of each of `extensions_` after the LLM phase
+    std::vector<LabelHypothesis>        newBeam_;
+    std::vector<Nn::ScoringContextRef>  scoringContexts_;
+    std::vector<LabelHypothesis>        tempHypotheses_;
+    std::vector<LlmWordScorer::Request> wordRequests_;
+    std::vector<LlmWordScorer::Result>  wordResults_;
+    std::vector<size_t>                 wordRequestExtensions_;  // Index into `extensions_` of each word request
+    std::vector<LlmHistory>             activeHistories_;
 
-    Core::StopWatch initializationTime_;
-    Core::StopWatch featureProcessingTime_;
-    Core::StopWatch scoringTime_;
-    Core::StopWatch llmTime_;
+    // Scores and timeframes read out of the accessors of the current label scorer, indexed like `scoringContexts_`
+    std::vector<std::optional<Nn::DenseScoreSpan>> denseScoreSpans_;
+    std::vector<Nn::TimeframeIndex>                scoreTimes_;
 
+    Core::StopWatch              initializationTime_;
+    Core::StopWatch              featureProcessingTime_;
+    Core::StopWatch              recognitionTime_;
+    std::vector<Core::StopWatch> scoreAndPruneExtensionsTimes_;
+    std::vector<Core::StopWatch> scoringTimes_;
+    std::vector<Core::StopWatch> scoreReadoutTimes_;
+    std::vector<Core::StopWatch> intermediatePruningTimes_;
+    Core::StopWatch              preLlmPruningTime_;
+    Core::StopWatch              llmTime_;
+    Core::StopWatch              wordAssemblyTime_;
+    Core::StopWatch              wordScoringTime_;
+    Core::StopWatch              buildNewBeamTime_;
+    Core::StopWatch              recombinationTime_;
+    Core::StopWatch              beamPruningTime_;
+    Core::StopWatch              cleanupTime_;
+    Core::StopWatch              finalizeTime_;
+    Core::StopWatch              finalizeLlmTime_;
+    Core::StopWatch              finalizeScoringTime_;
+
+    Core::Statistics<u32>              numInputHyps_;
+    Core::Statistics<u32>              numExtensionsBeforeFirstPruning_;
     std::vector<Core::Statistics<u32>> numHypsAfterIntermediatePruning_;
     Core::Statistics<u32>              numHypsBeforeLlm_;
     Core::Statistics<u32>              numFinishedWords_;
@@ -221,61 +198,44 @@ private:
     LabelHypothesis const& getBestHypothesis() const;
     LabelHypothesis const& getWorstHypothesis() const;
 
+    void resolveSpecialLabels();
+    void resetStatistics();
     void logStatistics() const;
+    void logOwnStatistics() const;
+    void logTimingStatistics() const;
+    void logSearchStatistics() const;
+    void logBeamStatistics();
 
-    /*
-     * Infer type of transition between two tokens based on whether each of them is blank or silence
-     * and/or whether they are the same
-     */
     Nn::TransitionType inferTransitionType(Nn::LabelIndex prevLabel, Nn::LabelIndex nextLabel) const;
 
-    /*
-     * Whether a transition of this type emits a new word piece
-     */
     static bool emitsPiece(Nn::TransitionType transitionType);
 
-    /*
-     * Text that is handed to the LLM tokenizer for a finished word after the given history
-     */
-    std::string wordText(LlmHistory history, std::string const& word) const;
-
-    /*
-     * For every `i`, score all variants of `*variants[i]` (a single empty one if it is null), each followed by
-     * `suffix`, after `histories[i]` and store the result of the cheapest one in `bestLlmResults_[i]`.
-     * All requests are sent to the LLM in one batch.
-     */
-    void scoreCheapestVariants(std::vector<LlmHistory> const&                      histories,
-                               std::vector<LlmTokenSequenceVariants const*> const& variants,
-                               LlmTokenSequence const&                             suffix);
-
-    /*
-     * Apply the LLM to the surviving extensions: update their pending word, score the words they
-     * finish and advance their LLM history.
-     */
-    void applyLlm();
-
-    /*
-     * Helper function for acoustic pruning. Calculates an absolute threshold based on best score + relative threshold and
-     * score histogram. Removes all hypotheses with a score > absolute threshold.
-     */
     template<typename Element>
     void scorePruning(std::vector<Element>& hypotheses, Score relativeThreshold, size_t maxBeamSize);
 
-    /*
-     * Helper function for recombination of hypotheses with the same scoring context, LLM history and pending word
-     */
     void recombination(std::vector<LabelHypothesis>& hypotheses);
 
-    /*
-     * Finish the pending words, score the LLM's sentence end and score sentence-end with all label scorers
-     * for all hypotheses in the beam
-     */
-    void finalizeHypotheses();
+    // Phases of a decode step; return false if no hypothesis survives
+    bool  advanceBeam();
+    bool  scoreAndPruneExtensions();
+    void  readOutScoreAccessors(std::vector<std::optional<Nn::ScoreAccessorRef>> const& scoreAccessors);
+    Score labelScore(Nn::ScoreAccessorRef const& accessor, size_t contextIndex, Nn::TransitionType transitionType, Nn::LabelIndex token) const;
+    void  createExtensions(std::vector<std::optional<Nn::ScoreAccessorRef>> const& scoreAccessors);
+    void  updateExtensionScores(size_t scorerIdx, std::vector<std::optional<Nn::ScoreAccessorRef>> const& scoreAccessors);
+    void  prepareNextScoringContexts(size_t scorerIdx);
+    bool  pruneBeforeLlm();
+    void  applyLlm();
+    void  assembleWords();
+    void  scoreFinishedWords();
+    void  buildNewBeamFromExtensions();
+    void  cleanupCaches();
+    void  maximumStableDelayPruning();
 
-    /*
-     * Apply maximum-stable-delay-pruning to beam_
-     */
-    void maximumStableDelayPruning();
+    // Phases of the segment end
+    void finalizeHypotheses();
+    void finishWordsAtSegmentEnd();
+    void scoreSentenceEnd();
+    void buildFinalHypotheses();
 };
 
 }  // namespace Search

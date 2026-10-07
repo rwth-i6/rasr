@@ -587,40 +587,43 @@ llm-timesync-beam-search
 ^^^^^^^^^^^^^^^^^^^^^^^^
 
 A time-synchronous beam search without pronunciation lexicon, like ``lexiconfree-timesync-beam-search``, which
-integrates an external token-level language model with its own tokenizer -- typically an LLM such as Qwen -- at
-the word level. Since words are not taken from a lexicon but assembled from the recognized word pieces, any word the
-acoustic model can spell can be recognized and scored by the LLM.
+scores the words it assembles from word-piece labels with an external LM that has its own tokenizer, typically an
+LLM such as Qwen. Any word the acoustic model can spell can be recognized and scored by the LLM.
 
-The output labels must be word pieces in SentencePiece convention: a piece whose orthography starts with the
-word-start marker ``▁`` begins a new word, every other piece continues the current one. For every hypothesis the
-search keeps
+Every hypothesis keeps its *pending word*, the spelling of the pieces since the last word boundary, and its *LLM
+history*, the LLM tokens of all finished words. When a piece finishes a word, the word is tokenized by the LLM, its
+tokens are scored after the history and the history is advanced by them. At the segment end the pending word is
+finished as well, together with the LLM's sentence-end tokens. Hypotheses are recombined if their label scorer
+states, last label, LLM history and pending word are equal.
 
-* the LLM history, i.e. the LLM token sequence of all finished words, and
-* the surface spelling of the pending word, i.e. the concatenated pieces since the last word start, without the marker.
+Word boundaries follow ``word-piece-convention``:
 
-When a hypothesis emits a piece that begins a new word, its pending word is finished: the spelling is tokenized
-with the LLM's tokenizer (after ``word-separator``, except for the first word of the segment), every resulting LLM
-token is scored given the LLM history, and the history is advanced by these tokens. At the segment end, the pending
-word is finished in the same way and the LLM's sentence-end tokens are scored.
+* ``word-start-marked`` (default): a piece starting with ``word-piece-marker`` (default ``▁``, as in
+  SentencePiece) begins a new word, so the pending word is finished by the next word-start piece.
+* ``continuation-marked``: a piece ending with ``word-piece-marker`` (default ``@@``) continues its word, every
+  other piece finishes it immediately.
 
-The LLM scorer may tokenize a spelling into several variants, e.g. lowercased, capitalized and uppercased. The search
-scores all of them and greedily continues with the cheapest one, both for the score and for the LLM history of the
-hypothesis. For the last word of a segment the variant is chosen by the cost of the word and the sentence end
-together. This compensates casing differences between the acoustic model's vocabulary and the LLM's training data,
-e.g. an all-caps vocabulary, at the cost of one LLM request per variant. Hypotheses are recombined if their
-label scorer states, last label, LLM history and pending word are equal.
+The LLM may return several spelling variants of a word, e.g. in different casing. All of them are scored and the
+hypothesis continues with the cheapest one, both for its score and its LLM history; for the last word of a segment
+the choice includes the sentence end. This compensates casing differences between the acoustic model's vocabulary
+and the LLM's training data, e.g. an all-caps vocabulary.
 
-Tokenizations are cached by text (across segments) and LLM scores by history plus token sequence (within a segment):
-all histories of a segment form a trie whose nodes store the cost of their last token, so no (history, token)
-pair is ever sent to the LLM twice, also not as a prefix of a longer request. All LLM requests of one search step
-are sent as a single batch.
+Caching and batching:
 
-Order of operations for one decoding step, extending the one of ``lexiconfree-timesync-beam-search``:
+* Spelling variants and tokenizations are cached by text across segments.
+* Within a segment, the cost of every scored token is cached in a trie of all LLM histories, and the result of every
+  (history, word) pair. So nothing is ever sent to the LLM twice, also not as a prefix of a longer request.
+* All LLM requests of a search step are sent in one batch.
+* Histories are integer handles that are equal for equal token sequences. An LLM implementation can therefore keep
+  a key/value cache per handle. Every ``cache-cleanup-interval`` steps the search tells it which histories are still
+  active, so the states of all others can be dropped.
+
+Order of operations for one decoding step:
 
 #. Create and score the extensions with all label scorers, with intermediate pruning, as in
    ``lexiconfree-timesync-beam-search``.
 #. Prune the extensions with ``pre-llm-score-threshold`` and ``pre-llm-max-beam-size``.
-#. Update the pending words and score the words that are finished by the surviving extensions with the LLM.
+#. Assemble the words of the surviving extensions and score the finished ones with the LLM.
 #. Recombine equivalent hypotheses (if ``recombination-mode = on``).
 #. Prune hypotheses with the ``score-threshold`` and ``max-beam-size`` of the last label scorer.
 
@@ -629,137 +632,50 @@ reported as LM score in the traceback, everything else as acoustic score.
 
 Parameters: all parameters of ``lexiconfree-timesync-beam-search`` and additionally
 
-* ``pre-llm-max-beam-size`` (int): maximum number of extensions passed on to the LLM in each step. ``0`` means the
-  ``max-beam-size`` of the last label scorer. Default ``0``.
-* ``pre-llm-score-threshold`` (float): prune extensions worse than the best one by more than this before passing
-  them on to the LLM. Default: unset.
-* ``word-start-marker`` (string): prefix of the orthography of pieces that begin a word. Default ``▁`` (U+2581).
-* ``word-separator`` (string): text put in front of every finished word except the first one before tokenization.
-  Default ``" "``, which matches byte-level BPE tokenizers such as the ones of Qwen or Llama, where a word inside a
-  text is tokenized together with its leading space.
+* ``pre-llm-max-beam-size`` (int): maximum number of extensions whose finished words are scored in each step. ``0``
+  means the ``max-beam-size`` of the last label scorer. Default ``0``.
+* ``pre-llm-score-threshold`` (float): prune extensions worse than the best one by more than this before their
+  finished words are scored. Default: unset.
+* ``word-piece-convention`` (``word-start-marked``/``continuation-marked``) and ``word-piece-marker`` (string),
+  see above.
 * ``llm-scale`` (float): scale of the LLM costs. Default ``1.0``.
 * ``word-penalty`` (float): added for every finished word; negative values reward words. Default ``0.0``.
 * ``llm.type`` (string): type of the LLM scorer, see below. Required.
+* ``llm.word-separator`` (string): text in front of every word except the first one of a segment when it is
+  tokenized. Default ``" "``, which matches byte-level BPE tokenizers such as those of Qwen or Llama.
 
-The LLM itself is provided through the ``librasr.LlmScorer`` Python interface and registered under a type name,
-which is then selected with ``llm.type``. All other parameters in the ``llm`` selection are available to the
-implementation via its ``config``. An implementation has to provide:
+The ``statistics`` channel additionally reports the time of the LLM phase, split into word assembly and word scoring,
+and the LLM component reports its own statistics: time spent on spelling variants, tokenization and in the LLM,
+cache hits, LLM calls and their batch sizes, scored tokens and the number of histories.
 
-* ``initial_tokens()``: tokens every history starts with, e.g. a begin-of-sequence token and/or a prompt.
-* ``sentence_end_tokens()``: tokens scored once at the end of every segment, e.g. the end-of-sequence token. May be empty.
-* ``tokenize(texts)``: per text a non-empty list of variants, each a non-empty token id list. Return a single
-  variant per text to disable variants.
-* ``score_continuations(prefixes, continuations)``: for every request, the cost (negative natural log-probability)
-  of each token of the continuation, given the prefix (a full history, starting with the initial tokens) and the
-  preceding continuation tokens.
-* ``reset()``: called at every segment start, e.g. to drop key/value caches.
+The LLM is implemented in Python as a subclass of ``librasr.LlmScorer`` and registered under a type name, which is
+then selected with ``llm.type``. All other parameters of the ``llm`` selection are available through its
+``config``. A subclass implements
 
-A reference implementation with HuggingFace transformers, which recomputes every request from scratch and does not
-reuse key/value states between steps:
+* ``reset()``: start a new segment.
+* ``initial_tokens()``: token ids every history starts with, e.g. a begin-of-sequence token or a prompt.
+* ``sentence_end_tokens()``: token ids scored at the end of a segment, may be empty.
+* ``tokenize(texts)``: one list of token ids per text.
+* ``score(requests)``: the cost (negative natural log-probability) of every token of every ``LlmScoringRequest``,
+  which carries ``history`` (handle), ``prefix`` (token ids of the history), ``tokens`` and ``token_histories``
+  (the handle after each token).
 
-.. code-block:: python
+and optionally
 
-    import torch
-    from transformers import AutoModelForCausalLM, AutoTokenizer
+* ``spelling_variants(words)``: spellings to score per word, by default the word itself.
+* ``cleanup(active_histories)``: only these handles are continued from now on.
 
-    import librasr
+A reference implementation with HuggingFace transformers, which keeps a key/value cache per history handle and
+batches requests with different history lengths, is ``doc/examples/huggingface_llm_scorer.py``:
 
+.. literalinclude:: examples/huggingface_llm_scorer.py
+   :language: python
 
-    class HuggingFaceLlmScorer(librasr.LlmScorer):
-        """
-        LLM scorer for `llm-timesync-beam-search` backed by a HuggingFace causal LM, e.g. Qwen.
-
-        Parameters (in the `llm` selection of the search algorithm):
-          model           HuggingFace model name or local path (required)
-          device          torch device, default "cuda" if available else "cpu"
-          prompt          text every history starts with, default empty
-          max-batch-size  maximum number of sequences per forward pass, default 64
-          case-variants   comma-separated casings of each word to score, out of original, lower, capitalized and upper;
-                          the search continues with the cheapest one. Default "original,lower,capitalized,upper"
-        """
-
-        CASINGS = {
-            "original": lambda w: w,
-            "lower": str.lower,
-            "capitalized": lambda w: w[:1].upper() + w[1:].lower(),
-            "upper": str.upper,
-        }
-
-        def __init__(self, config):
-            super().__init__(config)
-            model_name = config["model"]
-            if model_name is None:
-                raise ValueError("No LLM configured: set `model` in the `llm` selection of the search algorithm")
-            self.device = torch.device(config["device"] or ("cuda" if torch.cuda.is_available() else "cpu"))
-            self.max_batch_size = int(config["max-batch-size"] or 64)
-            self.casings = [self.CASINGS[c.strip()] for c in (config["case-variants"] or "original,lower,capitalized,upper").split(",")]
-
-            self.tokenizer = AutoTokenizer.from_pretrained(model_name)
-            dtype = torch.bfloat16 if self.device.type == "cuda" else torch.float32
-            self.model = AutoModelForCausalLM.from_pretrained(model_name, torch_dtype=dtype).to(self.device).eval()
-
-            # Every history needs at least one token for the first word to be scored. Qwen has no BOS token and uses
-            # <|endoftext|> as document separator instead, so fall back to the EOS token.
-            start_token = self.tokenizer.bos_token_id
-            if start_token is None:
-                start_token = self.tokenizer.eos_token_id
-            self.initial = [start_token] + self.tokenizer(config["prompt"] or "", add_special_tokens=False).input_ids
-            self.sentence_end = [self.tokenizer.eos_token_id]
-
-        def reset(self):
-            pass
-
-        def initial_tokens(self):
-            return self.initial
-
-        def sentence_end_tokens(self):
-            return self.sentence_end
-
-        def tokenize(self, texts):
-            result = []
-            for text in texts:
-                # Keep a leading word separator as it is and only change the casing of the word itself
-                word = text.lstrip()
-                separator = text[: len(text) - len(word)]
-                variants = list(dict.fromkeys(separator + casing(word) for casing in self.casings))
-                result.append(self.tokenizer(variants, add_special_tokens=False).input_ids)
-            return result
-
-        @torch.inference_mode()
-        def score_continuations(self, prefixes, continuations):
-            result = []
-            for start in range(0, len(prefixes), self.max_batch_size):
-                result.extend(self._score_batch(prefixes[start : start + self.max_batch_size], continuations[start : start + self.max_batch_size]))
-            return result
-
-        def _score_batch(self, prefixes, continuations):
-            sequences = [p + c for p, c in zip(prefixes, continuations)]
-            max_len = max(len(s) for s in sequences)
-            pad = self.tokenizer.pad_token_id if self.tokenizer.pad_token_id is not None else 0
-            input_ids = torch.full((len(sequences), max_len), pad, dtype=torch.long)
-            attention_mask = torch.zeros((len(sequences), max_len), dtype=torch.long)
-            for i, s in enumerate(sequences):
-                input_ids[i, : len(s)] = torch.tensor(s)
-                attention_mask[i, : len(s)] = 1
-            logits = self.model(input_ids=input_ids.to(self.device), attention_mask=attention_mask.to(self.device)).logits
-            log_probs = torch.log_softmax(logits.float(), dim=-1)
-
-            result = []
-            for i, (p, c) in enumerate(zip(prefixes, continuations)):
-                # The logits at position t predict token t + 1
-                positions = torch.arange(len(p) - 1, len(p) + len(c) - 1, device=self.device)
-                targets = torch.tensor(c, device=self.device)
-                result.append((-log_probs[i, positions, targets]).tolist())
-            return result
-
-Registering it and running a search:
+Registering it and configuring the search:
 
 .. code-block:: python
 
     librasr.register_llm_scorer_type("huggingface", HuggingFaceLlmScorer)
-
-    config = librasr.Configuration()
-    config.set_from_file("recog.config")
     search = librasr.SearchAlgorithm(config)
 
 .. code-block:: ini
@@ -776,17 +692,15 @@ Registering it and running a search:
     [*.search-algorithm.llm]
     type                     = huggingface
     model                    = Qwen/Qwen2.5-0.5B
+    case-variants            = lower,capitalized
 
 Limitations:
 
-* A word is only scored by the LLM once it is finished, i.e. when the next word begins. Hypotheses competing in the
-  same step therefore do not all carry their LLM cost yet, which favors hypotheses that postpone starting a new word,
-  in the extreme by gluing words together. There is no LLM look-ahead within a word yet.
-* Text normalization is limited to what the variants of a single word can express, e.g. casing. Punctuation is not
-  handled: a punctuation variant only pays off at the next word, which a greedy choice at the end of the current
-  word cannot take into account. Punctuation has to come from the acoustic model's vocabulary instead.
-* The cache of LLM scores grows with the number of distinct requests of a segment and is only cleared at the segment
-  start, which matters for very long segments.
+* Under ``word-start-marked``, a word is only scored once the next word begins. Hypotheses competing in the same step
+  therefore do not all carry their LLM cost yet, which favors hypotheses that postpone a word boundary, in the
+  extreme by gluing words together. There is no LLM look-ahead within a word.
+* Text normalization is limited to what the spelling variants of a single word can express, e.g. casing.
+  Punctuation has to come from the acoustic model's vocabulary.
 
 Search tree types
 ^^^^^^^^^^^^^^^^^

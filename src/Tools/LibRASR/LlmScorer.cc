@@ -43,75 +43,65 @@ void bindLlmScorer(py::module_& module) {
             &registerPythonLlmScorer,
             py::arg("name"),
             py::arg("llm_scorer_cls"),
-            "Register a custom LLM scorer type for `llm-timesync-beam-search`.\n\n"
-            "Args:\n"
-            "    name: The name under which the LLM scorer type is registered. The same name must be used as `type` in the\n"
-            "          `llm` selection of the search algorithm in the RASR config.\n"
-            "    llm_scorer_cls: A class that inherits from `librasr.LlmScorer` and implements the abstract methods.");
+            "Register a subclass of `LlmScorer` under a name, which `llm-timesync-beam-search` then accepts as `llm.type`.");
 
-    // Specify `Python::PythonLlmScorer` as trampoline class and `Core::Ref<Search::LlmScorer>` as holder type
+    py::class_<Search::LlmScoringRequest> pyRequest(
+            module,
+            "LlmScoringRequest",
+            "Tokens to score after a history. Histories are integer handles; equal handles mean equal token sequences\n"
+            "within a segment, so states such as key/value caches can be kept per handle.");
+    pyRequest.def_readonly("history", &Search::LlmScoringRequest::history, "Handle of the history to continue.");
+    pyRequest.def_readonly("prefix", &Search::LlmScoringRequest::prefix, "Token ids of the history, starting with `initial_tokens()`.");
+    pyRequest.def_readonly("tokens", &Search::LlmScoringRequest::tokens, "Token ids to score after the history.");
+    pyRequest.def_readonly("token_histories", &Search::LlmScoringRequest::tokenHistories, "Handle of the history after each of `tokens`.");
+
+    // `Python::PythonLlmScorer` is the trampoline class and `Core::Ref` the holder type
     py::class_<Search::LlmScorer, Python::PythonLlmScorer, Core::Ref<Search::LlmScorer>> pyLlmScorer(
             module,
             "LlmScorer",
-            "Abstract base class for a token-level language model with its own tokenizer, e.g. an LLM such as Qwen,\n"
-            "used by `llm-timesync-beam-search`.\n"
-            "The search finishes words on the fly, tokenizes their surface spelling with `tokenize` and scores the resulting\n"
-            "tokens with `score_continuations`. A spelling may be tokenized into several variants, e.g. of different casing;\n"
-            "the search scores all of them and greedily continues with the cheapest one.\n"
-            "Tokenizations and token scores are cached by the search, so the same text or\n"
-            "the same (history, tokens) pair is not requested twice within a segment. All requests of one search step are\n"
-            "passed in one call.\n"
-            "Concrete subclasses need to implement the following methods:\n"
-            " - `reset`\n"
-            " - `initial_tokens`\n"
-            " - `sentence_end_tokens`\n"
-            " - `tokenize`\n"
-            " - `score_continuations`");
+            "Token-level LM with its own tokenizer, e.g. an LLM, for `llm-timesync-beam-search`. Subclasses implement\n"
+            "`reset`, `initial_tokens`, `sentence_end_tokens`, `tokenize` and `score`, and may override\n"
+            "`spelling_variants` and `cleanup`.");
 
-    pyLlmScorer.def(
-            py::init<Core::Configuration const&>(),
-            py::arg("config"),
-            "Construct an LLM scorer from a RASR config.");
+    pyLlmScorer.def(py::init<Core::Configuration const&>(), py::arg("config"));
 
-    pyLlmScorer.def(
-            "reset",
-            &Search::LlmScorer::reset,
-            "Prepare for a new segment, e.g. drop key/value caches of the previous one.");
+    pyLlmScorer.def("reset", &Search::LlmScorer::reset, "Start a new segment; handles of the previous one are not used again.");
 
     pyLlmScorer.def(
             "initial_tokens",
             &Search::LlmScorer::initialTokens,
-            "Return the list of token ids every history starts with, e.g. a begin-of-sequence token and/or a prompt.");
+            "Token ids every history starts with, e.g. a begin-of-sequence token or a prompt. Must not be empty.");
 
     pyLlmScorer.def(
             "sentence_end_tokens",
             &Search::LlmScorer::sentenceEndTokens,
-            "Return the list of token ids that is scored once at the end of every segment, e.g. an end-of-sequence token.\n"
-            "May be empty.");
+            "Token ids scored at the end of every segment, e.g. an end-of-sequence token. May be empty.");
+
+    pyLlmScorer.def(
+            "spelling_variants",
+            &Search::LlmScorer::spellingVariants,
+            py::arg("words"),
+            "Non-empty list of spellings to score for each word, e.g. in different casing; the cheapest one is used.\n"
+            "Defaults to the word itself.");
 
     pyLlmScorer.def(
             "tokenize",
             &Search::LlmScorer::tokenize,
             py::arg("texts"),
-            "Tokenize each text independently into one or more variants.\n\n"
-            "Args:\n"
-            "    texts: A list of strings. Each is the surface spelling of one finished word, preceded by the configured\n"
-            "           `word-separator` unless it is the first word of the segment.\n"
-            "Returns:\n"
-            "    A list of the same length containing, per text, a non-empty list of variants, each a non-empty list of\n"
-            "    token ids, e.g. the tokenizations of the text as is, lowercased and capitalized. The search scores all\n"
-            "    variants and continues with the cheapest one. Return a single variant to disable this.");
+            "Non-empty list of token ids for each text. A text is a spelling, preceded by `word-separator` unless it is\n"
+            "the first word of a segment.");
 
     pyLlmScorer.def(
-            "score_continuations",
-            &Search::LlmScorer::scoreContinuations,
-            py::arg("prefixes"),
-            py::arg("continuations"),
-            "Score token continuations of token prefixes.\n\n"
-            "Args:\n"
-            "    prefixes: A list of length `B` of token id lists. Each is a full history, starting with `initial_tokens()`.\n"
-            "    continuations: A list of length `B` of non-empty token id lists to score after the respective prefix.\n"
-            "Returns:\n"
-            "    A list of length `B` where entry `i` is a list with one cost (negative natural log-probability) per token of\n"
-            "    `continuations[i]`, each given `prefixes[i]` and all preceding tokens of `continuations[i]`.");
+            "score",
+            &Search::LlmScorer::score,
+            py::arg("requests"),
+            "Cost (negative natural log-probability) of every token of every `LlmScoringRequest`, each given its\n"
+            "history and the preceding tokens of the request.");
+
+    pyLlmScorer.def(
+            "cleanup",
+            &Search::LlmScorer::cleanup,
+            py::arg("active_histories"),
+            "Only the given history handles and their extensions are requested from now on, so states of all others\n"
+            "can be dropped. Does nothing by default.");
 }

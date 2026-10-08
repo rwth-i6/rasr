@@ -53,6 +53,8 @@ public:
     static const Core::ParameterInt         paramCacheCleanupInterval;
     static const Core::ParameterFloat       paramLengthNormScale;
     static const Core::ParameterFloat       paramMaxLabelsPerTimestep;
+    static const Core::ParameterInt         paramMaxLabelsLowerBound;
+    static const Core::ParameterInt         paramMaxLabelsUpperBound;
     static const Core::Choice               choicePruningStrategyType;
     static const Core::ParameterChoice      paramPruningStrategyType;
     static const Core::Choice               choiceRecombinationMode;
@@ -190,6 +192,8 @@ private:
     Histogram           terminatedScoreHistogram_;
     float               lengthNormScale_;
     float               maxLabelsPerTimestep_;
+    size_t              maxLabelsLowerBound_;
+    size_t              maxLabelsUpperBound_;
     Bliss::Lemma const* sentenceEndLemma_;
     Nn::LabelIndex      sentenceEndLabelIndex_;
     size_t              cacheCleanupInterval_;

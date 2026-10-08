@@ -51,6 +51,8 @@ public:
     static const Core::ParameterInt         paramCacheCleanupInterval;
     static const Core::ParameterFloat       paramLengthNormScale;
     static const Core::ParameterFloat       paramMaxLabelsPerTimestep;
+    static const Core::ParameterInt         paramMaxLabelsLowerBound;
+    static const Core::ParameterInt         paramMaxLabelsUpperBound;
     static const Core::Choice               choicePruningStrategyType;
     static const Core::ParameterChoice      paramPruningStrategyType;
     static const Core::Choice               choiceRecombinationMode;
@@ -153,6 +155,8 @@ private:
     Histogram           terminatedScoreHistogram_;
     float               lengthNormScale_;
     float               maxLabelsPerTimestep_;
+    size_t              maxLabelsLowerBound_;
+    size_t              maxLabelsUpperBound_;
     Nn::LabelIndex      sentenceEndLabelIndex_;
     Core::Choice::Value pruningStrategyType_;
     bool                recombinationEnabled_;

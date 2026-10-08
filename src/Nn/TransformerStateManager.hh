@@ -4,6 +4,7 @@
 #include <algorithm>
 #include <limits>
 #include <numeric>
+#include <thread>
 #include <type_traits>
 #include <valarray>
 
@@ -63,6 +64,7 @@ public:
 
     static const Core::ParameterInt  paramMaxHistoryLength;
     static const Core::ParameterBool paramAlwaysIncludeFirstTokenState;
+    static const Core::ParameterInt  paramNumMergeThreads;
 
     TransformerStateManager(Core::Configuration const& config);
     virtual ~TransformerStateManager() = default;
@@ -89,6 +91,7 @@ protected:
 
     const size_t maxHistory_;
     const bool   alwaysIncludeFirstTokenState_;
+    const size_t numMergeThreads_;
 };
 
 template<typename T, typename value_t, typename state_variable_t>
@@ -98,10 +101,18 @@ template<typename T, typename value_t, typename state_variable_t>
 const Core::ParameterBool TransformerStateManager<T, value_t, state_variable_t>::paramAlwaysIncludeFirstTokenState("always-include-first-token-state", "wether to always include the state of the first token, even if history is restricted by max-history", false);
 
 template<typename T, typename value_t, typename state_variable_t>
+const Core::ParameterInt TransformerStateManager<T, value_t, state_variable_t>::paramNumMergeThreads(
+        "num-merge-threads",
+        "number of threads that copy the prefix states into the batched input tensors (one tensor per state variable each); 1 = no extra threads",
+        1,
+        1);
+
+template<typename T, typename value_t, typename state_variable_t>
 TransformerStateManager<T, value_t, state_variable_t>::TransformerStateManager(Core::Configuration const& config)
         : Precursor(config),
           maxHistory_(paramMaxHistoryLength(config)),
-          alwaysIncludeFirstTokenState_(paramAlwaysIncludeFirstTokenState(config)) {
+          alwaysIncludeFirstTokenState_(paramAlwaysIncludeFirstTokenState(config)),
+          numMergeThreads_(paramNumMergeThreads(config)) {
 }
 
 template<typename T, typename value_t, typename state_variable_t>
@@ -150,6 +161,20 @@ void TransformerStateManager<T, value_t, state_variable_t>::mergeStates(
     // otherwise every element of the merged tensors is overwritten below
     bool needs_padding = std::any_of(prefix_lengths.begin(), prefix_lengths.end(), [max_prefix](size_t len) { return len != max_prefix; });
 
+    // Layout of the merged tensor of one state variable
+    struct MergeLayout {
+        std::valarray<size_t> sizes;
+        std::valarray<size_t> strides;
+        size_t                batch_stride;
+        size_t                time_stride;
+        std::vector<size_t>   block_offsets;  // offsets of the contiguous blocks of one time step, relative to its start
+        size_t                block_size;
+        size_t                step_size;  // number of elements of one time step
+    };
+
+    // Compute the layouts and allocate the merged tensors sequentially, the copying below can then run in parallel
+    std::vector<MergeLayout> layouts(vars.size());
+    std::vector<value_t>     var_tensors(vars.size());
     for (size_t v = 0ul; v < vars.size(); v++) {
         auto const& var = vars[v];
         require_ge(var.shape.size(), 2);
@@ -179,23 +204,34 @@ void TransformerStateManager<T, value_t, state_variable_t>::mergeStates(
             strides[d - 1ul] = tensor_dim[d + 1] * strides[d];
         }
 
-        value_t var_tensor  = needs_padding ? value_t::template zeros<T>(tensor_dim) : value_t::template createEmpty<T>(tensor_dim);
-        T*      tensor_data = var_tensor.template data<T>();
+        var_tensors[v] = needs_padding ? value_t::template zeros<T>(tensor_dim) : value_t::template createEmpty<T>(tensor_dim);
 
         // All time steps have the same layout of contiguous blocks, only the start offset differs
+        auto&               layout = layouts[v];
         ContiguousBlockInfo step_layout(std::gslice(0ul, sizes, strides));
-        std::vector<size_t> block_offsets(step_layout.numBlocks());
-        for (size_t i = 0ul; i < block_offsets.size(); i++) {
-            block_offsets[i] = step_layout.blockOffset(i);
+        layout.block_offsets.resize(step_layout.numBlocks());
+        for (size_t i = 0ul; i < layout.block_offsets.size(); i++) {
+            layout.block_offsets[i] = step_layout.blockOffset(i);
         }
-        size_t const block_size = step_layout.blockSize();
+        layout.block_size   = step_layout.blockSize();
+        layout.step_size    = step_layout.totalSize();
+        layout.batch_stride = batch_stride;
+        layout.time_stride  = strides[time_dim];
+        layout.sizes        = sizes;
+        layout.strides      = strides;
+    }
+
+    // Copy the prefix states of state variable `v` into its merged tensor
+    auto merge_var = [&](size_t v) {
+        auto const& layout      = layouts[v];
+        T*          tensor_data = var_tensors[v].template data<T>();
 
         size_t state_offset = 0ul;
         for (size_t b = 0ul; b < prefix_lengths.size(); b++) {
             size_t prefix_length = prefix_lengths[b];
             size_t prefix_offset = original_prefix_lengths[b] - prefix_length;
             for (size_t p = 0ul; p < prefix_length; p++) {
-                size_t start = b * batch_stride + (max_prefix - prefix_length + p) * strides[time_dim];
+                size_t start = b * layout.batch_stride + (max_prefix - prefix_length + p) * layout.time_stride;
                 size_t idx   = state_offset;
                 if (not alwaysIncludeFirstTokenState_ or p != 0ul) {
                     idx += prefix_offset + p;
@@ -215,21 +251,48 @@ void TransformerStateManager<T, value_t, state_variable_t>::mergeStates(
                     }
                 }
                 if (src != nullptr) {
-                    require_eq(state_vector->size(), step_layout.totalSize());
-                    for (size_t i = 0ul; i < block_offsets.size(); i++) {
-                        std::copy(src + i * block_size, src + (i + 1ul) * block_size, tensor_data + start + block_offsets[i]);
+                    require_eq(state_vector->size(), layout.step_size);
+                    for (size_t i = 0ul; i < layout.block_offsets.size(); i++) {
+                        std::copy(src + i * layout.block_size, src + (i + 1ul) * layout.block_size, tensor_data + start + layout.block_offsets[i]);
                     }
                     continue;
                 }
 
-                std::gslice         slice(start, sizes, strides);
+                std::gslice         slice(start, layout.sizes, layout.strides);
                 ContiguousBlockInfo block_info(slice);
                 detail::uncompress(state_vector, tensor_data, block_info);
             }
             state_offset += original_prefix_lengths[b];
         }
+    };
 
-        extendFeedDict(feed_dict, vars[v], var_tensor);
+    // Each thread merges every num_threads-th state variable, i.e. writes only into its own tensors
+    size_t num_threads = std::min(numMergeThreads_, vars.size());
+    if (num_threads > 1ul) {
+        std::vector<std::thread> threads;
+        threads.reserve(num_threads - 1ul);
+        for (size_t t = 1ul; t < num_threads; t++) {
+            threads.emplace_back([&merge_var, &vars, t, num_threads]() {
+                for (size_t v = t; v < vars.size(); v += num_threads) {
+                    merge_var(v);
+                }
+            });
+        }
+        for (size_t v = 0ul; v < vars.size(); v += num_threads) {
+            merge_var(v);
+        }
+        for (auto& thread : threads) {
+            thread.join();
+        }
+    }
+    else {
+        for (size_t v = 0ul; v < vars.size(); v++) {
+            merge_var(v);
+        }
+    }
+
+    for (size_t v = 0ul; v < vars.size(); v++) {
+        extendFeedDict(feed_dict, vars[v], var_tensors[v]);
         extendTargets(targets, vars[v]);
     }
 }

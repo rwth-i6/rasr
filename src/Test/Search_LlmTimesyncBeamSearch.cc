@@ -19,6 +19,7 @@
  */
 
 #include <Test/Lexicon.hh>
+#include <Test/LlmHelpers.hh>
 #include <Test/UnitTest.hh>
 
 #include <algorithm>
@@ -30,146 +31,18 @@
 #include <vector>
 
 #include <Nn/LabelScorer/NoOpLabelScorer.hh>
-#include <Search/LlmTimesyncBeamSearch/LlmHistoryTrie.hh>
+#include <Search/Llm/LlmHistoryTrie.hh>
+#include <Search/Llm/LlmWordScorer.hh>
+#include <Search/Llm/WordAssembler.hh>
 #include <Search/LlmTimesyncBeamSearch/LlmTimesyncBeamSearch.hh>
-#include <Search/LlmTimesyncBeamSearch/LlmWordScorer.hh>
-#include <Search/LlmTimesyncBeamSearch/WordAssembler.hh>
 #include <Search/Module.hh>
 #include <Speech/ModelCombination.hh>
 
-// SentencePiece word-start marker U+2581, for literal concatenation
-#define WORD_START "\xE2\x96\x81"
-
-namespace {
-
-constexpr f32           suppressed  = 30.0f;  // Score of every label a frame is not supposed to emit
-constexpr Search::Score defaultCost = 5.0;    // Cost of a token whose bigram is not listed
-
-class ToyLlm : public Search::LlmScorer {
-public:
-    static std::vector<std::string>                                     vocabulary;
-    static std::map<std::pair<std::string, std::string>, Search::Score> bigramCosts;  // (previous token, token) -> cost
-    static bool                                                         capitalizedVariants;
-    static size_t                                                       numResets;
-    static std::vector<std::string>                                     tokenizedTexts;
-    static std::vector<Search::LlmScoringRequest>                       requests;
-    static std::vector<std::vector<Search::LlmHistory>>                 cleanups;
-
-    ToyLlm(Core::Configuration const& config)
-            : Core::Component(config), Search::LlmScorer(config) {}
-
-    static void clear() {
-        bigramCosts.clear();
-        capitalizedVariants = false;
-        numResets           = 0ul;
-        tokenizedTexts.clear();
-        requests.clear();
-        cleanups.clear();
-    }
-
-    static Search::LlmToken token(std::string const& text) {
-        auto it = std::find(vocabulary.begin(), vocabulary.end(), text);
-        if (it != vocabulary.end()) {
-            return it - vocabulary.begin();
-        }
-        require(text.size() == 1ul);
-        return 1000 + static_cast<unsigned char>(text[0]);
-    }
-
-    static std::string text(Search::LlmToken token) {
-        return token >= 1000 ? std::string(1, static_cast<char>(token - 1000)) : vocabulary.at(token);
-    }
-
-    void reset() override {
-        ++numResets;
-    }
-
-    Search::LlmTokenSequence initialTokens() override {
-        return {token("<s>")};
-    }
-
-    Search::LlmTokenSequence sentenceEndTokens() override {
-        return {token("</s>")};
-    }
-
-    std::vector<std::vector<std::string>> spellingVariants(std::vector<std::string> const& words) override {
-        if (not capitalizedVariants) {
-            return LlmScorer::spellingVariants(words);
-        }
-        std::vector<std::vector<std::string>> result;
-        for (auto const& word : words) {
-            std::string capitalized = word;
-            capitalized[0]          = std::toupper(capitalized[0]);
-            result.push_back({word, capitalized});
-        }
-        return result;
-    }
-
-    std::vector<Search::LlmTokenSequence> tokenize(std::vector<std::string> const& texts) override {
-        std::vector<Search::LlmTokenSequence> result;
-        for (auto const& t : texts) {
-            tokenizedTexts.push_back(t);
-            result.emplace_back();
-            if (std::find(vocabulary.begin(), vocabulary.end(), t) != vocabulary.end()) {
-                result.back().push_back(token(t));
-                continue;
-            }
-            for (char c : t) {
-                result.back().push_back(token(std::string(1, c)));
-            }
-        }
-        return result;
-    }
-
-    std::vector<std::vector<Search::Score>> score(std::vector<Search::LlmScoringRequest> const& batch) override {
-        std::vector<std::vector<Search::Score>> result;
-        for (auto const& request : batch) {
-            requests.push_back(request);
-            result.emplace_back();
-            Search::LlmToken previous = request.prefix.back();
-            for (Search::LlmToken t : request.tokens) {
-                auto it = bigramCosts.find({text(previous), text(t)});
-                result.back().push_back(it != bigramCosts.end() ? it->second : defaultCost);
-                previous = t;
-            }
-        }
-        return result;
-    }
-
-    void cleanup(std::vector<Search::LlmHistory> const& activeHistories) override {
-        cleanups.push_back(activeHistories);
-    }
-};
-
-std::vector<std::string>                                     ToyLlm::vocabulary = {"<s>", "</s>", "the", " the", " cat", " hat", " a", "The", " The", " Cat"};
-std::map<std::pair<std::string, std::string>, Search::Score> ToyLlm::bigramCosts;
-bool                                                         ToyLlm::capitalizedVariants = false;
-size_t                                                       ToyLlm::numResets           = 0ul;
-std::vector<std::string>                                     ToyLlm::tokenizedTexts;
-std::vector<Search::LlmScoringRequest>                       ToyLlm::requests;
-std::vector<std::vector<Search::LlmHistory>>                 ToyLlm::cleanups;
-
-void registerToyLlm() {
-    static bool registered = false;
-    if (not registered) {
-        Search::Module::instance().llmScorerFactory().registerLlmScorer(
-                "toy", [](Core::Configuration const& config) { return Core::Ref<Search::LlmScorer>(new ToyLlm(config)); });
-        registered = true;
-    }
-}
-
-Core::Ref<Test::Lexicon> pieceLexicon(std::vector<std::string> const& labels) {
-    auto lexicon = Core::ref(new Test::Lexicon());
-    for (size_t i = 0ul; i < labels.size(); ++i) {
-        lexicon->addPhoneme("p" + std::to_string(i), false);
-    }
-    for (size_t i = 0ul; i < labels.size(); ++i) {
-        lexicon->addLemma(labels[i], "p" + std::to_string(i), labels[i] == "<blank>" ? "blank" : "");
-    }
-    return lexicon;
-}
-
-}  // namespace
+using Test::defaultCost;
+using Test::pieceLexicon;
+using Test::registerToyLlm;
+using Test::suppressed;
+using Test::ToyLlm;
 
 /*
  * =====================

@@ -18,7 +18,7 @@
 
 #include <pybind11/pybind11.h>
 
-#include <Search/LlmTimesyncBeamSearch/LlmScorer.hh>
+#include <Search/Llm/LlmScorer.hh>
 
 namespace py = pybind11;
 

@@ -1,4 +1,1 @@
-target_sources(
-        RasrSearch
-                PRIVATE LlmHistoryTrie.cc LlmScorer.cc LlmTimesyncBeamSearch.cc
-                        LlmWordScorer.cc WordAssembler.cc)
+target_sources(RasrSearch PRIVATE LlmTimesyncBeamSearch.cc)

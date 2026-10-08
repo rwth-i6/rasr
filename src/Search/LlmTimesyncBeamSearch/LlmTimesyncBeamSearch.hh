@@ -31,8 +31,8 @@
 #include <Search/SearchV2.hh>
 #include <Search/Traceback.hh>
 
-#include "LlmWordScorer.hh"
-#include "WordAssembler.hh"
+#include <Search/Llm/LlmWordScorer.hh>
+#include <Search/Llm/WordAssembler.hh>
 
 namespace Search {
 

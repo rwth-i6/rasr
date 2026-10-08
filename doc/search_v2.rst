@@ -174,7 +174,7 @@ The search algorithm is selected with the ``type`` parameter under the ``search-
     [*.search-algorithm]
     type = lexiconfree-timesync-beam-search
     ; other options: lexiconfree-labelsync-beam-search, tree-timesync-beam-search, tree-labelsync-beam-search,
-    ;                llm-timesync-beam-search
+    ;                llm-timesync-beam-search, llm-rnnt-timesync-beam-search
 
 If unset, ``type`` defaults to ``lexiconfree-timesync-beam-search``.
 
@@ -701,6 +701,74 @@ Limitations:
   extreme by gluing words together. There is no LLM look-ahead within a word.
 * Text normalization is limited to what the spelling variants of a single word can express, e.g. casing.
   Punctuation has to come from the acoustic model's vocabulary.
+
+llm-rnnt-timesync-beam-search
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+The counterpart of ``llm-timesync-beam-search`` for standard (non-monotonic) RNN-T/transducer models: words are
+assembled from the emitted word pieces and scored by an LLM in the same way, with the same LLM interface, caching,
+spelling variants and statistics. Only the time loop differs. Within each timestep, a hypothesis keeps emitting
+labels until it emits blank, which finishes it for that timestep, or until ``max-labels-per-timeframe`` labels have
+been emitted.
+
+Order of operations for one timestep:
+
+#. Start with the beam of the previous timestep as the hypotheses that can still emit labels (*inner* hypotheses).
+#. Repeat until no inner hypotheses remain:
+
+   #. Score the inner hypotheses with the first label scorer.
+   #. Extend them with blank, score these extensions with the remaining label scorers and add them to the
+      hypotheses finished in this timestep (*outer* hypotheses). Recombine the outer hypotheses.
+   #. Unless ``max-labels-per-timeframe`` labels have been emitted, extend the inner hypotheses with every non-blank
+      label, score and prune these extensions with all label scorers, prune them with ``pre-llm-score-threshold``
+      and ``pre-llm-max-beam-size``, and score the words they finish with the LLM. The extensions become the new
+      inner hypotheses, except those already worse than the ``max-beam-size``-th best outer hypothesis.
+#. Prune the outer hypotheses with the ``score-threshold`` and ``max-beam-size`` of the last label scorer, both on
+   the length-normalized score. They become the beam of the next timestep.
+
+Within a timestep, pruning compares raw scores. Only words finished by a non-blank label are scored, so all LLM
+requests of a symbol step are sent in one batch. The label scorers should only advance their time on blank, e.g.
+with ``vertical-label-transition = true`` where available.
+
+Parameters:
+
+* ``max-beam-size``, ``score-threshold``, ``num-histogram-bins``, ``cache-cleanup-interval``,
+  ``maximum-stable-delay``, ``maximum-stable-delay-pruning-interval``: as for ``lexiconfree-timesync-beam-search``.
+* ``pre-llm-max-beam-size``, ``pre-llm-score-threshold``, ``word-piece-convention``, ``word-piece-marker``,
+  ``llm-scale``, ``word-penalty`` and the ``llm`` selection: as for ``llm-timesync-beam-search``, with the
+  pre-LLM pruning applied per symbol step.
+* ``max-labels-per-timeframe`` (int): maximum number of non-blank labels a hypothesis can emit within one timestep.
+  Default ``10``.
+* ``length-norm-scale`` (float): exponent of the length normalization ``score / length^length-norm-scale`` used by
+  the pruning at the end of each timestep and to select the best hypothesis. Default ``0``.
+* ``blank-label-index`` (int): required, inferred from a lemma with ``special="blank"`` if unset.
+* ``sentence-end-label-index`` (int): inferred from ``special="sentence-end"``/``"sentence-boundary"`` if unset.
+  The sentence-end label is scored like any other label and only marks the hypotheses that emitted it; at the
+  segment end only those are kept. The LLM's sentence-end tokens are scored at the segment end either way.
+* ``sentence-end-fall-back`` (bool): if no hypothesis emitted the sentence-end label, keep the beam as it is instead
+  of producing an empty hypothesis. Default ``true``.
+* ``recombination-mode`` (``off``/``sum``/``viterbi``): recombine hypotheses with equal label scorer states, last
+  label, LLM history and pending word, either by summing their probabilities (only for equal label sequences) or by
+  keeping the better one. Default ``sum``.
+* ``collapse-repeated-labels`` (bool): as for ``lexiconfree-timesync-beam-search``. Default ``false``.
+
+The ``statistics`` channel reports the time of the blank and label extensions, the pre-LLM pruning, the LLM phase
+split into word assembly and word scoring, building the inner hypotheses, recombination, beam pruning and cleanup,
+and per-timestep statistics on the number of symbol steps, inner and outer hypotheses and finished words.
+
+.. code-block:: ini
+
+    [*.search-algorithm]
+    type                     = llm-rnnt-timesync-beam-search
+    max-beam-size            = 32
+    score-threshold          = 14.0
+    blank-label-index        = 0
+    max-labels-per-timeframe = 10
+    llm-scale                = 0.3
+
+    [*.search-algorithm.llm]
+    type                     = huggingface
+    model                    = Qwen/Qwen2.5-0.5B
 
 Search tree types
 ^^^^^^^^^^^^^^^^^

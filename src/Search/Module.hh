@@ -19,7 +19,7 @@
 #include <Core/Singleton.hh>
 #include "SearchV2.hh"
 
-#include "LlmTimesyncBeamSearch/LlmScorer.hh"
+#include "Llm/LlmScorer.hh"
 #include "TreeBuilder.hh"
 
 namespace Search {
@@ -48,7 +48,8 @@ enum SearchTypeV2 {
     LexiconfreeTimesyncBeamSearchType,
     TreeLabelsyncBeamSearchType,
     TreeTimesyncBeamSearchType,
-    LlmTimesyncBeamSearchType
+    LlmTimesyncBeamSearchType,
+    LlmRnntTimesyncBeamSearchType
 };
 
 class Module_ {

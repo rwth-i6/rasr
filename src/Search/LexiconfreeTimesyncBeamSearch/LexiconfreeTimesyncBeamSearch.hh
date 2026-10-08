@@ -49,6 +49,7 @@ public:
     static const Core::ParameterInt         paramSilenceLabelIndex;
     static const Core::ParameterInt         paramSentenceEndLabelIndex;
     static const Core::ParameterBool        paramCollapseRepeatedLabels;
+    static const Core::ParameterInt         paramMaxExtensionsPerHyp;
     static const Core::ParameterInt         paramCacheCleanupInterval;
     static const Core::ParameterInt         paramMaximumStableDelay;
     static const Core::ParameterInt         paramMaximumStableDelayPruningInterval;
@@ -129,6 +130,7 @@ private:
     size_t              maximumStableDelay_;
     size_t              maximumStableDelayPruningInterval_;
     bool                recombinationEnabled_;
+    size_t              maxExtensionsPerHyp_;
     // Per-segment timing and statistics. Defaults to the standard log target.
     mutable Core::XmlChannel statisticsChannel_;
     // Statistics for every search step. Disabled unless a target is configured.
@@ -146,6 +148,9 @@ private:
     std::vector<LabelHypothesis>       newBeam_;
     std::vector<Nn::ScoringContextRef> scoringContexts_;
     std::vector<LabelHypothesis>       tempHypotheses_;
+
+    // Tokens selected by `selectTokens`
+    std::vector<Nn::LabelIndex> selectedTokens_;
 
     // Scores and timeframes read out of the accessors of the current label scorer, indexed like
     // `scoringContexts_`
@@ -226,6 +231,13 @@ private:
      * pre-pruning by score while they are created.
      */
     void createExtensions(std::vector<std::optional<Nn::ScoreAccessorRef>> const& scoreAccessors);
+
+    /*
+     * Limit the tokens to extend a hypothesis with to the `maxExtensionsPerHyp_` tokens with the best dense score,
+     * plus the tokens that can't be ranked by it (no dense score or transition not scored). The tokens are stored
+     * in `selectedTokens_`. Returns false if the tokens can't or need not be limited, i.e. all tokens should be extended.
+     */
+    bool selectTokens(std::optional<Nn::DenseScoreSpan> const& denseScores, Nn::LabelIndex currentToken);
 
     /*
      * Add the scores of label scorer `scorerIdx` to the existing extension candidates.

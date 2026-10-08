@@ -192,6 +192,12 @@ an optional blank label (for CTC/transducer) and optional silence and sentence-e
   with exactly one value per configured label scorer, fewer values than label scorers is an error.
 * ``score-threshold`` (float list): prune hypotheses whose score is worse than the current best by more than
   this amount. Also applied once per label scorer. Default: unset, i.e. no score-based pruning is applied.
+* ``max-extensions-per-hyp`` (int): maximum number of extensions created per hypothesis. Only the labels with the best
+  scores of the first label scorer are extended. This saves time for large vocabularies if only ``max-beam-size``
+  pruning and no ``score-threshold`` is used. Has no effect if the first label scorer does not provide dense scores.
+  Default: the first ``max-beam-size`` if the first ``score-threshold`` is unset, otherwise no limit. The default does
+  not change the best hypotheses and their scores, but lattices can become sparser. Smaller values make the search
+  inexact.
 * ``num-histogram-bins`` (int): number of bins used for histogram pruning (minor effect on results/speed). Default ``100``.
 * ``blank-label-index`` (int): lexicon index of the blank label. Inferred automatically from a lemma with
   ``special="blank"`` if present; if neither is set, blank handling is disabled. Default: disabled.
@@ -249,7 +255,8 @@ second writer on the same file with its own file offset, which corrupts the outp
 Order of operations for one time-synchronous decoding step, assuming two label scorers ``L_1`` and ``L_2`` with
 ``max-beam-size = b_1 b_2`` and ``score-threshold = s_1 s_2``:
 
-#. From the current beam, create one extension candidate for each hypothesis and vocab token (excluding sentence-end).
+#. From the current beam, create one extension candidate for each hypothesis and vocab token (excluding sentence-end),
+   limited to the best ``max-extensions-per-hyp`` tokens per hypothesis according to ``L_1``.
 #. Add the ``L_1`` score contribution for each extension.
 #. Prune extensions with score-threshold ``s_1`` and max-beam-size ``b_1``.
 #. Add the ``L_2`` score contribution to the surviving extensions.
@@ -284,6 +291,9 @@ models.
   expressed in un-normalized score units, regardless of ``length-norm-scale``. When comparing hypotheses of
   different lengths (e.g. active vs. already-terminated ones), the threshold is converted into the equivalent
   length-normalized-score gap using the current best hypothesis's length.
+* ``max-extensions-per-hyp`` (int): same meaning and default as for ``lexiconfree-timesync-beam-search`` above, but
+  for the extensions of each active hypothesis. With ``pruning-strategy-type = separate``, the sentence-end extension is
+  always created in addition, because terminated extensions are pruned in their own pool.
 * ``sentence-end-label-index`` (int): lexicon index of the sentence-end label that terminates a hypothesis.
   Inferred from ``special="sentence-end"``/``special="sentence-boundary"`` if unset.
 * ``length-norm-scale`` (float): exponent for length normalization; scaled scores are computed as
@@ -310,7 +320,8 @@ models.
 Order of operations for one label-synchronous decoding step, assuming two label scorers ``L_1`` and ``L_2`` with
 ``max-beam-size = b_1 b_2`` and ``score-threshold = s_1 s_2``:
 
-#. From the current beam, create one extension candidate for each active hypothesis and vocab token.
+#. From the current beam, create one extension candidate for each active hypothesis and vocab token, limited to the
+   best ``max-extensions-per-hyp`` tokens per hypothesis according to ``L_1``.
 #. Add the ``L_1`` score contribution for each extension.
 #. Prune extensions with score-threshold ``s_1`` and max-beam-size ``b_1`` according to ``pruning-strategy-type``.
 #. Add the ``L_2`` score contribution to the surviving extensions.

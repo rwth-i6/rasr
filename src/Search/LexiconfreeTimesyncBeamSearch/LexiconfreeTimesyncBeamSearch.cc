@@ -568,7 +568,8 @@ bool LexiconfreeTimesyncBeamSearch::selectTokens(std::optional<Nn::DenseScoreSpa
         if (tokenIdx == sentenceEndLabelIndex_) {
             continue;
         }
-        // The dense scores are only part of the extension score if the transition is scored, otherwise the token can't be ranked
+        // The dense score is only part of the extension score if the transition is scored. Otherwise, the token can't
+        // be ranked and is always kept because dropping it would change the results.
         if (not labelScorers_.front()->scoresTransition(inferTransitionType(currentToken, tokenIdx))) {
             selectedTokens_.push_back(tokenIdx);
             continue;
@@ -591,7 +592,7 @@ bool LexiconfreeTimesyncBeamSearch::selectTokens(std::optional<Nn::DenseScoreSpa
         selectedTokens_.push_back(entry.second);
     }
 
-    // Tokens without dense score are always kept
+    // Tokens without dense score are always kept because dropping them would change the results
     for (Nn::LabelIndex tokenIdx = numScorableTokens; tokenIdx < numTokens; ++tokenIdx) {
         selectedTokens_.push_back(tokenIdx);
     }

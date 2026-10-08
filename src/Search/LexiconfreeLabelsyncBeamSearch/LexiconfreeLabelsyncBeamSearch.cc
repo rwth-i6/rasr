@@ -670,7 +670,8 @@ bool LexiconfreeLabelsyncBeamSearch::selectTokens(std::optional<Nn::DenseScoreSp
         return false;
     }
 
-    // The dense scores are only part of the extension score if the transition is scored, otherwise the token can't be ranked
+    // The dense score is only part of the extension score if the transition is scored. Otherwise, the tokens can't
+    // be ranked, so we don't limit them. All tokens except sentence-end have the same transition type.
     auto const& labelScorer    = labelScorers_.front();
     auto        transitionType = currentToken == Nn::invalidLabelIndex ? Nn::TransitionType::INITIAL_LABEL : Nn::TransitionType::LABEL_TO_LABEL;
     if (not labelScorer->scoresTransition(transitionType)) {
@@ -683,7 +684,8 @@ bool LexiconfreeLabelsyncBeamSearch::selectTokens(std::optional<Nn::DenseScoreSp
     selectedTokens_.clear();
 
     for (Nn::LabelIndex tokenIdx = 0ul; tokenIdx < numScorableTokens; ++tokenIdx) {
-        // With separate pruning, sentence-end has its own pool and is always kept
+        // Sentence-end is always kept if it has its own pruning pool (separate pruning) or if its transition is not
+        // scored, so it can't be ranked
         if (tokenIdx == sentenceEndLabelIndex_ and (pruningStrategyType_ == PruningStrategySeparate or not labelScorer->scoresTransition(Nn::TransitionType::SENTENCE_END))) {
             selectedTokens_.push_back(tokenIdx);
             continue;
@@ -706,7 +708,7 @@ bool LexiconfreeLabelsyncBeamSearch::selectTokens(std::optional<Nn::DenseScoreSp
         selectedTokens_.push_back(entry.second);
     }
 
-    // Tokens without dense score are always kept
+    // Tokens without dense score are always kept because dropping them would change the results
     for (Nn::LabelIndex tokenIdx = numScorableTokens; tokenIdx < numTokens; ++tokenIdx) {
         selectedTokens_.push_back(tokenIdx);
     }

@@ -13,11 +13,13 @@
  *  limitations under the License.
  */
 #include "RecognizerV2.hh"
+
 #include <Core/XmlStream.hh>
 #include <Fsa/Sort.hh>
 #include <Fsa/Types.hh>
 #include <Speech/ModelCombination.hh>
 #include <chrono>
+#include <unordered_set>
 #include "LatticeHandler.hh"
 #include "Module.hh"
 
@@ -112,6 +114,13 @@ void RecognizerNodeV2::work() {
 
 ConstLatticeRef convertSearchLatticeToFlf(LexiconRef lexicon, Core::Ref<const Search::LatticeAdaptor> latticeAdaptor, Flf::LatticeHandler const* handler, std::string segmentName, f32 lmScale) {
     verify(handler);
+    // The LM scores of the search lattice are scaled. They are divided by the scale here and the scale is kept in the
+    // semiring instead. Besides the LM scores, the LM part of the search lattice also holds everything else a search
+    // adds at word ends (e.g. word or unknown-word penalties). With a scale of 0 it cannot be divided, and dropping it
+    // would also drop those, so the LM part is kept as it is with a scale of 1 then.
+    if (lmScale == 0.0) {
+        lmScale = 1.0;
+    }
     auto semiring = Semiring::create(Fsa::SemiringTypeTropical, 2);
     semiring->setKey(0, "am");
     semiring->setScale(0, 1.0);
@@ -145,6 +154,30 @@ ConstLatticeRef convertSearchLatticeToFlf(LexiconRef lexicon, Core::Ref<const Se
 
     Time timeOffset = (*boundaries)[amFsa->initialStateId()].time();
 
+    // The lattice gets a sentence-end arc into its final state. Searches which hypothesize the sentence end themselves
+    // already have one on every path, so for states entered by a sentence-end arc the arc into the final state stays
+    // epsilon instead of repeating it.
+    std::unordered_set<Fsa::StateId> afterSentenceEnd;
+    if (sentenceEndLabel != Fsa::Epsilon) {
+        std::unordered_set<Fsa::StateId> visited = {amFsa->initialStateId()};
+        Fsa::Stack<Fsa::StateId>         toVisit;
+        toVisit.push_back(amFsa->initialStateId());
+        while (not toVisit.isEmpty()) {
+            Fsa::ConstStateRef state = amFsa->getState(toVisit.pop());
+            for (Fsa::State::const_iterator arc = state->begin(); arc != state->end(); ++arc) {
+                if (arc->input() == sentenceEndLabel) {
+                    afterSentenceEnd.insert(arc->target());
+                }
+                if (visited.insert(arc->target()).second) {
+                    toVisit.push(arc->target());
+                }
+            }
+        }
+    }
+    auto finalArcLabel = [&](Fsa::StateId stateId) {
+        return afterSentenceEnd.count(stateId) ? Fsa::Epsilon : sentenceEndLabel;
+    };
+
     Fsa::Stack<Fsa::StateId>   stateStack;
     Core::Vector<Fsa::StateId> stateIdMap(amFsa->initialStateId() + 1, Fsa::InvalidStateId);
     stateIdMap[amFsa->initialStateId()] = 0;
@@ -164,13 +197,8 @@ ConstLatticeRef convertSearchLatticeToFlf(LexiconRef lexicon, Core::Ref<const Se
         if (amFsaState->isFinal()) {
             auto scores = semiring->create();
             scores->set(0, amFsaState->weight());
-            if (lmScale) {
-                scores->set(1, static_cast<Score>(lmFsaState->weight()) / lmScale);
-            }
-            else {
-                scores->set(1, 0.0);
-            }
-            flfState->newArc(1, scores, sentenceEndLabel);
+            scores->set(1, static_cast<Score>(lmFsaState->weight()) / lmScale);
+            flfState->newArc(1, scores, finalArcLabel(stateId));
             finalTime = std::max(finalTime, boundary.time() - timeOffset);
         }
         for (Fsa::State::const_iterator amArc = amFsaState->begin(), lmArc = lmFsaState->begin(); (amArc != amFsaState->end()) && (lmArc != lmFsaState->end()); ++amArc, ++lmArc) {
@@ -180,24 +208,16 @@ ConstLatticeRef convertSearchLatticeToFlf(LexiconRef lexicon, Core::Ref<const Se
                 stateStack.push(amArc->target());
             }
             Fsa::ConstStateRef targetAmState = amFsa->getState(amArc->target());
-            Fsa::ConstStateRef targetLmState = amFsa->getState(lmArc->target());
+            Fsa::ConstStateRef targetLmState = lmFsa->getState(lmArc->target());
 
             auto scores = semiring->create();
             scores->set(0, amArc->weight());
-
-            if (lmScale) {
-                scores->set(1, static_cast<Score>(lmArc->weight()) / lmScale);
-            }
-            else {
-                scores->set(1, 0);
-            }
+            scores->set(1, static_cast<Score>(lmArc->weight()) / lmScale);
 
             if (targetAmState->isFinal() and targetLmState->isFinal() and amArc->input() == Fsa::Epsilon) {
                 scores->add(0, Score(targetAmState->weight()));
-                if (lmScale) {
-                    scores->add(1, Score(targetLmState->weight()) / lmScale);
-                }
-                flfState->newArc(1, scores, sentenceEndLabel);
+                scores->add(1, Score(targetLmState->weight()) / lmScale);
+                flfState->newArc(1, scores, finalArcLabel(stateId));
             }
             else {
                 flfState->newArc(stateIdMap[amArc->target()], scores, amArc->input());

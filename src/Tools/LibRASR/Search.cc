@@ -188,7 +188,9 @@ void bindSearchAlgorithm(py::module_& module) {
             &SearchAlgorithm::recognizeSegment,
             py::arg("features"),
             py::arg("name") = "",
-            "Convenience function to start a segment, pass all the features as a numpy array of shape [T, F] or [1, T, F], finish the segment, and return the recognition result.");
+            "Convenience function to start a segment, pass all the features as a numpy array of shape [T, F] or [1, T, F], finish the segment, and return the recognition result.\n\n"
+            "The optional `name` is only used to identify the segment in the log, as in\n"
+            "`enter_segment()`.");
 
     pySearchAlgorithm.def(
             "recognize_segment_n_best",
@@ -196,7 +198,9 @@ void bindSearchAlgorithm(py::module_& module) {
             py::arg("features"),
             py::arg("n"),
             py::arg("name") = "",
-            "Convenience function to start a segment, pass all the features as a numpy array of shape [T, F] or [1, T, F], finish the segment, and return a n-best list of results.");
+            "Convenience function to start a segment, pass all the features as a numpy array of shape [T, F] or [1, T, F], finish the segment, and return a n-best list of results.\n\n"
+            "The optional `name` is only used to identify the segment in the log, as in\n"
+            "`enter_segment()`.");
 
     pySearchAlgorithm.def(
             "model_combination",

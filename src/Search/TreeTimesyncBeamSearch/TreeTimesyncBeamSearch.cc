@@ -302,7 +302,7 @@ TreeTimesyncBeamSearch::TreeTimesyncBeamSearch(Core::Configuration const& config
           initializationTime_(),
           featureProcessingTime_(),
           numInputHyps_("num-input-hyps"),
-          numWithinWordExtensionsBeforeFirstPruning_("num-within-word-extensions-before-first-pruning"),
+          numWithinWordExtensionsAfterPrePruning_("num-within-word-extensions-after-pre-pruning"),
           numWithinWordHypsAfterRecombination_("num-within-word-hyps-after-recombination"),
           numWithinWordHypsAfterPruning_("num-within-word-hyps-after-pruning"),
           numWordEndExtensionsBeforePruning_("num-word-end-extensions-before-pruning"),
@@ -328,14 +328,6 @@ TreeTimesyncBeamSearch::TreeTimesyncBeamSearch(Core::Configuration const& config
         log() << "Use absolute word-end score-threshold of " << wordEndScoreThreshold_ * scoreThresholds_.back() << "; computed relative to within-word threshold " << scoreThresholds_.back() << " with factor " << wordEndScoreThreshold_;
         wordEndScoreThreshold_ *= scoreThresholds_.back();
     }
-
-    // All entries share one name; the scorer is written as an attribute
-    numWithinWordHypsAfterIntermediatePruning_.resize(maxBeamSizes_.size(), Core::Statistics<u32>("num-within-word-hyps-after-intermediate-pruning"));
-
-    scoreAndPruneExtensionsTimes_.resize(maxBeamSizes_.size());
-    scoringTimes_.resize(maxBeamSizes_.size());
-    scoreReadoutTimes_.resize(maxBeamSizes_.size());
-    intermediatePruningTimes_.resize(maxBeamSizes_.size());
 }
 
 Speech::ModelCombination::Mode TreeTimesyncBeamSearch::requiredModelCombination() const {
@@ -359,22 +351,13 @@ bool TreeTimesyncBeamSearch::setModelCombination(Speech::ModelCombination const&
         warning() << "Number of label scorers (" << labelScorers_.size() << ") is less than number of configured max beam sizes (" << maxBeamSizes_.size() << ")";
     }
 
-    // Per-scorer timers and statistics are indexed by label scorer as well
-    if (numWithinWordHypsAfterIntermediatePruning_.size() < labelScorers_.size()) {
-        numWithinWordHypsAfterIntermediatePruning_.resize(labelScorers_.size(), Core::Statistics<u32>("num-within-word-hyps-after-intermediate-pruning"));
-    }
-    if (scoreAndPruneExtensionsTimes_.size() < labelScorers_.size()) {
-        scoreAndPruneExtensionsTimes_.resize(labelScorers_.size());
-    }
-    if (scoringTimes_.size() < labelScorers_.size()) {
-        scoringTimes_.resize(labelScorers_.size());
-    }
-    if (scoreReadoutTimes_.size() < labelScorers_.size()) {
-        scoreReadoutTimes_.resize(labelScorers_.size());
-    }
-    if (intermediatePruningTimes_.size() < labelScorers_.size()) {
-        intermediatePruningTimes_.resize(labelScorers_.size());
-    }
+    // Per-scorer timers and statistics are indexed by label scorer. All statistics entries
+    // share one name; the scorer is written as an attribute.
+    numWithinWordHypsAfterIntermediatePruning_.resize(labelScorers_.size(), Core::Statistics<u32>("num-within-word-hyps-after-intermediate-pruning"));
+    scoreAndPruneExtensionsTimes_.resize(labelScorers_.size());
+    scoringTimes_.resize(labelScorers_.size());
+    scoreReadoutTimes_.resize(labelScorers_.size());
+    intermediatePruningTimes_.resize(labelScorers_.size());
 
     blankLemma_    = lexicon_->specialLemma("blank");
     silenceLemma_  = lexicon_->specialLemma("silence");
@@ -495,6 +478,7 @@ void TreeTimesyncBeamSearch::enterSegment(Bliss::SpeechSegment const* segment) {
             timer.reset();
         }
     }
+    withinWordLmLookaheadTime_.reset();
     buildWithinWordHypsTime_.reset();
     recombinationTime_.reset();
     beamPruningTime_.reset();
@@ -503,7 +487,7 @@ void TreeTimesyncBeamSearch::enterSegment(Bliss::SpeechSegment const* segment) {
     wordEndScorePruningTime_.reset();
     wordEndHypBuildingTime_.reset();
     lmTime_.reset();
-    lmLookaheadTime_.reset();
+    wordEndLmLookaheadTime_.reset();
     wordEndRecombinationTime_.reset();
     wordEndBeamPruningTime_.reset();
     finalizeTime_.reset();
@@ -511,7 +495,7 @@ void TreeTimesyncBeamSearch::enterSegment(Bliss::SpeechSegment const* segment) {
         stat.clear();
     }
     numInputHyps_.clear();
-    numWithinWordExtensionsBeforeFirstPruning_.clear();
+    numWithinWordExtensionsAfterPrePruning_.clear();
     numWithinWordHypsAfterRecombination_.clear();
     numWithinWordHypsAfterPruning_.clear();
     numWordEndExtensionsBeforePruning_.clear();
@@ -541,8 +525,9 @@ void TreeTimesyncBeamSearch::enterSegment(Bliss::SpeechSegment const* segment) {
         beam_.front().lookaheadHistory = lookaheadLm_->startHistory();
     }
 
-    currentSearchStep_ = 0ul;
-    finishedSegment_   = false;
+    currentSearchStep_  = 0ul;
+    stepStatisticsOpen_ = false;
+    finishedSegment_    = false;
 
     initializationTime_.stop();
     if (segment != nullptr) {
@@ -646,16 +631,10 @@ bool TreeTimesyncBeamSearch::decodeStep() {
 
     recognitionTime_.start();
 
-    if (stepwiseStatisticsChannel_.isOpen()) {
-        stepwiseStatisticsChannel_ << Core::XmlOpen("search-step-stats") + Core::XmlAttribute("step", currentSearchStep_);
-    }
-
     bool hasExtensions = scoreAndPruneExtensions();
 
     if (not hasExtensions) {
-        if (stepwiseStatisticsChannel_.isOpen()) {
-            stepwiseStatisticsChannel_ << Core::XmlClose("search-step-stats");
-        }
+        closeStepStatistics();
         recognitionTime_.stop();
         return false;
     }
@@ -794,9 +773,11 @@ void TreeTimesyncBeamSearch::createWithinWordExtensions(std::vector<std::optiona
 
             // Add the LM lookahead score to the extensions' scores for pruning
             if (enableLmLookahead_) {
+                withinWordLmLookaheadTime_.start();
                 auto lookaheadScore                         = getLmLookaheadScore(withinWordExtensions_.back());
                 withinWordExtensions_.back().lookaheadScore = lookaheadScore;
                 withinWordExtensions_.back().score += lookaheadScore;
+                withinWordLmLookaheadTime_.stop();
             }
         }
     }
@@ -856,10 +837,8 @@ bool TreeTimesyncBeamSearch::scoreAndPruneExtensions() {
         scoringContexts_.push_back(hyp.scoringContexts.front());
     }
 
-    numInputHyps_ += beam_.size();
-    if (stepwiseStatisticsChannel_.isOpen()) {
-        stepwiseStatisticsChannel_ << Core::XmlFull("num-input-hyps", beam_.size());
-    }
+    // The number of hypotheses handed to the first label scorer
+    size_t const numScoredHyps = scoringContexts_.size();
 
     for (size_t scorerIdx = 0ul; scorerIdx < labelScorers_.size(); ++scorerIdx) {
         Core::StopWatch::Scope scoreAndPruneTimer(scoreAndPruneExtensionsTimes_[scorerIdx]);
@@ -889,9 +868,14 @@ bool TreeTimesyncBeamSearch::scoreAndPruneExtensions() {
         }
 
         if (scorerIdx == 0ul) {
-            numWithinWordExtensionsBeforeFirstPruning_ += withinWordExtensions_.size();
+            // Counted only now, so that a step which can't be scored yet leaves no trace in the
+            // statistics and doesn't claim a step number
+            openStepStatistics();
+            numInputHyps_ += numScoredHyps;
+            numWithinWordExtensionsAfterPrePruning_ += withinWordExtensions_.size();
             if (stepwiseStatisticsChannel_.isOpen()) {
-                stepwiseStatisticsChannel_ << Core::XmlFull("num-within-word-extensions-before-first-pruning", withinWordExtensions_.size());
+                stepwiseStatisticsChannel_ << Core::XmlFull("num-input-hyps", numScoredHyps);
+                stepwiseStatisticsChannel_ << Core::XmlFull("num-within-word-extensions-after-pre-pruning", withinWordExtensions_.size());
             }
         }
 
@@ -1083,7 +1067,7 @@ void TreeTimesyncBeamSearch::buildWordEndHypotheses() {
         Score                                             newLookaheadBackOff = baseHyp.lookaheadBackOff;
 
         if (enableLmLookahead_) {
-            lmLookaheadTime_.start();
+            wordEndLmLookaheadTime_.start();
             Lm::extendHistoryByLemma(lookaheadLm_, extension.pron->lemma(), newLookaheadHistory);
 
             if (!(newLookaheadHistory == baseHyp.lookaheadHistory)) {
@@ -1092,7 +1076,7 @@ void TreeTimesyncBeamSearch::buildWordEndHypotheses() {
                 getLmLookahead(newLookahead, newLookaheadHistory);
                 newLookaheadBackOff = 0.0;
             }
-            lmLookaheadTime_.stop();
+            wordEndLmLookaheadTime_.stop();
         }
 
         // Extend the scoring contexts by the last syntactic token, the preceding ones have been applied before pruning
@@ -1163,6 +1147,24 @@ void TreeTimesyncBeamSearch::expandAndPruneWordEndHypotheses() {
     }
 }
 
+void TreeTimesyncBeamSearch::openStepStatistics() {
+    if (not stepwiseStatisticsChannel_.isOpen() or stepStatisticsOpen_) {
+        return;
+    }
+
+    stepwiseStatisticsChannel_ << Core::XmlOpen("search-step-stats") + Core::XmlAttribute("step", currentSearchStep_);
+    stepStatisticsOpen_ = true;
+}
+
+void TreeTimesyncBeamSearch::closeStepStatistics() {
+    if (not stepStatisticsOpen_) {
+        return;
+    }
+
+    stepwiseStatisticsChannel_ << Core::XmlClose("search-step-stats");
+    stepStatisticsOpen_ = false;
+}
+
 void TreeTimesyncBeamSearch::logStepStatistics() {
     if (debugChannel_.isOpen()) {
         std::stringstream ss;
@@ -1173,21 +1175,25 @@ void TreeTimesyncBeamSearch::logStepStatistics() {
         debugChannel_ << ss.str();
     }
 
-    std::vector<Lm::History> seenHistories;
-    for (auto const& hyp : beam_) {
-        if (std::find(seenHistories.begin(), seenHistories.end(), hyp.lmHistory) == seenHistories.end()) {
-            seenHistories.push_back(hyp.lmHistory);
+    // Counting the distinct LM histories is only needed for the statistics themselves
+    if (statisticsChannel_.isOpen() or stepwiseStatisticsChannel_.isOpen()) {
+        activeTreeHistories_.clear();
+        for (auto const& hyp : beam_) {
+            if (std::find(activeTreeHistories_.begin(), activeTreeHistories_.end(), hyp.lmHistory) == activeTreeHistories_.end()) {
+                activeTreeHistories_.push_back(hyp.lmHistory);
+            }
         }
+        numActiveTrees_ += activeTreeHistories_.size();
     }
-    numActiveTrees_ += seenHistories.size();
 
     if (stepwiseStatisticsChannel_.isOpen()) {
         stepwiseStatisticsChannel_ << Core::XmlFull("active-hyps", beam_.size());
-        stepwiseStatisticsChannel_ << Core::XmlFull("num-active-trees", seenHistories.size());
+        stepwiseStatisticsChannel_ << Core::XmlFull("num-active-trees", activeTreeHistories_.size());
         stepwiseStatisticsChannel_ << Core::XmlFull("best-hyp-score", getBestHypothesis().score);
         stepwiseStatisticsChannel_ << Core::XmlFull("worst-hyp-score", getWorstHypothesis().score);
-        stepwiseStatisticsChannel_ << Core::XmlClose("search-step-stats");
     }
+
+    closeStepStatistics();
 }
 
 TreeTimesyncBeamSearch::LabelHypothesis const& TreeTimesyncBeamSearch::getBestHypothesis() const {
@@ -1214,7 +1220,12 @@ void TreeTimesyncBeamSearch::logOwnStatistics() const {
     for (size_t i = 0ul; i < scoreAndPruneExtensionsTimes_.size(); ++i) {
         statisticsChannel_ << Core::XmlOpen("score-and-prune-extensions-time") + Core::XmlAttribute("scorer", i + 1) + Core::XmlAttribute("total", scoreAndPruneExtensionsTimes_[i].elapsedMilliseconds());
         statisticsChannel_ << Core::XmlFull("scoring-time", scoringTimes_[i].elapsedMilliseconds());
-        statisticsChannel_ << Core::XmlFull("score-readout-time", scoreReadoutTimes_[i].elapsedMilliseconds());
+        statisticsChannel_ << Core::XmlOpen("score-readout-time") + Core::XmlAttribute("total", scoreReadoutTimes_[i].elapsedMilliseconds());
+        if (i == 0ul) {
+            // Only the first scorer's readout creates the extensions and scores their lookahead
+            statisticsChannel_ << Core::XmlFull("lm-lookahead-time", withinWordLmLookaheadTime_.elapsedMilliseconds());
+        }
+        statisticsChannel_ << Core::XmlClose("score-readout-time");
         statisticsChannel_ << Core::XmlFull("intermediate-pruning-time", intermediatePruningTimes_[i].elapsedMilliseconds());
         statisticsChannel_ << Core::XmlClose("score-and-prune-extensions-time");
     }
@@ -1225,7 +1236,7 @@ void TreeTimesyncBeamSearch::logOwnStatistics() const {
     statisticsChannel_ << Core::XmlClose("word-end-extension-time");
     statisticsChannel_ << Core::XmlFull("word-end-score-pruning-time", wordEndScorePruningTime_.elapsedMilliseconds());
     statisticsChannel_ << Core::XmlOpen("word-end-hyp-building-time") + Core::XmlAttribute("total", wordEndHypBuildingTime_.elapsedMilliseconds());
-    statisticsChannel_ << Core::XmlFull("lm-lookahead-time", lmLookaheadTime_.elapsedMilliseconds());
+    statisticsChannel_ << Core::XmlFull("lm-lookahead-time", wordEndLmLookaheadTime_.elapsedMilliseconds());
     statisticsChannel_ << Core::XmlClose("word-end-hyp-building-time");
     statisticsChannel_ << Core::XmlFull("word-end-recombination-time", wordEndRecombinationTime_.elapsedMilliseconds());
     statisticsChannel_ << Core::XmlFull("word-end-beam-pruning-time", wordEndBeamPruningTime_.elapsedMilliseconds());
@@ -1239,7 +1250,7 @@ void TreeTimesyncBeamSearch::logOwnStatistics() const {
     statisticsChannel_ << Core::XmlClose("timing-statistics");
     statisticsChannel_ << Core::XmlOpen("search-statistics");
     numInputHyps_.write(statisticsChannel_);
-    numWithinWordExtensionsBeforeFirstPruning_.write(statisticsChannel_);
+    numWithinWordExtensionsAfterPrePruning_.write(statisticsChannel_);
     for (size_t i = 0ul; i < numWithinWordHypsAfterIntermediatePruning_.size(); ++i) {
         numWithinWordHypsAfterIntermediatePruning_[i].write(statisticsChannel_, {Core::XmlAttribute("scorer", i + 1)});
     }

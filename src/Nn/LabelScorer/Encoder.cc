@@ -35,6 +35,7 @@ void Encoder::logStatistics() const {
     statisticsChannel_ << Core::XmlOpen("encode-time") + Core::XmlAttribute("unit", "milliseconds") + Core::XmlAttribute("total", encodeTime_.elapsedMilliseconds());
     logEncodeBreakdown();
     statisticsChannel_ << Core::XmlClose("encode-time");
+    logAdditionalStatistics();
     statisticsChannel_ << Core::XmlFull("num-input-features", numInputFeatures_);
     statisticsChannel_ << Core::XmlClose("encoder-statistics");
 }

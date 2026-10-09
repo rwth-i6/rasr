@@ -114,6 +114,8 @@ private:
     void logScoringBreakdown() const override;
 
     Core::StopWatch onnxSessionTime_;
+    // Merging the prefix states into the batched session inputs and splitting the outputs back up
+    Core::StopWatch stateMarshallingTime_;
     Core::StopWatch contextPreparationTime_;
 
     Core::FIFOCache<StateManagedOnnxScoringContextRef, std::shared_ptr<std::vector<Score>>, ScoringContextHash, ScoringContextEq> scoreCache_;

@@ -156,11 +156,12 @@ private:
     Nn::LabelIndex      sentenceEndLabelIndex_;
     Core::Choice::Value pruningStrategyType_;
     bool                recombinationEnabled_;
-    // Per-segment timing and statistics. Defaults to the standard log target.
+    // Timing and beam statistics, per segment and per search step. Both are disabled unless a
+    // target is configured.
     mutable Core::XmlChannel statisticsChannel_;
-    // Statistics for every search step. Disabled unless a target is configured.
-    Core::XmlChannel stepwiseStatisticsChannel_;
-    size_t           cacheCleanupInterval_;
+    Core::XmlChannel         stepwiseStatisticsChannel_;
+    bool                     stepStatisticsOpen_ = false;
+    size_t                   cacheCleanupInterval_;
 
     Core::Channel debugChannel_;
 
@@ -197,7 +198,7 @@ private:
     Core::StopWatch              beamPruningTime_;
 
     Core::Statistics<u32>              numInputHyps_;
-    Core::Statistics<u32>              numExtensionsBeforeFirstPruning_;
+    Core::Statistics<u32>              numExtensionsAfterPrePruning_;
     std::vector<Core::Statistics<u32>> numHypsAfterIntermediatePruning_;
     Core::Statistics<u32>              numTerminatedHypsAfterScorePruning_;
     Core::Statistics<u32>              numTerminatedHypsAfterRecombination_;
@@ -269,6 +270,14 @@ private:
      * Populates `newBeam_`.
      */
     void buildNewBeamFromExtensions();
+
+    /*
+     * Open the per-step statistics element before the first statistic of a step is written, and
+     * close it again when the step ends. A step that can't be scored yet writes nothing, so it
+     * neither opens an element nor consumes a step number.
+     */
+    void openStepStatistics();
+    void closeStepStatistics();
 
     /*
      * Log the per-step statistics and debug output for the current beam.

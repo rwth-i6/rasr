@@ -200,10 +200,11 @@ private:
     bool                sentenceEndFallback_;
     Core::Choice::Value pruningStrategyType_;
     bool                recombinationEnabled_;
-    // Per-segment timing and statistics. Defaults to the standard log target.
+    // Timing and beam statistics, per segment and per search step. Both are disabled unless a
+    // target is configured.
     mutable Core::XmlChannel statisticsChannel_;
-    // Statistics for every search step. Disabled unless a target is configured.
-    Core::XmlChannel stepwiseStatisticsChannel_;
+    Core::XmlChannel         stepwiseStatisticsChannel_;
+    bool                     stepStatisticsOpen_ = false;
 
     std::vector<Core::Ref<Nn::LabelScorer>>        labelScorers_;
     Bliss::LexiconRef                              lexicon_;
@@ -269,7 +270,7 @@ private:
     Core::StopWatch finalizeTime_;
 
     Core::Statistics<u32>              numInputHyps_;
-    Core::Statistics<u32>              numWithinWordExtensionsBeforeFirstPruning_;
+    Core::Statistics<u32>              numWithinWordExtensionsAfterPrePruning_;
     std::vector<Core::Statistics<u32>> numWithinWordHypsAfterIntermediatePruning_;
     Core::Statistics<u32>              numTerminatedHypsAfterScorePruning_;
     Core::Statistics<u32>              numTerminatedHypsAfterRecombination_;
@@ -363,6 +364,14 @@ private:
      * them into `newBeam_`. Populates `wordEndHypotheses_`.
      */
     void buildWordEndHypotheses();
+
+    /*
+     * Open the per-step statistics element before the first statistic of a step is written, and
+     * close it again when the step ends. A step that can't be scored yet writes nothing, so it
+     * neither opens an element nor consumes a step number.
+     */
+    void openStepStatistics();
+    void closeStepStatistics();
 
     /*
      * Log the per-step statistics and debug output for the current beam.

@@ -213,7 +213,7 @@ LexiconfreeLabelsyncBeamSearch::LexiconfreeLabelsyncBeamSearch(Core::Configurati
           initializationTime_(),
           featureProcessingTime_(),
           numInputHyps_("num-input-hyps"),
-          numExtensionsBeforeFirstPruning_("num-extensions-before-first-pruning"),
+          numExtensionsAfterPrePruning_("num-extensions-after-pre-pruning"),
           numHypsAfterIntermediatePruning_(),
           numTerminatedHypsAfterScorePruning_("num-terminated-hyps-after-score-pruning"),
           numTerminatedHypsAfterRecombination_("num-terminated-hyps-after-recombination"),
@@ -236,14 +236,6 @@ LexiconfreeLabelsyncBeamSearch::LexiconfreeLabelsyncBeamSearch(Core::Configurati
     for (size_t i = 0; i < scoreThresholds_.size(); ++i) {
         useScorePruning_.push_back(scoreThresholds_[i] != Core::Type<Score>::max);
     }
-
-    // All entries share one name; the scorer is written as an attribute
-    numHypsAfterIntermediatePruning_.resize(maxBeamSizes_.size(), Core::Statistics<u32>("num-hyps-after-intermediate-pruning"));
-
-    scoreAndPruneExtensionsTimes_.resize(maxBeamSizes_.size());
-    scoringTimes_.resize(maxBeamSizes_.size());
-    scoreReadoutTimes_.resize(maxBeamSizes_.size());
-    intermediatePruningTimes_.resize(maxBeamSizes_.size());
 
     if (sentenceEndLabelIndex_ != Core::Type<s32>::max) {
         log() << "Use sentence-end label with index " << sentenceEndLabelIndex_;
@@ -289,22 +281,13 @@ bool LexiconfreeLabelsyncBeamSearch::setModelCombination(Speech::ModelCombinatio
         useScorePruning_.push_back(false);
     }
 
-    // Per-scorer timers and statistics are indexed by label scorer as well
-    if (numHypsAfterIntermediatePruning_.size() < labelScorers_.size()) {
-        numHypsAfterIntermediatePruning_.resize(labelScorers_.size(), Core::Statistics<u32>("num-hyps-after-intermediate-pruning"));
-    }
-    if (scoreAndPruneExtensionsTimes_.size() < labelScorers_.size()) {
-        scoreAndPruneExtensionsTimes_.resize(labelScorers_.size());
-    }
-    if (scoringTimes_.size() < labelScorers_.size()) {
-        scoringTimes_.resize(labelScorers_.size());
-    }
-    if (scoreReadoutTimes_.size() < labelScorers_.size()) {
-        scoreReadoutTimes_.resize(labelScorers_.size());
-    }
-    if (intermediatePruningTimes_.size() < labelScorers_.size()) {
-        intermediatePruningTimes_.resize(labelScorers_.size());
-    }
+    // Per-scorer timers and statistics are indexed by label scorer. All statistics entries
+    // share one name; the scorer is written as an attribute.
+    numHypsAfterIntermediatePruning_.resize(labelScorers_.size(), Core::Statistics<u32>("num-hyps-after-intermediate-pruning"));
+    scoreAndPruneExtensionsTimes_.resize(labelScorers_.size());
+    scoringTimes_.resize(labelScorers_.size());
+    scoreReadoutTimes_.resize(labelScorers_.size());
+    intermediatePruningTimes_.resize(labelScorers_.size());
 
     switch (pruningStrategyType_) {
         case PruningStrategyJoint:
@@ -349,7 +332,7 @@ void LexiconfreeLabelsyncBeamSearch::enterSegment(Bliss::SpeechSegment const* se
         stat.clear();
     }
     numInputHyps_.clear();
-    numExtensionsBeforeFirstPruning_.clear();
+    numExtensionsAfterPrePruning_.clear();
     numTerminatedHypsAfterScorePruning_.clear();
     numTerminatedHypsAfterRecombination_.clear();
     numTerminatedHypsAfterBeamPruning_.clear();
@@ -371,9 +354,10 @@ void LexiconfreeLabelsyncBeamSearch::enterSegment(Bliss::SpeechSegment const* se
         beam_.front().scoringContexts.push_back(labelScorer->getInitialScoringContext());
     }
 
-    finishedSegment_   = false;
-    totalTimesteps_    = 0ul;
-    currentSearchStep_ = 0ul;
+    finishedSegment_    = false;
+    totalTimesteps_     = 0ul;
+    currentSearchStep_  = 0ul;
+    stepStatisticsOpen_ = false;
 
     initializationTime_.stop();
 
@@ -469,16 +453,10 @@ bool LexiconfreeLabelsyncBeamSearch::decodeStep() {
 
     recognitionTime_.start();
 
-    if (stepwiseStatisticsChannel_.isOpen()) {
-        stepwiseStatisticsChannel_ << Core::XmlOpen("search-step-stats") + Core::XmlAttribute("step", currentSearchStep_);
-    }
-
     bool hasExtensions = scoreAndPruneExtensions();
 
     if (not hasExtensions) {
-        if (stepwiseStatisticsChannel_.isOpen()) {
-            stepwiseStatisticsChannel_ << Core::XmlClose("search-step-stats");
-        }
+        closeStepStatistics();
         recognitionTime_.stop();
         return false;
     }
@@ -749,9 +727,9 @@ void LexiconfreeLabelsyncBeamSearch::pruneExtensions(size_t scorerIdx, size_t ma
     auto const* bestExtension = getBestHypothesis(extensions_, HypothesisFilter::Any);
     verify(bestExtension != nullptr);
 
-    auto terminatedParams           = params;
-    terminatedParams.referenceScore = bestExtension->pruningScore();
-    separateScorePruning(extensions_, terminatedParams, params);
+    auto activeParams           = params;
+    activeParams.referenceScore = bestExtension->pruningScore();
+    separateScorePruning(extensions_, activeParams, params);
 }
 
 void LexiconfreeLabelsyncBeamSearch::prepareNextScoringContexts(size_t scorerIdx) {
@@ -791,10 +769,9 @@ bool LexiconfreeLabelsyncBeamSearch::scoreAndPruneExtensions() {
         scoringContexts_.push_back(hyp.scoringContexts.front());
     }
 
-    numInputHyps_ += beam_.size();
-    if (stepwiseStatisticsChannel_.isOpen()) {
-        stepwiseStatisticsChannel_ << Core::XmlFull("num-input-hyps", beam_.size());
-    }
+    // The number of hypotheses handed to the first label scorer. Terminated hypotheses stay in
+    // the beam but contribute no context, so this is not the beam size.
+    size_t const numScoredHyps = scoringContexts_.size();
 
     for (size_t scorerIdx = 0ul; scorerIdx < labelScorers_.size(); ++scorerIdx) {
         Core::StopWatch::Scope scoreAndPruneTimer(scoreAndPruneExtensionsTimes_[scorerIdx]);
@@ -824,9 +801,14 @@ bool LexiconfreeLabelsyncBeamSearch::scoreAndPruneExtensions() {
         }
 
         if (scorerIdx == 0ul) {
-            numExtensionsBeforeFirstPruning_ += extensions_.size();
+            // Counted only now, so that a step which can't be scored yet leaves no trace in the
+            // statistics and doesn't claim a step number
+            openStepStatistics();
+            numInputHyps_ += numScoredHyps;
+            numExtensionsAfterPrePruning_ += extensions_.size();
             if (stepwiseStatisticsChannel_.isOpen()) {
-                stepwiseStatisticsChannel_ << Core::XmlFull("num-extensions-before-first-pruning", extensions_.size());
+                stepwiseStatisticsChannel_ << Core::XmlFull("num-input-hyps", numScoredHyps);
+                stepwiseStatisticsChannel_ << Core::XmlFull("num-extensions-after-pre-pruning", extensions_.size());
             }
         }
 
@@ -881,6 +863,24 @@ void LexiconfreeLabelsyncBeamSearch::buildNewBeamFromExtensions() {
     }
 }
 
+void LexiconfreeLabelsyncBeamSearch::openStepStatistics() {
+    if (not stepwiseStatisticsChannel_.isOpen() or stepStatisticsOpen_) {
+        return;
+    }
+
+    stepwiseStatisticsChannel_ << Core::XmlOpen("search-step-stats") + Core::XmlAttribute("step", currentSearchStep_);
+    stepStatisticsOpen_ = true;
+}
+
+void LexiconfreeLabelsyncBeamSearch::closeStepStatistics() {
+    if (not stepStatisticsOpen_) {
+        return;
+    }
+
+    stepwiseStatisticsChannel_ << Core::XmlClose("search-step-stats");
+    stepStatisticsOpen_ = false;
+}
+
 void LexiconfreeLabelsyncBeamSearch::logStepStatistics() {
     if (debugChannel_.isOpen()) {
         std::stringstream ssActive;
@@ -920,8 +920,9 @@ void LexiconfreeLabelsyncBeamSearch::logStepStatistics() {
             stepwiseStatisticsChannel_ << Core::XmlFull("worst-active-hyp-score", worstActiveHyp->score);
             stepwiseStatisticsChannel_ << Core::XmlFull("worst-active-hyp-normalized-score", worstActiveHyp->scaledScore);
         }
-        stepwiseStatisticsChannel_ << Core::XmlClose("search-step-stats");
     }
+
+    closeStepStatistics();
 }
 
 template<typename Element>
@@ -1007,7 +1008,7 @@ void LexiconfreeLabelsyncBeamSearch::logOwnStatistics() const {
     statisticsChannel_ << Core::XmlClose("timing-statistics");
     statisticsChannel_ << Core::XmlOpen("search-statistics");
     numInputHyps_.write(statisticsChannel_);
-    numExtensionsBeforeFirstPruning_.write(statisticsChannel_);
+    numExtensionsAfterPrePruning_.write(statisticsChannel_);
     for (size_t i = 0ul; i < numHypsAfterIntermediatePruning_.size(); ++i) {
         numHypsAfterIntermediatePruning_[i].write(statisticsChannel_, {Core::XmlAttribute("scorer", i + 1)});
     }

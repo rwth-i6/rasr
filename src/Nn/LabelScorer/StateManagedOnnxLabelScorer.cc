@@ -169,12 +169,14 @@ StateManagedOnnxLabelScorer::StateManagedOnnxLabelScorer(Core::Configuration con
 
 void StateManagedOnnxLabelScorer::logScoringBreakdown() const {
     statisticsChannel_ << Core::XmlFull("onnx-session-time", onnxSessionTime_.elapsedMilliseconds());
+    statisticsChannel_ << Core::XmlFull("state-marshalling-time", stateMarshallingTime_.elapsedMilliseconds());
     statisticsChannel_ << Core::XmlFull("context-preparation-time", contextPreparationTime_.elapsedMilliseconds());
 }
 
 void StateManagedOnnxLabelScorer::resetInternal() {
     Precursor::resetInternal();
     onnxSessionTime_.reset();
+    stateMarshallingTime_.reset();
     contextPreparationTime_.reset();
     encoderStatesValue_     = Onnx::Value();
     encoderStatesSizeValue_ = Onnx::Value();
@@ -375,7 +377,9 @@ void StateManagedOnnxLabelScorer::cacheStatesAndScores(std::vector<StateManagedO
 
     std::vector<std::pair<std::string, Onnx::Value>> inputs;
     std::vector<std::string>                         targets;
+    stateMarshallingTime_.start();
     stateManager_->mergeStates(stateVariables_, prefixLengths, prefixStates, inputs, targets);
+    stateMarshallingTime_.stop();
 
     Math::FastMatrix<s32> tokens(scoringContextBatch.size(), 1);
     for (size_t i = 0ul; i < scoringContextBatch.size(); ++i) {
@@ -412,7 +416,9 @@ void StateManagedOnnxLabelScorer::cacheStatesAndScores(std::vector<StateManagedO
 
     std::vector<Onnx::Value> stateOutputs(std::make_move_iterator(outputs.begin() + 1), std::make_move_iterator(outputs.end()));
     std::vector<size_t>      suffixLengths(scoringContextBatch.size(), 1ul);
-    auto                     splitStates = stateManager_->splitStates(stateVariables_, suffixLengths, stateOutputs, *stateVectorFactory_);
+    stateMarshallingTime_.start();
+    auto splitStates = stateManager_->splitStates(stateVariables_, suffixLengths, stateOutputs, *stateVectorFactory_);
+    stateMarshallingTime_.stop();
     verify_eq(splitStates.size(), scoringContextBatch.size());
     for (size_t i = 0ul; i < scoringContextBatch.size(); ++i) {
         scoringContextBatch[i]->state = std::make_shared<HistoryState>(std::move(splitStates[i]));

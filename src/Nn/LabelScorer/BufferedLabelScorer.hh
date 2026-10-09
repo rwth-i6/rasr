@@ -33,10 +33,6 @@ public:
 
     BufferedLabelScorer(Core::Configuration const& config, TransitionPresetType defaultPreset);
 
-    // Prepares the LabelScorer to receive new inputs by resetting input buffer, timeframe buffer
-    // and segment end flag
-    virtual void reset() override;
-
     // Tells the LabelScorer that there will be no more input features coming in the current segment
     virtual void signalNoMoreFeatures() override;
 
@@ -47,6 +43,9 @@ public:
     virtual void cleanupCaches(Core::CollapsedVector<ScoringContextRef> const& activeContexts) override;
 
 protected:
+    // Clears input buffer, timeframe buffer and segment end flag
+    void resetInternal() override;
+
     bool expectMoreFeatures_;  // Flag to record segment end signal
 
     // Get the minimum index of previously buffered inputs that is still needed to process the given active contexts.

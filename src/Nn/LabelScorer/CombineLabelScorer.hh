@@ -41,8 +41,8 @@ public:
     // Return the sub-scorer at `index`
     Core::Ref<ScaledLabelScorer> getSubScorer(size_t index) const;
 
-    // Reset all sub-scorers
-    void reset() override;
+    // Forwarded to the combined scorers; combining itself accumulates no statistics
+    void logStatistics() const override;
 
     // Forward signal to all sub-scorers
     void signalNoMoreFeatures() override;
@@ -62,11 +62,15 @@ public:
     // Add inputs to all sub-scorers
     virtual void addInputs(DataView const& input, size_t nTimesteps) override;
 
+protected:
+    // Reset all sub-scorers
+    void resetInternal() override;
+
     // Get accessor that returns score-sum of all sub-scorers
-    std::optional<ScoreAccessorRef> getScoreAccessor(ScoringContextRef scoringContext) override;
+    std::optional<ScoreAccessorRef> computeScoreAccessor(ScoringContextRef scoringContext) override;
 
     // Get accessors that return score-sums of all sub-scorers
-    std::vector<std::optional<ScoreAccessorRef>> getScoreAccessors(std::vector<ScoringContextRef> const& scoringContexts) override;
+    std::vector<std::optional<ScoreAccessorRef>> computeScoreAccessors(std::vector<ScoringContextRef> const& scoringContexts) override;
 
 private:
     std::vector<Core::Ref<ScaledLabelScorer>> scorers_;

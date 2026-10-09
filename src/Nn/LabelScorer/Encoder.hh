@@ -19,7 +19,9 @@
 #include <deque>
 #include <optional>
 
+#include <Core/Channel.hh>
 #include <Core/Component.hh>
+#include <Core/StopWatch.hh>
 
 #include "DataView.hh"
 
@@ -45,8 +47,12 @@ public:
     Encoder(Core::Configuration const& config);
     virtual ~Encoder() = default;
 
-    // Clear buffers and reset segment end flag.
-    virtual void reset();
+    // Prepares the Encoder to receive new inputs.
+    // Clears the accumulated timing and statistics and delegates to `resetInternal`.
+    void reset();
+
+    // Log the timing and statistics accumulated since the last `reset`.
+    virtual void logStatistics() const;
 
     // Signal that no more features are expected for the current segment.
     void signalNoMoreFeatures();
@@ -67,6 +73,25 @@ protected:
     std::deque<EncodedSpan> outputBuffer_;
 
     bool expectMoreFeatures_;
+
+    // Channel that `logStatistics` writes to. Disabled unless a target is configured.
+    mutable Core::XmlChannel statisticsChannel_;
+
+    // Clear the state that belongs to the concrete Encoder, e.g. input buffers and segment-end
+    // flags. `reset` handles the statistics, so implementations must not touch them.
+    virtual void resetInternal();
+
+    // Hook for subclasses to break down `encode-time`. Called inside that element, so only
+    // timers whose intervals are contained in it belong here.
+    virtual void logEncodeBreakdown() const {}
+
+    // Hook for subclasses to add statistics that are not part of `encode-time`.
+    virtual void logAdditionalStatistics() const {}
+
+    Core::StopWatch encodeTime_;
+
+    // Total number of input features (T) handed to this encoder in the current segment
+    size_t numInputFeatures_ = 0ul;
 
     // Encode features inside the input buffer and put the results into the output buffer
     virtual void encode() = 0;

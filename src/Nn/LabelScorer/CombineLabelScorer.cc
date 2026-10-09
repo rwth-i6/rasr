@@ -129,6 +129,8 @@ CombineLabelScorer::CombineLabelScorer(Core::Configuration const& config, ModelC
         scorers_.push_back(Nn::Module::instance().labelScorerFactory().createLabelScorer(subConfig, modelCache));
         enabledTransitions_.enableIntersection(scorers_.back()->enabledTransitions());
     }
+
+    tracksScoringStatistics_ = false;
 }
 
 Core::Ref<ScaledLabelScorer> CombineLabelScorer::getSubScorer(size_t index) const {
@@ -136,9 +138,15 @@ Core::Ref<ScaledLabelScorer> CombineLabelScorer::getSubScorer(size_t index) cons
     return scorers_[index];
 }
 
-void CombineLabelScorer::reset() {
+void CombineLabelScorer::resetInternal() {
     for (auto& scorer : scorers_) {
         scorer->reset();
+    }
+}
+
+void CombineLabelScorer::logStatistics() const {
+    for (auto const& scorer : scorers_) {
+        scorer->logStatistics();
     }
 }
 
@@ -203,7 +211,7 @@ void CombineLabelScorer::addInputs(DataView const& input, size_t nTimesteps) {
     }
 }
 
-std::optional<ScoreAccessorRef> CombineLabelScorer::getScoreAccessor(ScoringContextRef scoringContext) {
+std::optional<ScoreAccessorRef> CombineLabelScorer::computeScoreAccessor(ScoringContextRef scoringContext) {
     auto combineContext = dynamic_cast<CombineScoringContext const*>(scoringContext.get());
 
     auto                          combinedAccessor = Core::ref(new CombinedScoreAccessor());
@@ -225,7 +233,7 @@ std::optional<ScoreAccessorRef> CombineLabelScorer::getScoreAccessor(ScoringCont
     return combinedAccessor;
 }
 
-std::vector<std::optional<ScoreAccessorRef>> CombineLabelScorer::getScoreAccessors(std::vector<ScoringContextRef> const& scoringContexts) {
+std::vector<std::optional<ScoreAccessorRef>> CombineLabelScorer::computeScoreAccessors(std::vector<ScoringContextRef> const& scoringContexts) {
     // Collect CombineScoringContexts
     std::vector<CombineScoringContext const*> combineContexts;
     combineContexts.reserve(scoringContexts.size());

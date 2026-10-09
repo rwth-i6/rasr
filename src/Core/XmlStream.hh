@@ -90,6 +90,9 @@ public:
         attributes_.push_back(attribute);
         return *this;
     }
+    Self& operator+=(const XmlAttribute& attribute) {
+        return operator+(attribute);
+    }
 };
 
 class XmlClose {
@@ -141,6 +144,9 @@ public:
     Self& operator+(const XmlAttribute& attribute) {
         attributes_.push_back(attribute);
         return *this;
+    }
+    Self& operator+=(const XmlAttribute& attribute) {
+        return operator+(attribute);
     }
 };
 

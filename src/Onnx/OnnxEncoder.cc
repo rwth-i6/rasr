@@ -15,6 +15,8 @@
 
 #include "OnnxEncoder.hh"
 
+#include <Core/XmlStream.hh>
+
 namespace Onnx {
 
 /*
@@ -64,8 +66,18 @@ OnnxEncoder::OnnxEncoder(Core::Configuration const& config, Nn::ModelCache& mode
     stateManager_->setInitialStates(stateVariables_);
 }
 
-void OnnxEncoder::reset() {
-    Encoder::reset();
+void OnnxEncoder::logEncodeBreakdown() const {
+    statisticsChannel_ << Core::XmlFull("onnx-session-time", onnxSessionTime_.elapsedMilliseconds());
+}
+
+void OnnxEncoder::logAdditionalStatistics() const {
+    statisticsChannel_ << Core::XmlFull("num-session-runs", numSessionRuns_);
+}
+
+void OnnxEncoder::resetInternal() {
+    Encoder::resetInternal();
+    onnxSessionTime_.reset();
+    numSessionRuns_ = 0ul;
     stateManager_->setInitialStates(stateVariables_);
 }
 
@@ -102,7 +114,10 @@ OnnxEncoder::SessionRunResult OnnxEncoder::runSession(size_t inputStartIndex, si
 
     // Run session
     std::vector<Value> sessionOutputs;
+    onnxSessionTime_.start();
     onnxModel_->session.run(std::move(sessionInputs), outputNames, sessionOutputs);
+    onnxSessionTime_.stop();
+    ++numSessionRuns_;
 
     // Retrieve outputs
     size_t T_out      = sessionOutputs.front().dimSize(1);
@@ -221,8 +236,8 @@ ChunkedOnnxEncoder::ChunkedOnnxEncoder(Core::Configuration const& config, Nn::Mo
     initWindow(static_cast<WindowType>(paramWindowType(config)));
 }
 
-void ChunkedOnnxEncoder::reset() {
-    Precursor::reset();
+void ChunkedOnnxEncoder::resetInternal() {
+    Precursor::resetInternal();
     chunkCenterStart_     = 0ul;
     numDiscardedFeatures_ = 0ul;
     pendingOutputs_.clear();

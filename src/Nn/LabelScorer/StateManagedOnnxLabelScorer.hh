@@ -70,17 +70,17 @@ public:
     StateManagedOnnxLabelScorer(Core::Configuration const& config, ModelCache& modelCache);
     virtual ~StateManagedOnnxLabelScorer() = default;
 
-    void reset() override;
     void addInput(DataView const& input) override;
 
     ScoringContextRef getInitialScoringContext() override;
     ScoringContextRef extendedScoringContext(ScoringContextRef scoringContext, LabelIndex nextToken, TransitionType transitionType) override;
 
-    std::optional<ScoreAccessorRef>              getScoreAccessor(ScoringContextRef scoringContext) override;
-    std::vector<std::optional<ScoreAccessorRef>> getScoreAccessors(std::vector<ScoringContextRef> const& scoringContexts) override;
-
 protected:
-    size_t getMinActiveInputIndex(Core::CollapsedVector<ScoringContextRef> const& activeContexts) const override;
+    void resetInternal() override;
+
+    std::optional<ScoreAccessorRef>              computeScoreAccessor(ScoringContextRef scoringContext) override;
+    std::vector<std::optional<ScoreAccessorRef>> computeScoreAccessors(std::vector<ScoringContextRef> const& scoringContexts) override;
+    size_t                                       getMinActiveInputIndex(Core::CollapsedVector<ScoringContextRef> const& activeContexts) const override;
 
 private:
     void setupEncoderStatesValue();
@@ -110,6 +110,13 @@ private:
 
     Onnx::Value encoderStatesValue_;
     Onnx::Value encoderStatesSizeValue_;
+
+    void logScoringBreakdown() const override;
+
+    Core::StopWatch onnxSessionTime_;
+    // Merging the prefix states into the batched session inputs and splitting the outputs back up
+    Core::StopWatch stateMarshallingTime_;
+    Core::StopWatch contextPreparationTime_;
 
     Core::FIFOCache<StateManagedOnnxScoringContextRef, std::shared_ptr<std::vector<Score>>, ScoringContextHash, ScoringContextEq> scoreCache_;
     Core::FIFOCache<StateManagedOnnxScoringContextRef, std::shared_ptr<HistoryState>, ScoringContextHash, ScoringContextEq>       stateCache_;

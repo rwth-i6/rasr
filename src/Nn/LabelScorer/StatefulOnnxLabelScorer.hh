@@ -102,8 +102,6 @@ public:
     StatefulOnnxLabelScorer(Core::Configuration const& config, ModelCache& modelCache);
     virtual ~StatefulOnnxLabelScorer() = default;
 
-    void reset() override;
-
     // If startLabelIndex is set, forward that through the state updater to obtain the start ScoringContext
     ScoringContextRef getInitialScoringContext() override;
 
@@ -113,14 +111,15 @@ public:
     // Add a single input feature to buffer
     void addInput(DataView const& input) override;
 
+protected:
+    void resetInternal() override;
+
     // Update hidden state, run scorer and get an accessor for the output score vector
-    std::optional<ScoreAccessorRef> getScoreAccessor(ScoringContextRef scoringContext) override;
+    std::optional<ScoreAccessorRef> computeScoreAccessor(ScoringContextRef scoringContext) override;
 
     // Update hidden states (batched), run scorers (batched) and get accessor for the output score vectors
-    std::vector<std::optional<ScoreAccessorRef>> getScoreAccessors(std::vector<ScoringContextRef> const& scoringContexts) override;
-
-protected:
-    size_t getMinActiveInputIndex(Core::CollapsedVector<ScoringContextRef> const& activeContexts) const override;
+    std::vector<std::optional<ScoreAccessorRef>> computeScoreAccessors(std::vector<ScoringContextRef> const& scoringContexts) override;
+    size_t                                       getMinActiveInputIndex(Core::CollapsedVector<ScoringContextRef> const& activeContexts) const override;
 
 private:
     // Forward a batch of scoringContexts through the ONNX scorer model and put the resulting scores into the score cache
@@ -169,6 +168,15 @@ private:
     // Store the onnx values with all encoder states and lengths inside so that it doesn't have to be recomputed every time
     Onnx::Value encoderStatesValue_;
     Onnx::Value encoderStatesSizeValue_;
+
+    void logScoringBreakdown() const override;
+
+    Core::StopWatch stateUpdateSessionTime_;
+    Core::StopWatch scorerSessionTime_;
+    // Building the batched session inputs from the individual hidden states and splitting the
+    // batched session outputs back up again
+    Core::StopWatch stateMarshallingTime_;
+    Core::StopWatch contextPreparationTime_;
 
     Core::FIFOCache<OnnxHiddenStateScoringContextRef, std::shared_ptr<std::vector<Score>>, ScoringContextHash, ScoringContextEq> scoreCache_;
     Core::FIFOCache<OnnxHiddenStateScoringContextRef, OnnxHiddenStateRef, ScoringContextHash, ScoringContextEq>                  stateCache_;

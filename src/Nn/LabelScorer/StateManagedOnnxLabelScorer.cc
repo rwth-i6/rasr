@@ -15,6 +15,8 @@
 
 #include "StateManagedOnnxLabelScorer.hh"
 
+#include <Core/XmlStream.hh>
+
 #include <Nn/Module.hh>
 
 #include "ScoreAccessor.hh"
@@ -162,10 +164,20 @@ StateManagedOnnxLabelScorer::StateManagedOnnxLabelScorer(Core::Configuration con
 
     auto startLabels = paramStartLabels(config);
     startLabels_.insert(startLabels_.begin(), startLabels.begin(), startLabels.end());
+    tracksScoreAccessorCache_ = true;
 }
 
-void StateManagedOnnxLabelScorer::reset() {
-    Precursor::reset();
+void StateManagedOnnxLabelScorer::logScoringBreakdown() const {
+    statisticsChannel_ << Core::XmlFull("onnx-session-time", onnxSessionTime_.elapsedMilliseconds());
+    statisticsChannel_ << Core::XmlFull("state-marshalling-time", stateMarshallingTime_.elapsedMilliseconds());
+    statisticsChannel_ << Core::XmlFull("context-preparation-time", contextPreparationTime_.elapsedMilliseconds());
+}
+
+void StateManagedOnnxLabelScorer::resetInternal() {
+    Precursor::resetInternal();
+    onnxSessionTime_.reset();
+    stateMarshallingTime_.reset();
+    contextPreparationTime_.reset();
     encoderStatesValue_     = Onnx::Value();
     encoderStatesSizeValue_ = Onnx::Value();
     scoreCache_.clear();
@@ -237,7 +249,7 @@ ScoringContextRef StateManagedOnnxLabelScorer::extendedScoringContext(ScoringCon
     return Core::ref(new StateManagedOnnxScoringContext(std::move(labelSeq), context));
 }
 
-std::vector<std::optional<ScoreAccessorRef>> StateManagedOnnxLabelScorer::getScoreAccessors(std::vector<ScoringContextRef> const& scoringContexts) {
+std::vector<std::optional<ScoreAccessorRef>> StateManagedOnnxLabelScorer::computeScoreAccessors(std::vector<ScoringContextRef> const& scoringContexts) {
     if (scoringContexts.empty()) {
         return {};
     }
@@ -250,6 +262,7 @@ std::vector<std::optional<ScoreAccessorRef>> StateManagedOnnxLabelScorer::getSco
     /*
      * Identify unique scoring contexts that still need session runs
      */
+    contextPreparationTime_.start();
     std::unordered_set<StateManagedOnnxScoringContextRef, ScoringContextHash, ScoringContextEq> uniqueUncachedScoringContexts;
     for (auto const& scoringContext : scoringContexts) {
         StateManagedOnnxScoringContextRef context(dynamic_cast<StateManagedOnnxScoringContext const*>(scoringContext.get()));
@@ -261,6 +274,9 @@ std::vector<std::optional<ScoreAccessorRef>> StateManagedOnnxLabelScorer::getSco
             uniqueUncachedScoringContexts.emplace(context);
         }
     }
+    contextPreparationTime_.stop();
+
+    numScoreAccessorsComputed_ += uniqueUncachedScoringContexts.size();
 
     /*
      * Fill state and score caches for all uncached scoring contexts
@@ -279,18 +295,20 @@ std::vector<std::optional<ScoreAccessorRef>> StateManagedOnnxLabelScorer::getSco
     /*
      * Assign scores from cache to result vector
      */
+    contextPreparationTime_.start();
     for (size_t i = 0ul; i < scoringContexts.size(); ++i) {
         StateManagedOnnxScoringContextRef context(dynamic_cast<StateManagedOnnxScoringContext const*>(scoringContexts[i].get()));
         auto                              scores = scoreCache_.get(context);
         verify(scores);
         scoreAccessors[i] = Core::ref(new VectorScoreAccessor(scores->get(), context->labelSeq.empty() ? 0ul : context->labelSeq.size() - 1ul));
     }
+    contextPreparationTime_.stop();
 
     return scoreAccessors;
 }
 
-std::optional<ScoreAccessorRef> StateManagedOnnxLabelScorer::getScoreAccessor(ScoringContextRef scoringContext) {
-    return getScoreAccessors({scoringContext})[0];
+std::optional<ScoreAccessorRef> StateManagedOnnxLabelScorer::computeScoreAccessor(ScoringContextRef scoringContext) {
+    return computeScoreAccessors({scoringContext})[0];
 }
 
 size_t StateManagedOnnxLabelScorer::getMinActiveInputIndex(Core::CollapsedVector<ScoringContextRef> const& activeContexts) const {
@@ -326,7 +344,7 @@ void StateManagedOnnxLabelScorer::cacheStatesAndScores(std::vector<StateManagedO
         return;
     }
 
-    // Can't score before any encoder features are buffered; defer (mirrors the guard in getScoreAccessors()).
+    // Can't score before any encoder features are buffered; defer (mirrors the guard in computeScoreAccessors()).
     if ((not encoderStatesName_.empty() or not encoderStatesSizeName_.empty()) and bufferSize() == 0ul) {
         return;
     }
@@ -359,7 +377,9 @@ void StateManagedOnnxLabelScorer::cacheStatesAndScores(std::vector<StateManagedO
 
     std::vector<std::pair<std::string, Onnx::Value>> inputs;
     std::vector<std::string>                         targets;
+    stateMarshallingTime_.start();
     stateManager_->mergeStates(stateVariables_, prefixLengths, prefixStates, inputs, targets);
+    stateMarshallingTime_.stop();
 
     Math::FastMatrix<s32> tokens(scoringContextBatch.size(), 1);
     for (size_t i = 0ul; i < scoringContextBatch.size(); ++i) {
@@ -384,7 +404,9 @@ void StateManagedOnnxLabelScorer::cacheStatesAndScores(std::vector<StateManagedO
     targets.emplace(targets.begin(), scoresName_);
 
     std::vector<Onnx::Value> outputs;
+    onnxSessionTime_.start();
     onnxModel_->session.run(std::move(inputs), targets, outputs);
+    onnxSessionTime_.stop();
 
     for (size_t b = 0ul; b < scoringContextBatch.size(); ++b) {
         auto scores = std::make_shared<std::vector<Score>>();
@@ -394,7 +416,9 @@ void StateManagedOnnxLabelScorer::cacheStatesAndScores(std::vector<StateManagedO
 
     std::vector<Onnx::Value> stateOutputs(std::make_move_iterator(outputs.begin() + 1), std::make_move_iterator(outputs.end()));
     std::vector<size_t>      suffixLengths(scoringContextBatch.size(), 1ul);
-    auto                     splitStates = stateManager_->splitStates(stateVariables_, suffixLengths, stateOutputs, *stateVectorFactory_);
+    stateMarshallingTime_.start();
+    auto splitStates = stateManager_->splitStates(stateVariables_, suffixLengths, stateOutputs, *stateVectorFactory_);
+    stateMarshallingTime_.stop();
     verify_eq(splitStates.size(), scoringContextBatch.size());
     for (size_t i = 0ul; i < scoringContextBatch.size(); ++i) {
         scoringContextBatch[i]->state = std::make_shared<HistoryState>(std::move(splitStates[i]));

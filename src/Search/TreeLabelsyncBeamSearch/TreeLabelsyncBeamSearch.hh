@@ -58,7 +58,6 @@ public:
     static const Core::Choice               choiceRecombinationMode;
     static const Core::ParameterChoice      paramRecombinationMode;
     static const Core::ParameterBool        paramSentenceEndFallBack;
-    static const Core::ParameterBool        paramLogStepwiseStatistics;
 
     TreeLabelsyncBeamSearch(Core::Configuration const&);
 
@@ -198,7 +197,11 @@ private:
     bool                sentenceEndFallback_;
     Core::Choice::Value pruningStrategyType_;
     bool                recombinationEnabled_;
-    bool                logStepwiseStatistics_;
+    // Timing and beam statistics, per segment and per search step. Both are disabled unless a
+    // target is configured.
+    mutable Core::XmlChannel statisticsChannel_;
+    Core::XmlChannel         stepwiseStatisticsChannel_;
+    bool                     stepStatisticsOpen_ = false;
 
     std::vector<Core::Ref<Nn::LabelScorer>>        labelScorers_;
     Bliss::LexiconRef                              lexicon_;
@@ -218,6 +221,14 @@ private:
     std::vector<Nn::ScoringContextRef>        scoringContexts_;
     std::vector<LabelHypothesis>              tempHypotheses_;
 
+    // Scores and timeframes read out of the accessors of the current label scorer, indexed like
+    // `scoringContexts_`
+    std::vector<std::optional<Nn::DenseScoreSpan>> denseScoreSpans_;
+    std::vector<Nn::TimeframeIndex>                scoreTimes_;
+
+    // Score accessors of the word-end hypothesis currently being expanded, indexed by label scorer
+    std::vector<Nn::ScoreAccessorRef> wordEndScoreAccessors_;
+
     // Precomputed successor/exit lookups (offset tables + contiguous data).
     std::vector<size_t>                    stateSuccessorsOffset_;
     std::vector<StateId>                   stateSuccessors_;
@@ -230,15 +241,41 @@ private:
 
     Core::StopWatch initializationTime_;
     Core::StopWatch featureProcessingTime_;
-    Core::StopWatch scoringTime_;
+    Core::StopWatch finalizeScoringTime_;  // Scoring time during finalizeHypotheses
+    Core::StopWatch recognitionTime_;
+    /*
+     * Phases of `scoreAndPruneExtensions` per label scorer, adding up to the matching
+     * `scoreAndPruneExtensionsTimes_` entry. Scorers that compute scores lazily do that work
+     * during the score readout; the pruning phase also prepares the next scorer's contexts.
+     */
+    std::vector<Core::StopWatch> scoreAndPruneExtensionsTimes_;
+    std::vector<Core::StopWatch> scoringTimes_;
+    std::vector<Core::StopWatch> scoreReadoutTimes_;
+    std::vector<Core::StopWatch> intermediatePruningTimes_;
+    Core::StopWatch              buildWithinWordHypsTime_;
+    Core::StopWatch              recombinationTime_;
+    Core::StopWatch              beamPruningTime_;
+    /*
+     * Phases of `expandAndPruneWordEndHypotheses`, adding up to `wordEndExpansionTime_`, each with
+     * the language model calls it makes reported inside it.
+     */
+    Core::StopWatch wordEndExpansionTime_;
+    Core::StopWatch wordEndExtensionTime_;
+    Core::StopWatch wordEndScorePruningTime_;
+    Core::StopWatch wordEndHypBuildingTime_;
+    Core::StopWatch lmTime_;
+    Core::StopWatch finalizeTime_;
 
-    std::vector<Core::Statistics<u32>> numHypsAfterIntermediatePruning_;
+    Core::Statistics<u32>              numInputHyps_;
+    Core::Statistics<u32>              numWithinWordExtensionsAfterPrePruning_;
+    std::vector<Core::Statistics<u32>> numWithinWordHypsAfterIntermediatePruning_;
     Core::Statistics<u32>              numTerminatedHypsAfterScorePruning_;
     Core::Statistics<u32>              numTerminatedHypsAfterRecombination_;
     Core::Statistics<u32>              numTerminatedHypsAfterBeamPruning_;
     Core::Statistics<u32>              numActiveHypsAfterScorePruning_;
     Core::Statistics<u32>              numActiveHypsAfterRecombination_;
     Core::Statistics<u32>              numActiveHypsAfterBeamPruning_;
+    Core::Statistics<u32>              numWordEndExtensionsBeforePruning_;
     Core::Statistics<u32>              numActiveWordEndHypsAfterPruning_;
     Core::Statistics<u32>              numActiveWordEndHypsAfterScorePruning_;
     Core::Statistics<u32>              numActiveWordEndHypsAfterRecombination_;
@@ -257,6 +294,99 @@ private:
     LabelHypothesis const& getOutputHypothesis(std::vector<LabelHypothesis> const& hypotheses) const;
 
     void logStatistics() const;
+
+    /*
+     * Log the timing and statistics of the search itself, without the label scorers.
+     */
+    void logOwnStatistics() const;
+
+    /*
+     * Run the multi-scorer loop: create within-word extensions from the first scorer, update scores
+     * with subsequent scorers, apply intermediate pruning after each scorer.
+     * Populates `withinWordExtensions_`. Returns false if no extensions survive (decode step should abort).
+     */
+    bool scoreAndPruneExtensions();
+
+    /*
+     * Read the scores and timeframes of the current label scorer into `denseScoreSpans_` and
+     * `scoreTimes_`. Lazily computing scorers do their work here.
+     */
+    void readOutScoreAccessors(std::vector<std::optional<Nn::ScoreAccessorRef>> const& scoreAccessors);
+
+    /*
+     * Create the within-word extension candidates from the scores of the first label scorer,
+     * pre-pruning by score while they are created.
+     */
+    void createWithinWordExtensions(std::vector<std::optional<Nn::ScoreAccessorRef>> const& scoreAccessors);
+
+    /*
+     * Add the scores of label scorer `scorerIdx` to the existing within-word extension candidates.
+     */
+    void updateWithinWordExtensionScores(size_t scorerIdx, std::vector<std::optional<Nn::ScoreAccessorRef>> const& scoreAccessors);
+
+    /*
+     * Collect the scoring contexts for the next label scorer into `scoringContexts_`, dropping the
+     * hypotheses whose extensions did not survive pruning.
+     */
+    void prepareNextScoringContexts(size_t scorerIdx);
+
+    /*
+     * Create new beam hypotheses from the surviving within-word extensions.
+     * Carries over terminated hypotheses from the current beam and adds new ones from extensions.
+     * Populates `newBeam_`.
+     */
+    void buildNewBeamFromExtensions();
+
+    /*
+     * Expand within-word hypotheses in `newBeam_` to word-end hypotheses by applying
+     * the language model. Prune word-end hypotheses, create word-end label hypotheses,
+     * and merge them back into `newBeam_`.
+     */
+    void expandAndPruneWordEndHypotheses();
+
+    /*
+     * Create one word-end extension candidate per exit of every hypothesis in `newBeam_`,
+     * applying the language model and the word-end transition scores.
+     * Populates `wordEndExtensions_`.
+     */
+    void createWordEndExtensions();
+
+    /*
+     * Prune `wordEndExtensions_` according to the configured pruning strategy.
+     */
+    void pruneWordEndExtensions();
+
+    /*
+     * Create word-end hypotheses from the surviving extensions, updating the LM history, and merge
+     * them into `newBeam_`. Populates `wordEndHypotheses_`.
+     */
+    void buildWordEndHypotheses();
+
+    /*
+     * Open the per-step statistics element before the first statistic of a step is written, and
+     * close it again when the step ends. A step that can't be scored yet writes nothing, so it
+     * neither opens an element nor consumes a step number.
+     */
+    void openStepStatistics();
+    void closeStepStatistics();
+
+    /*
+     * Log the per-step statistics and debug output for the current beam.
+     */
+    void logStepStatistics();
+
+    /*
+     * Apply the final score-pruning stage to `newBeam_` according to the configured pruning strategy.
+     * In `joint` mode active and terminated hypotheses are pruned against the overall best hypothesis;
+     * in `separate` mode terminated ones are pruned against the best terminated hypothesis.
+     */
+    void pruneNewBeamByScore();
+
+    /*
+     * Apply the final max-beam-size pruning stage to `newBeam_` according to the configured pruning
+     * strategy. In `separate` mode active and terminated hypotheses each get their own beam size.
+     */
+    void pruneNewBeamBySize();
 
     /*
      * Helper function for joint pruning of extensions/hypotheses by a relative score threshold

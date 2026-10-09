@@ -31,8 +31,12 @@ PythonLabelScorer::PythonLabelScorer(Core::Configuration const& config)
           Precursor(config) {
 }
 
-void PythonLabelScorer::reset() {
-    PYBIND11_OVERRIDE_PURE(void, LabelScorer, reset);
+void PythonLabelScorer::resetInternal() {
+    PYBIND11_OVERRIDE_PURE_NAME(
+            void,
+            LabelScorer,
+            "reset",
+            resetInternal);
 }
 
 void PythonLabelScorer::signalNoMoreFeatures() {
@@ -122,11 +126,11 @@ py::object PythonLabelScorer::extendedPythonScoringContext(py::object const& pyt
             transitionType);
 }
 
-std::optional<Nn::ScoreAccessorRef> PythonLabelScorer::getScoreAccessor(Nn::ScoringContextRef scoringContext) {
-    return getScoreAccessors({scoringContext})[0];
+std::optional<Nn::ScoreAccessorRef> PythonLabelScorer::computeScoreAccessor(Nn::ScoringContextRef scoringContext) {
+    return computeScoreAccessors({scoringContext})[0];
 }
 
-std::vector<std::optional<Nn::ScoreAccessorRef>> PythonLabelScorer::getScoreAccessors(std::vector<Nn::ScoringContextRef> const& scoringContexts) {
+std::vector<std::optional<Nn::ScoreAccessorRef>> PythonLabelScorer::computeScoreAccessors(std::vector<Nn::ScoringContextRef> const& scoringContexts) {
     std::vector<py::object> pythonContexts;
 
     pythonContexts.reserve(scoringContexts.size());

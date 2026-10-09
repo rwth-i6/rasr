@@ -41,9 +41,6 @@ public:
     PythonLabelScorer(Core::Configuration const& config);
     virtual ~PythonLabelScorer() = default;
 
-    // Must be overridden in python by name "reset"
-    virtual void reset() override;
-
     // Can be overridden in python. No-op per default.
     virtual void signalNoMoreFeatures() override;
 
@@ -70,14 +67,19 @@ public:
     virtual Nn::ScoringContextRef extendedScoringContext(Nn::ScoringContextRef scoringContext, Nn::LabelIndex nextToken, Nn::TransitionType transitionType) override;
     virtual py::object            extendedPythonScoringContext(py::object const& pythonContext, Nn::LabelIndex nextToken, Nn::TransitionType transitionType);
 
-    // Calls batched version
-    virtual std::optional<Nn::ScoreAccessorRef> getScoreAccessor(Nn::ScoringContextRef scoringContext) override;
-
     // Must be overridden in python by name "compute_scores_with_times_internal"
-    virtual std::vector<std::optional<Nn::ScoreAccessorRef>>                                  getScoreAccessors(std::vector<Nn::ScoringContextRef> const& scoringContexts) override;
     virtual std::vector<std::optional<std::pair<std::vector<Nn::Score>, Nn::TimeframeIndex>>> getPythonScoresWithTimes(std::vector<py::object> const& pythonContexts);
 
 protected:
+    // Must be overridden in python by name "reset"
+    virtual void resetInternal() override;
+
+    // Calls batched version
+    virtual std::optional<Nn::ScoreAccessorRef> computeScoreAccessor(Nn::ScoringContextRef scoringContext) override;
+
+    // Forwards to `getPythonScoresWithTimes`
+    virtual std::vector<std::optional<Nn::ScoreAccessorRef>> computeScoreAccessors(std::vector<Nn::ScoringContextRef> const& scoringContexts) override;
+
     py::object pyInstance_;  // Hold the Python wrapper
 };
 

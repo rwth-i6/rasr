@@ -22,16 +22,22 @@ EncoderDecoderLabelScorer::EncoderDecoderLabelScorer(Core::Configuration const& 
           LabelScorer(config),
           encoder_(encoder),
           decoder_(decoder) {
-    enabledTransitions_ = decoder_->enabledTransitions();
+    enabledTransitions_      = decoder_->enabledTransitions();
+    tracksScoringStatistics_ = false;
 }
 
 Core::Ref<ScaledLabelScorer> EncoderDecoderLabelScorer::getDecoderLabelScorer() const {
     return decoder_;
 }
 
-void EncoderDecoderLabelScorer ::reset() {
+void EncoderDecoderLabelScorer::resetInternal() {
     encoder_->reset();
     decoder_->reset();
+}
+
+void EncoderDecoderLabelScorer::logStatistics() const {
+    encoder_->logStatistics();
+    decoder_->logStatistics();
 }
 
 ScoringContextRef EncoderDecoderLabelScorer::getInitialScoringContext() {
@@ -64,11 +70,11 @@ void EncoderDecoderLabelScorer::signalNoMoreFeatures() {
     decoder_->signalNoMoreFeatures();
 }
 
-std::optional<ScoreAccessorRef> EncoderDecoderLabelScorer::getScoreAccessor(ScoringContextRef scoringContext) {
+std::optional<ScoreAccessorRef> EncoderDecoderLabelScorer::computeScoreAccessor(ScoringContextRef scoringContext) {
     return decoder_->getScoreAccessor(scoringContext);
 }
 
-std::vector<std::optional<ScoreAccessorRef>> EncoderDecoderLabelScorer::getScoreAccessors(std::vector<ScoringContextRef> const& scoringContexts) {
+std::vector<std::optional<ScoreAccessorRef>> EncoderDecoderLabelScorer::computeScoreAccessors(std::vector<ScoringContextRef> const& scoringContexts) {
     return decoder_->getScoreAccessors(scoringContexts);
 }
 

@@ -209,6 +209,11 @@ const Core::ParameterInt TreeLabelsyncBeamSearch::paramNumHistogramBins(
         100,
         2);
 
+const Core::ParameterBool TreeLabelsyncBeamSearch::paramEnableHistogramPruning(
+        "enable-histogram-pruning",
+        "Use histogram pruning for max-beam-size. If false, exactly the max-beam-size best hypotheses are kept.",
+        true);
+
 const Core::ParameterFloat TreeLabelsyncBeamSearch::paramLengthNormScale(
         "length-norm-scale",
         "Exponent of length for the hypothesis length normalization. Scaled scores are computed as score / length^length_norm_scale.",
@@ -268,6 +273,7 @@ TreeLabelsyncBeamSearch::TreeLabelsyncBeamSearch(Core::Configuration const& conf
           scoreHistogram_(paramNumHistogramBins(config)),
           activeScoreHistogram_(paramNumHistogramBins(config)),
           terminatedScoreHistogram_(paramNumHistogramBins(config)),
+          histogramPruningEnabled_(paramEnableHistogramPruning(config)),
           lengthNormScale_(paramLengthNormScale(config)),
           maxLabelsPerTimestep_(paramMaxLabelsPerTimestep(config)),
           sentenceEndLemma_(),
@@ -1193,6 +1199,12 @@ void TreeLabelsyncBeamSearch::scorePruning(std::vector<Element>& hypotheses, Pru
         return;
     }
 
+    if (not histogramPruningEnabled_ and hypotheses.size() > pruningParams.maxBeamSize) {
+        // Plain max beam size pruning: keep exactly the maxBeamSize best hypotheses
+        std::nth_element(hypotheses.begin(), hypotheses.begin() + pruningParams.maxBeamSize, hypotheses.end(), [](auto const& a, auto const& b) { return a.pruningScore() < b.pruningScore(); });
+        hypotheses.resize(pruningParams.maxBeamSize);
+    }
+
     // Find ranges for score histogram and setting absolute threshold
     Score lowerScore = Core::Type<Score>::max;
     Score upperScore = Core::Type<Score>::min;
@@ -1277,6 +1289,22 @@ void TreeLabelsyncBeamSearch::separateScorePruning(
         PruningParams const&  terminatedPruningParams) {
     if (hypotheses.empty()) {
         return;
+    }
+
+    if (not histogramPruningEnabled_) {
+        // Plain max beam size pruning: keep exactly the maxBeamSize best hypotheses of each pool
+        auto   byScore   = [](auto const& a, auto const& b) { return a.pruningScore() < b.pruningScore(); };
+        size_t numActive = std::partition(hypotheses.begin(), hypotheses.end(), [](auto const& hyp) { return hyp.isActive; }) - hypotheses.begin();
+        if (hypotheses.size() - numActive > terminatedPruningParams.maxBeamSize) {
+            auto keepEnd = hypotheses.begin() + numActive + terminatedPruningParams.maxBeamSize;
+            std::nth_element(hypotheses.begin() + numActive, keepEnd, hypotheses.end(), byScore);
+            hypotheses.erase(keepEnd, hypotheses.end());
+        }
+        if (numActive > activePruningParams.maxBeamSize) {
+            auto keepEnd = hypotheses.begin() + activePruningParams.maxBeamSize;
+            std::nth_element(hypotheses.begin(), keepEnd, hypotheses.begin() + numActive, byScore);
+            hypotheses.erase(keepEnd, hypotheses.begin() + numActive);
+        }
     }
 
     static constexpr size_t activeIdx     = 0ul;

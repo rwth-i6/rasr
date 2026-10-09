@@ -562,11 +562,10 @@ private:
                 consistent = false;
             }
             for (PivotArcCn::SlotPtrList::const_iterator itSlotPtr = slots.begin() + 1; (itSlotPtr != slots.end()) && consistent; ++itSlotPtr) {
-                const PivotArcCn::Slot& slot   = **itSlotPtr;
-                Time                    pStart = tStart;
-                Time                    pEnd   = tEnd;
-                tStart                         = slot.start;
-                tEnd                           = slot.end;
+                const PivotArcCn::Slot& slot = **itSlotPtr;
+                Time                    pEnd = tEnd;
+                tStart                       = slot.start;
+                tEnd                         = slot.end;
                 if (!(tStart < tEnd)) {
                     consistent = false;
                     break;

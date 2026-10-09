@@ -442,8 +442,6 @@ ConstLatticeRef buildMesh(const std::vector<MeshEntry>& entries, ConstSemiringRe
     s->setSemiring(semiring);
     s->setBoundaries(ConstBoundariesRef(b));
 
-    ScoreId amScoreId = semiring->id("am");
-
     s->addProperties(Fsa::PropertySortedByInputAndTarget);
 
     typedef typename MeshedBoundaryBuilder::HashList BoundaryHashList;
@@ -643,7 +641,6 @@ ConstLatticeRef buildMesh(const std::vector<MeshEntry>& entries, ConstSemiringRe
         }
         else
             meshInitialSp = s->fastState(meshInitial.first);
-        Speech::TimeframeIndex firstTime = Speech::InvalidTimeframeIndex;
         for (Core::Vector<Fsa::StateId>::const_iterator itSid = initialSids.begin();
              itSid != initialSids.end(); ++itSid)
             if (*itSid != meshInitialSp->id())

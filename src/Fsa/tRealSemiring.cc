@@ -28,12 +28,13 @@ std::string str(const T& t) {
     oss << t;
     return oss.str();
 }
+// This file is included by tRealSemiring.hh, so a translation unit may use only one of the specializations
 template<>
-std::string str<f32>(const f32& f) {
+[[maybe_unused]] std::string str<f32>(const f32& f) {
     return Core::form("%f", double(f));
 }
 template<>
-std::string str<f64>(const f64& f) {
+[[maybe_unused]] std::string str<f64>(const f64& f) {
     return Core::form("%f", double(f));
 }
 

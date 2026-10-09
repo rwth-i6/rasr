@@ -288,9 +288,9 @@ bool Session::runWithBinding(std::vector<std::pair<std::string, Value>>& inputs,
                              std::vector<Value>&                         outputs,
                              std::vector<MemoryLocation> const&          output_locations) {
 #ifdef MODULE_CUDA
+    // Configuration errors: the callers can't continue without the outputs
     if (executionProviderType_ != ExecutionProviderType::cuda) {
-        error() << "ONNX session inputs/outputs in device memory require the CUDA execution provider";
-        return false;
+        criticalError() << "ONNX session inputs/outputs in device memory require the CUDA execution provider";
     }
 
     Ort::MemoryInfo hostMemoryInfo   = Ort::MemoryInfo::CreateCpu(OrtDeviceAllocator, OrtMemTypeDefault);
@@ -327,7 +327,7 @@ bool Session::runWithBinding(std::vector<std::pair<std::string, Value>>& inputs,
     outputs = std::move(results);
     return true;
 #else
-    error() << "ONNX session inputs/outputs in device memory require RASR compiled with MODULE_CUDA";
+    criticalError() << "ONNX session inputs/outputs in device memory require RASR compiled with MODULE_CUDA";
     return false;
 #endif
 }

@@ -121,6 +121,11 @@ const Core::ParameterInt LexiconfreeTimesyncBeamSearch::paramNumHistogramBins(
         100,
         2);
 
+const Core::ParameterBool LexiconfreeTimesyncBeamSearch::paramEnableHistogramPruning(
+        "enable-histogram-pruning",
+        "Use histogram pruning for max-beam-size. If false, exactly the max-beam-size best hypotheses are kept.",
+        true);
+
 const Core::ParameterInt LexiconfreeTimesyncBeamSearch::paramBlankLabelIndex(
         "blank-label-index",
         "Index of the blank label in the lexicon. Can also be inferred from lexicon if it has a lemma with `special='blank'`. If not set, the search will not use blank.",
@@ -180,6 +185,7 @@ LexiconfreeTimesyncBeamSearch::LexiconfreeTimesyncBeamSearch(Core::Configuration
         : Core::Component(config),
           SearchAlgorithmV2(config),
           scoreHistogram_(paramNumHistogramBins(config)),
+          histogramPruningEnabled_(paramEnableHistogramPruning(config)),
           blankLabelIndex_(paramBlankLabelIndex(config)),
           silenceLabelIndex_(paramSilenceLabelIndex(config)),
           sentenceEndLemma_(),
@@ -738,6 +744,12 @@ void LexiconfreeTimesyncBeamSearch::scorePruning(std::vector<Element>& hypothese
 
     if (hypotheses.empty()) {
         return;
+    }
+
+    if (not histogramPruningEnabled_ and hypotheses.size() > maxBeamSize) {
+        // Plain max beam size pruning: keep exactly the maxBeamSize best hypotheses
+        std::nth_element(hypotheses.begin(), hypotheses.begin() + maxBeamSize, hypotheses.end(), [](auto const& a, auto const& b) { return a.score < b.score; });
+        hypotheses.resize(maxBeamSize);
     }
 
     if (hypotheses.size() <= maxBeamSize and relativeThreshold == Core::Type<Score>::max) {

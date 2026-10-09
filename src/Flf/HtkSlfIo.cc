@@ -1346,7 +1346,7 @@ bool HtkSlfWriter::buildHeaderAndMapping(
         warning("lattice defines no acoustic scores");
     if (!f->semiring()->hasId(f->semiring()->id("lm")))
         warning("lattice defines no language model scores");
-    if (!header.base == -1.0)
+    if (header.base != -1.0)
         warning("all scores and penalties are considered negative natural logarithms of probabilities");
     HtkSlfHeaderAndMappingBuilder build(f, header, mapping, topological);
     return true;

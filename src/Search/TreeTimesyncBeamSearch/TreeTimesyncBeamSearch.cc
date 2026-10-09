@@ -805,13 +805,9 @@ bool TreeTimesyncBeamSearch::decodeStep() {
             auto const*                     lemmaPron = lexicon_->lemmaPronunciation(exit.pronunciation);
             auto const*                     lemma     = lemmaPron->lemma();
 
-            Score                               lmScore = 0;
-            const Bliss::SyntacticTokenSequence sts     = lemma->syntacticTokenSequence();
-            if (sts.size() != 0) {
-                require(sts.size() == 1);
-                auto const* st = sts.front();
-                lmScore        = languageModel_->score(hyp.lmHistory, st);
-            }
+            // The last token is only appended to the LM history after pruning
+            Lm::History lmPrefixHistory;
+            Score       lmScore = languageModel_->scoreTokenSequence(hyp.lmHistory, lemma->syntacticTokenSequence(), lmPrefixHistory);
 
             Score              penalty               = 0.0;
             Nn::TransitionType wordEndtransitionType = Nn::TransitionType::WORD_EXIT;
@@ -833,11 +829,12 @@ bool TreeTimesyncBeamSearch::decodeStep() {
             }
 
             wordEndExtensions_.push_back({
-                    .pron           = lemmaPron,
-                    .rootState      = exit.transitState,
-                    .score          = hyp.score + lmScore + penalty,
-                    .transitionType = wordEndtransitionType,
-                    .baseHypIndex   = hypIndex,
+                    .pron            = lemmaPron,
+                    .rootState       = exit.transitState,
+                    .score           = hyp.score + lmScore + penalty,
+                    .transitionType  = wordEndtransitionType,
+                    .baseHypIndex    = hypIndex,
+                    .lmPrefixHistory = lmPrefixHistory,
             });
         }
     }
@@ -856,27 +853,25 @@ bool TreeTimesyncBeamSearch::decodeStep() {
     for (auto& extension : wordEndExtensions_) {
         auto const& baseHyp = newBeam_[extension.baseHypIndex];
 
-        auto        newLmHistory = baseHyp.lmHistory;
+        // The preceding syntactic tokens have already been appended during scoring
+        auto        newLmHistory = extension.lmPrefixHistory;
         auto const& sts          = extension.pron->lemma()->syntacticTokenSequence();
+        if (sts.size() != 0) {
+            newLmHistory = languageModel_->extendedHistory(newLmHistory, sts[sts.size() - 1]);
+        }
 
         LanguageModelLookahead::ContextLookaheadReference newLookahead        = baseHyp.lookahead;
         Lm::History                                       newLookaheadHistory = baseHyp.lookaheadHistory;
         Score                                             newLookaheadBackOff = baseHyp.lookaheadBackOff;
 
-        if (sts.size() != 0) {
-            require(sts.size() == 1);
-            const Bliss::SyntacticToken* st = sts.front();
-            newLmHistory                    = languageModel_->extendedHistory(newLmHistory, st);
+        if (enableLmLookahead_) {
+            Lm::extendHistoryByLemma(lookaheadLm_, extension.pron->lemma(), newLookaheadHistory);
 
-            if (enableLmLookahead_) {
-                newLookaheadHistory = lookaheadLm_->extendedHistory(baseHyp.lookaheadHistory, st);
-
-                if (!(newLookaheadHistory == baseHyp.lookaheadHistory)) {
-                    // The lookahead context changed, so a table the base may have backed off to no
-                    // longer applies: start the new word from the table for the new context.
-                    getLmLookahead(newLookahead, newLookaheadHistory);
-                    newLookaheadBackOff = 0.0;
-                }
+            if (!(newLookaheadHistory == baseHyp.lookaheadHistory)) {
+                // The lookahead context changed, so a table the base may have backed off to no
+                // longer applies: start the new word from the table for the new context.
+                getLmLookahead(newLookahead, newLookaheadHistory);
+                newLookaheadBackOff = 0.0;
             }
         }
 

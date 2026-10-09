@@ -106,11 +106,12 @@ protected:
     };
 
     struct WordEndExtensionCandidate {
-        Bliss::LemmaPronunciation const* pron;            // Proposed lemma pronunciation
-        StateId                          rootState;       // Proposed root-state to transition to
-        Score                            score;           // Would-be total score of the full hypothesis after LM score contribution
-        Nn::TransitionType               transitionType;  // Type of transition towward `rootState`
-        size_t                           baseHypIndex;    // Index of base hypothesis in beam
+        Bliss::LemmaPronunciation const* pron;             // Proposed lemma pronunciation
+        StateId                          rootState;        // Proposed root-state to transition to
+        Score                            score;            // Would-be total score of the full hypothesis after LM score contribution
+        Nn::TransitionType               transitionType;   // Type of transition towward `rootState`
+        size_t                           baseHypIndex;     // Index of base hypothesis in beam
+        Lm::History                      lmPrefixHistory;  // LM history of the base hypothesis extended by all but the last syntactic token of `pron`
 
         bool operator<(WordEndExtensionCandidate const& other) {
             return score < other.score;

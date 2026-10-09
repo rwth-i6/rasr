@@ -120,6 +120,7 @@ public:
     virtual History reducedHistory(History const& hist, u32 limit) const;
     virtual History reduceHistoryByN(History const&, u32 n) const;
     virtual Score   score(History const& hist, Token w) const;
+    virtual Score   scoreTokenSequence(History const& hist, Bliss::SyntacticTokenSequence const& tokens, History& prefixHistory) const;
     virtual bool    scoreCached(History const& hist, Token w) const;
 
     virtual void startFrame(Search::TimeframeIndex time) const;
@@ -469,6 +470,30 @@ Score RecurrentLanguageModel<value_t, state_variable_t>::score(History const& hi
     fwd_statistics_.softmax_output_duration += duration;
     fwd_statistics_.total_duration += duration;
     return score;
+}
+
+template<typename value_t, typename state_variable_t>
+Score RecurrentLanguageModel<value_t, state_variable_t>::scoreTokenSequence(History const& hist, Bliss::SyntacticTokenSequence const& tokens, History& prefixHistory) const {
+    if (tokens.length() == 0) {
+        prefixHistory = hist;
+        return 0.0;
+    }
+
+    // Create all prefix histories first and score them from the back: The first score request then forwards
+    // the whole chain of not-yet-computed prefixes in a single step and the remaining scores are already cached.
+    std::vector<History> prefixes;
+    prefixes.reserve(tokens.length());
+    prefixes.push_back(hist);
+    for (u32 ti = 0; ti + 1 < tokens.length(); ++ti) {
+        prefixes.push_back(extendedHistory(prefixes.back(), tokens[ti]));
+    }
+
+    Score result = 0.0;
+    for (s32 ti = static_cast<s32>(tokens.length()) - 1; ti >= 0; --ti) {
+        result += score(prefixes[ti], tokens[ti]);
+    }
+    prefixHistory = prefixes.back();
+    return result;
 }
 
 template<typename value_t, typename state_variable_t>

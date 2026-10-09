@@ -74,7 +74,7 @@ protected:
 
     bool expectMoreFeatures_;
 
-    // Channel that `logStatistics` writes to. Defaults to the standard log target.
+    // Channel that `logStatistics` writes to. Disabled unless a target is configured.
     mutable Core::XmlChannel statisticsChannel_;
 
     // Clear the state that belongs to the concrete Encoder, e.g. input buffers and segment-end
@@ -84,6 +84,9 @@ protected:
     // Hook for subclasses to break down `encode-time`. Called inside that element, so only
     // timers whose intervals are contained in it belong here.
     virtual void logEncodeBreakdown() const {}
+
+    // Hook for subclasses to add statistics that are not part of `encode-time`.
+    virtual void logAdditionalStatistics() const {}
 
     Core::StopWatch encodeTime_;
 

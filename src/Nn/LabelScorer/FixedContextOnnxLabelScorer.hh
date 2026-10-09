@@ -105,6 +105,8 @@ private:
     void logScoringBreakdown() const override;
 
     Core::StopWatch onnxSessionTime_;
+    // Building the batched session inputs and copying the resulting scores into the cache
+    Core::StopWatch tensorMarshallingTime_;
     Core::StopWatch contextPreparationTime_;
 
     std::unordered_map<SeqStepScoringContextRef, std::shared_ptr<std::vector<Score>>, ScoringContextHash, ScoringContextEq> scoreCache_;

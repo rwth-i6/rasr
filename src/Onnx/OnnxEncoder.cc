@@ -70,9 +70,14 @@ void OnnxEncoder::logEncodeBreakdown() const {
     statisticsChannel_ << Core::XmlFull("onnx-session-time", onnxSessionTime_.elapsedMilliseconds());
 }
 
+void OnnxEncoder::logAdditionalStatistics() const {
+    statisticsChannel_ << Core::XmlFull("num-session-runs", numSessionRuns_);
+}
+
 void OnnxEncoder::resetInternal() {
     Encoder::resetInternal();
     onnxSessionTime_.reset();
+    numSessionRuns_ = 0ul;
     stateManager_->setInitialStates(stateVariables_);
 }
 
@@ -112,6 +117,7 @@ OnnxEncoder::SessionRunResult OnnxEncoder::runSession(size_t inputStartIndex, si
     onnxSessionTime_.start();
     onnxModel_->session.run(std::move(sessionInputs), outputNames, sessionOutputs);
     onnxSessionTime_.stop();
+    ++numSessionRuns_;
 
     // Retrieve outputs
     size_t T_out      = sessionOutputs.front().dimSize(1);

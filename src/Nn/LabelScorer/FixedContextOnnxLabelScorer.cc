@@ -129,12 +129,14 @@ FixedContextOnnxLabelScorer::FixedContextOnnxLabelScorer(Core::Configuration con
 
 void FixedContextOnnxLabelScorer::logScoringBreakdown() const {
     statisticsChannel_ << Core::XmlFull("onnx-session-time", onnxSessionTime_.elapsedMilliseconds());
+    statisticsChannel_ << Core::XmlFull("tensor-marshalling-time", tensorMarshallingTime_.elapsedMilliseconds());
     statisticsChannel_ << Core::XmlFull("context-preparation-time", contextPreparationTime_.elapsedMilliseconds());
 }
 
 void FixedContextOnnxLabelScorer::resetInternal() {
     Precursor::resetInternal();
     onnxSessionTime_.reset();
+    tensorMarshallingTime_.reset();
     contextPreparationTime_.reset();
     scoreCache_.clear();
 }
@@ -323,6 +325,8 @@ void FixedContextOnnxLabelScorer::forwardBatch(std::vector<SeqStepScoringContext
      * Create session inputs
      */
 
+    tensorMarshallingTime_.start();
+
     // All requests in this iteration share the same input feature which is set up here
     auto                 inputFeatureDataView = getInput(scoringContextBatch.front()->currentStep);
     f32 const*           inputFeatureData     = inputFeatureDataView->data();
@@ -339,6 +343,8 @@ void FixedContextOnnxLabelScorer::forwardBatch(std::vector<SeqStepScoringContext
     sessionInputs.emplace_back(inputFeatureName_, Onnx::Value::create(inputFeatureData, inputFeatureShape));
     sessionInputs.emplace_back(historyName_, Onnx::Value::create(historyMat, true));
 
+    tensorMarshallingTime_.stop();
+
     /*
      * Run session
      */
@@ -350,6 +356,7 @@ void FixedContextOnnxLabelScorer::forwardBatch(std::vector<SeqStepScoringContext
     /*
      * Put resulting scores into cache map
      */
+    Core::StopWatch::Scope marshallingTimer(tensorMarshallingTime_);
     for (size_t b = 0ul; b < scoringContextBatch.size(); ++b) {
         auto scoreVec = std::make_shared<std::vector<Score>>();
         sessionOutputs.front().get(b, *scoreVec);

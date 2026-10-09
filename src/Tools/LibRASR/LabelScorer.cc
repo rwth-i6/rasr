@@ -94,6 +94,7 @@ void bindLabelScorer(py::module_& module) {
             .value("WORD_EXIT", Nn::TransitionType::WORD_EXIT)
             .value("NONWORD_EXIT", Nn::TransitionType::NONWORD_EXIT)
             .value("SILENCE_EXIT", Nn::TransitionType::SILENCE_EXIT)
+            .value("BLANK_EXIT", Nn::TransitionType::BLANK_EXIT)
             .value("SENTENCE_END", Nn::TransitionType::SENTENCE_END);
 
     // Specify `Python::LabelScorer` as trampoline class and `Core::Ref<Nn::LabelScorer>` as holder type

@@ -19,6 +19,7 @@
 #include <ctype.h>
 
 #include <libxml/SAX.h>
+#include <libxml/SAX2.h>
 #include <libxml/parserInternals.h>
 
 /*
@@ -232,9 +233,10 @@ static void error(void *ctx, const char *msg, ...)
 {
   va_list ap;
 
+  /* xmlSAX2Get*Number: the SAX1 getLineNumber/getColumnNumber were removed in libxml2 2.14 */
   fprintf(stderr, "error in line %d column %d: ", 
-	  getLineNumber(ctx),
-	  getColumnNumber(ctx));
+	  xmlSAX2GetLineNumber(ctx),
+	  xmlSAX2GetColumnNumber(ctx));
 
   va_start(ap, msg);
   vfprintf(stderr, msg, ap);

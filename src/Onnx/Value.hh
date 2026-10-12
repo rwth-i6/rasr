@@ -11,6 +11,7 @@
 
 namespace Onnx {
 
+class PersistentInput;
 class Session;
 
 enum class ValueType : int {
@@ -54,6 +55,7 @@ enum class MemoryLocation : int {
 
 class Value {
 public:
+    friend PersistentInput;
     friend Session;
 
     template<typename... Args>
@@ -99,6 +101,10 @@ public:
 
     // Copy of the tensor in host memory (a plain copy for host tensors)
     Value toHost() const;
+
+    // Tensor over the same data (host or device memory) without copying it and without taking ownership
+    // This value must stay alive and unchanged as long as the view is used
+    Value view() const;
 
     // Raw data pointer regardless of the memory location, i.e. a device pointer for tensors on the device
     template<typename T>

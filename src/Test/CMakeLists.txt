@@ -40,6 +40,8 @@ if(${MODULE_NN})
                 Nn_NeuralNetworkTrainer.cc
                 Nn_PreprocessingLayer.cc
                 Nn_Statistics.cc
+                Search_LlmRnntTimesyncBeamSearch.cc
+                Search_LlmTimesyncBeamSearch.cc
     )
 endif()
 

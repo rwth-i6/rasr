@@ -177,7 +177,8 @@ The search algorithm is selected with the ``type`` parameter under the ``search-
     [*.search-algorithm]
     type = lexiconfree-timesync-beam-search
     ; other options: lexiconfree-labelsync-beam-search, lexiconfree-rnnt-timesync-beam-search,
-    ; tree-timesync-beam-search, tree-labelsync-beam-search
+    ; tree-timesync-beam-search, tree-labelsync-beam-search, llm-timesync-beam-search,
+    ; llm-rnnt-timesync-beam-search
 
 If unset, ``type`` defaults to ``lexiconfree-timesync-beam-search``.
 
@@ -643,6 +644,193 @@ Order of operations for one label-synchronous decoding step, assuming two label 
     scale                    = 0.8
 
 The same tree caching considerations as for ``tree-timesync-beam-search`` above apply here as well.
+
+llm-timesync-beam-search
+^^^^^^^^^^^^^^^^^^^^^^^^
+
+A time-synchronous beam search without pronunciation lexicon, like ``lexiconfree-timesync-beam-search``, which
+scores the words it assembles from word-piece labels with an external LM that has its own tokenizer, typically an
+LLM such as Qwen. Any word the acoustic model can spell can be recognized and scored by the LLM.
+
+Every hypothesis keeps its *pending word*, the spelling of the pieces since the last word boundary, and its *LLM
+history*, the LLM tokens of all finished words. When a piece finishes a word, the word is tokenized by the LLM, its
+tokens are scored after the history and the history is advanced by them. At the segment end the pending word is
+finished as well, together with the LLM's sentence-end tokens. Hypotheses are recombined if their label scorer
+states, last label, LLM history and pending word are equal.
+
+Word boundaries follow ``word-piece-convention``:
+
+* ``word-start-marked`` (default): a piece starting with ``word-piece-marker`` (default ``▁``, as in
+  SentencePiece) begins a new word, so the pending word is finished by the next word-start piece.
+* ``continuation-marked``: a piece ending with ``word-piece-marker`` (default ``@@``) continues its word, every
+  other piece finishes it immediately.
+
+The LLM may return several spelling variants of a word, e.g. in different casing. All of them are scored and the
+hypothesis continues with the cheapest one, both for its score and its LLM history; for the last word of a segment
+the choice includes the sentence end. This compensates casing differences between the acoustic model's vocabulary
+and the LLM's training data, e.g. an all-caps vocabulary.
+
+Caching and batching:
+
+* Spelling variants and tokenizations are cached by text across segments.
+* Within a segment, the cost of every scored token is cached in a trie of all LLM histories, and the result of every
+  (history, word) pair. So nothing is ever sent to the LLM twice, also not as a prefix of a longer request.
+* All LLM requests of a search step are sent in one batch.
+* Histories are integer handles that are equal for equal token sequences. An LLM implementation can therefore keep
+  a key/value cache per handle. Every ``cache-cleanup-interval`` steps the search tells it which histories are still
+  active, so the states of all others can be dropped.
+
+Order of operations for one decoding step:
+
+#. Create and score the extensions with all label scorers, with intermediate pruning, as in
+   ``lexiconfree-timesync-beam-search``.
+#. Prune the extensions with ``pre-llm-score-threshold`` and ``pre-llm-max-beam-size``.
+#. Assemble the words of the surviving extensions and score the finished ones with the LLM.
+#. Recombine equivalent hypotheses (if ``recombination-mode = on``).
+#. Prune hypotheses with the ``score-threshold`` and ``max-beam-size`` of the last label scorer.
+
+The LLM costs are multiplied by ``llm-scale`` and every finished word additionally gets ``word-penalty``. Both are
+reported as LM score in the traceback, everything else as acoustic score.
+
+Parameters: all parameters of ``lexiconfree-timesync-beam-search`` and additionally
+
+* ``pre-llm-max-beam-size`` (int): maximum number of extensions whose finished words are scored in each step. ``0``
+  means the ``max-beam-size`` of the last label scorer. Default ``0``.
+* ``pre-llm-score-threshold`` (float): prune extensions worse than the best one by more than this before their
+  finished words are scored. Default: unset.
+* ``word-piece-convention`` (``word-start-marked``/``continuation-marked``) and ``word-piece-marker`` (string),
+  see above.
+* ``llm-scale`` (float): scale of the LLM costs. Default ``1.0``.
+* ``word-penalty`` (float): added for every finished word; negative values reward words. Default ``0.0``.
+* ``llm.type`` (string): type of the LLM scorer, see below. Required.
+* ``llm.word-separator`` (string): text in front of every word except the first one of a segment when it is
+  tokenized. Default ``" "``, which matches byte-level BPE tokenizers such as those of Qwen or Llama.
+
+The ``statistics`` channel additionally reports the time of the LLM phase, split into word assembly and word scoring,
+and the LLM component reports its own statistics: time spent on spelling variants, tokenization and in the LLM,
+cache hits, LLM calls and their batch sizes, scored tokens and the number of histories.
+
+The LLM is implemented in Python as a subclass of ``librasr.LlmScorer`` and registered under a type name, which is
+then selected with ``llm.type``. All other parameters of the ``llm`` selection are available through its
+``config``. A subclass implements
+
+* ``reset()``: start a new segment.
+* ``initial_tokens()``: token ids every history starts with, e.g. a begin-of-sequence token or a prompt.
+* ``sentence_end_tokens()``: token ids scored at the end of a segment, may be empty.
+* ``tokenize(texts)``: one list of token ids per text.
+* ``score(requests)``: the cost (negative natural log-probability) of every token of every ``LlmScoringRequest``,
+  which carries ``history`` (handle), ``prefix`` (token ids of the history), ``tokens`` and ``token_histories``
+  (the handle after each token).
+
+and optionally
+
+* ``spelling_variants(words)``: spellings to score per word, by default the word itself.
+* ``cleanup(active_histories)``: only these handles are continued from now on.
+
+A reference implementation with HuggingFace transformers, which keeps a key/value cache per history handle and
+batches requests with different history lengths, is ``doc/examples/huggingface_llm_scorer.py``:
+
+.. literalinclude:: examples/huggingface_llm_scorer.py
+   :language: python
+
+Registering it and configuring the search:
+
+.. code-block:: python
+
+    librasr.register_llm_scorer_type("huggingface", HuggingFaceLlmScorer)
+    search = librasr.SearchAlgorithm(config)
+
+.. code-block:: ini
+
+    [*.search-algorithm]
+    type                     = llm-timesync-beam-search
+    max-beam-size            = 16
+    score-threshold          = 14.0
+    pre-llm-max-beam-size    = 64
+    blank-label-index        = 0
+    collapse-repeated-labels = true
+    llm-scale                = 0.3
+
+    [*.search-algorithm.llm]
+    type                     = huggingface
+    model                    = Qwen/Qwen2.5-0.5B
+    case-variants            = lower,capitalized
+
+Limitations:
+
+* Under ``word-start-marked``, a word is only scored once the next word begins. Hypotheses competing in the same step
+  therefore do not all carry their LLM cost yet, which favors hypotheses that postpone a word boundary, in the
+  extreme by gluing words together. There is no LLM look-ahead within a word.
+* Text normalization is limited to what the spelling variants of a single word can express, e.g. casing.
+  Punctuation has to come from the acoustic model's vocabulary.
+
+llm-rnnt-timesync-beam-search
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+The counterpart of ``llm-timesync-beam-search`` for standard (non-monotonic) RNN-T/transducer models: words are
+assembled from the emitted word pieces and scored by an LLM in the same way, with the same LLM interface, caching,
+spelling variants and statistics. Only the time loop differs. Within each timestep, a hypothesis keeps emitting
+labels until it emits blank, which finishes it for that timestep, or until ``max-labels-per-timeframe`` labels have
+been emitted.
+
+Order of operations for one timestep:
+
+#. Start with the beam of the previous timestep as the hypotheses that can still emit labels (*inner* hypotheses).
+#. Repeat until no inner hypotheses remain:
+
+   #. Score the inner hypotheses with the first label scorer.
+   #. Extend them with blank, score these extensions with the remaining label scorers and add them to the
+      hypotheses finished in this timestep (*outer* hypotheses). Recombine the outer hypotheses.
+   #. Unless ``max-labels-per-timeframe`` labels have been emitted, extend the inner hypotheses with every non-blank
+      label, score and prune these extensions with all label scorers, prune them with ``pre-llm-score-threshold``
+      and ``pre-llm-max-beam-size``, and score the words they finish with the LLM. The extensions become the new
+      inner hypotheses, except those already worse than the ``max-beam-size``-th best outer hypothesis.
+#. Prune the outer hypotheses with the ``score-threshold`` and ``max-beam-size`` of the last label scorer, both on
+   the length-normalized score. They become the beam of the next timestep.
+
+Within a timestep, pruning compares raw scores. Only words finished by a non-blank label are scored, so all LLM
+requests of a symbol step are sent in one batch. The label scorers should only advance their time on blank, e.g.
+with ``vertical-label-transition = true`` where available.
+
+Parameters:
+
+* ``max-beam-size``, ``score-threshold``, ``num-histogram-bins``, ``cache-cleanup-interval``,
+  ``maximum-stable-delay``, ``maximum-stable-delay-pruning-interval``: as for ``lexiconfree-timesync-beam-search``.
+* ``pre-llm-max-beam-size``, ``pre-llm-score-threshold``, ``word-piece-convention``, ``word-piece-marker``,
+  ``llm-scale``, ``word-penalty`` and the ``llm`` selection: as for ``llm-timesync-beam-search``, with the
+  pre-LLM pruning applied per symbol step.
+* ``max-labels-per-timeframe`` (int): maximum number of non-blank labels a hypothesis can emit within one timestep.
+  Default ``10``.
+* ``length-norm-scale`` (float): exponent of the length normalization ``score / length^length-norm-scale`` used by
+  the pruning at the end of each timestep and to select the best hypothesis. Default ``0``.
+* ``blank-label-index`` (int): required, inferred from a lemma with ``special="blank"`` if unset.
+* ``sentence-end-label-index`` (int): inferred from ``special="sentence-end"``/``"sentence-boundary"`` if unset.
+  The sentence-end label is scored like any other label and only marks the hypotheses that emitted it; at the
+  segment end only those are kept. The LLM's sentence-end tokens are scored at the segment end either way.
+* ``sentence-end-fall-back`` (bool): if no hypothesis emitted the sentence-end label, keep the beam as it is instead
+  of producing an empty hypothesis. Default ``true``.
+* ``recombination-mode`` (``off``/``sum``/``viterbi``): recombine hypotheses with equal label scorer states, last
+  label, LLM history and pending word, either by summing their probabilities (only for equal label sequences) or by
+  keeping the better one. Default ``sum``.
+* ``collapse-repeated-labels`` (bool): as for ``lexiconfree-timesync-beam-search``. Default ``false``.
+
+The ``statistics`` channel reports the time of the blank and label extensions, the pre-LLM pruning, the LLM phase
+split into word assembly and word scoring, building the inner hypotheses, recombination, beam pruning and cleanup,
+and per-timestep statistics on the number of symbol steps, inner and outer hypotheses and finished words.
+
+.. code-block:: ini
+
+    [*.search-algorithm]
+    type                     = llm-rnnt-timesync-beam-search
+    max-beam-size            = 32
+    score-threshold          = 14.0
+    blank-label-index        = 0
+    max-labels-per-timeframe = 10
+    llm-scale                = 0.3
+
+    [*.search-algorithm.llm]
+    type                     = huggingface
+    model                    = Qwen/Qwen2.5-0.5B
 
 Search tree types
 ^^^^^^^^^^^^^^^^^

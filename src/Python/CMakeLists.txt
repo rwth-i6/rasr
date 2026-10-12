@@ -6,6 +6,7 @@ add_library(
     Encoder.cc
     Init.cc
     LabelScorer.cc
+    LlmScorer.cc
     Numpy.cc
     ScoringContext.cc
     Search.cc

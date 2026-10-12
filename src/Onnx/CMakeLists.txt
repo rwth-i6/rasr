@@ -10,6 +10,7 @@ add_library(
     OnnxFeatureScorer.cc
     OnnxForwardNode.cc
     OnnxLstmStateManager.cc
+    PersistentInput.cc
     Session.cc
     StateManager.cc
     Value.cc

@@ -258,7 +258,7 @@ void StatefulOnnxLabelScorer::addInput(DataView const& input) {
     initialHiddenState_ = OnnxHiddenStateRef();
 
     if (not encoderStatesValue_.empty()) {  // Any previously computed hidden state values are outdated now so reset them
-        encoderStatesValue_     = Onnx::Value();
+        encoderStatesValue_.clear();
         encoderStatesSizeValue_ = Onnx::Value();
     }
 }
@@ -398,12 +398,13 @@ void StatefulOnnxLabelScorer::setupEncoderStatesValue() {
     u32  T                    = bufferSize();
     auto inputFeatureDataView = getInput(0);
 
-    encoderStatesValue_ = Onnx::Value::createEmpty<f32>({1l, static_cast<int64_t>(T), static_cast<int64_t>(inputFeatureDataView->size())});
+    auto encoderStates = Onnx::Value::createEmpty<f32>({1l, static_cast<int64_t>(T), static_cast<int64_t>(inputFeatureDataView->size())});
 
     for (size_t t = 0ul; t < T; ++t) {
         inputFeatureDataView = getInput(t);
-        std::copy(inputFeatureDataView->data(), inputFeatureDataView->data() + inputFeatureDataView->size(), encoderStatesValue_.data<f32>(0, t));
+        std::copy(inputFeatureDataView->data(), inputFeatureDataView->data() + inputFeatureDataView->size(), encoderStates.data<f32>(0, t));
     }
+    encoderStatesValue_.set(std::move(encoderStates));
 }
 
 void StatefulOnnxLabelScorer::setupEncoderStatesSizeValue() {
@@ -427,11 +428,11 @@ OnnxHiddenStateRef StatefulOnnxLabelScorer::computeInitialHiddenState() {
 
         if (initializerEncoderStatesName_ != "") {
             setupEncoderStatesValue();
-            sessionInputs.emplace_back(initializerEncoderStatesName_, encoderStatesValue_);
+            sessionInputs.emplace_back(initializerEncoderStatesName_, encoderStatesValue_.view(stateInitializerOnnxModel_->session));
         }
         if (initializerEncoderStatesSizeName_ != "") {
             setupEncoderStatesSizeValue();
-            sessionInputs.emplace_back(initializerEncoderStatesSizeName_, encoderStatesSizeValue_);
+            sessionInputs.emplace_back(initializerEncoderStatesSizeName_, encoderStatesSizeValue_.view());
         }
 
         std::vector<std::string> sessionOutputNames;
@@ -464,11 +465,11 @@ std::vector<OnnxHiddenStateRef> StatefulOnnxLabelScorer::updatedHiddenStates(std
 
     if (updaterEncoderStatesName_ != "") {
         setupEncoderStatesValue();
-        sessionInputs.emplace_back(updaterEncoderStatesName_, encoderStatesValue_);
+        sessionInputs.emplace_back(updaterEncoderStatesName_, encoderStatesValue_.view(stateUpdaterOnnxModel_->session));
     }
     if (updaterEncoderStatesSizeName_ != "") {
         setupEncoderStatesSizeValue();
-        sessionInputs.emplace_back(updaterEncoderStatesSizeName_, encoderStatesSizeValue_);
+        sessionInputs.emplace_back(updaterEncoderStatesSizeName_, encoderStatesSizeValue_.view());
     }
     if (updaterTokenName_ != "") {
         sessionInputs.emplace_back(updaterTokenName_, Onnx::Value::create(nextTokensBatch));

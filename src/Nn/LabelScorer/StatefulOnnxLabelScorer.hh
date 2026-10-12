@@ -25,6 +25,7 @@
 #include <Mm/FeatureScorer.hh>
 #include <Onnx/IOSpecification.hh>
 #include <Onnx/Model.hh>
+#include <Onnx/PersistentInput.hh>
 #include <Onnx/Session.hh>
 #include <Speech/Feature.hh>
 
@@ -167,8 +168,9 @@ private:
     std::string updaterTokenName_;
 
     // Store the onnx values with all encoder states and lengths inside so that it doesn't have to be recomputed every time
-    Onnx::Value encoderStatesValue_;
-    Onnx::Value encoderStatesSizeValue_;
+    // The encoder states are passed to the session runs as views to avoid copies (and uploaded to the device only once for CUDA sessions)
+    Onnx::PersistentInput encoderStatesValue_;
+    Onnx::Value           encoderStatesSizeValue_;
 
     Core::FIFOCache<OnnxHiddenStateScoringContextRef, std::shared_ptr<std::vector<Score>>, ScoringContextHash, ScoringContextEq> scoreCache_;
     Core::FIFOCache<OnnxHiddenStateScoringContextRef, OnnxHiddenStateRef, ScoringContextHash, ScoringContextEq>                  stateCache_;

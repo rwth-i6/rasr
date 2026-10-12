@@ -18,6 +18,7 @@
 
 #include <Core/FIFOCache.hh>
 #include <Onnx/Model.hh>
+#include <Onnx/PersistentInput.hh>
 
 #include "BufferedLabelScorer.hh"
 #include "ModelCache.hh"
@@ -108,8 +109,9 @@ private:
     std::string encoderStatesName_;
     std::string encoderStatesSizeName_;
 
-    Onnx::Value encoderStatesValue_;
-    Onnx::Value encoderStatesSizeValue_;
+    // Passed to every session run, as views to avoid copies (and uploaded to the device only once for CUDA sessions)
+    Onnx::PersistentInput encoderStatesValue_;
+    Onnx::Value           encoderStatesSizeValue_;
 
     Core::FIFOCache<StateManagedOnnxScoringContextRef, std::shared_ptr<std::vector<Score>>, ScoringContextHash, ScoringContextEq> scoreCache_;
     Core::FIFOCache<StateManagedOnnxScoringContextRef, std::shared_ptr<HistoryState>, ScoringContextHash, ScoringContextEq>       stateCache_;

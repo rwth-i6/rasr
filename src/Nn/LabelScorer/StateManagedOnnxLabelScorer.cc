@@ -166,7 +166,7 @@ StateManagedOnnxLabelScorer::StateManagedOnnxLabelScorer(Core::Configuration con
 
 void StateManagedOnnxLabelScorer::reset() {
     Precursor::reset();
-    encoderStatesValue_     = Onnx::Value();
+    encoderStatesValue_.clear();
     encoderStatesSizeValue_ = Onnx::Value();
     scoreCache_.clear();
     stateCache_.clear();
@@ -174,7 +174,7 @@ void StateManagedOnnxLabelScorer::reset() {
 
 void StateManagedOnnxLabelScorer::addInput(DataView const& input) {
     Precursor::addInput(input);
-    encoderStatesValue_     = Onnx::Value();
+    encoderStatesValue_.clear();
     encoderStatesSizeValue_ = Onnx::Value();
 }
 
@@ -306,12 +306,13 @@ void StateManagedOnnxLabelScorer::setupEncoderStatesValue() {
     auto inputFeatureDataView = getInput(0);
     verify(inputFeatureDataView);
 
-    encoderStatesValue_ = Onnx::Value::createEmpty<f32>({1l, static_cast<int64_t>(T), static_cast<int64_t>(inputFeatureDataView->size())});
+    auto encoderStates = Onnx::Value::createEmpty<f32>({1l, static_cast<int64_t>(T), static_cast<int64_t>(inputFeatureDataView->size())});
     for (size_t t = 0ul; t < T; ++t) {
         inputFeatureDataView = getInput(t);
         verify(inputFeatureDataView);
-        std::copy(inputFeatureDataView->data(), inputFeatureDataView->data() + inputFeatureDataView->size(), encoderStatesValue_.data<f32>(0, t));
+        std::copy(inputFeatureDataView->data(), inputFeatureDataView->data() + inputFeatureDataView->size(), encoderStates.data<f32>(0, t));
     }
+    encoderStatesValue_.set(std::move(encoderStates));
 }
 
 void StateManagedOnnxLabelScorer::setupEncoderStatesSizeValue() {
@@ -374,11 +375,11 @@ void StateManagedOnnxLabelScorer::cacheStatesAndScores(std::vector<StateManagedO
     }
     if (encoderStatesName_ != "") {
         setupEncoderStatesValue();
-        inputs.emplace_back(encoderStatesName_, encoderStatesValue_);
+        inputs.emplace_back(encoderStatesName_, encoderStatesValue_.view(onnxModel_->session));
     }
     if (encoderStatesSizeName_ != "") {
         setupEncoderStatesSizeValue();
-        inputs.emplace_back(encoderStatesSizeName_, encoderStatesSizeValue_);
+        inputs.emplace_back(encoderStatesSizeName_, encoderStatesSizeValue_.view());
     }
 
     targets.emplace(targets.begin(), scoresName_);

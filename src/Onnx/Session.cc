@@ -245,6 +245,14 @@ void* Session::sharedCudaStream() {
 #endif
 }
 
+bool Session::usesCuda() const {
+#ifdef MODULE_CUDA
+    return executionProviderType_ == ExecutionProviderType::cuda;
+#else
+    return false;
+#endif
+}
+
 bool Session::run(std::vector<std::pair<std::string, Value>>&& inputs,
                   std::vector<std::string> const&              output_names,
                   std::vector<Value>&                          outputs,

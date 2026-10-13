@@ -24,6 +24,7 @@
 #include <Onnx/OnnxLstmStateManager.hh>
 #include <Onnx/OnnxTransformerStateManager.hh>
 #ifdef MODULE_CUDA
+#include <Onnx/LstmGpuStateManager.hh>
 #include <Onnx/TransformerGpuStateManager.hh>
 #endif
 
@@ -68,6 +69,7 @@ enum CompressedVectorFactoryType {
 
 enum StateManagerType {
     LstmStateManagerType,
+    LstmGpuStateManagerType,
     TransformerStateManagerType,
     TransformerStateManager16BitType,
     TransformerStateManager8BitType,
@@ -91,6 +93,7 @@ const Core::ParameterChoice Module_::compressedVectorFactoryTypeParam(
 
 const Core::Choice Module_::stateManagerTypeChoice(
         "lstm", LstmStateManagerType,
+        "lstm-gpu", LstmGpuStateManagerType,
         "transformer", TransformerStateManagerType,
         "transformer-16bit", TransformerStateManager16BitType,
         "transformer-8bit", TransformerStateManager8BitType,
@@ -265,6 +268,14 @@ std::unique_ptr<AbstractStateManager<Onnx::Value, Onnx::OnnxStateVariable>> Modu
         case LstmStateManagerType:
             return std::unique_ptr<AbstractStateManager<Onnx::Value, Onnx::OnnxStateVariable>>(
                     new Onnx::OnnxLstmStateManager(config));
+        case LstmGpuStateManagerType:
+#ifdef MODULE_CUDA
+            return std::unique_ptr<AbstractStateManager<Onnx::Value, Onnx::OnnxStateVariable>>(
+                    new Onnx::LstmGpuStateManager(config));
+#else
+            Core::Application::us()->criticalError("State manager type lstm-gpu requires RASR compiled with MODULE_CUDA");
+            return nullptr;
+#endif
         case TransformerStateManagerType:
             return std::unique_ptr<AbstractStateManager<Onnx::Value, Onnx::OnnxStateVariable>>(
                     new Onnx::OnnxTransformerStateManager<float>(config));

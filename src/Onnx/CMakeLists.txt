@@ -17,7 +17,7 @@ add_library(
 
 if (${MODULE_CUDA})
     target_sources(
-        RasrOnnx PRIVATE DeviceVector.cc StateCopier.cc
+        RasrOnnx PRIVATE DeviceVector.cc LstmGpuStateManager.cc StateCopier.cc
         TransformerGpuStateManager.cc StateCopyKernels.cu
     )
 endif ()

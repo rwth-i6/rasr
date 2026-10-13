@@ -16,7 +16,7 @@
 
 #include <cuda_runtime.h>
 
-#include "TransformerGpuKernels.hh"
+#include "StateCopyKernels.hh"
 
 namespace Onnx {
 namespace CudaKernels {
@@ -42,7 +42,7 @@ __global__ void blockCopyKernel(BlockCopyTask const* tasks,
 }
 
 constexpr unsigned kThreadsPerBlock = 256u;
-constexpr size_t   kMaxGridSize     = 1ul << 30;  // well below the limit of gridDim.x (2^31 - 1)
+constexpr size_t   kMaxGridSize     = 1ul << 30;
 
 }  // namespace
 

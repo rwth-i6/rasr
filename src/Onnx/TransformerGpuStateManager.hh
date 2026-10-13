@@ -23,6 +23,7 @@
 #include <Onnx/Value.hh>
 
 #include "DeviceVector.hh"
+#include "StateCopier.hh"
 
 namespace Onnx {
 
@@ -57,26 +58,12 @@ public:
                                           Nn::CompressedVectorFactory<float> const& vector_factory) override;
 
 private:
-    // Device memory that grows on demand and is reused between calls
-    struct DeviceBuffer {
-        void*  data     = nullptr;
-        size_t capacity = 0ul;  // in bytes
-    };
-
     const size_t maxHistory_;
     const bool   alwaysIncludeFirstTokenState_;
-    const size_t blocksPerChunk_;
 
-    std::unordered_map<size_t, std::shared_ptr<DeviceBlockPool>> pools_;  // by block size (floats per state)
-
-    DeviceBuffer mergedBuffer_;   // merged state inputs of the model
-    DeviceBuffer taskBuffer_;     // copy tasks and block offsets for the kernel
-    DeviceBuffer stagingBuffer_;  // state outputs in host memory, uploaded for splitting
-
-    std::shared_ptr<DeviceBlockPool> const& pool(size_t blockSize);
-
-    void* ensureCapacity(DeviceBuffer& buffer, size_t bytes, char const* what);
-    void  checkCuda(int status, char const* what) const;
+    DeviceBlockPools pools_;         // by block size (floats per state)
+    DeviceBuffer     mergedBuffer_;  // merged state inputs of the model
+    StateCopier      copier_;
 };
 
 }  // namespace Onnx

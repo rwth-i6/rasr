@@ -27,9 +27,7 @@ namespace Onnx {
 namespace {
 
 void checkCuda(cudaError_t status, char const* what) {
-    if (status != cudaSuccess) {
-        Core::Application::us()->criticalError("%s failed: %s", what, cudaGetErrorString(status));
-    }
+    checkCudaStatus(status, what);
 }
 
 cudaStream_t sharedStream() {
@@ -37,6 +35,12 @@ cudaStream_t sharedStream() {
 }
 
 }  // namespace
+
+void checkCudaStatus(int status, char const* what) {
+    if (static_cast<cudaError_t>(status) != cudaSuccess) {
+        Core::Application::us()->criticalError("%s failed: %s", what, cudaGetErrorString(static_cast<cudaError_t>(status)));
+    }
+}
 
 /*
  * ===============================
@@ -82,6 +86,59 @@ float* DeviceBlockPool::acquire() {
 void DeviceBlockPool::release(float* block) {
     std::lock_guard<std::mutex> lock(mutex_);
     freeBlocks_.push_back(block);
+}
+
+/*
+ * ================================
+ * ======= DeviceBlockPools =======
+ * ================================
+ */
+
+DeviceBlockPools::DeviceBlockPools(size_t blocksPerChunk)
+        : blocksPerChunk_(blocksPerChunk) {
+}
+
+std::shared_ptr<DeviceBlockPool> const& DeviceBlockPools::get(size_t blockSize) {
+    auto iter = pools_.find(blockSize);
+    if (iter == pools_.end()) {
+        iter = pools_.emplace(blockSize, std::make_shared<DeviceBlockPool>(blockSize, blocksPerChunk_)).first;
+    }
+    return iter->second;
+}
+
+/*
+ * ============================
+ * ======= DeviceBuffer =======
+ * ============================
+ */
+
+DeviceBuffer::DeviceBuffer()
+        : data_(nullptr),
+          capacity_(0ul) {
+}
+
+DeviceBuffer::~DeviceBuffer() {
+    // Errors are ignored here: at program exit the CUDA context may already be destroyed
+    if (data_ != nullptr) {
+        cudaFree(data_);
+    }
+}
+
+void* DeviceBuffer::allocate(size_t bytes) {
+    bytes = std::max(bytes, sizeof(float));
+    if (capacity_ < bytes) {
+        // Grow by at least half, so that slowly growing sizes don't reallocate in every step
+        size_t const capacity = std::max(bytes, capacity_ + capacity_ / 2ul);
+        if (data_ != nullptr) {
+            // cudaFree waits for pending work on the buffer
+            checkCuda(cudaFree(data_), "Freeing device memory (cudaFree)");
+            data_     = nullptr;
+            capacity_ = 0ul;
+        }
+        checkCuda(cudaMalloc(&data_, capacity), "Allocating device memory (cudaMalloc)");
+        capacity_ = capacity;
+    }
+    return data_;
 }
 
 /*

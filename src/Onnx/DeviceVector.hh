@@ -17,6 +17,7 @@
 
 #include <memory>
 #include <mutex>
+#include <unordered_map>
 #include <vector>
 
 #include <Nn/CompressedVector.hh>
@@ -51,7 +52,51 @@ private:
 };
 
 /*
- * Uncompressed vector in a `DeviceBlockPool` block, used by the `transformer-gpu` state manager.
+ * The `DeviceBlockPool`s of all block sizes that are needed, created on first use.
+ */
+class DeviceBlockPools {
+public:
+    explicit DeviceBlockPools(size_t blocksPerChunk);
+
+    std::shared_ptr<DeviceBlockPool> const& get(size_t blockSize);
+
+private:
+    size_t const blocksPerChunk_;
+
+    std::unordered_map<size_t, std::shared_ptr<DeviceBlockPool>> pools_;  // by block size
+};
+
+/*
+ * CUDA device memory that grows on demand and is reused between calls, e.g. for tensors rebuilt in every step.
+ * Use it only on `Session::sharedCudaStream()`: growing frees the old memory, which waits for pending work on it.
+ */
+class DeviceBuffer {
+public:
+    DeviceBuffer();
+    ~DeviceBuffer();
+
+    DeviceBuffer(DeviceBuffer const&)            = delete;
+    DeviceBuffer& operator=(DeviceBuffer const&) = delete;
+
+    // Device pointer to at least `bytes` bytes, the previous content is lost if the buffer grows
+    void* allocate(size_t bytes);
+
+private:
+    void*  data_;
+    size_t capacity_;  // in bytes
+};
+
+// `numFloats` rounded up to a multiple of 256 bytes, for tensors placed one after another in a `DeviceBuffer`
+inline size_t alignDeviceFloats(size_t numFloats) {
+    constexpr size_t alignment = 64ul;
+    return (numFloats + alignment - 1ul) / alignment * alignment;
+}
+
+// Abort with a message if `status` (a cudaError_t) is an error
+void checkCudaStatus(int status, char const* what);
+
+/*
+ * Uncompressed vector in a `DeviceBlockPool` block, used by the GPU state managers.
  * The host accessors copy from the device (slow, only a fallback).
  */
 class DeviceVector : public Nn::CompressedVector<float> {

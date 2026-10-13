@@ -15,7 +15,6 @@
 #include "TransformerGpuStateManager.hh"
 
 #include <algorithm>
-#include <cstring>
 #include <limits>
 #include <numeric>
 #include <valarray>
@@ -25,18 +24,10 @@
 #include <Core/Application.hh>
 
 #include "Session.hh"
-#include "TransformerGpuKernels.hh"
 
 namespace Onnx {
 
 namespace {
-
-// Alignment of the merged tensors within the merged buffer (in floats, i.e. 256 bytes)
-constexpr size_t kAlignFloats = 64ul;
-
-size_t alignUp(size_t numFloats) {
-    return (numFloats + kAlignFloats - 1ul) / kAlignFloats * kAlignFloats;
-}
 
 // Layout of one time step in a tensor with shape `dims` (batch first), like in `Nn::TransformerStateManager`
 struct StepLayout {
@@ -93,14 +84,18 @@ size_t timeAxisOf(OnnxStateVariable const& var) {
     return 0ul;
 }
 
-// Copy tasks of one launch (one state variable)
-struct LaunchInfo {
-    size_t firstTask   = 0ul;
-    size_t numTasks    = 0ul;
-    size_t firstOffset = 0ul;  // in the block offsets of all launches
-    size_t blockSize   = 0ul;
-    size_t stepSize    = 0ul;
-};
+cudaStream_t sharedStream() {
+    return static_cast<cudaStream_t>(Session::sharedCudaStream());
+}
+
+// Copy batch of one state variable with the given layout, without tasks yet
+StateCopier::Batch makeBatch(StepLayout const& layout) {
+    StateCopier::Batch batch;
+    batch.blockOffsets = layout.blockOffsets;
+    batch.blockSize    = layout.blockSize;
+    batch.stepSize     = layout.stepSize;
+    return batch;
+}
 
 }  // namespace
 
@@ -125,50 +120,13 @@ TransformerGpuStateManager::TransformerGpuStateManager(Core::Configuration const
         : Precursor(config),
           maxHistory_(paramMaxHistoryLength(config)),
           alwaysIncludeFirstTokenState_(paramAlwaysIncludeFirstTokenState(config)),
-          blocksPerChunk_(paramBlocksPerChunk(config)) {
+          pools_(paramBlocksPerChunk(config)) {
 }
 
-TransformerGpuStateManager::~TransformerGpuStateManager() {
-    // Errors are ignored here: at program exit the CUDA context may already be destroyed
-    for (auto* buffer : {&mergedBuffer_, &taskBuffer_, &stagingBuffer_}) {
-        if (buffer->data != nullptr) {
-            cudaFree(buffer->data);
-        }
-    }
-}
+TransformerGpuStateManager::~TransformerGpuStateManager() = default;
 
 bool TransformerGpuStateManager::requiresAllParentStates() const {
     return true;
-}
-
-void TransformerGpuStateManager::checkCuda(int status, char const* what) const {
-    if (static_cast<cudaError_t>(status) != cudaSuccess) {
-        criticalError("%s failed: %s", what, cudaGetErrorString(static_cast<cudaError_t>(status)));
-    }
-}
-
-void* TransformerGpuStateManager::ensureCapacity(DeviceBuffer& buffer, size_t bytes, char const* what) {
-    bytes = std::max(bytes, sizeof(float));
-    if (buffer.capacity < bytes) {
-        if (buffer.data != nullptr) {
-            // cudaFree waits for pending work on the buffer
-            checkCuda(cudaFree(buffer.data), what);
-            buffer.data     = nullptr;
-            buffer.capacity = 0ul;
-        }
-        size_t capacity = std::max(bytes, buffer.capacity + buffer.capacity / 2ul);
-        checkCuda(cudaMalloc(&buffer.data, capacity), what);
-        buffer.capacity = capacity;
-    }
-    return buffer.data;
-}
-
-std::shared_ptr<DeviceBlockPool> const& TransformerGpuStateManager::pool(size_t blockSize) {
-    auto iter = pools_.find(blockSize);
-    if (iter == pools_.end()) {
-        iter = pools_.emplace(blockSize, std::make_shared<DeviceBlockPool>(blockSize, blocksPerChunk_)).first;
-    }
-    return iter->second;
 }
 
 TransformerGpuStateManager::HistoryState TransformerGpuStateManager::initialState(StateVariables const& vars, Nn::CompressedVectorFactory<float> const&) {
@@ -185,8 +143,6 @@ void TransformerGpuStateManager::mergeStates(StateVariables const&              
                                              std::vector<HistoryState const*> const& prefix_states,
                                              FeedDict&                               feed_dict,
                                              TargetList&                             targets) {
-    cudaStream_t stream = static_cast<cudaStream_t>(Session::sharedCudaStream());
-
     std::vector<size_t> original_prefix_lengths(prefix_lengths);
 
     size_t max_prefix = 0ul;
@@ -210,22 +166,17 @@ void TransformerGpuStateManager::mergeStates(StateVariables const&              
         dims[timeAxis] = static_cast<int64_t>(max_prefix);
         layouts.push_back(computeStepLayout(dims, timeAxis));
         tensorOffsets.push_back(totalFloats);
-        totalFloats += alignUp(layouts.back().numElements());
+        totalFloats += alignDeviceFloats(layouts.back().numElements());
     }
-    float* merged = static_cast<float*>(ensureCapacity(mergedBuffer_, totalFloats * sizeof(float), "Allocating device memory for merged states"));
+    float* merged = static_cast<float*>(mergedBuffer_.allocate(totalFloats * sizeof(float)));
 
     // Copy tasks: one per time step of each state variable
-    std::vector<CudaKernels::BlockCopyTask> tasks;
-    std::vector<size_t>                     blockOffsets;
-    std::vector<LaunchInfo>                 launches(vars.size());
+    std::vector<StateCopier::Batch> batches;
+    batches.reserve(vars.size());
     for (size_t v = 0ul; v < vars.size(); ++v) {
         auto const& layout = layouts[v];
-        auto&       launch = launches[v];
-        launch.firstTask   = tasks.size();
-        launch.firstOffset = blockOffsets.size();
-        launch.blockSize   = layout.blockSize;
-        launch.stepSize    = layout.stepSize;
-        blockOffsets.insert(blockOffsets.end(), layout.blockOffsets.begin(), layout.blockOffsets.end());
+        batches.push_back(makeBatch(layout));
+        auto& tasks = batches.back().tasks;
 
         size_t state_offset = 0ul;
         for (size_t b = 0ul; b < prefix_lengths.size(); ++b) {
@@ -246,34 +197,12 @@ void TransformerGpuStateManager::mergeStates(StateVariables const&              
             }
             state_offset += original_prefix_lengths[b];
         }
-        launch.numTasks = tasks.size() - launch.firstTask;
-    }
-
-    // Upload the tasks and block offsets at once: tasks first, then offsets
-    size_t const taskBytes   = tasks.size() * sizeof(CudaKernels::BlockCopyTask);
-    size_t const offsetBytes = blockOffsets.size() * sizeof(size_t);
-    char*        deviceTasks = static_cast<char*>(ensureCapacity(taskBuffer_, taskBytes + offsetBytes, "Allocating device memory for copy tasks"));
-    std::vector<char> hostTasks(taskBytes + offsetBytes);
-    std::memcpy(hostTasks.data(), tasks.data(), taskBytes);
-    std::memcpy(hostTasks.data() + taskBytes, blockOffsets.data(), offsetBytes);
-    if (not hostTasks.empty()) {
-        // hostTasks is pageable memory, so cudaMemcpyAsync returns only after it has been copied to a staging buffer
-        // it may be freed at the end of this function although the copy to the device can still be pending
-        checkCuda(cudaMemcpyAsync(deviceTasks, hostTasks.data(), hostTasks.size(), cudaMemcpyHostToDevice, stream), "Uploading copy tasks");
     }
 
     if (needs_padding) {
-        checkCuda(cudaMemsetAsync(merged, 0, totalFloats * sizeof(float), stream), "Zeroing merged states");
+        checkCudaStatus(cudaMemsetAsync(merged, 0, totalFloats * sizeof(float), sharedStream()), "Zeroing merged states");
     }
-
-    auto const* deviceTaskArray   = reinterpret_cast<CudaKernels::BlockCopyTask const*>(deviceTasks);
-    auto const* deviceOffsetArray = reinterpret_cast<size_t const*>(deviceTasks + taskBytes);
-    for (auto const& launch : launches) {
-        checkCuda(CudaKernels::launchBlockCopy(deviceTaskArray + launch.firstTask, launch.numTasks,
-                                               deviceOffsetArray + launch.firstOffset, launch.blockSize, launch.stepSize,
-                                               CudaKernels::BlockCopyDirection::BlockToTensor, stream),
-                  "Merging states on the device");
-    }
+    copier_.copy(batches, CudaKernels::BlockCopyDirection::BlockToTensor);
 
     feed_dict.reserve(feed_dict.size() + vars.size());
     targets.reserve(targets.size() + vars.size());
@@ -289,16 +218,13 @@ std::vector<TransformerGpuStateManager::HistoryState> TransformerGpuStateManager
         std::vector<Value> const&                 state_tensors,
         Nn::CompressedVectorFactory<float> const& vector_factory) {
     require_eq(vars.size(), state_tensors.size());
-    cudaStream_t stream = static_cast<cudaStream_t>(Session::sharedCudaStream());
 
     size_t max_suffix = *std::max_element(suffix_lengths.begin(), suffix_lengths.end());
     size_t sum_suffix = std::accumulate(suffix_lengths.begin(), suffix_lengths.end(), 0ul);
 
-    // Layouts of the state outputs; outputs in host memory are uploaded into the staging buffer
+    // Layouts of the state outputs
     std::vector<StepLayout> layouts;
-    std::vector<size_t>     stagingOffsets(vars.size(), std::numeric_limits<size_t>::max());
     layouts.reserve(vars.size());
-    size_t stagingFloats = 0ul;
     for (size_t v = 0ul; v < vars.size(); ++v) {
         auto const& tensor = state_tensors[v];
         if (tensor.dataType() != ValueDataType::FLOAT) {
@@ -316,40 +242,22 @@ std::vector<TransformerGpuStateManager::HistoryState> TransformerGpuStateManager
             }
         }
         layouts.push_back(computeStepLayout(dims, timeAxis));
-        if (not tensor.isOnDevice()) {
-            stagingOffsets[v] = stagingFloats;
-            stagingFloats += alignUp(layouts.back().numElements());
-        }
     }
-    float* staging = nullptr;
-    if (stagingFloats > 0ul) {
-        staging = static_cast<float*>(ensureCapacity(stagingBuffer_, stagingFloats * sizeof(float), "Allocating device memory for staging states"));
-        for (size_t v = 0ul; v < vars.size(); ++v) {
-            if (stagingOffsets[v] != std::numeric_limits<size_t>::max()) {
-                checkCuda(cudaMemcpyAsync(staging + stagingOffsets[v], state_tensors[v].rawData<float>(), layouts[v].numElements() * sizeof(float), cudaMemcpyHostToDevice, stream),
-                          "Uploading states");
-            }
-        }
-    }
+    // Outputs in host memory are uploaded into a staging buffer
+    std::vector<float const*> bases = copier_.deviceData(state_tensors);
 
     std::vector<HistoryState> result(sum_suffix);
     for (auto& state : result) {
         state.reserve(vars.size());
     }
 
-    std::vector<CudaKernels::BlockCopyTask> tasks;
-    std::vector<size_t>                     blockOffsets;
-    std::vector<LaunchInfo>                 launches(vars.size());
+    std::vector<StateCopier::Batch> batches;
+    batches.reserve(vars.size());
     for (size_t v = 0ul; v < vars.size(); ++v) {
         auto const& layout = layouts[v];
-        auto&       launch = launches[v];
-        launch.firstTask   = tasks.size();
-        launch.firstOffset = blockOffsets.size();
-        launch.blockSize   = layout.blockSize;
-        launch.stepSize    = layout.stepSize;
-        blockOffsets.insert(blockOffsets.end(), layout.blockOffsets.begin(), layout.blockOffsets.end());
-
-        float const* base = stagingOffsets[v] != std::numeric_limits<size_t>::max() ? staging + stagingOffsets[v] : state_tensors[v].rawData<float>();
+        batches.push_back(makeBatch(layout));
+        auto&        tasks = batches.back().tasks;
+        float const* base  = bases[v];
 
         size_t const timeAxis   = timeAxisOf(vars[v]);
         size_t const max_prefix = static_cast<size_t>(layout.dims[timeAxis]) - max_suffix;
@@ -357,38 +265,18 @@ std::vector<TransformerGpuStateManager::HistoryState> TransformerGpuStateManager
         for (size_t b = 0ul; b < suffix_lengths.size(); ++b) {
             for (size_t p = 0ul; p < suffix_lengths[b]; ++p) {
                 size_t start = b * layout.batchStride + (max_prefix + p) * layout.timeStride;
-                auto*  state = new DeviceVector(pool(layout.stepSize), layout.stepSize);
+                auto*  state = new DeviceVector(pools_.get(layout.stepSize), layout.stepSize);
                 result[output_idx].emplace_back(state);
                 tasks.push_back({base + start, state->deviceData()});
                 output_idx += 1ul;
             }
         }
-        launch.numTasks = tasks.size() - launch.firstTask;
     }
 
-    size_t const taskBytes   = tasks.size() * sizeof(CudaKernels::BlockCopyTask);
-    size_t const offsetBytes = blockOffsets.size() * sizeof(size_t);
-    char*        deviceTasks = static_cast<char*>(ensureCapacity(taskBuffer_, taskBytes + offsetBytes, "Allocating device memory for copy tasks"));
-    std::vector<char> hostTasks(taskBytes + offsetBytes);
-    std::memcpy(hostTasks.data(), tasks.data(), taskBytes);
-    std::memcpy(hostTasks.data() + taskBytes, blockOffsets.data(), offsetBytes);
-    if (not hostTasks.empty()) {
-        // hostTasks is pageable memory, so cudaMemcpyAsync returns only after it has been copied to a staging buffer
-        // it may be freed at the end of this function although the copy to the device can still be pending
-        checkCuda(cudaMemcpyAsync(deviceTasks, hostTasks.data(), hostTasks.size(), cudaMemcpyHostToDevice, stream), "Uploading copy tasks");
-    }
-
-    auto const* deviceTaskArray   = reinterpret_cast<CudaKernels::BlockCopyTask const*>(deviceTasks);
-    auto const* deviceOffsetArray = reinterpret_cast<size_t const*>(deviceTasks + taskBytes);
-    for (auto const& launch : launches) {
-        checkCuda(CudaKernels::launchBlockCopy(deviceTaskArray + launch.firstTask, launch.numTasks,
-                                               deviceOffsetArray + launch.firstOffset, launch.blockSize, launch.stepSize,
-                                               CudaKernels::BlockCopyDirection::TensorToBlock, stream),
-                  "Splitting states on the device");
-    }
+    copier_.copy(batches, CudaKernels::BlockCopyDirection::TensorToBlock);
 
     // The caller may release the output tensors right after this call, so the copies must be done
-    checkCuda(cudaStreamSynchronize(stream), "Synchronizing the shared CUDA stream after splitting states");
+    checkCudaStatus(cudaStreamSynchronize(sharedStream()), "Synchronizing the shared CUDA stream after splitting states");
     return result;
 }
 

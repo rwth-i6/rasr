@@ -12,18 +12,18 @@
  *  See the License for the specific language governing permissions and
  *  limitations under the License.
  */
-#ifndef _ONNX_TRANSFORMER_GPU_KERNELS_HH
-#define _ONNX_TRANSFORMER_GPU_KERNELS_HH
+#ifndef _ONNX_STATE_COPY_KERNELS_HH
+#define _ONNX_STATE_COPY_KERNELS_HH
 
 #include <cstddef>
 
 /*
- * CUDA kernels of the `transformer-gpu` state manager. Plain interface without RASR headers, compiled by nvcc.
+ * CUDA kernels of the GPU state managers (see `StateCopier`). Plain interface without RASR headers, compiled by nvcc.
  */
 namespace Onnx {
 namespace CudaKernels {
 
-// One time step of one state variable: device pointers to the block and to the time step start in the tensor
+// Device pointers to the block and to the time step start in the tensor
 struct BlockCopyTask {
     float const* src;
     float*       dst;
@@ -49,4 +49,4 @@ int launchBlockCopy(BlockCopyTask const* tasks,
 }  // namespace CudaKernels
 }  // namespace Onnx
 
-#endif  // _ONNX_TRANSFORMER_GPU_KERNELS_HH
+#endif  // _ONNX_STATE_COPY_KERNELS_HH

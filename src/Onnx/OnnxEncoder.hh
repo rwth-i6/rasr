@@ -86,6 +86,7 @@ public:
     static const Core::ParameterInt    paramLeftPadding;
     static const Core::ParameterInt    paramRightPadding;
     static const Core::ParameterBool   paramZeroPadding;
+    static const Core::ParameterBool   paramKeepTrailingOutputs;
     static const Core::Choice          windowTypeChoice;
     static const Core::ParameterChoice paramWindowType;
     static const Core::Choice          interpolationModeChoice;
@@ -143,6 +144,7 @@ private:
     size_t            leftPadding_;
     size_t            rightPadding_;
     bool              zeroPadding_;
+    bool              keepTrailingOutputs_;
     std::vector<f32>  window_;
     InterpolationMode interpolationMode_;
 

@@ -15,6 +15,13 @@ add_library(
     Value.cc
 )
 
+if (${MODULE_CUDA})
+    target_sources(
+        RasrOnnx PRIVATE DeviceVector.cc StateCopier.cc
+        TransformerGpuStateManager.cc StateCopyKernels.cu
+    )
+endif ()
+
 target_link_libraries(
     RasrOnnx PUBLIC ONNXRuntime::ONNXRuntime RasrCore RasrFlow RasrMath RasrMm
                     RasrNn

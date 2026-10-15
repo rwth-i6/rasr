@@ -4,10 +4,13 @@
 #include "Session.hh"
 
 #include <chrono>
+#include <unordered_set>
 
 #ifdef MODULE_CUDA
 #include <cuda_runtime.h>
 #endif
+
+#include <Core/Application.hh>
 
 #include "Util.hh"
 
@@ -41,6 +44,12 @@ const Core::ParameterBool Session::paramRemovePrefixFromKey("remove-prefix-from-
                                                             "Whether to remove the prefix from the state keys for the node name lookup",
                                                             true);
 
+const Core::ParameterBool Session::paramCudaUseTf32("cuda-use-tf32",
+                                                    "Whether the CUDA execution provider may use TF32 for float matrix multiplications and convolutions"
+                                                    " (onnxruntime default: yes). Faster, but results depend slightly on e.g. the batch size."
+                                                    " Disabling it requires an onnxruntime version that knows the CUDA provider option `use_tf32`",
+                                                    true);
+
 Session::Session(Core::Configuration const& config)
         : Precursor(config),
           file_(paramFile(config)),
@@ -48,6 +57,9 @@ Session::Session(Core::Configuration const& config)
           interOpNumThreads_(paramInterOpNumThreads(config)),
           statePrefix_(paramStatePrefix(config)),
           removePrefixFromKey_(paramRemovePrefixFromKey(config)),
+          cudaUseTf32_(paramCudaUseTf32(config)),
+          executionProviderType_(paramExecutionProviderType(config)),
+          cudaDevice_(0),
           allocator_(),
           env_(ORT_LOGGING_LEVEL_WARNING),
           session_(nullptr),
@@ -58,7 +70,7 @@ Session::Session(Core::Configuration const& config)
     session_opts.SetInterOpNumThreads(interOpNumThreads_);
 
     auto providers = Ort::GetAvailableProviders();
-    switch (paramExecutionProviderType(config)) {
+    switch (executionProviderType_) {
         case ExecutionProviderType::cpu: {
             if (std::find(providers.begin(), providers.end(), "CPUExecutionProvider") == providers.end()) {
                 error() << "Requested CPU execution provider for ONNX session but it is not available.";
@@ -74,8 +86,18 @@ Session::Session(Core::Configuration const& config)
             if (cudaGetDeviceCount(&deviceCount) != cudaSuccess or deviceCount == 0) {
                 error() << "Requested CUDA execution provider but no CUDA device was found.";
             }
+            if (cudaGetDevice(&cudaDevice_) != cudaSuccess) {
+                error() << "Could not get the current CUDA device.";
+            }
             OrtCUDAProviderOptionsV2* cuda_opts = nullptr;
             Ort::ThrowOnError(Ort::GetApi().CreateCUDAProviderOptions(&cuda_opts));
+            // `use_tf32` is only passed if TF32 is disabled, so that the default also works with onnxruntime versions without this option
+            std::string const device_id = std::to_string(cudaDevice_);
+            char const*       keys[]    = {"device_id", "use_tf32"};
+            char const*       values[]  = {device_id.c_str(), "0"};
+            Ort::ThrowOnError(Ort::GetApi().UpdateCUDAProviderOptions(cuda_opts, keys, values, cudaUseTf32_ ? 1 : 2));
+            // All sessions compute on one stream, which other code writing device memory for the sessions can use as well
+            Ort::ThrowOnError(Ort::GetApi().UpdateCUDAProviderOptionsWithValue(cuda_opts, "user_compute_stream", sharedCudaStream()));
             session_opts.AppendExecutionProvider_CUDA_V2(*cuda_opts);
             Ort::GetApi().ReleaseCUDAProviderOptions(cuda_opts);
             break;
@@ -208,9 +230,111 @@ std::vector<int64_t> Session::getOutputShape(std::string const& name) const {
     return res;
 }
 
+void* Session::sharedCudaStream() {
+#ifdef MODULE_CUDA
+    static cudaStream_t stream = []() {
+        cudaStream_t s = nullptr;
+        if (cudaStreamCreate(&s) != cudaSuccess) {
+            Core::Application::us()->criticalError("Could not create the shared CUDA stream for the ONNX sessions");
+        }
+        return s;
+    }();
+    return stream;
+#else
+    return nullptr;
+#endif
+}
+
+bool Session::run(std::vector<std::pair<std::string, Value>>&& inputs,
+                  std::vector<std::string> const&              output_names,
+                  std::vector<Value>&                          outputs,
+                  std::vector<MemoryLocation> const&           output_locations) {
+    verify(output_locations.empty() or output_locations.size() == output_names.size());
+
+    std::unordered_set<std::string> deviceInputs;
+    for (auto const& input : inputs) {
+        if (input.second.isOnDevice()) {
+            deviceInputs.insert(input.first);
+        }
+    }
+
+    // Resolve DEFAULT: state outputs follow their state input, everything else goes to the host
+    std::vector<MemoryLocation> locations(output_names.size(), MemoryLocation::HOST);
+    bool                        anyDeviceOutput = false;
+    for (size_t i = 0ul; i < output_names.size(); ++i) {
+        auto location = output_locations.empty() ? MemoryLocation::DEFAULT : output_locations[i];
+        if (location == MemoryLocation::DEFAULT) {
+            auto iter = stateOutputToInput_.find(output_names[i]);
+            location  = (iter != stateOutputToInput_.end() and deviceInputs.count(iter->second) > 0ul) ? MemoryLocation::DEVICE : MemoryLocation::HOST;
+        }
+        locations[i] = location;
+        anyDeviceOutput |= location == MemoryLocation::DEVICE;
+    }
+
+    if (not deviceInputs.empty() or anyDeviceOutput) {
+        return runWithBinding(inputs, output_names, outputs, locations);
+    }
+    return runPlain(std::move(inputs), output_names, outputs);
+}
+
 bool Session::run(std::vector<std::pair<std::string, Value>>&& inputs,
                   std::vector<std::string> const&              output_names,
                   std::vector<Value>&                          outputs) {
+    return run(std::move(inputs), output_names, outputs, {});
+}
+
+bool Session::runWithBinding(std::vector<std::pair<std::string, Value>>& inputs,
+                             std::vector<std::string> const&             output_names,
+                             std::vector<Value>&                         outputs,
+                             std::vector<MemoryLocation> const&          output_locations) {
+#ifdef MODULE_CUDA
+    // Configuration errors: the callers can't continue without the outputs
+    if (executionProviderType_ != ExecutionProviderType::cuda) {
+        criticalError() << "ONNX session inputs/outputs in device memory require the CUDA execution provider";
+    }
+
+    Ort::MemoryInfo hostMemoryInfo   = Ort::MemoryInfo::CreateCpu(OrtDeviceAllocator, OrtMemTypeDefault);
+    Ort::MemoryInfo deviceMemoryInfo = Ort::MemoryInfo("Cuda", OrtDeviceAllocator, cudaDevice_, OrtMemTypeDefault);
+
+    std::vector<Value> results;
+    try {
+        Ort::IoBinding binding(session_);
+        for (auto const& input : inputs) {
+            binding.BindInput(input.first.c_str(), input.second.value_);
+        }
+        for (size_t i = 0ul; i < output_names.size(); ++i) {
+            binding.BindOutput(output_names[i].c_str(), output_locations[i] == MemoryLocation::DEVICE ? deviceMemoryInfo : hostMemoryInfo);
+        }
+
+        Ort::RunOptions run_options;
+        session_.Run(run_options, binding);
+        binding.SynchronizeOutputs();
+
+        auto values = binding.GetOutputValues();  // in the order of binding
+        results.reserve(values.size());
+        for (auto& value : values) {
+            results.emplace_back(Value(std::move(value)));
+        }
+    }
+    catch (Ort::Exception& e) {
+        inputs.clear();  // like in `runPlain`, where the inputs are moved into the run
+        warning() << "Exception during ONNX session run: " << e.what();
+        return false;
+    }
+
+    // Free the inputs as early as the run without binding does
+    inputs.clear();
+    outputs = std::move(results);
+    return true;
+#else
+    criticalError() << "ONNX session inputs/outputs in device memory require RASR compiled with MODULE_CUDA";
+    return false;
+#endif
+}
+
+bool Session::runPlain(std::vector<std::pair<std::string, Value>>&& inputs,
+                       std::vector<std::string> const&              output_names,
+                       std::vector<Value>&                          outputs) {
     Ort::RunOptions run_options;
 
     std::vector<char const*> input_names;
@@ -279,6 +403,7 @@ void Session::initializeStateVariablesMetadata() {
 
         log("State: input_state_key=%s output_state_key=%s", state_variable.input_state_key.c_str(), state_variable.output_state_key.c_str());
 
+        stateOutputToInput_[state_variable.output_state_key] = state_variable.input_state_key;
         stateVariables_.push_back(state_variable);
     }
 }

@@ -104,64 +104,35 @@ std::string Core::convertToUpperCase(const std::string& s) {
 }
 
 std::string Core::form(const char* format, ...) {
-    va_list       ap;
-    static size_t buf_size = 0;
-    static char*  buf      = 0;
-    int           n;
-
-    for (;;) {
-        va_start(ap, format);
-        n = vsnprintf(buf, buf_size, format, ap);
-        va_end(ap);
-
-        if (n < 0) {
-            // This implementation of vsnprintf returns -1 if the
-            // output was truncated.  We use the simple heuristic of
-            // doubling the buffer size
-            n = (buf_size > 64) ? 2 * buf_size : 64;
-        }
-        else {
-            // Newer implementations (>= glibc 2.1) return the number
-            // of characters needed.
-            if (n + 1 <= (int)buf_size)
-                break;  // +1 for terminating null byte
-        }
-
-        if (buf)
-            delete[] buf;
-        buf = new char[buf_size = n + 1];
-    }
-
-    return std::string(buf, n);
+    va_list ap;
+    va_start(ap, format);
+    std::string result = vform(format, ap);
+    va_end(ap);
+    return result;
 }
 
 std::string Core::vform(const char* format, va_list ap) {
-    static size_t buf_size = 0;
-    static char*  buf      = 0;
-    int           n;
+    // Short results are formatted into a stack buffer, longer ones
+    // directly into the result string.
+    char buf[256];
 
     va_list ap2;
-    for (;;) {
-        va_copy(ap2, ap);
-        n = vsnprintf(buf, buf_size, format, ap2);
-        if (n < 0) {
-            // This implementation of vsnprintf returns -1 if the
-            // output was truncated.  We use the simple heuristic of
-            // doubling the buffer size
-            n = (buf_size > 64) ? 2 * buf_size : 64;
-        }
-        else {
-            // Newer implementations (>= glibc 2.1) return the number
-            // of characters needed.
-            if (n + 1 <= (int)buf_size)
-                break;  // +1 for terminating null byte
-        }
+    va_copy(ap2, ap);
+    int n = vsnprintf(buf, sizeof(buf), format, ap2);
+    va_end(ap2);
 
-        delete[] buf;
-        buf = new char[buf_size = n + 1];
+    if (n < 0) {
+        return std::string();  // encoding error
+    }
+    if (static_cast<size_t>(n) < sizeof(buf)) {
+        return std::string(buf, n);
     }
 
-    return std::string(buf, n);
+    std::string result(n, '\0');
+    va_copy(ap2, ap);
+    vsnprintf(result.data(), n + 1, format, ap2);  // +1 for terminating null byte
+    va_end(ap2);
+    return result;
 }
 
 std::vector<std::string> Core::split(const std::string& string, const std::string& separator) {

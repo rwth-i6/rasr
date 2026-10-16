@@ -60,8 +60,7 @@ TransitionLabelScorer::TransitionLabelScorer(Core::Configuration const& config)
     }
 }
 
-void TransitionLabelScorer::resetInternal() {
-}
+void TransitionLabelScorer::resetInternal() {}
 
 void TransitionLabelScorer::signalNoMoreFeatures() {}
 

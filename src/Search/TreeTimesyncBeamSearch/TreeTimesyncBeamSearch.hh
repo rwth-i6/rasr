@@ -175,10 +175,11 @@ private:
     bool collapseRepeatedLabels_;
     bool sentenceEndFallback_;
     bool recombinationEnabled_;
-    // Per-segment timing and statistics. Defaults to the standard log target.
+    // Timing and beam statistics, per segment and per search step. Both are disabled unless a
+    // target is configured.
     mutable Core::XmlChannel statisticsChannel_;
-    // Statistics for every search step. Disabled unless a target is configured.
-    Core::XmlChannel stepwiseStatisticsChannel_;
+    Core::XmlChannel         stepwiseStatisticsChannel_;
+    bool                     stepStatisticsOpen_ = false;
 
     std::vector<Core::Ref<Nn::LabelScorer>>        labelScorers_;
     Bliss::LexiconRef                              lexicon_;
@@ -209,6 +210,9 @@ private:
     std::vector<std::optional<Nn::DenseScoreSpan>> denseScoreSpans_;
     std::vector<Nn::TimeframeIndex>                scoreTimes_;
 
+    // Distinct LM histories in the current beam, i.e. the active search trees
+    std::vector<Lm::History> activeTreeHistories_;
+
     // Score accessors of the word-end hypothesis currently being expanded, indexed by label scorer
     std::vector<Nn::ScoreAccessorRef> wordEndScoreAccessors_;
 
@@ -229,11 +233,14 @@ private:
      * Phases of `scoreAndPruneExtensions` per label scorer, adding up to the matching
      * `scoreAndPruneExtensionsTimes_` entry. Scorers that compute scores lazily do that work
      * during the score readout; the pruning phase also prepares the next scorer's contexts.
+     * The first scorer's readout also creates the extensions, which is where
+     * `withinWordLmLookaheadTime_` is spent.
      */
     std::vector<Core::StopWatch> scoreAndPruneExtensionsTimes_;
     std::vector<Core::StopWatch> scoringTimes_;
     std::vector<Core::StopWatch> scoreReadoutTimes_;
     std::vector<Core::StopWatch> intermediatePruningTimes_;
+    Core::StopWatch              withinWordLmLookaheadTime_;
     Core::StopWatch              buildWithinWordHypsTime_;
     Core::StopWatch              recombinationTime_;
     Core::StopWatch              beamPruningTime_;
@@ -248,11 +255,11 @@ private:
     Core::StopWatch wordEndRecombinationTime_;
     Core::StopWatch wordEndBeamPruningTime_;
     Core::StopWatch lmTime_;
-    Core::StopWatch lmLookaheadTime_;
+    Core::StopWatch wordEndLmLookaheadTime_;
     Core::StopWatch finalizeTime_;
 
     Core::Statistics<u32>              numInputHyps_;
-    Core::Statistics<u32>              numWithinWordExtensionsBeforeFirstPruning_;
+    Core::Statistics<u32>              numWithinWordExtensionsAfterPrePruning_;
     std::vector<Core::Statistics<u32>> numWithinWordHypsAfterIntermediatePruning_;
     Core::Statistics<u32>              numWithinWordHypsAfterRecombination_;
     Core::Statistics<u32>              numWithinWordHypsAfterPruning_;
@@ -347,6 +354,14 @@ private:
      * lookahead. Populates `wordEndHypotheses_`.
      */
     void buildWordEndHypotheses();
+
+    /*
+     * Open the per-step statistics element before the first statistic of a step is written, and
+     * close it again when the step ends. A step that can't be scored yet writes nothing, so it
+     * neither opens an element nor consumes a step number.
+     */
+    void openStepStatistics();
+    void closeStepStatistics();
 
     /*
      * Log the per-step statistics and debug output for the current beam.

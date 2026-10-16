@@ -167,7 +167,7 @@ protected:
     // statistics that they never report.
     bool tracksScoringStatistics_ = true;
 
-    // Channel that `logStatistics` writes to. Defaults to the standard log target.
+    // Channel that `logStatistics` writes to. Disabled unless a target is configured.
     mutable Core::XmlChannel statisticsChannel_;
 
     TransitionSet enabledTransitions_;

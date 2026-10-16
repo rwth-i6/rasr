@@ -66,8 +66,11 @@ protected:
     std::vector<OnnxStateVariable> stateVariables_;
 
     void logEncodeBreakdown() const override;
+    void logAdditionalStatistics() const override;
 
     Core::StopWatch onnxSessionTime_;
+    // One per `encode()` for this encoder, one per chunk for `ChunkedOnnxEncoder`
+    size_t numSessionRuns_ = 0ul;
 };
 
 /*

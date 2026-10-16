@@ -17,6 +17,7 @@
 #define LEXICONFREE_LABELSYNC_BEAM_SEARCH_HH
 
 #include <optional>
+#include <span>
 
 #include <Bliss/Lexicon.hh>
 #include <Core/Channel.hh>
@@ -48,6 +49,7 @@ public:
     static const Core::ParameterFloatVector paramScoreThresholds;
     static const Core::ParameterInt         paramNumHistogramBins;
     static const Core::ParameterInt         paramSentenceEndLabelIndex;
+    static const Core::ParameterInt         paramMaxExtensionsPerHyp;
     static const Core::ParameterInt         paramCacheCleanupInterval;
     static const Core::ParameterFloat       paramLengthNormScale;
     static const Core::ParameterFloat       paramMaxLabelsPerTimestep;
@@ -156,6 +158,7 @@ private:
     Nn::LabelIndex      sentenceEndLabelIndex_;
     Core::Choice::Value pruningStrategyType_;
     bool                recombinationEnabled_;
+    size_t              maxExtensionsPerHyp_;
     // Timing and beam statistics, per segment and per search step. Both are disabled unless a
     // target is configured.
     mutable Core::XmlChannel statisticsChannel_;
@@ -175,6 +178,11 @@ private:
     std::vector<LabelHypothesis>       newBeam_;
     std::vector<Nn::ScoringContextRef> scoringContexts_;
     std::vector<LabelHypothesis>       tempHypotheses_;
+
+    // Indices of all tokens and work buffers of `selectTokens`
+    std::vector<Nn::LabelIndex>                   allTokens_;
+    std::vector<std::pair<Score, Nn::LabelIndex>> tokenSelectionHeap_;
+    std::vector<Nn::LabelIndex>                   selectedTokens_;
 
     // Scores and timeframes read out of the accessors of the current label scorer, indexed like
     // `scoringContexts_`
@@ -247,6 +255,13 @@ private:
      * pre-pruning by score while they are created.
      */
     void createExtensions(std::vector<std::optional<Nn::ScoreAccessorRef>> const& scoreAccessors);
+
+    /*
+     * Limit the tokens to extend a hypothesis with to the `maxExtensionsPerHyp_` tokens with the best dense score,
+     * plus the tokens that can't be ranked by it (no dense score or transition not scored, sentence-end with separate pruning).
+     * If the tokens can't or need not be limited, all tokens are returned. The result is valid until the next call.
+     */
+    std::span<Nn::LabelIndex const> selectTokens(std::optional<Nn::DenseScoreSpan> const& denseScores, Nn::LabelIndex currentToken);
 
     /*
      * Add the scores of label scorer `scorerIdx` to the existing extension candidates.

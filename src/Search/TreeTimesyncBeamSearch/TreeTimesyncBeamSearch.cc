@@ -204,6 +204,11 @@ const Core::ParameterInt TreeTimesyncBeamSearch::paramNumHistogramBins(
         100,
         2);
 
+const Core::ParameterBool TreeTimesyncBeamSearch::paramEnableHistogramPruning(
+        "enable-histogram-pruning",
+        "Use histogram pruning for max-beam-size. If false, exactly the max-beam-size best hypotheses are kept.",
+        true);
+
 const Core::ParameterBool TreeTimesyncBeamSearch::paramCollapseRepeatedLabels(
         "collapse-repeated-labels",
         "Collapse repeated emission of the same label into one output. If false, every emission is treated like a new output.",
@@ -270,6 +275,7 @@ TreeTimesyncBeamSearch::TreeTimesyncBeamSearch(Core::Configuration const& config
           maxWordEndBeamSize_(paramMaxWordEndBeamSize(config)),
           wordEndScoreThreshold_(paramWordEndScoreThreshold(config)),
           scoreHistogram_(paramNumHistogramBins(config)),
+          histogramPruningEnabled_(paramEnableHistogramPruning(config)),
           blankLabelIndex_(Nn::invalidLabelIndex),
           silenceLabelIndex_(Nn::invalidLabelIndex),
           sentenceEndLemma_(),
@@ -1067,6 +1073,12 @@ void TreeTimesyncBeamSearch::scorePruning(std::vector<Element>& hypotheses, Scor
 
     if (hypotheses.empty()) {
         return;
+    }
+
+    if (not histogramPruningEnabled_ and hypotheses.size() > maxBeamSize) {
+        // Plain max beam size pruning: keep exactly the maxBeamSize best hypotheses
+        std::nth_element(hypotheses.begin(), hypotheses.begin() + maxBeamSize, hypotheses.end(), [](auto const& a, auto const& b) { return a.score < b.score; });
+        hypotheses.resize(maxBeamSize);
     }
 
     if (hypotheses.size() <= maxBeamSize and relativeThreshold == Core::Type<Score>::max) {

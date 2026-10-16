@@ -193,6 +193,8 @@ an optional blank label (for CTC/transducer) and optional silence and sentence-e
 * ``score-threshold`` (float list): prune hypotheses whose score is worse than the current best by more than
   this amount. Also applied once per label scorer. Default: unset, i.e. no score-based pruning is applied.
 * ``num-histogram-bins`` (int): number of bins used for histogram pruning (minor effect on results/speed). Default ``100``.
+* ``enable-histogram-pruning`` (bool): if true, ``max-beam-size``-pruning is approximated via histogram pruning, which
+  may keep slightly fewer hypotheses. If false, exactly the ``max-beam-size`` best hypotheses are kept. Default ``true``.
 * ``blank-label-index`` (int): lexicon index of the blank label. Inferred automatically from a lemma with
   ``special="blank"`` if present; if neither is set, blank handling is disabled. Default: disabled.
 * ``silence-label-index`` (int): lexicon index of the silence label, inferred from ``special="silence"`` if unset.
@@ -257,8 +259,8 @@ transition model. Hypotheses are terminated by an explicit sentence-end symbol r
 input frames. Its main purpose is open-vocabulary search with attention encoder-decoder (AED) or similar
 models.
 
-* ``max-beam-size`` (int list), ``num-histogram-bins`` (int), ``recombination-mode``, ``log-stepwise-statistics``,
-  ``cache-cleanup-interval``: same meaning as for ``lexiconfree-timesync-beam-search`` above.
+* ``max-beam-size`` (int list), ``num-histogram-bins`` (int), ``enable-histogram-pruning`` (bool), ``recombination-mode``,
+  ``log-stepwise-statistics``, ``cache-cleanup-interval``: same meaning as for ``lexiconfree-timesync-beam-search`` above.
 * ``score-threshold`` (float list): same meaning as for ``lexiconfree-timesync-beam-search`` above. Always
   expressed in un-normalized score units, regardless of ``length-norm-scale``. When comparing hypotheses of
   different lengths (e.g. active vs. already-terminated ones), the threshold is converted into the equivalent
@@ -333,6 +335,7 @@ and state tying, not for scoring) and a language model, in addition to the label
 * ``word-end-score-threshold`` (float): score-based pruning of *word-end* hypotheses, relative to
   ``score-threshold``. If unset, word-end hypotheses use global score pruning. Default: unset.
 * ``num-histogram-bins`` (int): see above. Default ``100``.
+* ``enable-histogram-pruning`` (bool): see above. Also applies to ``max-word-end-beam-size``. Default ``true``.
 * ``collapse-repeated-labels`` (bool): same meaning as above, but keep the search tree topology in mind: a
   label can only "loop" where the tree actually has a matching self-loop edge for it (controlled by
   ``tree-builder-type`` and the ``allow-label-loop`` parameter, see :ref:`Search tree types`), without one there is
@@ -499,7 +502,7 @@ pronunciation) rather than being configurable as a separate parameter, so that i
 index used for the search tree itself.
 
 * ``max-beam-size``, ``max-word-end-beam-size``, ``word-end-score-threshold``, ``num-histogram-bins``,
-  ``sentence-end-fall-back``, ``recombination-mode``, ``log-stepwise-statistics``, ``cache-cleanup-interval``,
+  ``enable-histogram-pruning``, ``sentence-end-fall-back``, ``recombination-mode``, ``log-stepwise-statistics``, ``cache-cleanup-interval``,
   ``maximum-stable-delay``, ``maximum-stable-delay-pruning-interval``: same meaning and defaults as for
   ``tree-timesync-beam-search`` above.
 * ``score-threshold``: same meaning as for ``tree-timesync-beam-search`` above. Also interacts with

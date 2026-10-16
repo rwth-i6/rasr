@@ -278,6 +278,12 @@ bool LexiconfreeLabelsyncBeamSearch::setModelCombination(Speech::ModelCombinatio
     labelScorers_ = modelCombination.labelScorers();
     verify(not labelScorers_.empty());
 
+    allTokens_.clear();
+    auto const lemmaRange = lexicon_->lemmas();
+    for (auto lemmaIt = lemmaRange.first; lemmaIt != lemmaRange.second; ++lemmaIt) {
+        allTokens_.push_back((*lemmaIt)->id());
+    }
+
     if (labelScorers_.size() > maxBeamSizes_.size()) {
         error() << "Number of label scorers (" << labelScorers_.size() << ") exceeds number of configured max beam sizes (" << maxBeamSizes_.size() << ")";
     }
@@ -636,16 +642,15 @@ void LexiconfreeLabelsyncBeamSearch::readOutScoreAccessors(std::vector<std::opti
     }
 }
 
-bool LexiconfreeLabelsyncBeamSearch::selectTokens(std::optional<Nn::DenseScoreSpan> const& denseScores, Nn::LabelIndex currentToken) {
+std::span<Nn::LabelIndex const> LexiconfreeLabelsyncBeamSearch::selectTokens(std::optional<Nn::DenseScoreSpan> const& denseScores, Nn::LabelIndex currentToken) {
     if (maxExtensionsPerHyp_ == Core::Type<size_t>::max or not denseScores) {
-        return false;
+        return allTokens_;
     }
 
-    auto lemmas            = lexicon_->lemmas();
-    auto numTokens         = static_cast<size_t>(lemmas.second - lemmas.first);
+    auto numTokens         = allTokens_.size();
     auto numScorableTokens = std::min(denseScores->size(), numTokens);
     if (maxExtensionsPerHyp_ >= numScorableTokens) {
-        return false;
+        return allTokens_;
     }
 
     // The dense score is only part of the extension score if the transition is scored. Otherwise, the tokens can't
@@ -653,11 +658,12 @@ bool LexiconfreeLabelsyncBeamSearch::selectTokens(std::optional<Nn::DenseScoreSp
     auto const& labelScorer    = labelScorers_.front();
     auto        transitionType = currentToken == Nn::invalidLabelIndex ? Nn::TransitionType::INITIAL_LABEL : Nn::TransitionType::LABEL_TO_LABEL;
     if (not labelScorer->scoresTransition(transitionType)) {
-        return false;
+        return allTokens_;
     }
 
     // Max-heap of the best tokens so far
-    std::vector<std::pair<Score, Nn::LabelIndex>> heap;
+    auto& heap = tokenSelectionHeap_;
+    heap.clear();
     heap.reserve(maxExtensionsPerHyp_);
     selectedTokens_.clear();
 
@@ -694,7 +700,7 @@ bool LexiconfreeLabelsyncBeamSearch::selectTokens(std::optional<Nn::DenseScoreSp
     // Keep lexicon order
     std::sort(selectedTokens_.begin(), selectedTokens_.end());
 
-    return true;
+    return selectedTokens_;
 }
 
 void LexiconfreeLabelsyncBeamSearch::createExtensions(std::vector<std::optional<Nn::ScoreAccessorRef>> const& scoreAccessors) {
@@ -719,15 +725,12 @@ void LexiconfreeLabelsyncBeamSearch::createExtensions(std::vector<std::optional<
         auto const& denseScores = denseScoreSpans_[contextIndex];
         auto        scoreTime   = scoreTimes_[contextIndex];
 
-        // Extend with the selected tokens if their number is limited and with all lemmas otherwise
-        bool   limitExtensions = selectTokens(denseScores, hyp.currentToken);
-        size_t numCandidates   = limitExtensions ? selectedTokens_.size() : lemmas.second - lemmas.first;
+        auto selectedTokens = selectTokens(denseScores, hyp.currentToken);
 
         // Iterate over possible successors
-        for (size_t candidateIdx = 0ul; candidateIdx < numCandidates; ++candidateIdx) {
-            auto const*    lemma      = lemmas.first[limitExtensions ? selectedTokens_[candidateIdx] : candidateIdx];
-            Nn::LabelIndex tokenIdx   = lemma->id();
-            bool           terminated = false;
+        for (auto tokenIdx : selectedTokens) {
+            auto const* lemma      = lemmas.first[tokenIdx];
+            bool        terminated = false;
 
             auto transitionType = Nn::TransitionType::LABEL_TO_LABEL;
             if (hyp.currentToken == Nn::invalidLabelIndex) {

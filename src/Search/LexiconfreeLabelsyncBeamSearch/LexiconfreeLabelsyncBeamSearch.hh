@@ -17,6 +17,7 @@
 #define LEXICONFREE_LABELSYNC_BEAM_SEARCH_HH
 
 #include <optional>
+#include <span>
 
 #include <Bliss/Lexicon.hh>
 #include <Core/Channel.hh>
@@ -178,8 +179,10 @@ private:
     std::vector<Nn::ScoringContextRef> scoringContexts_;
     std::vector<LabelHypothesis>       tempHypotheses_;
 
-    // Tokens selected by `selectTokens`
-    std::vector<Nn::LabelIndex> selectedTokens_;
+    // Indices of all tokens and work buffers of `selectTokens`
+    std::vector<Nn::LabelIndex>                   allTokens_;
+    std::vector<std::pair<Score, Nn::LabelIndex>> tokenSelectionHeap_;
+    std::vector<Nn::LabelIndex>                   selectedTokens_;
 
     // Scores and timeframes read out of the accessors of the current label scorer, indexed like
     // `scoringContexts_`
@@ -256,10 +259,9 @@ private:
     /*
      * Limit the tokens to extend a hypothesis with to the `maxExtensionsPerHyp_` tokens with the best dense score,
      * plus the tokens that can't be ranked by it (no dense score or transition not scored, sentence-end with separate pruning).
-     * The tokens are stored in `selectedTokens_`. Returns false if the tokens can't or need not be limited,
-     * i.e. all tokens should be extended.
+     * If the tokens can't or need not be limited, all tokens are returned. The result is valid until the next call.
      */
-    bool selectTokens(std::optional<Nn::DenseScoreSpan> const& denseScores, Nn::LabelIndex currentToken);
+    std::span<Nn::LabelIndex const> selectTokens(std::optional<Nn::DenseScoreSpan> const& denseScores, Nn::LabelIndex currentToken);
 
     /*
      * Add the scores of label scorer `scorerIdx` to the existing extension candidates.

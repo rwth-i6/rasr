@@ -54,7 +54,7 @@ find_package(LibXml2 REQUIRED)
 find_package(Threads REQUIRED)
 find_package(ZLIB REQUIRED)
 find_package(Iconv REQUIRED)
-# Use Boost's own CMake config (BoostConfig.cmake) instead of CMake's deprecated FindBoost module
+# use Boost's own BoostConfig.cmake instead of the deprecated FindBoost module
 if (POLICY CMP0167)
     cmake_policy(SET CMP0167 NEW)
 endif ()
@@ -102,8 +102,9 @@ if(${MODULE_OPENMP})
 endif()
 
 if(${MODULE_CUDA})
-    # "native" requires a GPU on the build machine, pass DCMAKE_CUDA_ARCHITECTURES compile on a machine without GPU
-    if (NOT DEFINED CMAKE_CUDA_ARCHITECTURES)
+    # "native" needs a GPU at configure time, otherwise set CUDAARCHS or pass
+    # -DCMAKE_CUDA_ARCHITECTURES=...
+    if (NOT DEFINED CMAKE_CUDA_ARCHITECTURES AND NOT DEFINED ENV{CUDAARCHS})
         set(CMAKE_CUDA_ARCHITECTURES native)
     endif ()
     enable_language(CUDA)

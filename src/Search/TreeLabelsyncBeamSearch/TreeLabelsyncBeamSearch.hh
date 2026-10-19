@@ -50,6 +50,7 @@ public:
     static const Core::ParameterFloatVector paramScoreThresholds;
     static const Core::ParameterFloat       paramWordEndScoreThreshold;
     static const Core::ParameterInt         paramNumHistogramBins;
+    static const Core::ParameterBool        paramEnableHistogramPruning;
     static const Core::ParameterInt         paramCacheCleanupInterval;
     static const Core::ParameterFloat       paramLengthNormScale;
     static const Core::ParameterFloat       paramMaxLabelsPerTimestep;
@@ -189,6 +190,7 @@ private:
     Histogram           scoreHistogram_;
     Histogram           activeScoreHistogram_;
     Histogram           terminatedScoreHistogram_;
+    bool                histogramPruningEnabled_;
     float               lengthNormScale_;
     float               maxLabelsPerTimestep_;
     Bliss::Lemma const* sentenceEndLemma_;

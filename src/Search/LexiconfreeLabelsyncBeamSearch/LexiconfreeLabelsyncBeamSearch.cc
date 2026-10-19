@@ -143,6 +143,11 @@ const Core::ParameterInt LexiconfreeLabelsyncBeamSearch::paramNumHistogramBins(
         100,
         2);
 
+const Core::ParameterBool LexiconfreeLabelsyncBeamSearch::paramEnableHistogramPruning(
+        "enable-histogram-pruning",
+        "Use histogram pruning for max-beam-size. If false, exactly the max-beam-size best hypotheses are kept.",
+        true);
+
 const Core::ParameterInt LexiconfreeLabelsyncBeamSearch::paramSentenceEndLabelIndex(
         "sentence-end-label-index",
         "Index of the sentence-end label in the lexicon."
@@ -199,6 +204,7 @@ LexiconfreeLabelsyncBeamSearch::LexiconfreeLabelsyncBeamSearch(Core::Configurati
           scoreHistogram_(paramNumHistogramBins(config)),
           activeScoreHistogram_(paramNumHistogramBins(config)),
           terminatedScoreHistogram_(paramNumHistogramBins(config)),
+          histogramPruningEnabled_(paramEnableHistogramPruning(config)),
           lengthNormScale_(paramLengthNormScale(config)),
           maxLabelsPerTimestep_(paramMaxLabelsPerTimestep(config)),
           sentenceEndLabelIndex_(paramSentenceEndLabelIndex(config)),
@@ -924,6 +930,12 @@ void LexiconfreeLabelsyncBeamSearch::scorePruning(std::vector<Element>& hypothes
         return;
     }
 
+    if (not histogramPruningEnabled_ and hypotheses.size() > pruningParams.maxBeamSize) {
+        // Plain max beam size pruning: keep exactly the maxBeamSize best hypotheses
+        std::nth_element(hypotheses.begin(), hypotheses.begin() + pruningParams.maxBeamSize, hypotheses.end(), [](auto const& a, auto const& b) { return a.pruningScore() < b.pruningScore(); });
+        hypotheses.resize(pruningParams.maxBeamSize);
+    }
+
     // Find ranges for score histogram and setting absolute threshold
     Score lowerScore = Core::Type<Score>::max;
     Score upperScore = Core::Type<Score>::min;
@@ -1004,6 +1016,22 @@ void LexiconfreeLabelsyncBeamSearch::separateScorePruning(
         PruningParams const&  terminatedPruningParams) {
     if (elements.empty()) {
         return;
+    }
+
+    if (not histogramPruningEnabled_) {
+        // Plain max beam size pruning: keep exactly the maxBeamSize best elements of each pool
+        auto   byScore   = [](auto const& a, auto const& b) { return a.pruningScore() < b.pruningScore(); };
+        size_t numActive = std::partition(elements.begin(), elements.end(), [](auto const& element) { return element.isActive; }) - elements.begin();
+        if (elements.size() - numActive > terminatedPruningParams.maxBeamSize) {
+            auto keepEnd = elements.begin() + numActive + terminatedPruningParams.maxBeamSize;
+            std::nth_element(elements.begin() + numActive, keepEnd, elements.end(), byScore);
+            elements.erase(keepEnd, elements.end());
+        }
+        if (numActive > activePruningParams.maxBeamSize) {
+            auto keepEnd = elements.begin() + activePruningParams.maxBeamSize;
+            std::nth_element(elements.begin(), keepEnd, elements.begin() + numActive, byScore);
+            elements.erase(keepEnd, elements.begin() + numActive);
+        }
     }
 
     static constexpr size_t activeIdx     = 0ul;

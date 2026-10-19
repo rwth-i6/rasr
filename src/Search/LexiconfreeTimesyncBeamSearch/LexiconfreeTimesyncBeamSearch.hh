@@ -45,6 +45,7 @@ public:
     static const Core::ParameterIntVector   paramMaxBeamSizes;
     static const Core::ParameterFloatVector paramScoreThresholds;
     static const Core::ParameterInt         paramNumHistogramBins;
+    static const Core::ParameterBool        paramEnableHistogramPruning;
     static const Core::ParameterInt         paramBlankLabelIndex;
     static const Core::ParameterInt         paramSilenceLabelIndex;
     static const Core::ParameterInt         paramSentenceEndLabelIndex;
@@ -118,6 +119,7 @@ private:
     std::vector<bool>   useScorePruning_;
     std::vector<Score>  scoreThresholds_;
     Histogram           scoreHistogram_;
+    bool                histogramPruningEnabled_;
     bool                useBlank_;
     Nn::LabelIndex      blankLabelIndex_;
     bool                useSilence_;

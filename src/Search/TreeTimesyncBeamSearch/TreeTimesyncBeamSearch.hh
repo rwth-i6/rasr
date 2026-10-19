@@ -54,6 +54,7 @@ public:
     static const Core::ParameterFloatVector paramScoreThresholds;
     static const Core::ParameterFloat       paramWordEndScoreThreshold;
     static const Core::ParameterInt         paramNumHistogramBins;
+    static const Core::ParameterBool        paramEnableHistogramPruning;
     static const Core::ParameterBool        paramCollapseRepeatedLabels;
     static const Core::ParameterBool        paramLmLookahead;
     static const Core::ParameterBool        paramSeparateLookaheadLm;
@@ -163,6 +164,7 @@ private:
     std::vector<Score>  scoreThresholds_;
     Score               wordEndScoreThreshold_;
     Histogram           scoreHistogram_;
+    bool                histogramPruningEnabled_;
     Nn::LabelIndex      blankLabelIndex_;
     Nn::LabelIndex      silenceLabelIndex_;
     Bliss::Lemma const* sentenceEndLemma_;

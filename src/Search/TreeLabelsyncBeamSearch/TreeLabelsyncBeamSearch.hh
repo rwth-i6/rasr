@@ -263,7 +263,13 @@ private:
     Core::StopWatch wordEndExtensionTime_;
     Core::StopWatch wordEndScorePruningTime_;
     Core::StopWatch wordEndHypBuildingTime_;
-    Core::StopWatch lmTime_;
+    /*
+     * Time spent asking the language model for scores, reported as `lm-time` inside the phase that
+     * made the calls. Extending a history is not counted: it is a node lookup for an n-gram model,
+     * and a recurrent model measures its own extensions as `total-expand-hist-time`.
+     */
+    Core::StopWatch wordEndExtensionLmTime_;
+    Core::StopWatch finalizeLmTime_;
     Core::StopWatch finalizeTime_;
 
     Core::Statistics<u32>              numInputHyps_;

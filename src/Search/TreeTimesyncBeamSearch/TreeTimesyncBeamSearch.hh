@@ -255,11 +255,13 @@ private:
     Core::StopWatch wordEndRecombinationTime_;
     Core::StopWatch wordEndBeamPruningTime_;
     /*
-     * Time spent asking the language model for scores, reported as `lm-time` inside the phase that
-     * made the calls. Extending a history is not counted: it is a node lookup for an n-gram model,
-     * and a recurrent model measures its own extensions as `total-expand-hist-time`.
+     * Language model time, reported inside the phase that made the calls: `lm-time` for scoring and
+     * `lm-history-extension-time` for extending a history. Extending a history is a node lookup for
+     * an n-gram model, but copies and hashes the token sequence for a recurrent one, so it is timed
+     * rather than left unaccounted for in its phase.
      */
     Core::StopWatch wordEndExtensionLmTime_;
+    Core::StopWatch lmHistoryExtensionTime_;
     Core::StopWatch finalizeLmTime_;
     Core::StopWatch wordEndLmLookaheadTime_;
     Core::StopWatch finalizeTime_;

@@ -781,19 +781,19 @@ void TreeLabelsyncBeamSearch::pruneNewBeamBySize() {
     beamPruningTime_.stop();
 }
 
-void TreeLabelsyncBeamSearch::readOutScoreAccessors(std::vector<std::optional<Nn::ScoreAccessorRef>> const& scoreAccessors) {
-    denseScoreSpans_.assign(scoreAccessors.size(), std::nullopt);
-    scoreTimes_.assign(scoreAccessors.size(), 0);
+void TreeLabelsyncBeamSearch::readOutScoreAccessors(std::vector<std::optional<Nn::ScoreAccessorRef>> const& scoreAccessors, std::vector<std::optional<Nn::DenseScoreSpan>>& denseScoreSpans, std::vector<Nn::TimeframeIndex>& scoreTimes) const {
+    denseScoreSpans.assign(scoreAccessors.size(), std::nullopt);
+    scoreTimes.assign(scoreAccessors.size(), 0);
 
     for (size_t accessorIdx = 0ul; accessorIdx < scoreAccessors.size(); ++accessorIdx) {
         if (scoreAccessors[accessorIdx]) {
-            denseScoreSpans_[accessorIdx] = (*scoreAccessors[accessorIdx])->getDenseScores();
-            scoreTimes_[accessorIdx]      = (*scoreAccessors[accessorIdx])->getTime();
+            denseScoreSpans[accessorIdx] = (*scoreAccessors[accessorIdx])->getDenseScores();
+            scoreTimes[accessorIdx]      = (*scoreAccessors[accessorIdx])->getTime();
         }
     }
 }
 
-void TreeLabelsyncBeamSearch::createWithinWordExtensions(std::vector<std::optional<Nn::ScoreAccessorRef>> const& scoreAccessors) {
+void TreeLabelsyncBeamSearch::createWithinWordExtensions(std::vector<std::optional<Nn::ScoreAccessorRef>> const& scoreAccessors, std::vector<std::optional<Nn::DenseScoreSpan>> const& denseScoreSpans, std::vector<Nn::TimeframeIndex> const& scoreTimes) {
     auto const& labelScorer      = labelScorers_.front();
     Score       currentBestScore = Core::Type<Score>::max;
 
@@ -809,8 +809,8 @@ void TreeLabelsyncBeamSearch::createWithinWordExtensions(std::vector<std::option
             // No extensions for hyps that couldn't be scored
             continue;
         }
-        auto const& denseScores = denseScoreSpans_[contextIndex];
-        auto        scoreTime   = scoreTimes_[contextIndex];
+        auto const& denseScores = denseScoreSpans[contextIndex];
+        auto        scoreTime   = scoreTimes[contextIndex];
 
         // Iterate over the successors of this hypothesis' current state in the tree
         for (size_t i = stateSuccessorsOffset_[hyp.currentState]; i < stateSuccessorsOffset_[hyp.currentState + 1]; ++i) {
@@ -851,7 +851,7 @@ void TreeLabelsyncBeamSearch::createWithinWordExtensions(std::vector<std::option
     }
 }
 
-void TreeLabelsyncBeamSearch::updateWithinWordExtensionScores(size_t scorerIdx, std::vector<std::optional<Nn::ScoreAccessorRef>> const& scoreAccessors) {
+void TreeLabelsyncBeamSearch::updateWithinWordExtensionScores(size_t scorerIdx, std::vector<std::optional<Nn::ScoreAccessorRef>> const& scoreAccessors, std::vector<std::optional<Nn::DenseScoreSpan>> const& denseScoreSpans, std::vector<Nn::TimeframeIndex> const& scoreTimes) {
     auto const& labelScorer = labelScorers_[scorerIdx];
 
     for (auto& ext : withinWordExtensions_) {
@@ -866,11 +866,11 @@ void TreeLabelsyncBeamSearch::updateWithinWordExtensionScores(size_t scorerIdx, 
             continue;
         }
 
-        auto const& denseScores = denseScoreSpans_[contextIndex];
+        auto const& denseScores = denseScoreSpans[contextIndex];
         ext.score += (denseScores and ext.nextToken < denseScores->size())
                              ? (*denseScores)[ext.nextToken]
                              : (*scoreAccessor)->getScore(ext.transitionType, ext.nextToken);
-        ext.timeframe = std::max(ext.timeframe, scoreTimes_[contextIndex]);
+        ext.timeframe = std::max(ext.timeframe, scoreTimes[contextIndex]);
     }
 }
 
@@ -925,16 +925,21 @@ bool TreeLabelsyncBeamSearch::scoreAndPruneExtensions() {
             scoreAccessors = labelScorers_[scorerIdx]->getScoreAccessors(scoringContexts_);
         }
 
+        // Scores and timeframes of this label scorer, indexed like `scoringContexts_`. The spans
+        // view into memory owned by `scoreAccessors`, so they share its scope.
+        std::vector<std::optional<Nn::DenseScoreSpan>> denseScoreSpans;
+        std::vector<Nn::TimeframeIndex>                scoreTimes;
+
         // Read the scores out of the accessors and apply them to the extension candidates; for
         // the first scorer this also creates them. Lazily computing scorers do their work here.
         {
             Core::StopWatch::Scope readoutTimer(scoreReadoutTimes_[scorerIdx]);
-            readOutScoreAccessors(scoreAccessors);
+            readOutScoreAccessors(scoreAccessors, denseScoreSpans, scoreTimes);
             if (scorerIdx == 0ul) {
-                createWithinWordExtensions(scoreAccessors);
+                createWithinWordExtensions(scoreAccessors, denseScoreSpans, scoreTimes);
             }
             else {
-                updateWithinWordExtensionScores(scorerIdx, scoreAccessors);
+                updateWithinWordExtensionScores(scorerIdx, scoreAccessors, denseScoreSpans, scoreTimes);
             }
         }
 

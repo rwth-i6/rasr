@@ -1,0 +1,322 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<sprint>
+  <information component="lib-rasr.search-algorithm">
+    Use sentence-end label with index 0
+  </information>
+  <warning component="lib-rasr.search-algorithm">
+    pruning-strategy-type=separate with length-norm-scale=0 compares active and terminated hypotheses by raw accumulated scores. This can favor early terminated hypotheses that stay around until later.
+  </warning>
+  <information component="lib-rasr.lexicon">
+    md5 dependency computed in 0.00 seconds
+  </information>
+  <information component="lib-rasr.lexicon">
+    reading lexicon from file "/u/berger/asr-exps/librispeech/20241106_seq2seq_template_setups/work/i6_experiments/example_setups/seq2seq_rasr_2025/data/base/BPEVocabToTextFileConversionJob.1jQ6okyZz1lj/output/vocab.txt" (/work/asr4/berger/sisyphus_work_dirs/librispeech/20241106_seq2seq_template_setups/i6_experiments/example_setups/seq2seq_rasr_2025/data/base/BPEVocabToTextFileConversionJob.1jQ6okyZz1lj/output/vocab.txt) ...
+  </information>
+  <information component="lib-rasr.lexicon">
+    parsed XML lexicon in 0.00 seconds
+  </information>
+  <information component="lib-rasr.lexicon">
+    dependency value: 13eb073d332866e503746a7054f3ea1e
+  </information>
+  <information component="lib-rasr">
+    Set lexicon in ModelCombination
+  </information>
+  <information component="lib-rasr.label-scorer-1.decoder.state-initializer-model.session">
+    Created ONNX session for /u/berger/asr-exps/librispeech/20241106_seq2seq_template_setups/work/i6_experiments/example_setups/seq2seq_rasr_2025/model_pipelines/common/onnx_export/AddOnnxMetadataJob.Oz0ow1u0XUg6/output/model.onnx with 2 inputs and 6 outputs
+  </information>
+  <information component="lib-rasr.label-scorer-1.decoder.state-initializer-model.session">
+    input 0 : encoder_states tensor[float](1,-1,1537)
+    input 1 : encoder_states:size1 tensor[int32](1)
+    output 0 : accum_att_weights tensor[float](-1,-1,-1)
+    output 1 : accum_att_weights:size1 tensor[int32](1)
+    output 2 : att_context tensor[float](-1,512)
+    output 3 : lstm_c tensor[float](-1,1024)
+    output 4 : lstm_h tensor[float](-1,1024)
+    output 5 : token_embedding tensor[float](1,640)
+  </information>
+  <information component="lib-rasr.label-scorer-1.decoder.state-updater-model.session">
+    Created ONNX session for /u/berger/asr-exps/librispeech/20241106_seq2seq_template_setups/work/i6_experiments/example_setups/seq2seq_rasr_2025/model_pipelines/common/onnx_export/AddOnnxMetadataJob.doeGq4Mvffpu/output/model.onnx with 7 inputs and 6 outputs
+  </information>
+  <information component="lib-rasr.label-scorer-1.decoder.state-updater-model.session">
+    input 0 : accum_att_weights_in tensor[float](-1,-1,1)
+    input 1 : accum_att_weights_in:size1 tensor[int32](1)
+    input 2 : att_context_in tensor[float](-1,512)
+    input 3 : encoder_states tensor[float](1,-1,1537)
+    input 4 : lstm_c_in tensor[float](-1,1024)
+    input 5 : lstm_h_in tensor[float](-1,1024)
+    input 6 : token tensor[int32](-1)
+    output 0 : accum_att_weights_out tensor[float](-1,-1,1)
+    output 1 : accum_att_weights_out:size1 tensor[int32](1)
+    output 2 : att_context_out tensor[float](-1,512)
+    output 3 : lstm_c_out tensor[float](-1,1024)
+    output 4 : lstm_h_out tensor[float](-1,1024)
+    output 5 : token_embedding_out tensor[float](-1,640)
+  </information>
+  <information component="lib-rasr.label-scorer-1.decoder.scorer-model.session">
+    Created ONNX session for /u/berger/asr-exps/librispeech/20241106_seq2seq_template_setups/work/i6_experiments/example_setups/seq2seq_rasr_2025/model_pipelines/common/onnx_export/AddOnnxMetadataJob.uNCgFyM4CsSx/output/model.onnx with 3 inputs and 1 outputs
+  </information>
+  <information component="lib-rasr.label-scorer-1.decoder.scorer-model.session">
+    input 0 : att_context tensor[float](-1,512)
+    input 1 : lstm_h tensor[float](-1,1024)
+    input 2 : token_embedding tensor[float](-1,640)
+    output 0 : scores tensor[float](-1,184)
+  </information>
+  <information component="lib-rasr">
+    Maximum number of threads for CPU matrix operations: 1
+  </information>
+</sprint>
+ index="0">
+    <information component="lib-rasr.search-algorithm">
+      Terminated search because all hypotheses reached sentence-end
+    </information>
+    <timing-statistics unit="milliseconds">
+      <initialization-time>
+        0.567964
+      </initialization-time>
+      <feature-processing-time>
+        3587.45
+      </feature-processing-time>
+      <decode-step total="1049">
+        <score-and-prune-extensions scorer="1" total="1004.05">
+          <scoring-time>
+            1002.46
+          </scoring-time>
+        </score-and-prune-extensions>
+        <score-and-prune-extensions scorer="2" total="43.181">
+          <scoring-time>
+            19.9942
+          </scoring-time>
+        </score-and-prune-extensions>
+        <build-new-beam-time>
+          1.02276
+        </build-new-beam-time>
+        <recombination-time>
+          0.306022
+        </recombination-time>
+        <beam-pruning-time>
+          0.106866
+        </beam-pruning-time>
+      </decode-step>
+    </timing-statistics>
+    <statistic name="num-input-hyps" type="scalar">
+      <min>1</min>
+      <avg>3.5545</avg>
+      <max>7</max>
+    </statistic>
+    <statistic name="num-extensions-before-first-pruning" type="scalar">
+      <min>166</min>
+      <avg>288.701</avg>
+      <max>370</max>
+    </statistic>
+    <statistic name="num-hyps-after-intermediate-pruning-1" type="scalar">
+      <min>3</min>
+      <avg>8.12796</avg>
+      <max>10</max>
+    </statistic>
+    <statistic name="num-hyps-after-intermediate-pruning-2" type="scalar">
+      <min>2</min>
+      <avg>3.52133</avg>
+      <max>8</max>
+    </statistic>
+    <statistic name="num-terminated-hyps-after-score-pruning" type="scalar">
+      <min>1</min>
+      <avg>1.109</avg>
+      <max>4</max>
+    </statistic>
+    <statistic name="num-terminated-hyps-after-recombination" type="scalar">
+      <min>1</min>
+      <avg>1.109</avg>
+      <max>4</max>
+    </statistic>
+    <statistic name="num-terminated-hyps-after-beam-pruning" type="scalar">
+      <min>1</min>
+      <avg>1.109</avg>
+      <max>4</max>
+    </statistic>
+    <statistic name="num-active-hyps-after-score-pruning" type="scalar">
+      <min>0</min>
+      <avg>2.48341</avg>
+      <max>5</max>
+    </statistic>
+    <statistic name="num-active-hyps-after-recombination" type="scalar">
+      <min>0</min>
+      <avg>2.48341</avg>
+      <max>5</max>
+    </statistic>
+    <statistic name="num-active-hyps-after-beam-pruning" type="scalar">
+      <min>0</min>
+      <avg>2.45498</avg>
+      <max>3</max>
+    </statistic>
+    <encoder-statistics component="lib-rasr.label-scorer-1.encoder">
+      <encode-time unit="milliseconds" total="1514.73">
+      </encode-time>
+      <num-encoded-features>562480</num-encoded-features>
+    </encoder-statistics>
+    <label-scorer-statistics component="lib-rasr.label-scorer-1.decoder">
+      <scoring-time unit="milliseconds" total="1002.27">
+        <state-initializer-session-time>
+          4.70448
+        </state-initializer-session-time>
+        <state-updater-session-time>
+          753.036
+        </state-updater-session-time>
+        <scorer-session-time>
+          68.6881
+        </scorer-session-time>
+        <context-preparation-time>
+          0.532066
+        </context-preparation-time>
+      </scoring-time>
+      <num-score-accessors-requested>519</num-score-accessors-requested>
+      <num-score-accessors-computed>519</num-score-accessors-computed>
+    </label-scorer-statistics>
+    <encoder-statistics component="lib-rasr.label-scorer-2.encoder">
+      <encode-time unit="milliseconds" total="2035.12">
+      </encode-time>
+      <num-encoded-features>562480</num-encoded-features>
+    </encoder-statistics>
+    <label-scorer-statistics component="lib-rasr.label-scorer-2.decoder">
+      <scoring-time unit="milliseconds" total="19.7426">
+      </scoring-time>
+      <ctc-score-collection-time unit="milliseconds">
+        0.509206
+      </ctc-score-collection-time>
+      <num-score-accessors-requested>519</num-score-accessors-requested>
+      <num-score-accessors-computed>519</num-score-accessors-computed>
+    </label-scorer-statistics>
+    <label-scorer-statistics component="lib-rasr.label-scorer-2.decoder.ctc-scorer">
+      <scoring-time unit="milliseconds" total="0">
+      </scoring-time>
+      <num-score-accessors-requested>0</num-score-accessors-requested>
+      <num-score-accessors-computed>0</num-score-accessors-computed>
+    </label-scorer-statistics>
+  </segment>
+  <segment index="1">
+    <information component="lib-rasr.search-algorithm">
+      Terminated search because all hypotheses reached sentence-end
+    </information>
+    <timing-statistics unit="milliseconds">
+      <initialization-time>
+        1.32173
+      </initialization-time>
+      <feature-processing-time>
+        3306.81
+      </feature-processing-time>
+      <decode-step total="564.201">
+        <score-and-prune-extensions scorer="1" total="536.249">
+          <scoring-time>
+            535.164
+          </scoring-time>
+        </score-and-prune-extensions>
+        <score-and-prune-extensions scorer="2" total="26.4399">
+          <scoring-time>
+            8.02173
+          </scoring-time>
+        </score-and-prune-extensions>
+        <build-new-beam-time>
+          0.664781
+        </build-new-beam-time>
+        <recombination-time>
+          0.516882
+        </recombination-time>
+        <beam-pruning-time>
+          0.06631
+        </beam-pruning-time>
+      </decode-step>
+    </timing-statistics>
+    <statistic name="num-input-hyps" type="scalar">
+      <min>1</min>
+      <avg>2.09709</avg>
+      <max>4</max>
+    </statistic>
+    <statistic name="num-extensions-before-first-pruning" type="scalar">
+      <min>36</min>
+      <avg>183.447</avg>
+      <max>367</max>
+    </statistic>
+    <statistic name="num-hyps-after-intermediate-pruning-1" type="scalar">
+      <min>2</min>
+      <avg>6.01942</avg>
+      <max>9</max>
+    </statistic>
+    <statistic name="num-hyps-after-intermediate-pruning-2" type="scalar">
+      <min>1</min>
+      <avg>2.01456</avg>
+      <max>3</max>
+    </statistic>
+    <statistic name="num-terminated-hyps-after-score-pruning" type="scalar">
+      <min>1</min>
+      <avg>1.08738</avg>
+      <max>2</max>
+    </statistic>
+    <statistic name="num-terminated-hyps-after-recombination" type="scalar">
+      <min>1</min>
+      <avg>1.08738</avg>
+      <max>2</max>
+    </statistic>
+    <statistic name="num-terminated-hyps-after-beam-pruning" type="scalar">
+      <min>1</min>
+      <avg>1.08738</avg>
+      <max>2</max>
+    </statistic>
+    <statistic name="num-active-hyps-after-score-pruning" type="scalar">
+      <min>0</min>
+      <avg>1.00971</avg>
+      <max>2</max>
+    </statistic>
+    <statistic name="num-active-hyps-after-recombination" type="scalar">
+      <min>0</min>
+      <avg>1.00971</avg>
+      <max>2</max>
+    </statistic>
+    <statistic name="num-active-hyps-after-beam-pruning" type="scalar">
+      <min>0</min>
+      <avg>1.00971</avg>
+      <max>2</max>
+    </statistic>
+    <encoder-statistics component="lib-rasr.label-scorer-1.encoder">
+      <encode-time unit="milliseconds" total="1238.38">
+      </encode-time>
+      <num-encoded-features>535920</num-encoded-features>
+    </encoder-statistics>
+    <label-scorer-statistics component="lib-rasr.label-scorer-1.decoder">
+      <scoring-time unit="milliseconds" total="535.045">
+        <state-initializer-session-time>
+          1.95495
+        </state-initializer-session-time>
+        <state-updater-session-time>
+          358.851
+        </state-updater-session-time>
+        <scorer-session-time>
+          46.5804
+        </scorer-session-time>
+        <context-preparation-time>
+          0.284142
+        </context-preparation-time>
+      </scoring-time>
+      <num-score-accessors-requested>209</num-score-accessors-requested>
+      <num-score-accessors-computed>209</num-score-accessors-computed>
+    </label-scorer-statistics>
+    <encoder-statistics component="lib-rasr.label-scorer-2.encoder">
+      <encode-time unit="milliseconds" total="2038.84">
+      </encode-time>
+      <num-encoded-features>535920</num-encoded-features>
+    </encoder-statistics>
+    <label-scorer-statistics component="lib-rasr.label-scorer-2.decoder">
+      <scoring-time unit="milliseconds" total="7.86327">
+      </scoring-time>
+      <ctc-score-collection-time unit="milliseconds">
+        0.486917
+      </ctc-score-collection-time>
+      <num-score-accessors-requested>209</num-score-accessors-requested>
+      <num-score-accessors-computed>209</num-score-accessors-computed>
+    </label-scorer-statistics>
+    <label-scorer-statistics component="lib-rasr.label-scorer-2.decoder.ctc-scorer">
+      <scoring-time unit="milliseconds" total="0">
+      </scoring-time>
+      <num-score-accessors-requested>0</num-score-accessors-requested>
+      <num-score-accessors-computed>0</num-score-accessors-computed>
+    </label-scorer-statistics>
+  </segment>
+</sprint>

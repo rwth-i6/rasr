@@ -486,7 +486,8 @@ void TreeTimesyncBeamSearch::enterSegment(Bliss::SpeechSegment const* segment) {
     wordEndExtensionTime_.reset();
     wordEndScorePruningTime_.reset();
     wordEndHypBuildingTime_.reset();
-    lmTime_.reset();
+    wordEndExtensionLmTime_.reset();
+    finalizeLmTime_.reset();
     wordEndLmLookaheadTime_.reset();
     wordEndRecombinationTime_.reset();
     wordEndBeamPruningTime_.reset();
@@ -949,10 +950,10 @@ void TreeTimesyncBeamSearch::createWordEndExtensions() {
             auto const& sts = lemma->syntacticTokenSequence();
 
             // The last token is only appended to the LM history after pruning
-            lmTime_.start();
+            wordEndExtensionLmTime_.start();
             Lm::History lmPrefixHistory;
             Score       lmScore = languageModel_->scoreTokenSequence(hyp.lmHistory, sts, lmPrefixHistory);
-            lmTime_.stop();
+            wordEndExtensionLmTime_.stop();
 
             // The label scorers score the first token here, the remaining ones are scored in `scoreRemainingWordEndTokens`
             Nn::LabelIndex firstLabel = Nn::invalidLabelIndex;
@@ -1232,7 +1233,7 @@ void TreeTimesyncBeamSearch::logOwnStatistics() const {
     statisticsChannel_ << Core::XmlFull("build-within-word-hyps-time", buildWithinWordHypsTime_.elapsedMilliseconds());
     statisticsChannel_ << Core::XmlOpen("word-end-expansion-time") + Core::XmlAttribute("total", wordEndExpansionTime_.elapsedMilliseconds());
     statisticsChannel_ << Core::XmlOpen("word-end-extension-time") + Core::XmlAttribute("total", wordEndExtensionTime_.elapsedMilliseconds());
-    statisticsChannel_ << Core::XmlFull("lm-time", lmTime_.elapsedMilliseconds());
+    statisticsChannel_ << Core::XmlFull("lm-time", wordEndExtensionLmTime_.elapsedMilliseconds());
     statisticsChannel_ << Core::XmlClose("word-end-extension-time");
     statisticsChannel_ << Core::XmlFull("word-end-score-pruning-time", wordEndScorePruningTime_.elapsedMilliseconds());
     statisticsChannel_ << Core::XmlOpen("word-end-hyp-building-time") + Core::XmlAttribute("total", wordEndHypBuildingTime_.elapsedMilliseconds());
@@ -1246,6 +1247,7 @@ void TreeTimesyncBeamSearch::logOwnStatistics() const {
     statisticsChannel_ << Core::XmlClose("recognition-time");
     statisticsChannel_ << Core::XmlOpen("finalize-time") + Core::XmlAttribute("total", finalizeTime_.elapsedMilliseconds());
     statisticsChannel_ << Core::XmlFull("scoring-time", finalizeScoringTime_.elapsedMilliseconds());
+    statisticsChannel_ << Core::XmlFull("lm-time", finalizeLmTime_.elapsedMilliseconds());
     statisticsChannel_ << Core::XmlClose("finalize-time");
     statisticsChannel_ << Core::XmlClose("timing-statistics");
     statisticsChannel_ << Core::XmlOpen("search-statistics");
@@ -1604,7 +1606,9 @@ void TreeTimesyncBeamSearch::finalizeHypotheses() {
             auto& hyp = newBeam_[hypIndex];
             // Add the LM's sentence-end score
             // The LM history is not updated as this is the last LM scoring step
+            finalizeLmTime_.start();
             Lm::Score sentenceEndScore = languageModel_->sentenceEndScore(hyp.lmHistory);
+            finalizeLmTime_.stop();
             wordEndExtensions_.push_back({
                     .pron           = sentenceEndLemma_->pronunciations().first,
                     .rootState      = hyp.currentState,

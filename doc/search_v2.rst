@@ -1772,6 +1772,13 @@ Point a channel at ``stdout`` only if the surrounding job does not also redirect
 log file. That would be a second writer on the same file with its own file offset, which corrupts
 the output.
 
+The timing statistics form a tree: each timer is reported inside the phase that contains it, so the
+children of a phase never exceed its ``total``. ``lm-time`` is the time spent asking the language model
+for *scores* and appears inside every phase that makes such calls -- for the tree searches inside
+``word-end-extension-time`` and inside ``finalize-time``, which add up to the total LM scoring time.
+Extending an LM history is not counted: it is a node lookup for an n-gram model, and a recurrent LM
+measures its own history extensions as ``total-expand-hist-time`` in its ``statistics`` channel.
+
 Tuning tips
 ------------
 

@@ -31,14 +31,6 @@ PythonLabelScorer::PythonLabelScorer(Core::Configuration const& config)
           Precursor(config) {
 }
 
-void PythonLabelScorer::resetInternal() {
-    PYBIND11_OVERRIDE_PURE_NAME(
-            void,
-            LabelScorer,
-            "reset",
-            resetInternal);
-}
-
 void PythonLabelScorer::signalNoMoreFeatures() {
     PYBIND11_OVERRIDE_PURE_NAME(
             void,
@@ -126,6 +118,24 @@ py::object PythonLabelScorer::extendedPythonScoringContext(py::object const& pyt
             transitionType);
 }
 
+std::vector<std::optional<std::pair<std::vector<Nn::Score>, Nn::TimeframeIndex>>> PythonLabelScorer::getPythonScoresWithTimes(std::vector<py::object> const& pythonContexts) {
+    using returnType = std::vector<std::optional<std::pair<std::vector<Nn::Score>, Nn::TimeframeIndex>>>;  // Macro can't handle types with commas inside properly
+    PYBIND11_OVERRIDE_PURE_NAME(
+            returnType,
+            Nn::LabelScorer,
+            "compute_scores_with_times",
+            computePythonScoresWithTimes,
+            pythonContexts);
+}
+
+void PythonLabelScorer::resetInternal() {
+    PYBIND11_OVERRIDE_PURE_NAME(
+            void,
+            LabelScorer,
+            "reset",
+            resetInternal);
+}
+
 std::optional<Nn::ScoreAccessorRef> PythonLabelScorer::computeScoreAccessor(Nn::ScoringContextRef scoringContext) {
     return computeScoreAccessors({scoringContext})[0];
 }
@@ -155,16 +165,6 @@ std::vector<std::optional<Nn::ScoreAccessorRef>> PythonLabelScorer::computeScore
     }
 
     return scoreAccessors;
-}
-
-std::vector<std::optional<std::pair<std::vector<Nn::Score>, Nn::TimeframeIndex>>> PythonLabelScorer::getPythonScoresWithTimes(std::vector<py::object> const& pythonContexts) {
-    using returnType = std::vector<std::optional<std::pair<std::vector<Nn::Score>, Nn::TimeframeIndex>>>;  // Macro can't handle types with commas inside properly
-    PYBIND11_OVERRIDE_PURE_NAME(
-            returnType,
-            Nn::LabelScorer,
-            "compute_scores_with_times",
-            computePythonScoresWithTimes,
-            pythonContexts);
 }
 
 }  // namespace Python

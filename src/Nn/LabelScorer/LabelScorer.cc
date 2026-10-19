@@ -101,8 +101,4 @@ void StatTrackingLabelScorer::countUncomputedAccessors(size_t num) const {
     numScoreAccessorsComputed_ -= num;
 }
 
-void StatTrackingLabelScorer::countUnrequestedComputations(size_t num) const {
-    numScoreAccessorsComputed_ += num;
-}
-
 }  // namespace Nn

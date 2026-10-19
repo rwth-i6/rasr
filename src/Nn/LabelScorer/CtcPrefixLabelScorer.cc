@@ -312,10 +312,6 @@ void CtcPrefixLabelScorer::finalizeScoringContext(CtcPrefixScoringContextRef con
         // Set `prefixScore` via parent. Parent may also need to be finalized before (resulting in recursion).
         auto parent = Core::ref(dynamic_cast<const CtcPrefixScoringContext*>(scoringContext->parent.get()));
         verify(parent);
-        if (parent->requiresFinalize) {
-            // The ancestor is computed without a request of its own
-            countUnrequestedComputations();
-        }
         finalizeScoringContext(parent);
         scoringContext->prefixScore = extendedPrefixScore(parent, scoringContext->labelSeq.back(), ctcScores_);
 

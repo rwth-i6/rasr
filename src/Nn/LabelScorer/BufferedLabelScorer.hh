@@ -27,9 +27,9 @@ namespace Nn {
  * and timeframes as well as a flag that indicates whether more features are expected to be added to the buffer.
  * This serves as a base class for other LabelScorers.
  */
-class BufferedLabelScorer : public LabelScorer {
+class BufferedLabelScorer : public StatTrackingLabelScorer {
 public:
-    using Precursor = LabelScorer;
+    using Precursor = StatTrackingLabelScorer;
 
     BufferedLabelScorer(Core::Configuration const& config, TransitionPresetType defaultPreset);
 

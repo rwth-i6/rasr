@@ -147,6 +147,7 @@ std::vector<std::optional<Nn::ScoreAccessorRef>> PythonLabelScorer::computeScore
     auto                                             pythonScoresWithTimes = getPythonScoresWithTimes(pythonContexts);
     for (size_t contextIndex = 0ul; contextIndex < scoringContexts.size(); ++contextIndex) {
         if (not pythonScoresWithTimes[contextIndex]) {
+            countUncomputedAccessors();
             continue;
         }
         auto scoreVec                = std::make_shared<std::vector<Nn::Score>>(std::move(pythonScoresWithTimes[contextIndex]->first));

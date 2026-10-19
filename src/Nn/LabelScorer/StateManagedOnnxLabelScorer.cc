@@ -164,7 +164,6 @@ StateManagedOnnxLabelScorer::StateManagedOnnxLabelScorer(Core::Configuration con
 
     auto startLabels = paramStartLabels(config);
     startLabels_.insert(startLabels_.begin(), startLabels.begin(), startLabels.end());
-    tracksScoreAccessorCache_ = true;
 }
 
 void StateManagedOnnxLabelScorer::logScoringBreakdown() const {
@@ -256,6 +255,7 @@ std::vector<std::optional<ScoreAccessorRef>> StateManagedOnnxLabelScorer::comput
 
     std::vector<std::optional<ScoreAccessorRef>> scoreAccessors(scoringContexts.size(), std::nullopt);
     if ((encoderStatesName_ != "" or encoderStatesSizeName_ != "") and (expectMoreFeatures_ or bufferSize() == 0)) {
+        countUncomputedAccessors(scoringContexts.size());
         return scoreAccessors;
     }
 
@@ -276,7 +276,7 @@ std::vector<std::optional<ScoreAccessorRef>> StateManagedOnnxLabelScorer::comput
     }
     contextPreparationTime_.stop();
 
-    numScoreAccessorsComputed_ += uniqueUncachedScoringContexts.size();
+    countUncomputedAccessors(scoringContexts.size() - uniqueUncachedScoringContexts.size());
 
     /*
      * Fill state and score caches for all uncached scoring contexts

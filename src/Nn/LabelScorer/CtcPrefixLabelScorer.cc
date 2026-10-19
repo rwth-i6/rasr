@@ -174,7 +174,6 @@ CtcPrefixLabelScorer::CtcPrefixLabelScorer(Core::Configuration const& config, Mo
           ctcScorer_(Module::instance().labelScorerFactory().createLabelScorer(select("ctc-scorer"), modelCache)),
           expectMoreFeatures_(true),
           ctcScores_(std::make_shared<Math::FastMatrix<Score>>(vocabSize_, 0)) {
-    tracksScoreAccessorCache_ = true;
 }
 
 Core::Ref<ScaledLabelScorer> CtcPrefixLabelScorer::getCtcLabelScorer() const {
@@ -234,10 +233,14 @@ ScoringContextRef CtcPrefixLabelScorer::extendedScoringContext(ScoringContextRef
 
 std::optional<ScoreAccessorRef> CtcPrefixLabelScorer::computeScoreAccessor(ScoringContextRef scoringContext) {
     if (expectMoreFeatures_) {
+        countUncomputedAccessors();
         return {};
     }
 
     auto context = Core::ref(dynamic_cast<const CtcPrefixScoringContext*>(scoringContext.get()));
+    if (not context->requiresFinalize) {
+        countUncomputedAccessors();
+    }
     finalizeScoringContext(context);
 
     return Core::ref(new CtcPrefixScoreAccessor(context, ctcScores_, scoringTime_, prefixExtensionTime_));
@@ -277,9 +280,6 @@ void CtcPrefixLabelScorer::finalizeScoringContext(CtcPrefixScoringContextRef con
     // Nest-safe, so the outermost call of the recursion below owns the interval
     Core::StopWatch::Scope timer(prefixFinalizationTime_);
 
-    // Counts every prefix actually computed, including ancestors reached by the recursion below
-    ++numScoreAccessorsComputed_;
-
     if (scoringContext->labelSeq.empty()) {
         scoringContext->prefixScore = 0.0;
 
@@ -302,6 +302,10 @@ void CtcPrefixLabelScorer::finalizeScoringContext(CtcPrefixScoringContextRef con
         // Set `prefixScore` via parent. Parent may also need to be finalized before (resulting in recursion).
         auto parent = Core::ref(dynamic_cast<const CtcPrefixScoringContext*>(scoringContext->parent.get()));
         verify(parent);
+        if (parent->requiresFinalize) {
+            // The ancestor is computed without a request of its own
+            countUnrequestedComputations();
+        }
         finalizeScoringContext(parent);
         scoringContext->prefixScore = extendedPrefixScore(parent, scoringContext->labelSeq.back(), ctcScores_);
 

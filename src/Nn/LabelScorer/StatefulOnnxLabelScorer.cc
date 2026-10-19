@@ -241,8 +241,6 @@ StatefulOnnxLabelScorer::StatefulOnnxLabelScorer(Core::Configuration const& conf
     if (scorerInputToStateNameMap_.empty()) {
         error() << "Scorer does not take any input";
     }
-
-    tracksScoreAccessorCache_ = true;
 }
 
 void StatefulOnnxLabelScorer::logScoringBreakdown() const {
@@ -342,6 +340,7 @@ std::vector<std::optional<ScoreAccessorRef>> StatefulOnnxLabelScorer::computeSco
 
     if ((initializerEncoderStatesName_ != "" or initializerEncoderStatesSizeName_ != "" or updaterEncoderStatesName_ != "" or updaterEncoderStatesSizeName_ != "") and (expectMoreFeatures_ or bufferSize() == 0)) {
         // Only allow scoring once all encoder states have been passed
+        countUncomputedAccessors(scoringContexts.size());
         return scoreAccessors;
     }
 
@@ -362,7 +361,7 @@ std::vector<std::optional<ScoreAccessorRef>> StatefulOnnxLabelScorer::computeSco
     }
     contextPreparationTime_.stop();
 
-    numScoreAccessorsComputed_ += uniqueUncachedScoringContexts.size();
+    countUncomputedAccessors(scoringContexts.size() - uniqueUncachedScoringContexts.size());
 
     /*
      * Fill state and score caches for all uncached scoring contexts

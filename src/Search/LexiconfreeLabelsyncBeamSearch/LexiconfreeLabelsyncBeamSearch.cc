@@ -607,19 +607,19 @@ void LexiconfreeLabelsyncBeamSearch::pruneNewBeamBySize() {
     beamPruningTime_.stop();
 }
 
-void LexiconfreeLabelsyncBeamSearch::readOutScoreAccessors(std::vector<std::optional<Nn::ScoreAccessorRef>> const& scoreAccessors) {
-    denseScoreSpans_.assign(scoreAccessors.size(), std::nullopt);
-    scoreTimes_.assign(scoreAccessors.size(), 0);
+void LexiconfreeLabelsyncBeamSearch::readOutScoreAccessors(std::vector<std::optional<Nn::ScoreAccessorRef>> const& scoreAccessors, std::vector<std::optional<Nn::DenseScoreSpan>>& denseScoreSpans, std::vector<Nn::TimeframeIndex>& scoreTimes) const {
+    denseScoreSpans.assign(scoreAccessors.size(), std::nullopt);
+    scoreTimes.assign(scoreAccessors.size(), 0);
 
     for (size_t accessorIdx = 0ul; accessorIdx < scoreAccessors.size(); ++accessorIdx) {
         if (scoreAccessors[accessorIdx]) {
-            denseScoreSpans_[accessorIdx] = (*scoreAccessors[accessorIdx])->getDenseScores();
-            scoreTimes_[accessorIdx]      = (*scoreAccessors[accessorIdx])->getTime();
+            denseScoreSpans[accessorIdx] = (*scoreAccessors[accessorIdx])->getDenseScores();
+            scoreTimes[accessorIdx]      = (*scoreAccessors[accessorIdx])->getTime();
         }
     }
 }
 
-void LexiconfreeLabelsyncBeamSearch::createExtensions(std::vector<std::optional<Nn::ScoreAccessorRef>> const& scoreAccessors) {
+void LexiconfreeLabelsyncBeamSearch::createExtensions(std::vector<std::optional<Nn::ScoreAccessorRef>> const& scoreAccessors, std::vector<std::optional<Nn::DenseScoreSpan>> const& denseScoreSpans, std::vector<Nn::TimeframeIndex> const& scoreTimes) {
     // Assume the output labels are stored as lexicon lemma orth and ordered consistently with NN output index
     auto        lemmas                     = lexicon_->lemmas();
     auto const& labelScorer                = labelScorers_.front();
@@ -638,8 +638,8 @@ void LexiconfreeLabelsyncBeamSearch::createExtensions(std::vector<std::optional<
             // No extensions for hyps that couldn't be scored
             continue;
         }
-        auto const& denseScores = denseScoreSpans_[contextIndex];
-        auto        scoreTime   = scoreTimes_[contextIndex];
+        auto const& denseScores = denseScoreSpans[contextIndex];
+        auto        scoreTime   = scoreTimes[contextIndex];
 
         // Iterate over possible successors (all lemmas)
         for (auto lemmaIt = lemmas.first; lemmaIt != lemmas.second; ++lemmaIt) {
@@ -691,7 +691,7 @@ void LexiconfreeLabelsyncBeamSearch::createExtensions(std::vector<std::optional<
     }
 }
 
-void LexiconfreeLabelsyncBeamSearch::updateExtensionScores(size_t scorerIdx, std::vector<std::optional<Nn::ScoreAccessorRef>> const& scoreAccessors) {
+void LexiconfreeLabelsyncBeamSearch::updateExtensionScores(size_t scorerIdx, std::vector<std::optional<Nn::ScoreAccessorRef>> const& scoreAccessors, std::vector<std::optional<Nn::DenseScoreSpan>> const& denseScoreSpans, std::vector<Nn::TimeframeIndex> const& scoreTimes) {
     auto const& labelScorer = labelScorers_[scorerIdx];
 
     for (auto& ext : extensions_) {
@@ -706,11 +706,11 @@ void LexiconfreeLabelsyncBeamSearch::updateExtensionScores(size_t scorerIdx, std
             continue;
         }
 
-        auto const& denseScores = denseScoreSpans_[contextIndex];
+        auto const& denseScores = denseScoreSpans[contextIndex];
         ext.score += (denseScores and ext.nextToken < denseScores->size())
                              ? (*denseScores)[ext.nextToken]
                              : (*scoreAccessor)->getScore(ext.transitionType, ext.nextToken);
-        ext.timeframe = std::max(ext.timeframe, scoreTimes_[contextIndex]);
+        ext.timeframe = std::max(ext.timeframe, scoreTimes[contextIndex]);
     }
 }
 
@@ -783,16 +783,21 @@ bool LexiconfreeLabelsyncBeamSearch::scoreAndPruneExtensions() {
             scoreAccessors = labelScorers_[scorerIdx]->getScoreAccessors(scoringContexts_);
         }
 
+        // Scores and timeframes of this label scorer, indexed like `scoringContexts_`. The spans
+        // view into memory owned by `scoreAccessors`, so they share its scope.
+        std::vector<std::optional<Nn::DenseScoreSpan>> denseScoreSpans;
+        std::vector<Nn::TimeframeIndex>                scoreTimes;
+
         // Read the scores out of the accessors and apply them to the extension candidates; for
         // the first scorer this also creates them. Lazily computing scorers do their work here.
         {
             Core::StopWatch::Scope readoutTimer(scoreReadoutTimes_[scorerIdx]);
-            readOutScoreAccessors(scoreAccessors);
+            readOutScoreAccessors(scoreAccessors, denseScoreSpans, scoreTimes);
             if (scorerIdx == 0ul) {
-                createExtensions(scoreAccessors);
+                createExtensions(scoreAccessors, denseScoreSpans, scoreTimes);
             }
             else {
-                updateExtensionScores(scorerIdx, scoreAccessors);
+                updateExtensionScores(scorerIdx, scoreAccessors, denseScoreSpans, scoreTimes);
             }
         }
 

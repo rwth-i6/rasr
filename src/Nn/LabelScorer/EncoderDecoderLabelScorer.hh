@@ -64,15 +64,14 @@ public:
     // Same as `addInput` but adds features for multiple timesteps at once
     void addInputs(DataView const& input, size_t nTimesteps) override;
 
-protected:
     // Resets both encoder and decoder component
-    void resetInternal() override;
+    void reset() override;
 
     // Return accessor from decoder component
-    std::optional<ScoreAccessorRef> computeScoreAccessor(ScoringContextRef scoringContext) override;
+    std::optional<ScoreAccessorRef> getScoreAccessor(ScoringContextRef scoringContext) override;
 
     // Return accessors from decoder component
-    std::vector<std::optional<ScoreAccessorRef>> computeScoreAccessors(std::vector<ScoringContextRef> const& scoringContexts) override;
+    std::vector<std::optional<ScoreAccessorRef>> getScoreAccessors(std::vector<ScoringContextRef> const& scoringContexts) override;
 
 private:
     Core::Ref<Encoder>           encoder_;

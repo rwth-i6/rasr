@@ -118,8 +118,6 @@ FullContextOnnxLabelScorer::FullContextOnnxLabelScorer(Core::Configuration const
     historyName_           = onnxModel_->mapping.getOnnxName("history");
     historySizeName_       = onnxModel_->mapping.getOnnxName("history-size");
     scoresName_            = onnxModel_->mapping.getOnnxName("scores");
-
-    tracksScoreAccessorCache_ = true;
 }
 
 void FullContextOnnxLabelScorer::resetInternal() {
@@ -240,6 +238,7 @@ std::vector<std::optional<ScoreAccessorRef>> FullContextOnnxLabelScorer::compute
 
     if ((encoderStatesName_ != "" or encoderStatesSizeName_ != "") and (expectMoreFeatures_ or bufferSize() == 0)) {
         // Only allow scoring once all encoder states have been passed
+        countUncomputedAccessors(scoringContexts.size());
         return std::vector<std::optional<ScoreAccessorRef>>(scoringContexts.size(), std::nullopt);
     }
 
@@ -275,6 +274,8 @@ std::vector<std::optional<ScoreAccessorRef>> FullContextOnnxLabelScorer::compute
 
     std::vector<std::optional<ScoreAccessorRef>> scoreAccessors(scoringContexts.size(), std::nullopt);
 
+    size_t numComputed = 0ul;
+
     /*
      * Iterate over distinct groups
      */
@@ -291,7 +292,7 @@ std::vector<std::optional<ScoreAccessorRef>> FullContextOnnxLabelScorer::compute
             }
         }
 
-        numScoreAccessorsComputed_ += uniqueUncachedContexts.size();
+        numComputed += uniqueUncachedContexts.size();
 
         std::vector<SeqStepScoringContextRef> contextBatch;
         contextBatch.reserve(std::min(uniqueUncachedContexts.size(), maxBatchSize_));
@@ -310,6 +311,8 @@ std::vector<std::optional<ScoreAccessorRef>> FullContextOnnxLabelScorer::compute
             scoreAccessors[contextIndex] = Core::ref(new VectorScoreAccessor(scoreVec, seqStepScoringContexts[contextIndex]->currentStep));
         }
     }
+
+    countUncomputedAccessors(scoringContexts.size() - numComputed);
 
     return scoreAccessors;
 }

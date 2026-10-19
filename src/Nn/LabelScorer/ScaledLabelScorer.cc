@@ -67,8 +67,7 @@ ScaledLabelScorer::ScaledLabelScorer(Core::Configuration const& config, Core::Re
           LabelScorer(config),
           scorer_(scorer),
           scale_(paramScale(config)) {
-    enabledTransitions_      = scorer->enabledTransitions();
-    tracksScoringStatistics_ = false;
+    enabledTransitions_ = scorer->enabledTransitions();
 }
 
 Core::Ref<LabelScorer> ScaledLabelScorer::labelScorer() const {
@@ -83,7 +82,7 @@ void ScaledLabelScorer::setScale(Score scale) {
     scale_ = scale;
 }
 
-void ScaledLabelScorer::resetInternal() {
+void ScaledLabelScorer::reset() {
     scorer_->reset();
 }
 
@@ -115,7 +114,7 @@ void ScaledLabelScorer::addInputs(DataView const& input, size_t nTimesteps) {
     scorer_->addInputs(input, nTimesteps);
 }
 
-std::optional<ScoreAccessorRef> ScaledLabelScorer::computeScoreAccessor(ScoringContextRef scoringContext) {
+std::optional<ScoreAccessorRef> ScaledLabelScorer::getScoreAccessor(ScoringContextRef scoringContext) {
     auto subAccessor = scorer_->getScoreAccessor(scoringContext);
     if (subAccessor) {
         return Core::ref(new ScaledScoreAccessor(*subAccessor, scale_));
@@ -123,7 +122,7 @@ std::optional<ScoreAccessorRef> ScaledLabelScorer::computeScoreAccessor(ScoringC
     return {};
 }
 
-std::vector<std::optional<ScoreAccessorRef>> ScaledLabelScorer::computeScoreAccessors(std::vector<ScoringContextRef> const& scoringContexts) {
+std::vector<std::optional<ScoreAccessorRef>> ScaledLabelScorer::getScoreAccessors(std::vector<ScoringContextRef> const& scoringContexts) {
     auto                                         subAccessors = scorer_->getScoreAccessors(scoringContexts);
     std::vector<std::optional<ScoreAccessorRef>> result(subAccessors.size(), std::nullopt);
     for (size_t i = 0ul; i < subAccessors.size(); ++i) {

@@ -91,12 +91,11 @@ FixedContextOnnxLabelScorer::FixedContextOnnxLabelScorer(Core::Configuration con
           maxBatchSize_(paramMaxBatchSize(config)),
           scoreCache_() {
     Core::Configuration modelConfig(config, "onnx-model");
-    auto                key   = modelConfig.getSelection();
-    onnxModel_                = modelCache.getOrCreate<Onnx::Model>(key, modelConfig, ioSpec);
-    inputFeatureName_         = onnxModel_->mapping.getOnnxName("input-feature");
-    historyName_              = onnxModel_->mapping.getOnnxName("history");
-    scoresName_               = onnxModel_->mapping.getOnnxName("scores");
-    tracksScoreAccessorCache_ = true;
+    auto                key = modelConfig.getSelection();
+    onnxModel_              = modelCache.getOrCreate<Onnx::Model>(key, modelConfig, ioSpec);
+    inputFeatureName_       = onnxModel_->mapping.getOnnxName("input-feature");
+    historyName_            = onnxModel_->mapping.getOnnxName("history");
+    scoresName_             = onnxModel_->mapping.getOnnxName("scores");
 }
 
 void FixedContextOnnxLabelScorer::logScoringBreakdown() const {
@@ -240,6 +239,8 @@ std::vector<std::optional<ScoreAccessorRef>> FixedContextOnnxLabelScorer::comput
 
     std::vector<std::optional<ScoreAccessorRef>> scoreAccessors(scoringContexts.size(), std::nullopt);
 
+    size_t numComputed = 0ul;
+
     /*
      * Iterate over distinct timesteps
      */
@@ -258,7 +259,7 @@ std::vector<std::optional<ScoreAccessorRef>> FixedContextOnnxLabelScorer::comput
         }
         contextPreparationTime_.stop();
 
-        numScoreAccessorsComputed_ += uniqueUncachedContexts.size();
+        numComputed += uniqueUncachedContexts.size();
 
         std::vector<SeqStepScoringContextRef> contextBatch;
         contextBatch.reserve(std::min(uniqueUncachedContexts.size(), maxBatchSize_));
@@ -280,6 +281,8 @@ std::vector<std::optional<ScoreAccessorRef>> FixedContextOnnxLabelScorer::comput
         }
         contextPreparationTime_.stop();
     }
+
+    countUncomputedAccessors(scoringContexts.size() - numComputed);
 
     return scoreAccessors;
 }

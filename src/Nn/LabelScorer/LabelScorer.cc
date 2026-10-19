@@ -26,18 +26,39 @@ namespace Nn {
  */
 LabelScorer::LabelScorer(Core::Configuration const& config, TransitionPresetType defaultPreset)
         : Core::Component(config),
-          statisticsChannel_(config, "statistics"),
           enabledTransitions_(config, defaultPreset) {
 }
 
-void LabelScorer::reset() {
+void LabelScorer::addInputs(DataView const& input, size_t nTimesteps) {
+    auto featureSize = input.size() / nTimesteps;
+    for (size_t t = 0ul; t < nTimesteps; ++t) {
+        addInput({input, featureSize, t * featureSize});
+    }
+}
+
+TransitionSet LabelScorer::enabledTransitions() const {
+    return enabledTransitions_;
+}
+
+/*
+ * =============================
+ * === StatTrackingLabelScorer =
+ * =============================
+ */
+StatTrackingLabelScorer::StatTrackingLabelScorer(Core::Configuration const& config, TransitionPresetType defaultPreset)
+        : Core::Component(config),
+          LabelScorer(config, defaultPreset),
+          statisticsChannel_(config, "statistics") {
+}
+
+void StatTrackingLabelScorer::reset() {
     scoringTime_.reset();
     numScoreAccessorsRequested_ = 0ul;
     numScoreAccessorsComputed_  = 0ul;
     resetInternal();
 }
 
-void LabelScorer::logStatistics() const {
+void StatTrackingLabelScorer::logStatistics() const {
     if (not statisticsChannel_.isOpen()) {
         return;
     }
@@ -48,38 +69,25 @@ void LabelScorer::logStatistics() const {
     statisticsChannel_ << Core::XmlClose("scoring-time");
     logAdditionalStatistics();
     statisticsChannel_ << Core::XmlFull("num-score-accessors-requested", numScoreAccessorsRequested_);
-    if (tracksScoreAccessorCache_) {
-        statisticsChannel_ << Core::XmlFull("num-score-accessors-computed", numScoreAccessorsComputed_);
-    }
+    statisticsChannel_ << Core::XmlFull("num-score-accessors-computed", numScoreAccessorsComputed_);
     statisticsChannel_ << Core::XmlClose("label-scorer-statistics");
 }
 
-void LabelScorer::addInputs(DataView const& input, size_t nTimesteps) {
-    auto featureSize = input.size() / nTimesteps;
-    for (size_t t = 0ul; t < nTimesteps; ++t) {
-        addInput({input, featureSize, t * featureSize});
-    }
-}
-
-std::optional<ScoreAccessorRef> LabelScorer::getScoreAccessor(ScoringContextRef scoringContext) {
-    if (not tracksScoringStatistics_) {
-        return computeScoreAccessor(scoringContext);
-    }
+std::optional<ScoreAccessorRef> StatTrackingLabelScorer::getScoreAccessor(ScoringContextRef scoringContext) {
     ++numScoreAccessorsRequested_;
+    ++numScoreAccessorsComputed_;
     Core::StopWatch::Scope timer(scoringTime_);
     return computeScoreAccessor(scoringContext);
 }
 
-std::vector<std::optional<ScoreAccessorRef>> LabelScorer::getScoreAccessors(std::vector<ScoringContextRef> const& scoringContexts) {
-    if (not tracksScoringStatistics_) {
-        return computeScoreAccessors(scoringContexts);
-    }
+std::vector<std::optional<ScoreAccessorRef>> StatTrackingLabelScorer::getScoreAccessors(std::vector<ScoringContextRef> const& scoringContexts) {
     numScoreAccessorsRequested_ += scoringContexts.size();
+    numScoreAccessorsComputed_ += scoringContexts.size();
     Core::StopWatch::Scope timer(scoringTime_);
     return computeScoreAccessors(scoringContexts);
 }
 
-std::vector<std::optional<ScoreAccessorRef>> LabelScorer::computeScoreAccessors(std::vector<ScoringContextRef> const& scoringContexts) {
+std::vector<std::optional<ScoreAccessorRef>> StatTrackingLabelScorer::computeScoreAccessors(std::vector<ScoringContextRef> const& scoringContexts) {
     std::vector<std::optional<ScoreAccessorRef>> result;
     result.reserve(scoringContexts.size());
     for (auto const& scoringContext : scoringContexts) {
@@ -88,8 +96,13 @@ std::vector<std::optional<ScoreAccessorRef>> LabelScorer::computeScoreAccessors(
     return result;
 }
 
-TransitionSet LabelScorer::enabledTransitions() const {
-    return enabledTransitions_;
+void StatTrackingLabelScorer::countUncomputedAccessors(size_t num) const {
+    verify(num <= numScoreAccessorsComputed_);
+    numScoreAccessorsComputed_ -= num;
+}
+
+void StatTrackingLabelScorer::countUnrequestedComputations(size_t num) const {
+    numScoreAccessorsComputed_ += num;
 }
 
 }  // namespace Nn

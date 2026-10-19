@@ -44,11 +44,10 @@ NoContextOnnxLabelScorer::NoContextOnnxLabelScorer(Core::Configuration const& co
           Precursor(config, TransitionPresetType::CTC),
           scoreCache_() {
     Core::Configuration modelConfig(config, "onnx-model");
-    auto                key   = modelConfig.getSelection();
-    onnxModel_                = modelCache.getOrCreate<Onnx::Model>(key, modelConfig, ioSpec);
-    inputFeatureName_         = onnxModel_->mapping.getOnnxName("input-feature");
-    scoresName_               = onnxModel_->mapping.getOnnxName("scores");
-    tracksScoreAccessorCache_ = true;
+    auto                key = modelConfig.getSelection();
+    onnxModel_              = modelCache.getOrCreate<Onnx::Model>(key, modelConfig, ioSpec);
+    inputFeatureName_       = onnxModel_->mapping.getOnnxName("input-feature");
+    scoresName_             = onnxModel_->mapping.getOnnxName("scores");
 }
 
 void NoContextOnnxLabelScorer::logScoringBreakdown() const {
@@ -102,6 +101,8 @@ std::vector<std::optional<ScoreAccessorRef>> NoContextOnnxLabelScorer::computeSc
 
     std::vector<std::optional<ScoreAccessorRef>> scoreAccessors(scoringContexts.size(), std::nullopt);
 
+    size_t numComputed = 0ul;
+
     for (size_t contextIndex = 0ul; contextIndex < scoringContexts.size(); ++contextIndex) {
         StepScoringContextRef stepScoringContext(dynamic_cast<StepScoringContext const*>(scoringContexts[contextIndex].get()));
         if (not getInput(stepScoringContext->currentStep)) {
@@ -110,11 +111,13 @@ std::vector<std::optional<ScoreAccessorRef>> NoContextOnnxLabelScorer::computeSc
         }
         if (scoreCache_.find(stepScoringContext) == scoreCache_.end()) {
             forwardContext(stepScoringContext);
-            ++numScoreAccessorsComputed_;
+            ++numComputed;
         }
 
         scoreAccessors[contextIndex] = Core::ref(new VectorScoreAccessor(scoreCache_.at(stepScoringContext), stepScoringContext->currentStep));
     }
+
+    countUncomputedAccessors(scoringContexts.size() - numComputed);
 
     return scoreAccessors;
 }

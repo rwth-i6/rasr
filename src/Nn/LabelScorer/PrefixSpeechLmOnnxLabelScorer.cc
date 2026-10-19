@@ -221,7 +221,6 @@ PrefixSpeechLmOnnxLabelScorer::PrefixSpeechLmOnnxLabelScorer(Core::Configuration
     initialPromptLabels_.insert(initialPromptLabels_.begin(), initialPromptLabels.begin(), initialPromptLabels.end());
     suffixPromptLabels_.insert(suffixPromptLabels_.begin(), suffixPromptLabels.begin(), suffixPromptLabels.end());
     // Scores are cached per scoring context, so cache misses are meaningful here
-    tracksScoreAccessorCache_ = true;
 }
 
 void PrefixSpeechLmOnnxLabelScorer::resetInternal() {
@@ -290,6 +289,7 @@ std::vector<std::optional<ScoreAccessorRef>> PrefixSpeechLmOnnxLabelScorer::comp
 
     std::vector<std::optional<ScoreAccessorRef>> scoreAccessors(scoringContexts.size(), std::nullopt);
     if (expectMoreFeatures_ or bufferSize() == 0ul) {
+        countUncomputedAccessors(scoringContexts.size());
         return scoreAccessors;
     }
 
@@ -312,7 +312,7 @@ std::vector<std::optional<ScoreAccessorRef>> PrefixSpeechLmOnnxLabelScorer::comp
         uniqueUncachedScoringContexts.emplace(context);
     }
 
-    numScoreAccessorsComputed_ += uniqueUncachedScoringContexts.size();
+    countUncomputedAccessors(scoringContexts.size() - uniqueUncachedScoringContexts.size());
 
     std::vector<PrefixSpeechLmScoringContextRef> scoringContextBatch;
     scoringContextBatch.reserve(std::min(uniqueUncachedScoringContexts.size(), maxBatchSize_));

@@ -34,9 +34,9 @@ namespace Python {
  * See https://pybind11.readthedocs.io/en/stable/advanced/classes.html for official documentation
  * on the "trampoline" pattern.
  */
-class PythonLabelScorer : public Nn::LabelScorer {
+class PythonLabelScorer : public Nn::StatTrackingLabelScorer {
 public:
-    using Precursor = Nn::LabelScorer;
+    using Precursor = Nn::StatTrackingLabelScorer;
 
     PythonLabelScorer(Core::Configuration const& config);
     virtual ~PythonLabelScorer() = default;

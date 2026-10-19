@@ -476,6 +476,7 @@ void TreeLabelsyncBeamSearch::enterSegment(Bliss::SpeechSegment const* segment) 
     wordEndScorePruningTime_.reset();
     wordEndHypBuildingTime_.reset();
     wordEndExtensionLmTime_.reset();
+    lmHistoryExtensionTime_.reset();
     finalizeLmTime_.reset();
     finalizeTime_.reset();
     for (auto& stat : numWithinWordHypsAfterIntermediatePruning_) {
@@ -1134,7 +1135,9 @@ void TreeLabelsyncBeamSearch::buildWordEndHypotheses() {
             newLmHistory    = extension.lmPrefixHistory;
             auto const& sts = extension.pron->lemma()->syntacticTokenSequence();
             if (sts.size() != 0) {
+                lmHistoryExtensionTime_.start();
                 newLmHistory = languageModel_->extendedHistory(newLmHistory, sts[sts.size() - 1]);
+                lmHistoryExtensionTime_.stop();
             }
         }
 
@@ -1336,7 +1339,9 @@ void TreeLabelsyncBeamSearch::logOwnStatistics() const {
     statisticsChannel_ << Core::XmlFull("lm-time", wordEndExtensionLmTime_.elapsedMilliseconds());
     statisticsChannel_ << Core::XmlClose("word-end-extension-time");
     statisticsChannel_ << Core::XmlFull("word-end-score-pruning-time", wordEndScorePruningTime_.elapsedMilliseconds());
-    statisticsChannel_ << Core::XmlFull("word-end-hyp-building-time", wordEndHypBuildingTime_.elapsedMilliseconds());
+    statisticsChannel_ << Core::XmlOpen("word-end-hyp-building-time") + Core::XmlAttribute("total", wordEndHypBuildingTime_.elapsedMilliseconds());
+    statisticsChannel_ << Core::XmlFull("lm-history-extension-time", lmHistoryExtensionTime_.elapsedMilliseconds());
+    statisticsChannel_ << Core::XmlClose("word-end-hyp-building-time");
     statisticsChannel_ << Core::XmlClose("word-end-expansion-time");
     statisticsChannel_ << Core::XmlFull("recombination-time", recombinationTime_.elapsedMilliseconds());
     statisticsChannel_ << Core::XmlFull("beam-pruning-time", beamPruningTime_.elapsedMilliseconds());

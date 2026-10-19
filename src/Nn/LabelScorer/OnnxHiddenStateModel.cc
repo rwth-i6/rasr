@@ -64,6 +64,18 @@ OnnxHiddenStateModel::OnnxHiddenStateModel(Core::Configuration const&           
     setupStateNameMaps();
 }
 
+std::string OnnxHiddenStateModel::stateInitializerOnnxName(std::string const& key) const {
+    return stateInitializerOnnxModel_->mapping.getOnnxName(key);
+}
+
+std::string OnnxHiddenStateModel::stateUpdaterOnnxName(std::string const& key) const {
+    return stateUpdaterOnnxModel_->mapping.getOnnxName(key);
+}
+
+std::string OnnxHiddenStateModel::scorerOnnxName(std::string const& key) const {
+    return scorerOnnxModel_->mapping.getOnnxName(key);
+}
+
 void OnnxHiddenStateModel::resetStatistics() {
     stateInitializerSessionTime_.reset();
     stateUpdaterSessionTime_.reset();
@@ -139,18 +151,6 @@ void OnnxHiddenStateModel::setupStateNameMaps() {
     if (scorerInputToStateNameMap_.empty()) {
         error() << "Scorer does not take any input hidden-states";
     }
-}
-
-std::string OnnxHiddenStateModel::stateInitializerOnnxName(std::string const& key) const {
-    return stateInitializerOnnxModel_->mapping.getOnnxName(key);
-}
-
-std::string OnnxHiddenStateModel::stateUpdaterOnnxName(std::string const& key) const {
-    return stateUpdaterOnnxModel_->mapping.getOnnxName(key);
-}
-
-std::string OnnxHiddenStateModel::scorerOnnxName(std::string const& key) const {
-    return scorerOnnxModel_->mapping.getOnnxName(key);
 }
 
 void OnnxHiddenStateModel::addStateInputs(StateNameMap const&                    inputToStateNameMap,

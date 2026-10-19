@@ -296,37 +296,6 @@ bool LlmRnntTimesyncBeamSearch::setModelCombination(Speech::ModelCombination con
     return true;
 }
 
-void LlmRnntTimesyncBeamSearch::resolveSpecialLabels() {
-    auto blankLemma = lexicon_->specialLemma("blank");
-    if (blankLemma) {
-        if (blankLabelIndex_ == Nn::invalidLabelIndex) {
-            blankLabelIndex_ = blankLemma->id();
-            log() << "Use blank index " << blankLabelIndex_ << " inferred from lexicon";
-        }
-        else if (blankLabelIndex_ != static_cast<Nn::LabelIndex>(blankLemma->id())) {
-            warning() << "Blank lemma exists in lexicon with id " << blankLemma->id() << " but is overwritten by config parameter with value " << blankLabelIndex_;
-        }
-    }
-    if (blankLabelIndex_ == Nn::invalidLabelIndex) {
-        error() << "Blank label index is not defined and cannot be inferred from the lexicon";
-    }
-
-    sentenceEndLemma_ = lexicon_->specialLemma("sentence-end");
-    if (!sentenceEndLemma_) {
-        sentenceEndLemma_ = lexicon_->specialLemma("sentence-boundary");
-    }
-    if (sentenceEndLemma_) {
-        if (sentenceEndLabelIndex_ == Nn::invalidLabelIndex) {
-            sentenceEndLabelIndex_ = sentenceEndLemma_->id();
-            useSentenceEnd_        = true;
-            log() << "Use sentence-end index " << sentenceEndLabelIndex_ << " inferred from lexicon";
-        }
-        else if (sentenceEndLabelIndex_ != static_cast<Nn::LabelIndex>(sentenceEndLemma_->id())) {
-            warning() << "SentenceEnd lemma exists in lexicon with id " << sentenceEndLemma_->id() << " but is overwritten by config parameter with value " << sentenceEndLabelIndex_;
-        }
-    }
-}
-
 void LlmRnntTimesyncBeamSearch::enterSegment(Bliss::SpeechSegment const* segment) {
     resetStatistics();
     initializationTime_.start();
@@ -439,6 +408,349 @@ bool LlmRnntTimesyncBeamSearch::decodeStep() {
         stepwiseStatisticsChannel_ << Core::XmlClose("search-step-stats");
     }
     return advanced;
+}
+
+LlmRnntTimesyncBeamSearch::LabelHypothesis const& LlmRnntTimesyncBeamSearch::getBestHypothesis() const {
+    verify(not beam_.empty());
+
+    return *std::min_element(beam_.begin(), beam_.end());
+}
+
+LlmRnntTimesyncBeamSearch::LabelHypothesis const& LlmRnntTimesyncBeamSearch::getWorstHypothesis() const {
+    verify(not beam_.empty());
+
+    return *std::max_element(beam_.begin(), beam_.end());
+}
+
+void LlmRnntTimesyncBeamSearch::resolveSpecialLabels() {
+    auto blankLemma = lexicon_->specialLemma("blank");
+    if (blankLemma) {
+        if (blankLabelIndex_ == Nn::invalidLabelIndex) {
+            blankLabelIndex_ = blankLemma->id();
+            log() << "Use blank index " << blankLabelIndex_ << " inferred from lexicon";
+        }
+        else if (blankLabelIndex_ != static_cast<Nn::LabelIndex>(blankLemma->id())) {
+            warning() << "Blank lemma exists in lexicon with id " << blankLemma->id() << " but is overwritten by config parameter with value " << blankLabelIndex_;
+        }
+    }
+    if (blankLabelIndex_ == Nn::invalidLabelIndex) {
+        error() << "Blank label index is not defined and cannot be inferred from the lexicon";
+    }
+
+    sentenceEndLemma_ = lexicon_->specialLemma("sentence-end");
+    if (!sentenceEndLemma_) {
+        sentenceEndLemma_ = lexicon_->specialLemma("sentence-boundary");
+    }
+    if (sentenceEndLemma_) {
+        if (sentenceEndLabelIndex_ == Nn::invalidLabelIndex) {
+            sentenceEndLabelIndex_ = sentenceEndLemma_->id();
+            useSentenceEnd_        = true;
+            log() << "Use sentence-end index " << sentenceEndLabelIndex_ << " inferred from lexicon";
+        }
+        else if (sentenceEndLabelIndex_ != static_cast<Nn::LabelIndex>(sentenceEndLemma_->id())) {
+            warning() << "SentenceEnd lemma exists in lexicon with id " << sentenceEndLemma_->id() << " but is overwritten by config parameter with value " << sentenceEndLabelIndex_;
+        }
+    }
+}
+
+void LlmRnntTimesyncBeamSearch::resetStatistics() {
+    for (auto* timer : {&initializationTime_, &featureProcessingTime_, &recognitionTime_, &scoringTime_, &blankExtensionTime_, &labelExtensionTime_,
+                        &preLlmPruningTime_, &llmTime_, &wordAssemblyTime_, &wordScoringTime_, &buildInnerHypsTime_, &recombinationTime_,
+                        &beamPruningTime_, &cleanupTime_, &finalizeTime_, &finalizeLlmTime_}) {
+        timer->reset();
+    }
+    for (auto* stat : {&numSymbolSteps_, &numInnerHyps_, &numOuterHyps_, &numHypsBeforeLlm_, &numFinishedWords_, &numActiveHyps_}) {
+        stat->clear();
+    }
+}
+
+void LlmRnntTimesyncBeamSearch::logStatistics() const {
+    logOwnStatistics();
+    for (auto const& labelScorer : labelScorers_) {
+        labelScorer->logStatistics();
+    }
+    llmWordScorer_.logStatistics();
+}
+
+void LlmRnntTimesyncBeamSearch::logOwnStatistics() const {
+    if (not statisticsChannel_.isOpen()) {
+        return;
+    }
+    logTimingStatistics();
+    logSearchStatistics();
+}
+
+void LlmRnntTimesyncBeamSearch::logTimingStatistics() const {
+    auto& channel = statisticsChannel_;
+    channel << Core::XmlOpen("timing-statistics") + Core::XmlAttribute("unit", "milliseconds");
+    channel << Core::XmlFull("initialization-time", initializationTime_.elapsedMilliseconds());
+    channel << Core::XmlFull("feature-processing-time", featureProcessingTime_.elapsedMilliseconds());
+
+    channel << Core::XmlOpen("recognition-time") + Core::XmlAttribute("total", recognitionTime_.elapsedMilliseconds());
+    channel << Core::XmlFull("scoring-time", scoringTime_.elapsedMilliseconds());
+    channel << Core::XmlFull("blank-extension-time", blankExtensionTime_.elapsedMilliseconds());
+    channel << Core::XmlFull("label-extension-time", labelExtensionTime_.elapsedMilliseconds());
+    channel << Core::XmlFull("pre-llm-pruning-time", preLlmPruningTime_.elapsedMilliseconds());
+    channel << Core::XmlOpen("llm-time") + Core::XmlAttribute("total", llmTime_.elapsedMilliseconds());
+    channel << Core::XmlFull("word-assembly-time", wordAssemblyTime_.elapsedMilliseconds());
+    channel << Core::XmlFull("word-scoring-time", wordScoringTime_.elapsedMilliseconds());
+    channel << Core::XmlClose("llm-time");
+    channel << Core::XmlFull("build-inner-hyps-time", buildInnerHypsTime_.elapsedMilliseconds());
+    channel << Core::XmlFull("recombination-time", recombinationTime_.elapsedMilliseconds());
+    channel << Core::XmlFull("beam-pruning-time", beamPruningTime_.elapsedMilliseconds());
+    channel << Core::XmlFull("cleanup-time", cleanupTime_.elapsedMilliseconds());
+    channel << Core::XmlClose("recognition-time");
+
+    channel << Core::XmlOpen("finalize-time") + Core::XmlAttribute("total", finalizeTime_.elapsedMilliseconds());
+    channel << Core::XmlFull("llm-time", finalizeLlmTime_.elapsedMilliseconds());
+    channel << Core::XmlClose("finalize-time");
+    channel << Core::XmlClose("timing-statistics");
+}
+
+void LlmRnntTimesyncBeamSearch::logSearchStatistics() const {
+    auto& channel = statisticsChannel_;
+    channel << Core::XmlOpen("search-statistics");
+    numSymbolSteps_.write(channel);
+    numInnerHyps_.write(channel);
+    numOuterHyps_.write(channel);
+    numHypsBeforeLlm_.write(channel);
+    numFinishedWords_.write(channel);
+    numActiveHyps_.write(channel);
+    channel << Core::XmlClose("search-statistics");
+}
+
+void LlmRnntTimesyncBeamSearch::logBeamStatistics() {
+    if (debugChannel_.isOpen()) {
+        std::stringstream ss;
+        for (size_t hypIdx = 0ul; hypIdx < beam_.size(); ++hypIdx) {
+            ss << "Hypothesis " << hypIdx + 1ul << ":  " << beam_[hypIdx].toString(wordAssembler_) << "\n";
+        }
+        ss << "\n";
+        debugChannel_ << ss.str();
+    }
+    if (stepwiseStatisticsChannel_.isOpen()) {
+        stepwiseStatisticsChannel_ << Core::XmlFull("active-hyps", beam_.size());
+        stepwiseStatisticsChannel_ << Core::XmlFull("best-hyp-score", getBestHypothesis().score);
+        stepwiseStatisticsChannel_ << Core::XmlFull("worst-hyp-score", getWorstHypothesis().score);
+    }
+}
+
+Nn::TransitionType LlmRnntTimesyncBeamSearch::inferTransitionType(Nn::LabelIndex prevLabel, Nn::LabelIndex nextLabel) const {
+    bool prevIsBlank       = prevLabel == blankLabelIndex_;
+    bool nextIsBlank       = nextLabel == blankLabelIndex_;
+    bool nextIsSentenceEnd = (useSentenceEnd_ and nextLabel == sentenceEndLabelIndex_);
+
+    if (prevLabel == Nn::invalidLabelIndex) {
+        if (nextIsBlank) {
+            return Nn::TransitionType::INITIAL_BLANK;
+        }
+        else if (nextIsSentenceEnd) {
+            return Nn::TransitionType::SENTENCE_END;
+        }
+        else {
+            return Nn::TransitionType::INITIAL_LABEL;
+        }
+    }
+
+    if (prevIsBlank) {
+        if (nextIsBlank) {
+            return Nn::TransitionType::BLANK_LOOP;
+        }
+        else if (nextIsSentenceEnd) {
+            return Nn::TransitionType::SENTENCE_END;
+        }
+        else {
+            return Nn::TransitionType::BLANK_TO_LABEL;
+        }
+    }
+    else {
+        if (nextIsBlank) {
+            return Nn::TransitionType::LABEL_TO_BLANK;
+        }
+        else if (collapseRepeatedLabels_ and prevLabel == nextLabel) {
+            return Nn::TransitionType::LABEL_LOOP;
+        }
+        else if (nextIsSentenceEnd) {
+            return Nn::TransitionType::SENTENCE_END;
+        }
+        else {
+            return Nn::TransitionType::LABEL_TO_LABEL;
+        }
+    }
+}
+
+bool LlmRnntTimesyncBeamSearch::emitsPiece(Nn::TransitionType transitionType) {
+    switch (transitionType) {
+        case Nn::TransitionType::INITIAL_LABEL:
+        case Nn::TransitionType::LABEL_TO_LABEL:
+        case Nn::TransitionType::BLANK_TO_LABEL:
+            return true;
+        default:
+            return false;
+    }
+}
+
+template<typename Element, typename ScoreFn>
+void LlmRnntTimesyncBeamSearch::scorePruning(std::vector<Element>& elements, Score relativeThreshold, size_t maxBeamSize, ScoreFn scoreFn) {
+    // Remove elements that could not be scored by some label scorer
+    elements.erase(
+            std::remove_if(
+                    elements.begin(),
+                    elements.end(),
+                    [](auto const& elem) { return Math::isinf(elem.score) or elem.score >= Core::Type<Score>::max; }),
+            elements.end());
+
+    if (elements.empty()) {
+        return;
+    }
+
+    if (elements.size() <= maxBeamSize and relativeThreshold == Core::Type<Score>::max) {
+        // Neither relative score pruning nor max beam size pruning triggers
+        return;
+    }
+
+    Score lowerScore = Core::Type<Score>::max;
+    Score upperScore = Core::Type<Score>::min;
+    for (auto const& elem : elements) {
+        lowerScore = std::min(lowerScore, scoreFn(elem));
+        upperScore = std::max(upperScore, scoreFn(elem));
+    }
+
+    if (lowerScore == upperScore) {
+        // All scores are the same (usually only happens when exactly 1 element is active)
+        if (elements.size() > maxBeamSize) {
+            elements.resize(maxBeamSize);
+        }
+        return;
+    }
+
+    Score absoluteThreshold = upperScore;
+
+    // Prune by relative score threshold
+    if (relativeThreshold != Core::Type<Score>::max) {
+        absoluteThreshold = lowerScore + relativeThreshold;
+    }
+
+    // Prune by max beam size, approximated via a histogram instead of an exact nth_element
+    if (elements.size() > maxBeamSize) {
+        scoreHistogram_.clear();
+        scoreHistogram_.setLimits(lowerScore, upperScore);
+        for (auto const& elem : elements) {
+            scoreHistogram_ += scoreFn(elem);
+        }
+        absoluteThreshold = std::min(absoluteThreshold, scoreHistogram_.quantile(maxBeamSize));
+    }
+
+    if (absoluteThreshold >= upperScore) {
+        // Nothing will be pruned
+        return;
+    }
+
+    // Remove elements with scoreFn(elem) > absoluteThreshold
+    elements.erase(
+            std::remove_if(
+                    elements.begin(),
+                    elements.end(),
+                    [&scoreFn, absoluteThreshold](auto const& elem) { return scoreFn(elem) > absoluteThreshold; }),
+            elements.end());
+}
+
+void LlmRnntTimesyncBeamSearch::recombination(std::vector<LlmRnntTimesyncBeamSearch::LabelHypothesis>& hypotheses) {
+    if (recombinationMode_ == RecombinationModeOff) {
+        return;
+    }
+
+    // Unique combination of currentToken, scoringContexts, LLM history, pending word and, in sum mode only, outputTokens (sum mode merges
+    // by summing probabilities, which is only valid for hyps with the same output label sequence, while Viterbi
+    // mode just keeps the better hyp, so it stays exact without that check and gets more merges by skipping it).
+    // Points at a LabelHypothesis instead of copying it, to avoid copying/rehashing the growing outputTokens.
+    struct RecombinationContext {
+        LabelHypothesis const* hyp;
+        bool                   ignoreOutputTokens;
+
+        bool operator==(RecombinationContext const& other) const {
+            if (hyp->currentToken != other.hyp->currentToken or hyp->words.llmHistory != other.hyp->words.llmHistory or
+                hyp->words.pendingWord != other.hyp->words.pendingWord) {
+                return false;
+            }
+            if (not ignoreOutputTokens and (hyp->outputTokensHash != other.hyp->outputTokensHash or hyp->outputTokens != other.hyp->outputTokens)) {
+                return false;
+            }
+            if (hyp->scoringContexts.size() != other.hyp->scoringContexts.size()) {
+                return false;
+            }
+            for (size_t i = 0ul; i < hyp->scoringContexts.size(); ++i) {
+                if (not Nn::ScoringContextEq{}(hyp->scoringContexts[i], other.hyp->scoringContexts[i])) {
+                    return false;
+                }
+            }
+            return true;
+        }
+    };
+    struct RecombinationContextHash {
+        size_t operator()(RecombinationContext const& context) const {
+            size_t h1 = Core::combineHashes(Core::combineHashes(context.hyp->currentToken, context.hyp->words.llmHistory), context.hyp->words.pendingWord);
+            size_t h2 = 0;
+            for (auto const& scoringContext : context.hyp->scoringContexts) {
+                h2 = Core::combineHashes(h2, Nn::ScoringContextHash{}(scoringContext));
+            }
+            size_t h3 = context.ignoreOutputTokens ? 0ul : context.hyp->outputTokensHash;
+            return Core::combineHashes(Core::combineHashes(h1, h2), h3);
+        }
+    };
+
+    bool ignoreOutputTokens = recombinationMode_ == RecombinationModeViterbi;
+
+    tempHypotheses_.clear();
+    tempHypotheses_.reserve(hypotheses.size());  // Reserve capacity because future reallocations would break the raw pointers
+    // Map each unique RecombinationContext in `hypotheses` to its representative hyp
+    std::unordered_map<RecombinationContext, LabelHypothesis*, RecombinationContextHash> seenScoringContexts;
+
+    for (auto& hyp : hypotheses) {
+        // Probe with a key pointing at `hyp` in its original location. That pointer is only dereferenced
+        // for this lookup and never stored, since `hyp` may be moved-from right after.
+        auto it = seenScoringContexts.find(RecombinationContext{&hyp, ignoreOutputTokens});
+
+        if (it == seenScoringContexts.end()) {
+            // First time seeing this context -> keep this hyp as representative.
+            // Move it into the stable tempHypotheses_ storage first and key the map entry off of that
+            // address, so the stored pointer stays valid even though `hyp` itself is now moved-from
+            tempHypotheses_.push_back(std::move(hyp));
+            LabelHypothesis* stableHyp = &tempHypotheses_.back();
+            seenScoringContexts.emplace(RecombinationContext{stableHyp, ignoreOutputTokens}, stableHyp);
+        }
+        else {
+            verify(not hyp.trace->sibling);
+
+            auto* existingHyp = it->second;
+
+            // In sum mode, merge scores in probability space (log-sum-exp of the two path scores)
+            // Numerically stable form: min(a, b) - log1p(exp(-|a - b|)), which is <= min(a, b)
+            // In viterbi mode, no merging happens, the better hyp's own score is kept as-is
+            bool  mergeScores = recombinationMode_ == RecombinationModeSum;
+            Score mergedScore = mergeScores ? std::min(existingHyp->score, hyp.score) - std::log1p(std::exp(-std::fabs(existingHyp->score - hyp.score))) : 0.0f;
+
+            if (hyp.score < existingHyp->score) {
+                // New hyp is better -> keep it as representative and add existing one as sibling
+                hyp.trace->sibling = existingHyp->trace;
+                *existingHyp       = std::move(hyp);  // Overwrite in-place
+            }
+            else {
+                // New hyp is worse -> add it as sibling to the existing representative
+                hyp.trace->sibling          = existingHyp->trace->sibling;
+                existingHyp->trace->sibling = hyp.trace;
+            }
+
+            if (mergeScores) {
+                // Recompute scaled score from the merged score
+                existingHyp->score       = mergedScore;
+                const auto len           = std::max<std::size_t>(1, existingHyp->length);
+                existingHyp->scaledScore = existingHyp->score / std::pow(static_cast<double>(len), static_cast<double>(lengthNormScale_));
+            }
+        }
+    }
+
+    hypotheses.swap(tempHypotheses_);
 }
 
 bool LlmRnntTimesyncBeamSearch::advanceTimestep() {
@@ -719,15 +1031,6 @@ void LlmRnntTimesyncBeamSearch::pruneOuterHyps() {
     scorePruning(outerHyps_, Core::Type<Score>::max, maxBeamSizes_.back(), scaledScore);
 }
 
-std::vector<Nn::ScoringContextRef> LlmRnntTimesyncBeamSearch::extendedScoringContexts(LabelHypothesis const& baseHyp, ExtensionCandidate const& extension) const {
-    std::vector<Nn::ScoringContextRef> contexts;
-    contexts.reserve(labelScorers_.size());
-    for (size_t scorerIdx = 0ul; scorerIdx < labelScorers_.size(); ++scorerIdx) {
-        contexts.push_back(labelScorers_[scorerIdx]->extendedScoringContext(baseHyp.scoringContexts[scorerIdx], extension.nextToken, extension.transitionType));
-    }
-    return contexts;
-}
-
 void LlmRnntTimesyncBeamSearch::cleanupCaches() {
     Core::StopWatch::Scope timer(cleanupTime_);
     for (size_t scorerIdx = 0ul; scorerIdx < labelScorers_.size(); ++scorerIdx) {
@@ -745,318 +1048,6 @@ void LlmRnntTimesyncBeamSearch::cleanupCaches() {
     std::sort(activeHistories_.begin(), activeHistories_.end());
     activeHistories_.erase(std::unique(activeHistories_.begin(), activeHistories_.end()), activeHistories_.end());
     llmWordScorer_.cleanup(activeHistories_);
-}
-
-bool LlmRnntTimesyncBeamSearch::emitsPiece(Nn::TransitionType transitionType) {
-    switch (transitionType) {
-        case Nn::TransitionType::INITIAL_LABEL:
-        case Nn::TransitionType::LABEL_TO_LABEL:
-        case Nn::TransitionType::BLANK_TO_LABEL:
-            return true;
-        default:
-            return false;
-    }
-}
-
-LlmRnntTimesyncBeamSearch::LabelHypothesis const& LlmRnntTimesyncBeamSearch::getBestHypothesis() const {
-    verify(not beam_.empty());
-
-    return *std::min_element(beam_.begin(), beam_.end());
-}
-
-LlmRnntTimesyncBeamSearch::LabelHypothesis const& LlmRnntTimesyncBeamSearch::getWorstHypothesis() const {
-    verify(not beam_.empty());
-
-    return *std::max_element(beam_.begin(), beam_.end());
-}
-
-void LlmRnntTimesyncBeamSearch::resetStatistics() {
-    for (auto* timer : {&initializationTime_, &featureProcessingTime_, &recognitionTime_, &scoringTime_, &blankExtensionTime_, &labelExtensionTime_,
-                        &preLlmPruningTime_, &llmTime_, &wordAssemblyTime_, &wordScoringTime_, &buildInnerHypsTime_, &recombinationTime_,
-                        &beamPruningTime_, &cleanupTime_, &finalizeTime_, &finalizeLlmTime_}) {
-        timer->reset();
-    }
-    for (auto* stat : {&numSymbolSteps_, &numInnerHyps_, &numOuterHyps_, &numHypsBeforeLlm_, &numFinishedWords_, &numActiveHyps_}) {
-        stat->clear();
-    }
-}
-
-void LlmRnntTimesyncBeamSearch::logStatistics() const {
-    logOwnStatistics();
-    for (auto const& labelScorer : labelScorers_) {
-        labelScorer->logStatistics();
-    }
-    llmWordScorer_.logStatistics();
-}
-
-void LlmRnntTimesyncBeamSearch::logOwnStatistics() const {
-    if (not statisticsChannel_.isOpen()) {
-        return;
-    }
-    logTimingStatistics();
-    logSearchStatistics();
-}
-
-void LlmRnntTimesyncBeamSearch::logTimingStatistics() const {
-    auto& channel = statisticsChannel_;
-    channel << Core::XmlOpen("timing-statistics") + Core::XmlAttribute("unit", "milliseconds");
-    channel << Core::XmlFull("initialization-time", initializationTime_.elapsedMilliseconds());
-    channel << Core::XmlFull("feature-processing-time", featureProcessingTime_.elapsedMilliseconds());
-
-    channel << Core::XmlOpen("recognition-time") + Core::XmlAttribute("total", recognitionTime_.elapsedMilliseconds());
-    channel << Core::XmlFull("scoring-time", scoringTime_.elapsedMilliseconds());
-    channel << Core::XmlFull("blank-extension-time", blankExtensionTime_.elapsedMilliseconds());
-    channel << Core::XmlFull("label-extension-time", labelExtensionTime_.elapsedMilliseconds());
-    channel << Core::XmlFull("pre-llm-pruning-time", preLlmPruningTime_.elapsedMilliseconds());
-    channel << Core::XmlOpen("llm-time") + Core::XmlAttribute("total", llmTime_.elapsedMilliseconds());
-    channel << Core::XmlFull("word-assembly-time", wordAssemblyTime_.elapsedMilliseconds());
-    channel << Core::XmlFull("word-scoring-time", wordScoringTime_.elapsedMilliseconds());
-    channel << Core::XmlClose("llm-time");
-    channel << Core::XmlFull("build-inner-hyps-time", buildInnerHypsTime_.elapsedMilliseconds());
-    channel << Core::XmlFull("recombination-time", recombinationTime_.elapsedMilliseconds());
-    channel << Core::XmlFull("beam-pruning-time", beamPruningTime_.elapsedMilliseconds());
-    channel << Core::XmlFull("cleanup-time", cleanupTime_.elapsedMilliseconds());
-    channel << Core::XmlClose("recognition-time");
-
-    channel << Core::XmlOpen("finalize-time") + Core::XmlAttribute("total", finalizeTime_.elapsedMilliseconds());
-    channel << Core::XmlFull("llm-time", finalizeLlmTime_.elapsedMilliseconds());
-    channel << Core::XmlClose("finalize-time");
-    channel << Core::XmlClose("timing-statistics");
-}
-
-void LlmRnntTimesyncBeamSearch::logSearchStatistics() const {
-    auto& channel = statisticsChannel_;
-    channel << Core::XmlOpen("search-statistics");
-    numSymbolSteps_.write(channel);
-    numInnerHyps_.write(channel);
-    numOuterHyps_.write(channel);
-    numHypsBeforeLlm_.write(channel);
-    numFinishedWords_.write(channel);
-    numActiveHyps_.write(channel);
-    channel << Core::XmlClose("search-statistics");
-}
-
-void LlmRnntTimesyncBeamSearch::logBeamStatistics() {
-    if (debugChannel_.isOpen()) {
-        std::stringstream ss;
-        for (size_t hypIdx = 0ul; hypIdx < beam_.size(); ++hypIdx) {
-            ss << "Hypothesis " << hypIdx + 1ul << ":  " << beam_[hypIdx].toString(wordAssembler_) << "\n";
-        }
-        ss << "\n";
-        debugChannel_ << ss.str();
-    }
-    if (stepwiseStatisticsChannel_.isOpen()) {
-        stepwiseStatisticsChannel_ << Core::XmlFull("active-hyps", beam_.size());
-        stepwiseStatisticsChannel_ << Core::XmlFull("best-hyp-score", getBestHypothesis().score);
-        stepwiseStatisticsChannel_ << Core::XmlFull("worst-hyp-score", getWorstHypothesis().score);
-    }
-}
-
-Nn::TransitionType LlmRnntTimesyncBeamSearch::inferTransitionType(Nn::LabelIndex prevLabel, Nn::LabelIndex nextLabel) const {
-    bool prevIsBlank       = prevLabel == blankLabelIndex_;
-    bool nextIsBlank       = nextLabel == blankLabelIndex_;
-    bool nextIsSentenceEnd = (useSentenceEnd_ and nextLabel == sentenceEndLabelIndex_);
-
-    if (prevLabel == Nn::invalidLabelIndex) {
-        if (nextIsBlank) {
-            return Nn::TransitionType::INITIAL_BLANK;
-        }
-        else if (nextIsSentenceEnd) {
-            return Nn::TransitionType::SENTENCE_END;
-        }
-        else {
-            return Nn::TransitionType::INITIAL_LABEL;
-        }
-    }
-
-    if (prevIsBlank) {
-        if (nextIsBlank) {
-            return Nn::TransitionType::BLANK_LOOP;
-        }
-        else if (nextIsSentenceEnd) {
-            return Nn::TransitionType::SENTENCE_END;
-        }
-        else {
-            return Nn::TransitionType::BLANK_TO_LABEL;
-        }
-    }
-    else {
-        if (nextIsBlank) {
-            return Nn::TransitionType::LABEL_TO_BLANK;
-        }
-        else if (collapseRepeatedLabels_ and prevLabel == nextLabel) {
-            return Nn::TransitionType::LABEL_LOOP;
-        }
-        else if (nextIsSentenceEnd) {
-            return Nn::TransitionType::SENTENCE_END;
-        }
-        else {
-            return Nn::TransitionType::LABEL_TO_LABEL;
-        }
-    }
-}
-
-template<typename Element, typename ScoreFn>
-void LlmRnntTimesyncBeamSearch::scorePruning(std::vector<Element>& elements, Score relativeThreshold, size_t maxBeamSize, ScoreFn scoreFn) {
-    // Remove elements that could not be scored by some label scorer
-    elements.erase(
-            std::remove_if(
-                    elements.begin(),
-                    elements.end(),
-                    [](auto const& elem) { return Math::isinf(elem.score) or elem.score >= Core::Type<Score>::max; }),
-            elements.end());
-
-    if (elements.empty()) {
-        return;
-    }
-
-    if (elements.size() <= maxBeamSize and relativeThreshold == Core::Type<Score>::max) {
-        // Neither relative score pruning nor max beam size pruning triggers
-        return;
-    }
-
-    Score lowerScore = Core::Type<Score>::max;
-    Score upperScore = Core::Type<Score>::min;
-    for (auto const& elem : elements) {
-        lowerScore = std::min(lowerScore, scoreFn(elem));
-        upperScore = std::max(upperScore, scoreFn(elem));
-    }
-
-    if (lowerScore == upperScore) {
-        // All scores are the same (usually only happens when exactly 1 element is active)
-        if (elements.size() > maxBeamSize) {
-            elements.resize(maxBeamSize);
-        }
-        return;
-    }
-
-    Score absoluteThreshold = upperScore;
-
-    // Prune by relative score threshold
-    if (relativeThreshold != Core::Type<Score>::max) {
-        absoluteThreshold = lowerScore + relativeThreshold;
-    }
-
-    // Prune by max beam size, approximated via a histogram instead of an exact nth_element
-    if (elements.size() > maxBeamSize) {
-        scoreHistogram_.clear();
-        scoreHistogram_.setLimits(lowerScore, upperScore);
-        for (auto const& elem : elements) {
-            scoreHistogram_ += scoreFn(elem);
-        }
-        absoluteThreshold = std::min(absoluteThreshold, scoreHistogram_.quantile(maxBeamSize));
-    }
-
-    if (absoluteThreshold >= upperScore) {
-        // Nothing will be pruned
-        return;
-    }
-
-    // Remove elements with scoreFn(elem) > absoluteThreshold
-    elements.erase(
-            std::remove_if(
-                    elements.begin(),
-                    elements.end(),
-                    [&scoreFn, absoluteThreshold](auto const& elem) { return scoreFn(elem) > absoluteThreshold; }),
-            elements.end());
-}
-
-void LlmRnntTimesyncBeamSearch::recombination(std::vector<LlmRnntTimesyncBeamSearch::LabelHypothesis>& hypotheses) {
-    if (recombinationMode_ == RecombinationModeOff) {
-        return;
-    }
-
-    // Unique combination of currentToken, scoringContexts, LLM history, pending word and, in sum mode only, outputTokens (sum mode merges
-    // by summing probabilities, which is only valid for hyps with the same output label sequence, while Viterbi
-    // mode just keeps the better hyp, so it stays exact without that check and gets more merges by skipping it).
-    // Points at a LabelHypothesis instead of copying it, to avoid copying/rehashing the growing outputTokens.
-    struct RecombinationContext {
-        LabelHypothesis const* hyp;
-        bool                   ignoreOutputTokens;
-
-        bool operator==(RecombinationContext const& other) const {
-            if (hyp->currentToken != other.hyp->currentToken or hyp->words.llmHistory != other.hyp->words.llmHistory or
-                hyp->words.pendingWord != other.hyp->words.pendingWord) {
-                return false;
-            }
-            if (not ignoreOutputTokens and (hyp->outputTokensHash != other.hyp->outputTokensHash or hyp->outputTokens != other.hyp->outputTokens)) {
-                return false;
-            }
-            if (hyp->scoringContexts.size() != other.hyp->scoringContexts.size()) {
-                return false;
-            }
-            for (size_t i = 0ul; i < hyp->scoringContexts.size(); ++i) {
-                if (not Nn::ScoringContextEq{}(hyp->scoringContexts[i], other.hyp->scoringContexts[i])) {
-                    return false;
-                }
-            }
-            return true;
-        }
-    };
-    struct RecombinationContextHash {
-        size_t operator()(RecombinationContext const& context) const {
-            size_t h1 = Core::combineHashes(Core::combineHashes(context.hyp->currentToken, context.hyp->words.llmHistory), context.hyp->words.pendingWord);
-            size_t h2 = 0;
-            for (auto const& scoringContext : context.hyp->scoringContexts) {
-                h2 = Core::combineHashes(h2, Nn::ScoringContextHash{}(scoringContext));
-            }
-            size_t h3 = context.ignoreOutputTokens ? 0ul : context.hyp->outputTokensHash;
-            return Core::combineHashes(Core::combineHashes(h1, h2), h3);
-        }
-    };
-
-    bool ignoreOutputTokens = recombinationMode_ == RecombinationModeViterbi;
-
-    tempHypotheses_.clear();
-    tempHypotheses_.reserve(hypotheses.size());  // Reserve capacity because future reallocations would break the raw pointers
-    // Map each unique RecombinationContext in `hypotheses` to its representative hyp
-    std::unordered_map<RecombinationContext, LabelHypothesis*, RecombinationContextHash> seenScoringContexts;
-
-    for (auto& hyp : hypotheses) {
-        // Probe with a key pointing at `hyp` in its original location. That pointer is only dereferenced
-        // for this lookup and never stored, since `hyp` may be moved-from right after.
-        auto it = seenScoringContexts.find(RecombinationContext{&hyp, ignoreOutputTokens});
-
-        if (it == seenScoringContexts.end()) {
-            // First time seeing this context -> keep this hyp as representative.
-            // Move it into the stable tempHypotheses_ storage first and key the map entry off of that
-            // address, so the stored pointer stays valid even though `hyp` itself is now moved-from
-            tempHypotheses_.push_back(std::move(hyp));
-            LabelHypothesis* stableHyp = &tempHypotheses_.back();
-            seenScoringContexts.emplace(RecombinationContext{stableHyp, ignoreOutputTokens}, stableHyp);
-        }
-        else {
-            verify(not hyp.trace->sibling);
-
-            auto* existingHyp = it->second;
-
-            // In sum mode, merge scores in probability space (log-sum-exp of the two path scores)
-            // Numerically stable form: min(a, b) - log1p(exp(-|a - b|)), which is <= min(a, b)
-            // In viterbi mode, no merging happens, the better hyp's own score is kept as-is
-            bool  mergeScores = recombinationMode_ == RecombinationModeSum;
-            Score mergedScore = mergeScores ? std::min(existingHyp->score, hyp.score) - std::log1p(std::exp(-std::fabs(existingHyp->score - hyp.score))) : 0.0f;
-
-            if (hyp.score < existingHyp->score) {
-                // New hyp is better -> keep it as representative and add existing one as sibling
-                hyp.trace->sibling = existingHyp->trace;
-                *existingHyp       = std::move(hyp);  // Overwrite in-place
-            }
-            else {
-                // New hyp is worse -> add it as sibling to the existing representative
-                hyp.trace->sibling          = existingHyp->trace->sibling;
-                existingHyp->trace->sibling = hyp.trace;
-            }
-
-            if (mergeScores) {
-                // Recompute scaled score from the merged score
-                existingHyp->score       = mergedScore;
-                const auto len           = std::max<std::size_t>(1, existingHyp->length);
-                existingHyp->scaledScore = existingHyp->score / std::pow(static_cast<double>(len), static_cast<double>(lengthNormScale_));
-            }
-        }
-    }
-
-    hypotheses.swap(tempHypotheses_);
 }
 
 void LlmRnntTimesyncBeamSearch::maximumStableDelayPruning() {
@@ -1103,6 +1094,15 @@ void LlmRnntTimesyncBeamSearch::maximumStableDelayPruning() {
         }
     }
     beam_.swap(tempHypotheses_);
+}
+
+std::vector<Nn::ScoringContextRef> LlmRnntTimesyncBeamSearch::extendedScoringContexts(LabelHypothesis const& baseHyp, ExtensionCandidate const& extension) const {
+    std::vector<Nn::ScoringContextRef> contexts;
+    contexts.reserve(labelScorers_.size());
+    for (size_t scorerIdx = 0ul; scorerIdx < labelScorers_.size(); ++scorerIdx) {
+        contexts.push_back(labelScorers_[scorerIdx]->extendedScoringContext(baseHyp.scoringContexts[scorerIdx], extension.nextToken, extension.transitionType));
+    }
+    return contexts;
 }
 
 void LlmRnntTimesyncBeamSearch::finalizeHypotheses() {

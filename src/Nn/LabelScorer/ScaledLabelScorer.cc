@@ -82,10 +82,6 @@ void ScaledLabelScorer::setScale(Score scale) {
     scale_ = scale;
 }
 
-void ScaledLabelScorer::reset() {
-    scorer_->reset();
-}
-
 void ScaledLabelScorer::logStatistics() const {
     scorer_->logStatistics();
 }
@@ -112,6 +108,10 @@ void ScaledLabelScorer::addInput(DataView const& input) {
 
 void ScaledLabelScorer::addInputs(DataView const& input, size_t nTimesteps) {
     scorer_->addInputs(input, nTimesteps);
+}
+
+void ScaledLabelScorer::reset() {
+    scorer_->reset();
 }
 
 std::optional<ScoreAccessorRef> ScaledLabelScorer::getScoreAccessor(ScoringContextRef scoringContext) {

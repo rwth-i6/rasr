@@ -166,23 +166,6 @@ StateManagedOnnxLabelScorer::StateManagedOnnxLabelScorer(Core::Configuration con
     startLabels_.insert(startLabels_.begin(), startLabels.begin(), startLabels.end());
 }
 
-void StateManagedOnnxLabelScorer::logScoringBreakdown() const {
-    statisticsChannel_ << Core::XmlFull("onnx-session-time", onnxSessionTime_.elapsedMilliseconds());
-    statisticsChannel_ << Core::XmlFull("state-marshalling-time", stateMarshallingTime_.elapsedMilliseconds());
-    statisticsChannel_ << Core::XmlFull("context-preparation-time", contextPreparationTime_.elapsedMilliseconds());
-}
-
-void StateManagedOnnxLabelScorer::resetInternal() {
-    Precursor::resetInternal();
-    onnxSessionTime_.reset();
-    stateMarshallingTime_.reset();
-    contextPreparationTime_.reset();
-    encoderStatesValue_     = Onnx::Value();
-    encoderStatesSizeValue_ = Onnx::Value();
-    scoreCache_.clear();
-    stateCache_.clear();
-}
-
 void StateManagedOnnxLabelScorer::addInput(DataView const& input) {
     Precursor::addInput(input);
     encoderStatesValue_     = Onnx::Value();
@@ -248,6 +231,21 @@ ScoringContextRef StateManagedOnnxLabelScorer::extendedScoringContext(ScoringCon
     return Core::ref(new StateManagedOnnxScoringContext(std::move(labelSeq), context));
 }
 
+void StateManagedOnnxLabelScorer::resetInternal() {
+    Precursor::resetInternal();
+    onnxSessionTime_.reset();
+    stateMarshallingTime_.reset();
+    contextPreparationTime_.reset();
+    encoderStatesValue_     = Onnx::Value();
+    encoderStatesSizeValue_ = Onnx::Value();
+    scoreCache_.clear();
+    stateCache_.clear();
+}
+
+std::optional<ScoreAccessorRef> StateManagedOnnxLabelScorer::computeScoreAccessor(ScoringContextRef scoringContext) {
+    return computeScoreAccessors({scoringContext})[0];
+}
+
 std::vector<std::optional<ScoreAccessorRef>> StateManagedOnnxLabelScorer::computeScoreAccessors(std::vector<ScoringContextRef> const& scoringContexts) {
     if (scoringContexts.empty()) {
         return {};
@@ -305,10 +303,6 @@ std::vector<std::optional<ScoreAccessorRef>> StateManagedOnnxLabelScorer::comput
     contextPreparationTime_.stop();
 
     return scoreAccessors;
-}
-
-std::optional<ScoreAccessorRef> StateManagedOnnxLabelScorer::computeScoreAccessor(ScoringContextRef scoringContext) {
-    return computeScoreAccessors({scoringContext})[0];
 }
 
 size_t StateManagedOnnxLabelScorer::getMinActiveInputIndex(Core::CollapsedVector<ScoringContextRef> const& activeContexts) const {
@@ -427,6 +421,12 @@ void StateManagedOnnxLabelScorer::cacheStatesAndScores(std::vector<StateManagedO
             scoringContextBatch[i]->parent.reset();
         }
     }
+}
+
+void StateManagedOnnxLabelScorer::logScoringBreakdown() const {
+    statisticsChannel_ << Core::XmlFull("onnx-session-time", onnxSessionTime_.elapsedMilliseconds());
+    statisticsChannel_ << Core::XmlFull("state-marshalling-time", stateMarshallingTime_.elapsedMilliseconds());
+    statisticsChannel_ << Core::XmlFull("context-preparation-time", contextPreparationTime_.elapsedMilliseconds());
 }
 
 }  // namespace Nn

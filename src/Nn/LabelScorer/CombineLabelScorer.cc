@@ -136,12 +136,6 @@ Core::Ref<ScaledLabelScorer> CombineLabelScorer::getSubScorer(size_t index) cons
     return scorers_[index];
 }
 
-void CombineLabelScorer::reset() {
-    for (auto& scorer : scorers_) {
-        scorer->reset();
-    }
-}
-
 void CombineLabelScorer::logStatistics() const {
     for (auto const& scorer : scorers_) {
         scorer->logStatistics();
@@ -206,6 +200,12 @@ void CombineLabelScorer::addInput(DataView const& input) {
 void CombineLabelScorer::addInputs(DataView const& input, size_t nTimesteps) {
     for (auto& scorer : scorers_) {
         scorer->addInputs(input, nTimesteps);
+    }
+}
+
+void CombineLabelScorer::reset() {
+    for (auto& scorer : scorers_) {
+        scorer->reset();
     }
 }
 

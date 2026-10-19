@@ -26,6 +26,12 @@ Encoder::Encoder(Core::Configuration const& config)
           expectMoreFeatures_(true),
           statisticsChannel_(config, "statistics") {}
 
+void Encoder::reset() {
+    encodeTime_.reset();
+    numInputFeatures_ = 0ul;
+    resetInternal();
+}
+
 void Encoder::logStatistics() const {
     if (not statisticsChannel_.isOpen()) {
         return;
@@ -38,19 +44,6 @@ void Encoder::logStatistics() const {
     logAdditionalStatistics();
     statisticsChannel_ << Core::XmlFull("num-input-features", numInputFeatures_);
     statisticsChannel_ << Core::XmlClose("encoder-statistics");
-}
-
-void Encoder::reset() {
-    encodeTime_.reset();
-    numInputFeatures_ = 0ul;
-    resetInternal();
-}
-
-void Encoder::resetInternal() {
-    expectMoreFeatures_ = true;
-    inputBuffer_.clear();
-
-    outputBuffer_.clear();
 }
 
 void Encoder::signalNoMoreFeatures() {
@@ -67,10 +60,6 @@ void Encoder::addInputs(DataView const& input, size_t nTimesteps) {
     for (size_t t = 0ul; t < nTimesteps; ++t) {
         addInput({input, featureSize, t * featureSize});
     }
-}
-
-bool Encoder::canEncode() const {
-    return not inputBuffer_.empty() and not expectMoreFeatures_;
 }
 
 std::optional<EncodedSpan> Encoder::getNextOutput() {
@@ -101,8 +90,19 @@ std::optional<EncodedSpan> Encoder::getNextOutput() {
     return getNextOutput();
 }
 
+void Encoder::resetInternal() {
+    expectMoreFeatures_ = true;
+    inputBuffer_.clear();
+
+    outputBuffer_.clear();
+}
+
 void Encoder::postEncodeCleanup() {
     inputBuffer_.clear();
+}
+
+bool Encoder::canEncode() const {
+    return not inputBuffer_.empty() and not expectMoreFeatures_;
 }
 
 }  // namespace Nn

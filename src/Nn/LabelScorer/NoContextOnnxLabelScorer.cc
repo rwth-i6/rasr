@@ -50,18 +50,13 @@ NoContextOnnxLabelScorer::NoContextOnnxLabelScorer(Core::Configuration const& co
     scoresName_             = onnxModel_->mapping.getOnnxName("scores");
 }
 
-void NoContextOnnxLabelScorer::logScoringBreakdown() const {
-    statisticsChannel_ << Core::XmlFull("onnx-session-time", onnxSessionTime_.elapsedMilliseconds());
-}
-
-void NoContextOnnxLabelScorer::resetInternal() {
-    Precursor::resetInternal();
-    onnxSessionTime_.reset();
-    scoreCache_.clear();
-}
-
 ScoringContextRef NoContextOnnxLabelScorer::getInitialScoringContext() {
     return Core::ref(new StepScoringContext());
+}
+
+ScoringContextRef NoContextOnnxLabelScorer::extendedScoringContext(ScoringContextRef scoringContext, LabelIndex nextToken, TransitionType transitionType) {
+    StepScoringContextRef stepScoringContext(dynamic_cast<StepScoringContext const*>(scoringContext.get()));
+    return Core::ref(new StepScoringContext(stepScoringContext->currentStep + 1));
 }
 
 void NoContextOnnxLabelScorer::cleanupCaches(Core::CollapsedVector<ScoringContextRef> const& activeContexts) {
@@ -79,19 +74,10 @@ void NoContextOnnxLabelScorer::cleanupCaches(Core::CollapsedVector<ScoringContex
     }
 }
 
-size_t NoContextOnnxLabelScorer::getMinActiveInputIndex(Core::CollapsedVector<ScoringContextRef> const& activeContexts) const {
-    auto minTimeIndex = Core::Type<Speech::TimeframeIndex>::max;
-    for (auto const& context : activeContexts.internalData()) {
-        StepScoringContextRef stepHistory(dynamic_cast<StepScoringContext const*>(context.get()));
-        minTimeIndex = std::min(minTimeIndex, stepHistory->currentStep);
-    }
-
-    return minTimeIndex;
-}
-
-ScoringContextRef NoContextOnnxLabelScorer::extendedScoringContext(ScoringContextRef scoringContext, LabelIndex nextToken, TransitionType transitionType) {
-    StepScoringContextRef stepScoringContext(dynamic_cast<StepScoringContext const*>(scoringContext.get()));
-    return Core::ref(new StepScoringContext(stepScoringContext->currentStep + 1));
+void NoContextOnnxLabelScorer::resetInternal() {
+    Precursor::resetInternal();
+    onnxSessionTime_.reset();
+    scoreCache_.clear();
 }
 
 std::vector<std::optional<ScoreAccessorRef>> NoContextOnnxLabelScorer::computeScoreAccessors(std::vector<ScoringContextRef> const& scoringContexts) {
@@ -124,6 +110,20 @@ std::vector<std::optional<ScoreAccessorRef>> NoContextOnnxLabelScorer::computeSc
 
 std::optional<ScoreAccessorRef> NoContextOnnxLabelScorer::computeScoreAccessor(ScoringContextRef scoringContext) {
     return computeScoreAccessors({scoringContext})[0];
+}
+
+size_t NoContextOnnxLabelScorer::getMinActiveInputIndex(Core::CollapsedVector<ScoringContextRef> const& activeContexts) const {
+    auto minTimeIndex = Core::Type<Speech::TimeframeIndex>::max;
+    for (auto const& context : activeContexts.internalData()) {
+        StepScoringContextRef stepHistory(dynamic_cast<StepScoringContext const*>(context.get()));
+        minTimeIndex = std::min(minTimeIndex, stepHistory->currentStep);
+    }
+
+    return minTimeIndex;
+}
+
+void NoContextOnnxLabelScorer::logScoringBreakdown() const {
+    statisticsChannel_ << Core::XmlFull("onnx-session-time", onnxSessionTime_.elapsedMilliseconds());
 }
 
 void NoContextOnnxLabelScorer::forwardContext(StepScoringContextRef const& scoringContext) {

@@ -223,15 +223,6 @@ PrefixSpeechLmOnnxLabelScorer::PrefixSpeechLmOnnxLabelScorer(Core::Configuration
     // Scores are cached per scoring context, so cache misses are meaningful here
 }
 
-void PrefixSpeechLmOnnxLabelScorer::resetInternal() {
-    Precursor::resetInternal();
-    encoderStatesValue_     = Onnx::Value();
-    encoderStatesSizeValue_ = Onnx::Value();
-    initialContext_         = PrefixSpeechLmScoringContextRef();
-    scoreCache_.clear();
-    stateCache_.clear();
-}
-
 void PrefixSpeechLmOnnxLabelScorer::addInput(DataView const& input) {
     Precursor::addInput(input);
     encoderStatesValue_     = Onnx::Value();
@@ -280,6 +271,19 @@ ScoringContextRef PrefixSpeechLmOnnxLabelScorer::extendedScoringContext(ScoringC
     std::vector<LabelIndex> labelSeq(context->labelSeq);
     labelSeq.push_back(nextToken);
     return Core::ref(new PrefixSpeechLmScoringContext(std::move(labelSeq), context->historyLength + 1ul, context));
+}
+
+void PrefixSpeechLmOnnxLabelScorer::resetInternal() {
+    Precursor::resetInternal();
+    encoderStatesValue_     = Onnx::Value();
+    encoderStatesSizeValue_ = Onnx::Value();
+    initialContext_         = PrefixSpeechLmScoringContextRef();
+    scoreCache_.clear();
+    stateCache_.clear();
+}
+
+std::optional<ScoreAccessorRef> PrefixSpeechLmOnnxLabelScorer::computeScoreAccessor(ScoringContextRef scoringContext) {
+    return computeScoreAccessors({scoringContext})[0];
 }
 
 std::vector<std::optional<ScoreAccessorRef>> PrefixSpeechLmOnnxLabelScorer::computeScoreAccessors(std::vector<ScoringContextRef> const& scoringContexts) {
@@ -335,36 +339,8 @@ std::vector<std::optional<ScoreAccessorRef>> PrefixSpeechLmOnnxLabelScorer::comp
     return scoreAccessors;
 }
 
-std::optional<ScoreAccessorRef> PrefixSpeechLmOnnxLabelScorer::computeScoreAccessor(ScoringContextRef scoringContext) {
-    return computeScoreAccessors({scoringContext})[0];
-}
-
 size_t PrefixSpeechLmOnnxLabelScorer::getMinActiveInputIndex(Core::CollapsedVector<ScoringContextRef> const& activeContexts) const {
     return 0ul;
-}
-
-void PrefixSpeechLmOnnxLabelScorer::setupEncoderStatesValue() {
-    if (not encoderStatesValue_.empty()) {
-        return;
-    }
-
-    u32  T                    = bufferSize();
-    auto inputFeatureDataView = getInput(0);
-    verify(inputFeatureDataView);
-
-    encoderStatesValue_ = Onnx::Value::createEmpty<f32>({1l, static_cast<int64_t>(T), static_cast<int64_t>(inputFeatureDataView->size())});
-    for (size_t t = 0ul; t < T; ++t) {
-        inputFeatureDataView = getInput(t);
-        verify(inputFeatureDataView);
-        std::copy(inputFeatureDataView->data(), inputFeatureDataView->data() + inputFeatureDataView->size(), encoderStatesValue_.data<f32>(0, t));
-    }
-}
-
-void PrefixSpeechLmOnnxLabelScorer::setupEncoderStatesSizeValue() {
-    if (not encoderStatesSizeValue_.empty()) {
-        return;
-    }
-    encoderStatesSizeValue_ = Onnx::Value::create(std::vector<s32>{static_cast<s32>(bufferSize())});
 }
 
 void PrefixSpeechLmOnnxLabelScorer::setupInitialStates() {
@@ -543,6 +519,30 @@ void PrefixSpeechLmOnnxLabelScorer::cacheStatesAndScores(std::vector<PrefixSpeec
             scoringContextBatch[i]->parent.reset();
         }
     }
+}
+
+void PrefixSpeechLmOnnxLabelScorer::setupEncoderStatesValue() {
+    if (not encoderStatesValue_.empty()) {
+        return;
+    }
+
+    u32  T                    = bufferSize();
+    auto inputFeatureDataView = getInput(0);
+    verify(inputFeatureDataView);
+
+    encoderStatesValue_ = Onnx::Value::createEmpty<f32>({1l, static_cast<int64_t>(T), static_cast<int64_t>(inputFeatureDataView->size())});
+    for (size_t t = 0ul; t < T; ++t) {
+        inputFeatureDataView = getInput(t);
+        verify(inputFeatureDataView);
+        std::copy(inputFeatureDataView->data(), inputFeatureDataView->data() + inputFeatureDataView->size(), encoderStatesValue_.data<f32>(0, t));
+    }
+}
+
+void PrefixSpeechLmOnnxLabelScorer::setupEncoderStatesSizeValue() {
+    if (not encoderStatesSizeValue_.empty()) {
+        return;
+    }
+    encoderStatesSizeValue_ = Onnx::Value::create(std::vector<s32>{static_cast<s32>(bufferSize())});
 }
 
 }  // namespace Nn

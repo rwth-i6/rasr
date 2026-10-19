@@ -496,252 +496,6 @@ bool LexiconfreeTimesyncBeamSearch::decodeStep() {
     return true;
 }
 
-void LexiconfreeTimesyncBeamSearch::readOutScoreAccessors(std::vector<std::optional<Nn::ScoreAccessorRef>> const& scoreAccessors, std::vector<std::optional<Nn::DenseScoreSpan>>& denseScoreSpans, std::vector<Nn::TimeframeIndex>& scoreTimes) const {
-    denseScoreSpans.assign(scoreAccessors.size(), std::nullopt);
-    scoreTimes.assign(scoreAccessors.size(), 0);
-
-    for (size_t accessorIdx = 0ul; accessorIdx < scoreAccessors.size(); ++accessorIdx) {
-        if (scoreAccessors[accessorIdx]) {
-            denseScoreSpans[accessorIdx] = (*scoreAccessors[accessorIdx])->getDenseScores();
-            scoreTimes[accessorIdx]      = (*scoreAccessors[accessorIdx])->getTime();
-        }
-    }
-}
-
-void LexiconfreeTimesyncBeamSearch::createExtensions(std::vector<std::optional<Nn::ScoreAccessorRef>> const& scoreAccessors, std::vector<std::optional<Nn::DenseScoreSpan>> const& denseScoreSpans, std::vector<Nn::TimeframeIndex> const& scoreTimes) {
-    // Assume the output labels are stored as lexicon lemma orth and ordered consistently with NN output index
-    auto        lemmas           = lexicon_->lemmas();
-    auto const& labelScorer      = labelScorers_.front();
-    Score       currentBestScore = Core::Type<Score>::max;
-
-    for (size_t hypIndex = 0ul; hypIndex < beam_.size(); ++hypIndex) {
-        auto const& hyp           = beam_[hypIndex];
-        auto        contextIndex  = hypIndexToContextIndexMap_[hypIndex];
-        auto const& scoreAccessor = scoreAccessors[contextIndex];
-        if (not scoreAccessor) {
-            // No extensions for hyps that couldn't be scored
-            continue;
-        }
-        auto const& denseScores = denseScoreSpans[contextIndex];
-        auto        scoreTime   = scoreTimes[contextIndex];
-
-        // Iterate over possible successors (all lemmas)
-        for (auto lemmaIt = lemmas.first; lemmaIt != lemmas.second; ++lemmaIt) {
-            Bliss::Lemma const* lemma(*lemmaIt);
-            Nn::LabelIndex      tokenIdx = lemma->id();
-            // Don't score the sentence-end token
-            if (tokenIdx == sentenceEndLabelIndex_) {
-                continue;
-            }
-            auto transitionType = inferTransitionType(hyp.currentToken, tokenIdx);
-            auto extScore       = hyp.score;
-            auto extTime        = hyp.trace->time;
-            if (labelScorer->scoresTransition(transitionType)) {
-                extScore += (denseScores and tokenIdx < denseScores->size())
-                                    ? (*denseScores)[tokenIdx]
-                                    : (*scoreAccessor)->getScore(transitionType, tokenIdx);
-                extTime = std::max(extTime, scoreTime);
-            }
-
-            // Pre-prune based on score before creating extension instance and appending to list
-            if (useScorePruning_.front() and extScore > currentBestScore + scoreThresholds_.front()) {
-                continue;
-            }
-            currentBestScore = std::min(currentBestScore, extScore);
-
-            extensions_.push_back(
-                    {.nextToken      = tokenIdx,
-                     .pron           = lemma->pronunciations().first,
-                     .score          = extScore,
-                     .timeframe      = extTime,
-                     .transitionType = transitionType,
-                     .baseHypIndex   = hypIndex});
-        }
-    }
-}
-
-void LexiconfreeTimesyncBeamSearch::updateExtensionScores(size_t scorerIdx, std::vector<std::optional<Nn::ScoreAccessorRef>> const& scoreAccessors, std::vector<std::optional<Nn::DenseScoreSpan>> const& denseScoreSpans, std::vector<Nn::TimeframeIndex> const& scoreTimes) {
-    auto const& labelScorer = labelScorers_[scorerIdx];
-
-    for (auto& ext : extensions_) {
-        if (not labelScorer->scoresTransition(ext.transitionType)) {
-            continue;
-        }
-        auto        contextIndex  = hypIndexToContextIndexMap_[ext.baseHypIndex];
-        auto const& scoreAccessor = scoreAccessors[contextIndex];
-        if (not scoreAccessor) {
-            // Extension is not scorable so set the score to max in order to prune it later
-            ext.score = Core::Type<Score>::max;
-            continue;
-        }
-
-        auto const& denseScores = denseScoreSpans[contextIndex];
-        ext.score += (denseScores and ext.nextToken < denseScores->size())
-                             ? (*denseScores)[ext.nextToken]
-                             : (*scoreAccessor)->getScore(ext.transitionType, ext.nextToken);
-        ext.timeframe = std::max(ext.timeframe, scoreTimes[contextIndex]);
-    }
-}
-
-void LexiconfreeTimesyncBeamSearch::prepareNextScoringContexts(size_t scorerIdx) {
-    // Some scoring contexts from the current scorer may not have survived pruning, so the list is
-    // rebuilt. Use -1 as placeholder to signify that this hyp was not visited yet.
-    scoringContexts_.clear();
-    hypIndexToContextIndexMap_.assign(beam_.size(), -1);
-    for (auto const& ext : extensions_) {
-        if (hypIndexToContextIndexMap_[ext.baseHypIndex] == -1) {
-            hypIndexToContextIndexMap_[ext.baseHypIndex] = scoringContexts_.size();
-            scoringContexts_.push_back(beam_[ext.baseHypIndex].scoringContexts[scorerIdx + 1]);
-        }
-    }
-}
-
-bool LexiconfreeTimesyncBeamSearch::scoreAndPruneExtensions() {
-    /*
-     * We collect the scoring contexts that need to be passed to the LabelScorer into `scoringContexts_`.
-     * `hypIndexToContextIndexMap_` maps a beam index to the position of its context in `scoringContexts_`,
-     * i.e. beam_[i].scoringContexts.front() == scoringContexts_[hypIndexToContextIndexMap_[i]].
-     * For the first label scorer this is just the identity mapping (hypIndexToContextIndexMap_[i] == i). For each
-     * subsequent scorer the list is rebuilt by `prepareNextScoringContexts`.
-     */
-    extensions_.clear();
-    scoringContexts_.clear();
-    scoringContexts_.reserve(beam_.size());
-    hypIndexToContextIndexMap_.resize(beam_.size());
-    std::iota(hypIndexToContextIndexMap_.begin(), hypIndexToContextIndexMap_.end(), 0ul);
-
-    for (auto const& hyp : beam_) {
-        scoringContexts_.push_back(hyp.scoringContexts.front());
-    }
-
-    // The number of hypotheses handed to the first label scorer
-    size_t const numScoredHyps = scoringContexts_.size();
-
-    for (size_t scorerIdx = 0ul; scorerIdx < labelScorers_.size(); ++scorerIdx) {
-        Core::StopWatch::Scope scoreAndPruneTimer(scoreAndPruneExtensionsTimes_[scorerIdx]);
-        bool                   isLastScorer = scorerIdx + 1ul == labelScorers_.size();
-
-        std::vector<std::optional<Nn::ScoreAccessorRef>> scoreAccessors;
-        {
-            Core::StopWatch::Scope scoringTimer(scoringTimes_[scorerIdx]);
-            scoreAccessors = labelScorers_[scorerIdx]->getScoreAccessors(scoringContexts_);
-        }
-
-        // Scores and timeframes of this label scorer, indexed like `scoringContexts_`. The spans
-        // view into memory owned by `scoreAccessors`, so they share its scope.
-        std::vector<std::optional<Nn::DenseScoreSpan>> denseScoreSpans;
-        std::vector<Nn::TimeframeIndex>                scoreTimes;
-
-        // Read the scores out of the accessors and apply them to the extension candidates; for
-        // the first scorer this also creates them. Lazily computing scorers do their work here.
-        {
-            Core::StopWatch::Scope readoutTimer(scoreReadoutTimes_[scorerIdx]);
-            readOutScoreAccessors(scoreAccessors, denseScoreSpans, scoreTimes);
-            if (scorerIdx == 0ul) {
-                createExtensions(scoreAccessors, denseScoreSpans, scoreTimes);
-            }
-            else {
-                updateExtensionScores(scorerIdx, scoreAccessors, denseScoreSpans, scoreTimes);
-            }
-        }
-
-        if (extensions_.empty()) {
-            return false;
-        }
-
-        if (scorerIdx == 0ul) {
-            // Counted only now, so that a step which can't be scored yet leaves no trace in the
-            // statistics and doesn't claim a step number
-            openStepStatistics();
-            numInputHyps_ += numScoredHyps;
-            numExtensionsAfterPrePruning_ += extensions_.size();
-            if (stepwiseStatisticsChannel_.isOpen()) {
-                stepwiseStatisticsChannel_ << Core::XmlFull("num-input-hyps", numScoredHyps);
-                stepwiseStatisticsChannel_ << Core::XmlFull("num-extensions-after-pre-pruning", extensions_.size());
-            }
-        }
-
-        /*
-         * Prune set of possible extensions by max beam size and possibly also by score, then
-         * prepare the scoring contexts for the next scorer.
-         */
-        Core::StopWatch::Scope pruningTimer(intermediatePruningTimes_[scorerIdx]);
-        scorePruning(extensions_, scoreThresholds_[scorerIdx], isLastScorer ? extensions_.size() : maxBeamSizes_[scorerIdx]);
-        numHypsAfterIntermediatePruning_[scorerIdx] += extensions_.size();
-        if (stepwiseStatisticsChannel_.isOpen()) {
-            stepwiseStatisticsChannel_ << Core::XmlFull("num-hyps-after-intermediate-pruning", extensions_.size()) + Core::XmlAttribute("scorer", scorerIdx + 1);
-        }
-        if (extensions_.empty()) {
-            return false;
-        }
-
-        if (not isLastScorer) {
-            prepareNextScoringContexts(scorerIdx);
-        }
-    }
-
-    return not extensions_.empty();
-}
-
-void LexiconfreeTimesyncBeamSearch::buildNewBeamFromExtensions() {
-    newBeam_.clear();
-    for (auto const& extension : extensions_) {
-        auto const& baseHyp = beam_[extension.baseHypIndex];
-
-        std::vector<Nn::ScoringContextRef> newScoringContexts;
-        for (size_t scorerIdx = 0ul; scorerIdx < labelScorers_.size(); ++scorerIdx) {
-            if (labelScorers_[scorerIdx]->scoresTransition(extension.transitionType)) {
-                newScoringContexts.push_back(labelScorers_[scorerIdx]->extendedScoringContext(
-                        baseHyp.scoringContexts[scorerIdx],
-                        extension.nextToken,
-                        extension.transitionType));
-            }
-            else {
-                newScoringContexts.push_back(baseHyp.scoringContexts[scorerIdx]);
-            }
-        }
-
-        newBeam_.push_back({baseHyp, extension, newScoringContexts});
-    }
-}
-
-void LexiconfreeTimesyncBeamSearch::openStepStatistics() {
-    if (not stepwiseStatisticsChannel_.isOpen() or stepStatisticsOpen_) {
-        return;
-    }
-
-    stepwiseStatisticsChannel_ << Core::XmlOpen("search-step-stats") + Core::XmlAttribute("step", currentSearchStep_);
-    stepStatisticsOpen_ = true;
-}
-
-void LexiconfreeTimesyncBeamSearch::closeStepStatistics() {
-    if (not stepStatisticsOpen_) {
-        return;
-    }
-
-    stepwiseStatisticsChannel_ << Core::XmlClose("search-step-stats");
-    stepStatisticsOpen_ = false;
-}
-
-void LexiconfreeTimesyncBeamSearch::logStepStatistics() {
-    if (debugChannel_.isOpen()) {
-        std::stringstream ss;
-        for (size_t hypIdx = 0ul; hypIdx < beam_.size(); ++hypIdx) {
-            ss << "Hypothesis " << hypIdx + 1ul << ":  " << beam_[hypIdx].toString() << "\n";
-        }
-        ss << "\n";
-        debugChannel_ << ss.str();
-    }
-
-    if (stepwiseStatisticsChannel_.isOpen()) {
-        stepwiseStatisticsChannel_ << Core::XmlFull("active-hyps", beam_.size());
-        stepwiseStatisticsChannel_ << Core::XmlFull("best-hyp-score", getBestHypothesis().score);
-        stepwiseStatisticsChannel_ << Core::XmlFull("worst-hyp-score", getWorstHypothesis().score);
-    }
-
-    closeStepStatistics();
-}
-
 LexiconfreeTimesyncBeamSearch::LabelHypothesis const& LexiconfreeTimesyncBeamSearch::getBestHypothesis() const {
     verify(not beam_.empty());
 
@@ -752,6 +506,14 @@ LexiconfreeTimesyncBeamSearch::LabelHypothesis const& LexiconfreeTimesyncBeamSea
     verify(not beam_.empty());
 
     return *std::max_element(beam_.begin(), beam_.end());
+}
+
+void LexiconfreeTimesyncBeamSearch::logStatistics() const {
+    logOwnStatistics();
+
+    for (auto const& labelScorer : labelScorers_) {
+        labelScorer->logStatistics();
+    }
 }
 
 void LexiconfreeTimesyncBeamSearch::logOwnStatistics() const {
@@ -788,14 +550,6 @@ void LexiconfreeTimesyncBeamSearch::logOwnStatistics() const {
     numHypsAfterPruning_.write(statisticsChannel_);
     numActiveHyps_.write(statisticsChannel_);
     statisticsChannel_ << Core::XmlClose("search-statistics");
-}
-
-void LexiconfreeTimesyncBeamSearch::logStatistics() const {
-    logOwnStatistics();
-
-    for (auto const& labelScorer : labelScorers_) {
-        labelScorer->logStatistics();
-    }
 }
 
 Nn::TransitionType LexiconfreeTimesyncBeamSearch::inferTransitionType(Nn::LabelIndex prevLabel, Nn::LabelIndex nextLabel) const {
@@ -919,9 +673,6 @@ void LexiconfreeTimesyncBeamSearch::scorePruning(std::vector<Element>& hypothese
             hypotheses.end());
 }
 
-template void LexiconfreeTimesyncBeamSearch::scorePruning<LexiconfreeTimesyncBeamSearch::ExtensionCandidate>(std::vector<LexiconfreeTimesyncBeamSearch::ExtensionCandidate>&, Score, size_t);
-template void LexiconfreeTimesyncBeamSearch::scorePruning<LexiconfreeTimesyncBeamSearch::LabelHypothesis>(std::vector<LexiconfreeTimesyncBeamSearch::LabelHypothesis>&, Score, size_t);
-
 void LexiconfreeTimesyncBeamSearch::recombination(std::vector<LexiconfreeTimesyncBeamSearch::LabelHypothesis>& hypotheses) {
     if (not recombinationEnabled_) {
         return;
@@ -992,6 +743,255 @@ void LexiconfreeTimesyncBeamSearch::recombination(std::vector<LexiconfreeTimesyn
     }
 
     hypotheses.swap(tempHypotheses_);
+}
+
+bool LexiconfreeTimesyncBeamSearch::scoreAndPruneExtensions() {
+    /*
+     * We collect the scoring contexts that need to be passed to the LabelScorer into `scoringContexts_`.
+     * `hypIndexToContextIndexMap_` maps a beam index to the position of its context in `scoringContexts_`,
+     * i.e. beam_[i].scoringContexts.front() == scoringContexts_[hypIndexToContextIndexMap_[i]].
+     * For the first label scorer this is just the identity mapping (hypIndexToContextIndexMap_[i] == i). For each
+     * subsequent scorer the list is rebuilt by `prepareNextScoringContexts`.
+     */
+    extensions_.clear();
+    scoringContexts_.clear();
+    scoringContexts_.reserve(beam_.size());
+    hypIndexToContextIndexMap_.resize(beam_.size());
+    std::iota(hypIndexToContextIndexMap_.begin(), hypIndexToContextIndexMap_.end(), 0ul);
+
+    for (auto const& hyp : beam_) {
+        scoringContexts_.push_back(hyp.scoringContexts.front());
+    }
+
+    // The number of hypotheses handed to the first label scorer
+    size_t const numScoredHyps = scoringContexts_.size();
+
+    for (size_t scorerIdx = 0ul; scorerIdx < labelScorers_.size(); ++scorerIdx) {
+        Core::StopWatch::Scope scoreAndPruneTimer(scoreAndPruneExtensionsTimes_[scorerIdx]);
+        bool                   isLastScorer = scorerIdx + 1ul == labelScorers_.size();
+
+        std::vector<std::optional<Nn::ScoreAccessorRef>> scoreAccessors;
+        {
+            Core::StopWatch::Scope scoringTimer(scoringTimes_[scorerIdx]);
+            scoreAccessors = labelScorers_[scorerIdx]->getScoreAccessors(scoringContexts_);
+        }
+
+        // Scores and timeframes of this label scorer, indexed like `scoringContexts_`. The spans
+        // view into memory owned by `scoreAccessors`, so they share its scope.
+        std::vector<std::optional<Nn::DenseScoreSpan>> denseScoreSpans;
+        std::vector<Nn::TimeframeIndex>                scoreTimes;
+
+        // Read the scores out of the accessors and apply them to the extension candidates; for
+        // the first scorer this also creates them. Lazily computing scorers do their work here.
+        {
+            Core::StopWatch::Scope readoutTimer(scoreReadoutTimes_[scorerIdx]);
+            readOutScoreAccessors(scoreAccessors, denseScoreSpans, scoreTimes);
+            if (scorerIdx == 0ul) {
+                createExtensions(scoreAccessors, denseScoreSpans, scoreTimes);
+            }
+            else {
+                updateExtensionScores(scorerIdx, scoreAccessors, denseScoreSpans, scoreTimes);
+            }
+        }
+
+        if (extensions_.empty()) {
+            return false;
+        }
+
+        if (scorerIdx == 0ul) {
+            // Counted only now, so that a step which can't be scored yet leaves no trace in the
+            // statistics and doesn't claim a step number
+            openStepStatistics();
+            numInputHyps_ += numScoredHyps;
+            numExtensionsAfterPrePruning_ += extensions_.size();
+            if (stepwiseStatisticsChannel_.isOpen()) {
+                stepwiseStatisticsChannel_ << Core::XmlFull("num-input-hyps", numScoredHyps);
+                stepwiseStatisticsChannel_ << Core::XmlFull("num-extensions-after-pre-pruning", extensions_.size());
+            }
+        }
+
+        /*
+         * Prune set of possible extensions by max beam size and possibly also by score, then
+         * prepare the scoring contexts for the next scorer.
+         */
+        Core::StopWatch::Scope pruningTimer(intermediatePruningTimes_[scorerIdx]);
+        scorePruning(extensions_, scoreThresholds_[scorerIdx], isLastScorer ? extensions_.size() : maxBeamSizes_[scorerIdx]);
+        numHypsAfterIntermediatePruning_[scorerIdx] += extensions_.size();
+        if (stepwiseStatisticsChannel_.isOpen()) {
+            stepwiseStatisticsChannel_ << Core::XmlFull("num-hyps-after-intermediate-pruning", extensions_.size()) + Core::XmlAttribute("scorer", scorerIdx + 1);
+        }
+        if (extensions_.empty()) {
+            return false;
+        }
+
+        if (not isLastScorer) {
+            prepareNextScoringContexts(scorerIdx);
+        }
+    }
+
+    return not extensions_.empty();
+}
+
+void LexiconfreeTimesyncBeamSearch::readOutScoreAccessors(std::vector<std::optional<Nn::ScoreAccessorRef>> const& scoreAccessors, std::vector<std::optional<Nn::DenseScoreSpan>>& denseScoreSpans, std::vector<Nn::TimeframeIndex>& scoreTimes) const {
+    denseScoreSpans.assign(scoreAccessors.size(), std::nullopt);
+    scoreTimes.assign(scoreAccessors.size(), 0);
+
+    for (size_t accessorIdx = 0ul; accessorIdx < scoreAccessors.size(); ++accessorIdx) {
+        if (scoreAccessors[accessorIdx]) {
+            denseScoreSpans[accessorIdx] = (*scoreAccessors[accessorIdx])->getDenseScores();
+            scoreTimes[accessorIdx]      = (*scoreAccessors[accessorIdx])->getTime();
+        }
+    }
+}
+
+void LexiconfreeTimesyncBeamSearch::createExtensions(std::vector<std::optional<Nn::ScoreAccessorRef>> const& scoreAccessors, std::vector<std::optional<Nn::DenseScoreSpan>> const& denseScoreSpans, std::vector<Nn::TimeframeIndex> const& scoreTimes) {
+    // Assume the output labels are stored as lexicon lemma orth and ordered consistently with NN output index
+    auto        lemmas           = lexicon_->lemmas();
+    auto const& labelScorer      = labelScorers_.front();
+    Score       currentBestScore = Core::Type<Score>::max;
+
+    for (size_t hypIndex = 0ul; hypIndex < beam_.size(); ++hypIndex) {
+        auto const& hyp           = beam_[hypIndex];
+        auto        contextIndex  = hypIndexToContextIndexMap_[hypIndex];
+        auto const& scoreAccessor = scoreAccessors[contextIndex];
+        if (not scoreAccessor) {
+            // No extensions for hyps that couldn't be scored
+            continue;
+        }
+        auto const& denseScores = denseScoreSpans[contextIndex];
+        auto        scoreTime   = scoreTimes[contextIndex];
+
+        // Iterate over possible successors (all lemmas)
+        for (auto lemmaIt = lemmas.first; lemmaIt != lemmas.second; ++lemmaIt) {
+            Bliss::Lemma const* lemma(*lemmaIt);
+            Nn::LabelIndex      tokenIdx = lemma->id();
+            // Don't score the sentence-end token
+            if (tokenIdx == sentenceEndLabelIndex_) {
+                continue;
+            }
+            auto transitionType = inferTransitionType(hyp.currentToken, tokenIdx);
+            auto extScore       = hyp.score;
+            auto extTime        = hyp.trace->time;
+            if (labelScorer->scoresTransition(transitionType)) {
+                extScore += (denseScores and tokenIdx < denseScores->size())
+                                    ? (*denseScores)[tokenIdx]
+                                    : (*scoreAccessor)->getScore(transitionType, tokenIdx);
+                extTime = std::max(extTime, scoreTime);
+            }
+
+            // Pre-prune based on score before creating extension instance and appending to list
+            if (useScorePruning_.front() and extScore > currentBestScore + scoreThresholds_.front()) {
+                continue;
+            }
+            currentBestScore = std::min(currentBestScore, extScore);
+
+            extensions_.push_back(
+                    {.nextToken      = tokenIdx,
+                     .pron           = lemma->pronunciations().first,
+                     .score          = extScore,
+                     .timeframe      = extTime,
+                     .transitionType = transitionType,
+                     .baseHypIndex   = hypIndex});
+        }
+    }
+}
+
+void LexiconfreeTimesyncBeamSearch::updateExtensionScores(size_t scorerIdx, std::vector<std::optional<Nn::ScoreAccessorRef>> const& scoreAccessors, std::vector<std::optional<Nn::DenseScoreSpan>> const& denseScoreSpans, std::vector<Nn::TimeframeIndex> const& scoreTimes) {
+    auto const& labelScorer = labelScorers_[scorerIdx];
+
+    for (auto& ext : extensions_) {
+        if (not labelScorer->scoresTransition(ext.transitionType)) {
+            continue;
+        }
+        auto        contextIndex  = hypIndexToContextIndexMap_[ext.baseHypIndex];
+        auto const& scoreAccessor = scoreAccessors[contextIndex];
+        if (not scoreAccessor) {
+            // Extension is not scorable so set the score to max in order to prune it later
+            ext.score = Core::Type<Score>::max;
+            continue;
+        }
+
+        auto const& denseScores = denseScoreSpans[contextIndex];
+        ext.score += (denseScores and ext.nextToken < denseScores->size())
+                             ? (*denseScores)[ext.nextToken]
+                             : (*scoreAccessor)->getScore(ext.transitionType, ext.nextToken);
+        ext.timeframe = std::max(ext.timeframe, scoreTimes[contextIndex]);
+    }
+}
+
+void LexiconfreeTimesyncBeamSearch::prepareNextScoringContexts(size_t scorerIdx) {
+    // Some scoring contexts from the current scorer may not have survived pruning, so the list is
+    // rebuilt. Use -1 as placeholder to signify that this hyp was not visited yet.
+    scoringContexts_.clear();
+    hypIndexToContextIndexMap_.assign(beam_.size(), -1);
+    for (auto const& ext : extensions_) {
+        if (hypIndexToContextIndexMap_[ext.baseHypIndex] == -1) {
+            hypIndexToContextIndexMap_[ext.baseHypIndex] = scoringContexts_.size();
+            scoringContexts_.push_back(beam_[ext.baseHypIndex].scoringContexts[scorerIdx + 1]);
+        }
+    }
+}
+
+void LexiconfreeTimesyncBeamSearch::buildNewBeamFromExtensions() {
+    newBeam_.clear();
+    for (auto const& extension : extensions_) {
+        auto const& baseHyp = beam_[extension.baseHypIndex];
+
+        std::vector<Nn::ScoringContextRef> newScoringContexts;
+        for (size_t scorerIdx = 0ul; scorerIdx < labelScorers_.size(); ++scorerIdx) {
+            if (labelScorers_[scorerIdx]->scoresTransition(extension.transitionType)) {
+                newScoringContexts.push_back(labelScorers_[scorerIdx]->extendedScoringContext(
+                        baseHyp.scoringContexts[scorerIdx],
+                        extension.nextToken,
+                        extension.transitionType));
+            }
+            else {
+                newScoringContexts.push_back(baseHyp.scoringContexts[scorerIdx]);
+            }
+        }
+
+        newBeam_.push_back({baseHyp, extension, newScoringContexts});
+    }
+}
+
+void LexiconfreeTimesyncBeamSearch::openStepStatistics() {
+    if (not stepwiseStatisticsChannel_.isOpen() or stepStatisticsOpen_) {
+        return;
+    }
+
+    stepwiseStatisticsChannel_ << Core::XmlOpen("search-step-stats") + Core::XmlAttribute("step", currentSearchStep_);
+    stepStatisticsOpen_ = true;
+}
+
+void LexiconfreeTimesyncBeamSearch::closeStepStatistics() {
+    if (not stepStatisticsOpen_) {
+        return;
+    }
+
+    stepwiseStatisticsChannel_ << Core::XmlClose("search-step-stats");
+    stepStatisticsOpen_ = false;
+}
+
+template void LexiconfreeTimesyncBeamSearch::scorePruning<LexiconfreeTimesyncBeamSearch::ExtensionCandidate>(std::vector<LexiconfreeTimesyncBeamSearch::ExtensionCandidate>&, Score, size_t);
+template void LexiconfreeTimesyncBeamSearch::scorePruning<LexiconfreeTimesyncBeamSearch::LabelHypothesis>(std::vector<LexiconfreeTimesyncBeamSearch::LabelHypothesis>&, Score, size_t);
+
+void LexiconfreeTimesyncBeamSearch::logStepStatistics() {
+    if (debugChannel_.isOpen()) {
+        std::stringstream ss;
+        for (size_t hypIdx = 0ul; hypIdx < beam_.size(); ++hypIdx) {
+            ss << "Hypothesis " << hypIdx + 1ul << ":  " << beam_[hypIdx].toString() << "\n";
+        }
+        ss << "\n";
+        debugChannel_ << ss.str();
+    }
+
+    if (stepwiseStatisticsChannel_.isOpen()) {
+        stepwiseStatisticsChannel_ << Core::XmlFull("active-hyps", beam_.size());
+        stepwiseStatisticsChannel_ << Core::XmlFull("best-hyp-score", getBestHypothesis().score);
+        stepwiseStatisticsChannel_ << Core::XmlFull("worst-hyp-score", getWorstHypothesis().score);
+    }
+
+    closeStepStatistics();
 }
 
 void LexiconfreeTimesyncBeamSearch::finalizeHypotheses() {

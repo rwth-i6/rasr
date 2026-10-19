@@ -996,6 +996,38 @@ void LexiconfreeRNNTTimesyncBeamSearch::recombination(std::vector<LexiconfreeRNN
     hypotheses.swap(tempHypotheses_);
 }
 
+void LexiconfreeRNNTTimesyncBeamSearch::finalizeHypotheses() {
+    if (not useSentenceEnd_) {
+        return;
+    }
+
+    newBeam_.clear();
+    for (auto const& hyp : beam_) {
+        if (hyp.reachedSentenceEnd) {
+            newBeam_.push_back(hyp);
+        }
+    }
+
+    if (newBeam_.empty()) {  // There was no valid final hypothesis in the beam
+        warning("No hypothesis has produced sentence-end by the end of the segment.");
+        if (sentenceEndFallback_) {
+            log() << "Use sentence-end fallback";
+            // Keep `beam_` as it is
+        }
+        else {
+            newBeam_.push_back(LabelHypothesis());
+            newBeam_.front().trace->time          = beam_.front().trace->time;  // Retrieve the timeframe from any hyp in the old beam
+            newBeam_.front().trace->pronunciation = nullptr;
+            newBeam_.front().trace->predecessor   = Core::ref(new LatticeTrace(0, {0, 0}, {}));
+            newBeam_.front().reachedSentenceEnd   = true;
+            beam_.swap(newBeam_);
+        }
+    }
+    else {
+        newBeam_.swap(beam_);
+    }
+}
+
 void LexiconfreeRNNTTimesyncBeamSearch::maximumStableDelayPruning() {
     if (currentSearchStep_ + 1 <= maximumStableDelay_) {
         return;
@@ -1040,38 +1072,6 @@ void LexiconfreeRNNTTimesyncBeamSearch::maximumStableDelayPruning() {
         }
     }
     beam_.swap(tempHypotheses_);
-}
-
-void LexiconfreeRNNTTimesyncBeamSearch::finalizeHypotheses() {
-    if (not useSentenceEnd_) {
-        return;
-    }
-
-    newBeam_.clear();
-    for (auto const& hyp : beam_) {
-        if (hyp.reachedSentenceEnd) {
-            newBeam_.push_back(hyp);
-        }
-    }
-
-    if (newBeam_.empty()) {  // There was no valid final hypothesis in the beam
-        warning("No hypothesis has produced sentence-end by the end of the segment.");
-        if (sentenceEndFallback_) {
-            log() << "Use sentence-end fallback";
-            // Keep `beam_` as it is
-        }
-        else {
-            newBeam_.push_back(LabelHypothesis());
-            newBeam_.front().trace->time          = beam_.front().trace->time;  // Retrieve the timeframe from any hyp in the old beam
-            newBeam_.front().trace->pronunciation = nullptr;
-            newBeam_.front().trace->predecessor   = Core::ref(new LatticeTrace(0, {0, 0}, {}));
-            newBeam_.front().reachedSentenceEnd   = true;
-            beam_.swap(newBeam_);
-        }
-    }
-    else {
-        newBeam_.swap(beam_);
-    }
 }
 
 }  // namespace Search

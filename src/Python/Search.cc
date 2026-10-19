@@ -78,15 +78,6 @@ void SearchAlgorithm::finishSegment() {
     closeSegmentLog();
 }
 
-void SearchAlgorithm::closeSegmentLog() {
-    if (not segmentOpen_) {
-        return;
-    }
-    clog() << Core::XmlClose("segment");
-    segmentOpen_ = false;
-    ++segmentIndex_;
-}
-
 void SearchAlgorithm::putFeature(py::array_t<f32> const& feature) {
     size_t F = 0ul;
     if (feature.ndim() == 2) {
@@ -126,100 +117,15 @@ void SearchAlgorithm::putFeatures(py::array_t<f32> const& features) {
     searchAlgorithm_->putFeatures({features, T * F}, T);
 }
 
-Traceback SearchAlgorithm::searchTracebackToPythonTraceback(Core::Ref<Search::Traceback const> traceback) {
-    std::vector<TracebackItem> result;
-    result.reserve(traceback->size());
+Traceback SearchAlgorithm::getCurrentBestTraceback() {
+    searchAlgorithm_->decodeManySteps();
 
-    u32 prevTime = 0;
-
-    for (auto it = traceback->begin(); it != traceback->end(); ++it) {
-        if (not it->pronunciation or not it->pronunciation->lemma()) {
-            continue;
-        }
-        result.push_back({
-                .lemma           = it->pronunciation->lemma()->symbol(),
-                .amScore         = it->score.acoustic,
-                .lmScore         = it->score.lm,
-                .confidenceScore = std::nullopt,
-                .startTime       = prevTime,
-                .endTime         = it->time,
-        });
-        prevTime = it->time;
+    if (addConfidenceScores_) {
+        return getTracebackWithConfidence();
     }
-    return result;
-}
-
-Traceback SearchAlgorithm::getTracebackWithConfidence() const {
-    auto lattice = searchAlgorithm_->getCurrentBestWordLattice();
-
-    auto flfLattice = convertSearchLatticeToFlf(lexicon_, lattice, latticeHandler_.get(), "", modelCombination_.languageModel()->scale());
-
-    auto semiring         = flfLattice->semiring();
-    auto confidenceId     = semiring->size();
-    auto extendedSemiring = Flf::appendSemiring(semiring, 0.0, "confidence");
-    flfLattice            = Flf::offsetSemiring(flfLattice, extendedSemiring, 0);
-
-    auto                fwdBwdBuilder = Flf::FwdBwdBuilder::create(select("fb"));
-    Flf::ConstFwdBwdRef fwdBwd;
-    std::tie(flfLattice, fwdBwd) = fwdBwdBuilder->build(flfLattice);
-    auto cn                      = Flf::buildFramePosteriorCn(flfLattice, fwdBwd);
-    auto confidenceLattice       = Flf::extendByFCnConfidence(flfLattice, cn, confidenceId, Flf::RescoreModeInPlaceCache);
-
-    auto mapLattice        = Flf::mapInput(confidenceLattice, Flf::MapToLemma);
-    auto singleBestLattice = Flf::nbest(mapLattice, 1, true);
-    // TODO: Investigate why `Flf::best` doesn't work here
-    // Flf::drawDot(singleBestLattice, "nBestLattice.dot");
-    // singleBestLattice = Flf::best(mapLattice, Flf::BellmanFord);
-    // Flf::drawDot(singleBestLattice, "singleLattice.dot");
-
-    Fsa::ConstAlphabetRef alphabet   = singleBestLattice->getInputAlphabet();
-    auto                  boundaries = singleBestLattice->getBoundaries();
-
-    auto amId = extendedSemiring->id("am");
-    auto lmId = extendedSemiring->id("lm");
-
-    Traceback result;
-
-    auto initialState = singleBestLattice->getState(singleBestLattice->initialStateId());
-
-    auto        nextState       = initialState;
-    auto const* arc             = initialState->getArc(0);
-    u32         prevTime        = 0;
-    Flf::Score  amScore         = 0;
-    Flf::Score  lmScore         = 0;
-    Flf::Score  confidenceScore = 0;
-
-    while (true) {
-        nextState    = singleBestLattice->getState(arc->target());
-        auto endTime = boundaries->time(nextState->id());
-
-        if (arc->input() != Fsa::Epsilon) {
-            auto label = alphabet->symbol(arc->input());
-
-            amScore += arc->score(amId);
-            lmScore += arc->score(lmId);
-            confidenceScore = arc->score(confidenceId);
-
-            result.push_back({.lemma           = label,
-                              .amScore         = amScore,
-                              .lmScore         = lmScore,
-                              .confidenceScore = confidenceScore,
-                              .startTime       = prevTime,
-                              .endTime         = endTime});
-        }
-
-        prevTime = endTime;
-        if (nextState->hasArcs()) {
-            std::cout << "Get next arc" << std::endl;
-            arc = nextState->getArc(0);
-            std::cout << "Next arc target: " << arc->target() << std::endl;
-        }
-        else {
-            break;
-        }
+    else {
+        return searchTracebackToPythonTraceback(searchAlgorithm_->getCurrentBestTraceback());
     }
-
-    return result;
 }
 
 Traceback SearchAlgorithm::getCommonPrefix() {
@@ -301,17 +207,6 @@ std::vector<Traceback> SearchAlgorithm::getCurrentNBestList(size_t nBestSize) {
     return result;
 }
 
-Traceback SearchAlgorithm::getCurrentBestTraceback() {
-    searchAlgorithm_->decodeManySteps();
-
-    if (addConfidenceScores_) {
-        return getTracebackWithConfidence();
-    }
-    else {
-        return searchTracebackToPythonTraceback(searchAlgorithm_->getCurrentBestTraceback());
-    }
-}
-
 Traceback SearchAlgorithm::recognizeSegment(py::array_t<f32> const& features, std::string const& name) {
     enterSegment(name);
     putFeatures(features);
@@ -324,4 +219,109 @@ std::vector<Traceback> SearchAlgorithm::recognizeSegmentNBest(py::array_t<f32> c
     putFeatures(features);
     finishSegment();
     return getCurrentNBestList(nBestSize);
+}
+
+Traceback SearchAlgorithm::getTracebackWithConfidence() const {
+    auto lattice = searchAlgorithm_->getCurrentBestWordLattice();
+
+    auto flfLattice = convertSearchLatticeToFlf(lexicon_, lattice, latticeHandler_.get(), "", modelCombination_.languageModel()->scale());
+
+    auto semiring         = flfLattice->semiring();
+    auto confidenceId     = semiring->size();
+    auto extendedSemiring = Flf::appendSemiring(semiring, 0.0, "confidence");
+    flfLattice            = Flf::offsetSemiring(flfLattice, extendedSemiring, 0);
+
+    auto                fwdBwdBuilder = Flf::FwdBwdBuilder::create(select("fb"));
+    Flf::ConstFwdBwdRef fwdBwd;
+    std::tie(flfLattice, fwdBwd) = fwdBwdBuilder->build(flfLattice);
+    auto cn                      = Flf::buildFramePosteriorCn(flfLattice, fwdBwd);
+    auto confidenceLattice       = Flf::extendByFCnConfidence(flfLattice, cn, confidenceId, Flf::RescoreModeInPlaceCache);
+
+    auto mapLattice        = Flf::mapInput(confidenceLattice, Flf::MapToLemma);
+    auto singleBestLattice = Flf::nbest(mapLattice, 1, true);
+    // TODO: Investigate why `Flf::best` doesn't work here
+    // Flf::drawDot(singleBestLattice, "nBestLattice.dot");
+    // singleBestLattice = Flf::best(mapLattice, Flf::BellmanFord);
+    // Flf::drawDot(singleBestLattice, "singleLattice.dot");
+
+    Fsa::ConstAlphabetRef alphabet   = singleBestLattice->getInputAlphabet();
+    auto                  boundaries = singleBestLattice->getBoundaries();
+
+    auto amId = extendedSemiring->id("am");
+    auto lmId = extendedSemiring->id("lm");
+
+    Traceback result;
+
+    auto initialState = singleBestLattice->getState(singleBestLattice->initialStateId());
+
+    auto        nextState       = initialState;
+    auto const* arc             = initialState->getArc(0);
+    u32         prevTime        = 0;
+    Flf::Score  amScore         = 0;
+    Flf::Score  lmScore         = 0;
+    Flf::Score  confidenceScore = 0;
+
+    while (true) {
+        nextState    = singleBestLattice->getState(arc->target());
+        auto endTime = boundaries->time(nextState->id());
+
+        if (arc->input() != Fsa::Epsilon) {
+            auto label = alphabet->symbol(arc->input());
+
+            amScore += arc->score(amId);
+            lmScore += arc->score(lmId);
+            confidenceScore = arc->score(confidenceId);
+
+            result.push_back({.lemma           = label,
+                              .amScore         = amScore,
+                              .lmScore         = lmScore,
+                              .confidenceScore = confidenceScore,
+                              .startTime       = prevTime,
+                              .endTime         = endTime});
+        }
+
+        prevTime = endTime;
+        if (nextState->hasArcs()) {
+            std::cout << "Get next arc" << std::endl;
+            arc = nextState->getArc(0);
+            std::cout << "Next arc target: " << arc->target() << std::endl;
+        }
+        else {
+            break;
+        }
+    }
+
+    return result;
+}
+
+Traceback SearchAlgorithm::searchTracebackToPythonTraceback(Core::Ref<Search::Traceback const> traceback) {
+    std::vector<TracebackItem> result;
+    result.reserve(traceback->size());
+
+    u32 prevTime = 0;
+
+    for (auto it = traceback->begin(); it != traceback->end(); ++it) {
+        if (not it->pronunciation or not it->pronunciation->lemma()) {
+            continue;
+        }
+        result.push_back({
+                .lemma           = it->pronunciation->lemma()->symbol(),
+                .amScore         = it->score.acoustic,
+                .lmScore         = it->score.lm,
+                .confidenceScore = std::nullopt,
+                .startTime       = prevTime,
+                .endTime         = it->time,
+        });
+        prevTime = it->time;
+    }
+    return result;
+}
+
+void SearchAlgorithm::closeSegmentLog() {
+    if (not segmentOpen_) {
+        return;
+    }
+    clog() << Core::XmlClose("segment");
+    segmentOpen_ = false;
+    ++segmentIndex_;
 }

@@ -172,10 +172,6 @@ protected:
     // needed none, because they were served from a cache or could not be scored.
     void countUncomputedAccessors(size_t num = 1ul) const;
 
-    // Subclasses report computations that no request accounted for, e.g. the ancestors that
-    // finalizing a requested context pulls in.
-    void countUnrequestedComputations(size_t num = 1ul) const;
-
     // Time spent in `computeScoreAccessor(s)`. Scorers that compute scores lazily add those
     // intervals as well.
     Core::StopWatch scoringTime_;

@@ -165,14 +165,15 @@ protected:
     // timers whose intervals are contained in it belong here.
     virtual void logScoringBreakdown() const {}
 
-    // Hook for subclasses to add timers that are not contained in `scoring-time`.
+    // Hook for subclasses to add statistics that are not part of `scoring-time`.
     virtual void logAdditionalStatistics() const {}
 
     // `getScoreAccessor(s)` counts one computation per request. Subclasses report requests that
     // needed none, because they were served from a cache or could not be scored.
     void countUncomputedAccessors(size_t num = 1ul) const;
 
-    // ... and computations that no request accounted for, e.g. ancestors of a requested context.
+    // Subclasses report computations that no request accounted for, e.g. the ancestors that
+    // finalizing a requested context pulls in.
     void countUnrequestedComputations(size_t num = 1ul) const;
 
     // Time spent in `computeScoreAccessor(s)`. Scorers that compute scores lazily add those

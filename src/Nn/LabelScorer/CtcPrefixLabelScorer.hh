@@ -54,7 +54,9 @@ typedef Core::Ref<const CtcPrefixScoringContext> CtcPrefixScoringContextRef;
 
 class CtcPrefixScoreAccessor : public ScoreAccessor {
 public:
-    CtcPrefixScoreAccessor(CtcPrefixScoringContextRef const& scoringContext, std::shared_ptr<Math::FastMatrix<Score>> const& ctcScores);
+    // Extended-prefix scores are computed on access, so that time is charged to `scoringTime`,
+    // the owning scorer's timer. The accessor never outlives the scorer.
+    CtcPrefixScoreAccessor(CtcPrefixScoringContextRef const& scoringContext, std::shared_ptr<Math::FastMatrix<Score>> const& ctcScores, Core::StopWatch& scoringTime, Core::StopWatch& prefixExtensionTime);
 
     // Compute score of extended prefix with labelIndex on-demand
     Score getScore(TransitionType transitionType, LabelIndex labelIndex = invalidLabelIndex) const override;
@@ -65,6 +67,8 @@ public:
 private:
     CtcPrefixScoringContextRef               scoringContext_;
     std::shared_ptr<Math::FastMatrix<Score>> ctcScores_;
+    Core::StopWatch&                         scoringTime_;
+    Core::StopWatch&                         prefixExtensionTime_;
 };
 
 /*
@@ -75,12 +79,7 @@ private:
  * A time-synchronous CTC scorer has to be configured via `ctc-scorer` sub-config
  * in order to fetch a matrix of CTC scores for each label at each timestep.
  */
-class CtcPrefixLabelScorer : public LabelScorer {
-    using Precursor = LabelScorer;
-
-    static const Core::ParameterInt paramBlankIndex;
-    static const Core::ParameterInt paramVocabSize;
-
+class CtcPrefixLabelScorer : public StatTrackingLabelScorer {
 public:
     CtcPrefixLabelScorer(Core::Configuration const& config, ModelCache& modelCache);
     virtual ~CtcPrefixLabelScorer() = default;
@@ -88,22 +87,45 @@ public:
     // Return the CTC label scorer
     Core::Ref<ScaledLabelScorer> getCtcLabelScorer() const;
 
-    void reset() override;
+    // Logs the prefix-scoring statistics of this scorer and forwards to the wrapped CTC scorer
+    void logStatistics() const override;
     void signalNoMoreFeatures() override;
     void addInput(DataView const& input) override;
     void addInputs(DataView const& inputs, size_t nTimesteps) override;
 
-    ScoringContextRef               getInitialScoringContext() override;
-    ScoringContextRef               extendedScoringContext(ScoringContextRef scoringContext, LabelIndex nextToken, TransitionType transitionType) override;
-    std::optional<ScoreAccessorRef> getScoreAccessor(ScoringContextRef scoringContext) override;
+    ScoringContextRef getInitialScoringContext() override;
+    ScoringContextRef extendedScoringContext(ScoringContextRef scoringContext, LabelIndex nextToken, TransitionType transitionType) override;
+
+protected:
+    void resetInternal() override;
+
+    std::optional<ScoreAccessorRef> computeScoreAccessor(ScoringContextRef scoringContext) override;
 
 private:
+    using Precursor = StatTrackingLabelScorer;
+
+    static const Core::ParameterInt paramBlankIndex;
+    static const Core::ParameterInt paramVocabSize;
+
     LabelIndex                   blankIndex_;
     size_t                       vocabSize_;
     Core::Ref<ScaledLabelScorer> ctcScorer_;
     bool                         expectMoreFeatures_;
 
     std::shared_ptr<Math::FastMatrix<Score>> ctcScores_;  // Cached T x V matrix of scores
+
+    // Time spent building `ctcScores_`, including the sub-scorer time that the matrix is pulled from
+    Core::StopWatch ctcScoreCollectionTime_;
+
+    // Computing the time-wise prefix scores of a scoring context, and computing the score of a
+    // prefix extended by one label. The latter is also reached from the former, in which case it
+    // is counted as finalization.
+    // Finalization happens on a const path, hence mutable.
+    mutable Core::StopWatch prefixFinalizationTime_;
+    Core::StopWatch         prefixExtensionTime_;
+
+    void logScoringBreakdown() const override;
+    void logAdditionalStatistics() const override;
 
     // Retrieve matrix of CTC scores from sub-scorer. Assumes that these scores only depend on timestep and label index, not history or transition type.
     void setupCTCScores();

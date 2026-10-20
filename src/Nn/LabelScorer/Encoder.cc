@@ -15,19 +15,35 @@
 
 #include "Encoder.hh"
 
+#include <Core/XmlStream.hh>
+
 namespace Nn {
 
 Encoder::Encoder(Core::Configuration const& config)
         : Core::Component(config),
           inputBuffer_(),
           outputBuffer_(),
-          expectMoreFeatures_(true) {}
+          expectMoreFeatures_(true),
+          statisticsChannel_(config, "statistics") {}
 
 void Encoder::reset() {
-    expectMoreFeatures_ = true;
-    inputBuffer_.clear();
+    encodeTime_.reset();
+    numInputFeatures_ = 0ul;
+    resetInternal();
+}
 
-    outputBuffer_.clear();
+void Encoder::logStatistics() const {
+    if (not statisticsChannel_.isOpen()) {
+        return;
+    }
+
+    statisticsChannel_ << Core::XmlOpen("encoder-statistics") + Core::XmlAttribute("component", fullName());
+    statisticsChannel_ << Core::XmlOpen("encode-time") + Core::XmlAttribute("unit", "milliseconds") + Core::XmlAttribute("total", encodeTime_.elapsedMilliseconds());
+    logEncodeBreakdown();
+    statisticsChannel_ << Core::XmlClose("encode-time");
+    logAdditionalStatistics();
+    statisticsChannel_ << Core::XmlFull("num-input-features", numInputFeatures_);
+    statisticsChannel_ << Core::XmlClose("encoder-statistics");
 }
 
 void Encoder::signalNoMoreFeatures() {
@@ -36,6 +52,7 @@ void Encoder::signalNoMoreFeatures() {
 
 void Encoder::addInput(DataView const& input) {
     inputBuffer_.push_back(input);
+    ++numInputFeatures_;
 }
 
 void Encoder::addInputs(DataView const& input, size_t nTimesteps) {
@@ -43,10 +60,6 @@ void Encoder::addInputs(DataView const& input, size_t nTimesteps) {
     for (size_t t = 0ul; t < nTimesteps; ++t) {
         addInput({input, featureSize, t * featureSize});
     }
-}
-
-bool Encoder::canEncode() const {
-    return not inputBuffer_.empty() and not expectMoreFeatures_;
 }
 
 std::optional<EncodedSpan> Encoder::getNextOutput() {
@@ -63,7 +76,9 @@ std::optional<EncodedSpan> Encoder::getNextOutput() {
     }
 
     // Encoder is ready to run, so run it and try fetching an output again.
+    encodeTime_.start();
     encode();
+    encodeTime_.stop();
     postEncodeCleanup();
 
     // If there are still no outputs after encoding, return None to avoid recursive call
@@ -75,8 +90,19 @@ std::optional<EncodedSpan> Encoder::getNextOutput() {
     return getNextOutput();
 }
 
+void Encoder::resetInternal() {
+    expectMoreFeatures_ = true;
+    inputBuffer_.clear();
+
+    outputBuffer_.clear();
+}
+
 void Encoder::postEncodeCleanup() {
     inputBuffer_.clear();
+}
+
+bool Encoder::canEncode() const {
+    return not inputBuffer_.empty() and not expectMoreFeatures_;
 }
 
 }  // namespace Nn

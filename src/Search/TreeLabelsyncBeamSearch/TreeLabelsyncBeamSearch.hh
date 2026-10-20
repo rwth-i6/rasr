@@ -190,6 +190,8 @@ private:
     Histogram           terminatedScoreHistogram_;
     float               lengthNormScale_;
     float               maxLabelsPerTimestep_;
+    Bliss::Lemma const* blankLemma_;
+    Bliss::Lemma const* silenceLemma_;
     Bliss::Lemma const* sentenceEndLemma_;
     Nn::LabelIndex      sentenceEndLabelIndex_;
     size_t              cacheCleanupInterval_;

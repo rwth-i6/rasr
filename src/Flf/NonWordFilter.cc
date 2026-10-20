@@ -547,9 +547,8 @@ StaticLatticeRef uniqueSentenceAlignmentFilter(ConstLatticeRef l, u32 maxWidth, 
                 Speech::TimeframeIndex startTime = l->boundary(initialStateId).time();
 
                 for (SequenceHypotheses::iterator wordSequenceIt = sequenceHypotheses.begin(); wordSequenceIt != sequenceHypotheses.end(); ++wordSequenceIt) {
-                    WordTraceback::Index wordSequence = wordSequenceIt->first.first;
-                    Hypotheses::iterator hypBegin     = hypotheses.begin() + wordSequenceIt->second.first;
-                    Hypotheses::iterator hypEnd       = hypotheses.begin() + wordSequenceIt->second.second;
+                    Hypotheses::iterator hypBegin = hypotheses.begin() + wordSequenceIt->second.first;
+                    Hypotheses::iterator hypEnd   = hypotheses.begin() + wordSequenceIt->second.second;
 
                     Score                        bestNormalizedScore = Core::Type<Score>::max;
                     std::pair<Fsa::StateId, s32> bestHypothesis;

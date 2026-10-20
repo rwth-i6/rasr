@@ -340,7 +340,7 @@ AssigningFeatureScorer::ScoreAndBestDensity
                                                               MixtureIndex                                                      mixtureIndex) const {
     AssigningFeatureScorer::ScoreAndBestDensity result;
     result.score                               = 0;
-    result.bestDensity                         = Core::Type<size_t>::max;
+    result.bestDensity                         = Core::Type<DensityInMixture>::max;
     const CachedStatePosteriorContextScorer* c = required_cast(const CachedStatePosteriorContextScorer*, cs);
     require(c->featureScorer()->useViterbi());
     const PosteriorsAndDensities& posteriors = c->posteriorsAndDensities();

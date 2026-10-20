@@ -111,7 +111,7 @@ public:
         return languageModel_->isSparse(h);
     }
     virtual HistorySuccessors getHistorySuccessors(const History& h) const {
-        HistorySuccessors res;
+        HistorySuccessors res = languageModel_->getHistorySuccessors(h);
         res.backOffScore *= scale();
         for (auto& ws : res) {
             ws.score_ *= scale();

@@ -1051,8 +1051,8 @@ void SearchSpace::initialize(bool buildBatches) {
 
     StaticSearchAutomaton* automaton = const_cast<StaticSearchAutomaton*>(automaton_);
 
-    PersistentStateTree& net   = automaton->network;
-    bool                 build = automaton->buildNetwork();
+    PersistentStateTree& net = automaton->network;
+    automaton->buildNetwork();
 
     automaton->buildDepths();
     log() << "depth of root-state: " << automaton->stateDepths[net.rootState] << " hmm-length " << automaton->hmmLength;
@@ -4053,7 +4053,10 @@ Instance* SearchSpace::getBackOffInstance(Instance* instance) {
         activeInstances.push_back(new Instance(instance->key, instance));
         verify(instance->backOffInstance == activeInstances.back());
 
-        instance->backOffScore                      = lookaheadLm_->unscaled()->getBackOffScore(useHistory);
+        // The sparse look-ahead tables store their back-off score scaled by the look-ahead
+        // scale (LanguageModelLookahead::computeScoresSparse), so the offset charged for
+        // entering the back-off network has to carry the same scale to be comparable.
+        instance->backOffScore                      = lookaheadLm_->unscaled()->getBackOffScore(useHistory) * lmLookahead_->getLookaheadScale();
         instance->backOffInstance->scoreHistory     = instance->scoreHistory;
         instance->backOffInstance->lookaheadHistory = reduced;
 

@@ -80,11 +80,6 @@ private:
  * in order to fetch a matrix of CTC scores for each label at each timestep.
  */
 class CtcPrefixLabelScorer : public StatTrackingLabelScorer {
-    using Precursor = StatTrackingLabelScorer;
-
-    static const Core::ParameterInt paramBlankIndex;
-    static const Core::ParameterInt paramVocabSize;
-
 public:
     CtcPrefixLabelScorer(Core::Configuration const& config, ModelCache& modelCache);
     virtual ~CtcPrefixLabelScorer() = default;
@@ -107,6 +102,11 @@ protected:
     std::optional<ScoreAccessorRef> computeScoreAccessor(ScoringContextRef scoringContext) override;
 
 private:
+    using Precursor = StatTrackingLabelScorer;
+
+    static const Core::ParameterInt paramBlankIndex;
+    static const Core::ParameterInt paramVocabSize;
+
     LabelIndex                   blankIndex_;
     size_t                       vocabSize_;
     Core::Ref<ScaledLabelScorer> ctcScorer_;

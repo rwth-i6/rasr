@@ -46,16 +46,6 @@ typedef Core::Ref<SeqStepScoringContext const> SeqStepScoringContextRef;
  * A common use case would be a neural transducer model with a fixed-size history.
  */
 class FixedContextOnnxLabelScorer : public BufferedLabelScorer {
-    using Precursor = BufferedLabelScorer;
-
-    static const Core::ParameterInt  paramStartLabelIndex;
-    static const Core::ParameterInt  paramHistoryLength;
-    static const Core::ParameterBool paramBlankUpdatesHistory;
-    static const Core::ParameterBool paramSilenceUpdatesHistory;
-    static const Core::ParameterBool paramLoopUpdatesHistory;
-    static const Core::ParameterBool paramVerticalLabelTransition;
-    static const Core::ParameterInt  paramMaxBatchSize;
-
 public:
     FixedContextOnnxLabelScorer(Core::Configuration const& config, ModelCache& modelCache);
     virtual ~FixedContextOnnxLabelScorer() = default;
@@ -84,9 +74,15 @@ protected:
     size_t                          getMinActiveInputIndex(Core::CollapsedVector<ScoringContextRef> const& activeContexts) const override;
 
 private:
-    // Forward a batch of histories through the ONNX model and put the resulting scores into the score cache
-    // Assumes that all histories in the batch are based on the same timestep
-    void forwardBatch(std::vector<SeqStepScoringContextRef> const& scoringContextBatch);
+    using Precursor = BufferedLabelScorer;
+
+    static const Core::ParameterInt  paramStartLabelIndex;
+    static const Core::ParameterInt  paramHistoryLength;
+    static const Core::ParameterBool paramBlankUpdatesHistory;
+    static const Core::ParameterBool paramSilenceUpdatesHistory;
+    static const Core::ParameterBool paramLoopUpdatesHistory;
+    static const Core::ParameterBool paramVerticalLabelTransition;
+    static const Core::ParameterInt  paramMaxBatchSize;
 
     size_t startLabelIndex_;
     size_t historyLength_;
@@ -102,14 +98,18 @@ private:
     std::string historyName_;
     std::string scoresName_;
 
-    void logScoringBreakdown() const override;
-
     Core::StopWatch onnxSessionTime_;
     // Building the batched session inputs and copying the resulting scores into the cache
     Core::StopWatch tensorMarshallingTime_;
     Core::StopWatch contextPreparationTime_;
 
     std::unordered_map<SeqStepScoringContextRef, std::shared_ptr<std::vector<Score>>, ScoringContextHash, ScoringContextEq> scoreCache_;
+
+    // Forward a batch of histories through the ONNX model and put the resulting scores into the score cache
+    // Assumes that all histories in the batch are based on the same timestep
+    void forwardBatch(std::vector<SeqStepScoringContextRef> const& scoringContextBatch);
+
+    void logScoringBreakdown() const override;
 };
 
 }  // namespace Nn

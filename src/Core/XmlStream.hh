@@ -75,11 +75,6 @@ public:
 class XmlOpen {
     typedef XmlOpen Self;
 
-protected:
-    friend class XmlWriter;
-    const std::string         element_;
-    std::vector<XmlAttribute> attributes_;
-
 public:
     explicit XmlOpen(const std::string& element)
             : element_(element) {}
@@ -93,6 +88,11 @@ public:
     Self& operator+=(const XmlAttribute& attribute) {
         return operator+(attribute);
     }
+
+protected:
+    friend class XmlWriter;
+    const std::string         element_;
+    std::vector<XmlAttribute> attributes_;
 };
 
 class XmlClose {
@@ -128,10 +128,6 @@ public:
 class XmlFull : public XmlOpen {
     typedef XmlFull Self;
 
-protected:
-    friend class XmlWriter;
-    std::string content_;
-
 public:
     template<typename V>
     XmlFull(const std::string& element, const V& value)
@@ -148,6 +144,10 @@ public:
     Self& operator+=(const XmlAttribute& attribute) {
         return operator+(attribute);
     }
+
+protected:
+    friend class XmlWriter;
+    std::string content_;
 };
 
 class XmlOpenComment {};

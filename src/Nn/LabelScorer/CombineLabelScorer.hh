@@ -30,8 +30,6 @@ namespace Nn {
  * combined_timeframe(request) = max_i { timeframe_i(request) }
  */
 class CombineLabelScorer : public LabelScorer {
-    using Precursor = LabelScorer;
-
 public:
     static Core::ParameterInt paramNumLabelScorers;
 
@@ -72,6 +70,8 @@ public:
     std::vector<std::optional<ScoreAccessorRef>> getScoreAccessors(std::vector<ScoringContextRef> const& scoringContexts) override;
 
 private:
+    using Precursor = LabelScorer;
+
     std::vector<Core::Ref<ScaledLabelScorer>> scorers_;
 };
 

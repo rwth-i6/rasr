@@ -55,17 +55,6 @@ typedef Core::Ref<StateManagedOnnxScoringContext const> StateManagedOnnxScoringC
  * be represented as a tree instead of duplicating the full prefix state per context.
  */
 class StateManagedOnnxLabelScorer : public BufferedLabelScorer {
-    using Precursor    = BufferedLabelScorer;
-    using StateManager = AbstractStateManager<Onnx::Value, Onnx::OnnxStateVariable>;
-    using HistoryState = StateManager::HistoryState;
-
-    static const Core::ParameterIntVector paramStartLabels;
-    static const Core::ParameterBool      paramBlankUpdatesHistory;
-    static const Core::ParameterBool      paramSilenceUpdatesHistory;
-    static const Core::ParameterBool      paramLoopUpdatesHistory;
-    static const Core::ParameterInt       paramMaxBatchSize;
-    static const Core::ParameterInt       paramMaxCachedScores;
-
 public:
     StateManagedOnnxLabelScorer(Core::Configuration const& config, ModelCache& modelCache);
     virtual ~StateManagedOnnxLabelScorer() = default;
@@ -83,11 +72,16 @@ protected:
     size_t                                       getMinActiveInputIndex(Core::CollapsedVector<ScoringContextRef> const& activeContexts) const override;
 
 private:
-    void setupEncoderStatesValue();
-    void setupEncoderStatesSizeValue();
+    using Precursor    = BufferedLabelScorer;
+    using StateManager = AbstractStateManager<Onnx::Value, Onnx::OnnxStateVariable>;
+    using HistoryState = StateManager::HistoryState;
 
-    // Forward a batch of scoringContexts through the ONNX model and put the resulting states and scores into the caches
-    void cacheStatesAndScores(std::vector<StateManagedOnnxScoringContextRef> const& scoringContextBatch);
+    static const Core::ParameterIntVector paramStartLabels;
+    static const Core::ParameterBool      paramBlankUpdatesHistory;
+    static const Core::ParameterBool      paramSilenceUpdatesHistory;
+    static const Core::ParameterBool      paramLoopUpdatesHistory;
+    static const Core::ParameterInt       paramMaxBatchSize;
+    static const Core::ParameterInt       paramMaxCachedScores;
 
     std::vector<size_t> startLabels_;
     bool                blankUpdatesHistory_;
@@ -111,8 +105,6 @@ private:
     Onnx::Value encoderStatesValue_;
     Onnx::Value encoderStatesSizeValue_;
 
-    void logScoringBreakdown() const override;
-
     Core::StopWatch onnxSessionTime_;
     // Merging the prefix states into the batched session inputs and splitting the outputs back up
     Core::StopWatch stateMarshallingTime_;
@@ -120,6 +112,14 @@ private:
 
     Core::FIFOCache<StateManagedOnnxScoringContextRef, std::shared_ptr<std::vector<Score>>, ScoringContextHash, ScoringContextEq> scoreCache_;
     Core::FIFOCache<StateManagedOnnxScoringContextRef, std::shared_ptr<HistoryState>, ScoringContextHash, ScoringContextEq>       stateCache_;
+
+    void setupEncoderStatesValue();
+    void setupEncoderStatesSizeValue();
+
+    // Forward a batch of scoringContexts through the ONNX model and put the resulting states and scores into the caches
+    void cacheStatesAndScores(std::vector<StateManagedOnnxScoringContextRef> const& scoringContextBatch);
+
+    void logScoringBreakdown() const override;
 };
 
 }  // namespace Nn

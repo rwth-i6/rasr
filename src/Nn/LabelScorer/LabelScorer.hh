@@ -150,6 +150,17 @@ public:
     std::vector<std::optional<ScoreAccessorRef>> getScoreAccessors(std::vector<ScoringContextRef> const& scoringContexts) final;
 
 protected:
+    // Time spent in `computeScoreAccessor(s)`. Scorers that compute scores lazily add those
+    // intervals as well.
+    Core::StopWatch scoringTime_;
+
+    size_t numScoreAccessorsRequested_ = 0ul;
+    // Scorers that compute lazily count from const paths, hence mutable.
+    mutable size_t numScoreAccessorsComputed_ = 0ul;
+
+    // Channel that `logStatistics` writes to. Disabled unless a target is configured.
+    mutable Core::XmlChannel statisticsChannel_;
+
     // Reset the state that belongs to the concrete LabelScorer, e.g. input buffers and
     // segment-end flags. `reset` handles the statistics, so implementations must not touch them.
     virtual void resetInternal() = 0;
@@ -171,17 +182,6 @@ protected:
     // `getScoreAccessor(s)` counts one computation per request. Subclasses report requests that
     // needed none, because they were served from a cache or could not be scored.
     void countUncomputedAccessors(size_t num = 1ul) const;
-
-    // Time spent in `computeScoreAccessor(s)`. Scorers that compute scores lazily add those
-    // intervals as well.
-    Core::StopWatch scoringTime_;
-
-    size_t numScoreAccessorsRequested_ = 0ul;
-    // Scorers that compute lazily count from const paths, hence mutable.
-    mutable size_t numScoreAccessorsComputed_ = 0ul;
-
-    // Channel that `logStatistics` writes to. Disabled unless a target is configured.
-    mutable Core::XmlChannel statisticsChannel_;
 };
 
 }  // namespace Nn

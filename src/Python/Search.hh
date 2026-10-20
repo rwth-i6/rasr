@@ -80,8 +80,6 @@ public:
     std::vector<Traceback> recognizeSegmentNBest(py::array_t<f32> const& features, size_t nBestSize, std::string const& name = "");
 
 private:
-    Traceback searchTracebackToPythonTraceback(Core::Ref<Search::Traceback const> traceback);
-
     std::unique_ptr<Flf::LatticeHandler>       latticeHandler_;
     std::unique_ptr<Search::SearchAlgorithmV2> searchAlgorithm_;
     Flf::LexiconRef                            lexicon_;
@@ -89,6 +87,8 @@ private:
 
     bool   segmentOpen_  = false;  // Whether a `segment` log element is currently open
     size_t segmentIndex_ = 0ul;    // Running index of the current segment, used to identify it in the log
+
+    Traceback searchTracebackToPythonTraceback(Core::Ref<Search::Traceback const> traceback);
 
     // Close the currently open `segment` log element, if there is one
     void closeSegmentLog();

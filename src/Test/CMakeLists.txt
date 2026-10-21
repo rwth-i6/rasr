@@ -20,6 +20,7 @@ add_executable(
     Speech_AllophoneStateGraphBuilder.cc
     Test_File.cc
     Test_Lexicon.cc
+    Tokenizer_BpeTokenizer.cc
     UnitTester.cc
 )
 add_install_executable(unit-test)
@@ -42,6 +43,14 @@ if(${MODULE_NN})
     )
 endif()
 
+if(${MODULE_SENTENCEPIECE})
+    target_sources(unit-test PRIVATE Tokenizer_SentencePieceTokenizer.cc)
+endif()
+
+if(${MODULE_PYTHON})
+    target_sources(unit-test PRIVATE Tokenizer_HuggingFaceTokenizer.cc)
+endif()
+
 if(${MODULE_OPENMP})
     target_sources(unit-test PRIVATE Math_MultithreadingHelper.cc)
 endif()
@@ -61,6 +70,7 @@ target_link_libraries(
             RasrMm
             RasrNn
             RasrSpeech
+            RasrTokenizer
             cppunit
 )
 

@@ -7,6 +7,7 @@ add_library(
     Numpy.cc
     ScoringContext.cc
     Search.cc
+    Tokenizer.cc
     Utilities.cc
 )
 
@@ -19,6 +20,7 @@ target_link_libraries(
            RasrPythonDependencies
            RasrSearch
            RasrSpeech
+           RasrTokenizer
 )
 
 add_rasr_check_executable(check-python check.cc)

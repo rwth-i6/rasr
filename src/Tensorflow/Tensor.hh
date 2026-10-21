@@ -42,6 +42,12 @@ public:
     static Tensor create(Args... value);
 
     template<typename T>
+    static Tensor createEmpty(std::initializer_list<int64> dim);
+
+    template<typename T>
+    static Tensor createEmpty(std::vector<int64> const& dim);
+
+    template<typename T>
     static Tensor zeros(std::initializer_list<int64> dim);
 
     template<typename T>

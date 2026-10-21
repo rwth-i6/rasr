@@ -22,10 +22,10 @@ AbstractTokenizer::AbstractTokenizer(Core::Configuration const& config)
 
 std::vector<AbstractTokenizer::TokenId> AbstractTokenizer::encode(std::string const& text) const {
     std::vector<TokenId> ids;
-    for (auto const& t : tokenize(text)) {
-        TokenId id = tokenId(t);
+    for (auto const& token : tokenize(text)) {
+        TokenId id = tokenId(token);
         if (id == invalidTokenId) {
-            error("Token '%s' is not part of the vocabulary", t.c_str());
+            error("Token '%s' is not part of the vocabulary", token.c_str());
             continue;
         }
         ids.push_back(id);

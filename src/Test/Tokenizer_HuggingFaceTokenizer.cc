@@ -16,7 +16,8 @@
 
 #include <Core/Application.hh>
 #include <Python/Init.hh>
-#include <Test/Tokenizer.hh>
+
+#include <Test/TokenizerFixture.hh>
 
 namespace py = pybind11;
 

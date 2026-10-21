@@ -13,8 +13,8 @@
  *  limitations under the License.
  */
 
-#ifndef TOKENIZER_MODULE_HH
-#define TOKENIZER_MODULE_HH
+#ifndef _TOKENIZER_MODULE_HH
+#define _TOKENIZER_MODULE_HH
 
 #include <Core/Singleton.hh>
 
@@ -37,4 +37,4 @@ typedef Core::SingletonHolder<Module_> Module;
 
 }  // namespace Tokenizer
 
-#endif  // TOKENIZER_MODULE_HH
+#endif  // _TOKENIZER_MODULE_HH

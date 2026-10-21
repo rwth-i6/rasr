@@ -13,8 +13,8 @@
  *  limitations under the License.
  */
 
-#ifndef TOKENIZER_SENTENCE_PIECE_TOKENIZER_HH
-#define TOKENIZER_SENTENCE_PIECE_TOKENIZER_HH
+#ifndef _TOKENIZER_SENTENCE_PIECE_TOKENIZER_HH
+#define _TOKENIZER_SENTENCE_PIECE_TOKENIZER_HH
 
 #include <sentencepiece_processor.h>
 
@@ -52,4 +52,4 @@ private:
 
 }  // namespace Tokenizer
 
-#endif  // TOKENIZER_SENTENCE_PIECE_TOKENIZER_HH
+#endif  // _TOKENIZER_SENTENCE_PIECE_TOKENIZER_HH

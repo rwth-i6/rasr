@@ -13,8 +13,8 @@
  *  limitations under the License.
  */
 
-#ifndef PYTHON_TOKENIZER_HH
-#define PYTHON_TOKENIZER_HH
+#ifndef _PYTHON_TOKENIZER_HH
+#define _PYTHON_TOKENIZER_HH
 
 #include <pybind11/pybind11.h>
 
@@ -55,4 +55,4 @@ protected:
 
 }  // namespace Python
 
-#endif  // PYTHON_TOKENIZER_HH
+#endif  // _PYTHON_TOKENIZER_HH

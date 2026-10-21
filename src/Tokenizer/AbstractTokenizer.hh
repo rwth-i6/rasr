@@ -13,8 +13,8 @@
  *  limitations under the License.
  */
 
-#ifndef TOKENIZER_ABSTRACT_TOKENIZER_HH
-#define TOKENIZER_ABSTRACT_TOKENIZER_HH
+#ifndef _TOKENIZER_ABSTRACT_TOKENIZER_HH
+#define _TOKENIZER_ABSTRACT_TOKENIZER_HH
 
 #include <string>
 #include <vector>
@@ -67,4 +67,4 @@ typedef Core::Ref<AbstractTokenizer> TokenizerRef;
 
 }  // namespace Tokenizer
 
-#endif  // TOKENIZER_ABSTRACT_TOKENIZER_HH
+#endif  // _TOKENIZER_ABSTRACT_TOKENIZER_HH

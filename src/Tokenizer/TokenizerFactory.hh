@@ -13,8 +13,8 @@
  *  limitations under the License.
  */
 
-#ifndef TOKENIZER_TOKENIZER_FACTORY_HH
-#define TOKENIZER_TOKENIZER_FACTORY_HH
+#ifndef _TOKENIZER_TOKENIZER_FACTORY_HH
+#define _TOKENIZER_TOKENIZER_FACTORY_HH
 
 #include <functional>
 
@@ -53,4 +53,4 @@ private:
 
 }  // namespace Tokenizer
 
-#endif  // TOKENIZER_TOKENIZER_FACTORY_HH
+#endif  // _TOKENIZER_TOKENIZER_FACTORY_HH

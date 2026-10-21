@@ -13,6 +13,9 @@
  *  limitations under the License.
  */
 
+#ifndef _LIBRASR_TOKENIZER_HH
+#define _LIBRASR_TOKENIZER_HH
+
 #include <pybind11/pybind11.h>
 
 namespace py = pybind11;
@@ -21,3 +24,5 @@ namespace py = pybind11;
  * Create bindings for tokenizer classes
  */
 void bindTokenizer(py::module_& module);
+
+#endif  // _LIBRASR_TOKENIZER_HH

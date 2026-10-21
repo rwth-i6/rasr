@@ -30,21 +30,21 @@ namespace {
 
 std::string const endOfWord = "</w>";
 
-bool endsWith(std::string const& s, std::string const& suffix) {
-    return s.size() >= suffix.size() and s.compare(s.size() - suffix.size(), suffix.size(), suffix) == 0;
+bool endsWith(std::string const& text, std::string const& suffix) {
+    return text.size() >= suffix.size() and text.compare(text.size() - suffix.size(), suffix.size(), suffix) == 0;
 }
 
 std::vector<std::string> splitUtf8Characters(std::string const& word) {
-    std::vector<std::string> chars;
+    std::vector<std::string> characters;
     for (size_t i = 0; i < word.size();) {
-        size_t len = 1;
-        while (i + len < word.size() and utf8::byteType(word[i + len]) == utf8::multiByteTail) {
-            ++len;
+        size_t length = 1;
+        while (i + length < word.size() and utf8::byteType(word[i + length]) == utf8::multiByteTail) {
+            ++length;
         }
-        chars.push_back(word.substr(i, len));
-        i += len;
+        characters.push_back(word.substr(i, length));
+        i += length;
     }
-    return chars;
+    return characters;
 }
 
 typedef std::vector<std::pair<std::string, u32>> VocabularyEntries;
@@ -59,29 +59,29 @@ bool isPythonDict(std::string const& content) {
     return next != std::string::npos and (content[next] == '\'' or content[next] == '"' or content[next] == '}');
 }
 
-// Parses `digits` hex digits at `pos` as unicode code point and appends it as UTF-8
-bool appendCodePoint(std::string const& s, size_t& pos, size_t digits, std::string& result) {
-    std::string hex = s.substr(pos, digits);
-    if (hex.size() != digits or not std::all_of(hex.begin(), hex.end(), [](unsigned char c) { return std::isxdigit(c); })) {
+// Parses `digits` hex digits at `position` as unicode code point and appends it as UTF-8
+bool appendCodePoint(std::string const& content, size_t& position, size_t digits, std::string& result) {
+    std::string hexDigits = content.substr(position, digits);
+    if (hexDigits.size() != digits or not std::all_of(hexDigits.begin(), hexDigits.end(), [](unsigned char character) { return std::isxdigit(character); })) {
         return false;
     }
-    result += narrow(std::wstring(1, static_cast<wchar_t>(std::stoul(hex, nullptr, 16))));
-    pos += digits;
+    result += narrow(std::wstring(1, static_cast<wchar_t>(std::strtoul(hexDigits.c_str(), nullptr, 16))));
+    position += digits;
     return true;
 }
 
-// Parses the python string literal whose opening quote is at `pos` and moves `pos` behind the closing quote.
+// Parses the python string literal whose opening quote is at `position` and moves `position` behind the closing quote.
 // Handles the escape sequences written by python's `repr`.
-bool parsePythonString(std::string const& s, size_t& pos, std::string& result) {
-    char const quote = s[pos++];
+bool parsePythonString(std::string const& content, size_t& position, std::string& result) {
+    char const quote = content[position++];
     result.clear();
-    while (pos < s.size() and s[pos] != quote) {
-        char c = s[pos++];
-        if (c != '\\' or pos == s.size()) {
-            result += c;
+    while (position < content.size() and content[position] != quote) {
+        char character = content[position++];
+        if (character != '\\' or position == content.size()) {
+            result += character;
             continue;
         }
-        char escaped = s[pos++];
+        char escaped = content[position++];
         switch (escaped) {
             case 'n': result += '\n'; break;
             case 't': result += '\t'; break;
@@ -90,7 +90,7 @@ bool parsePythonString(std::string const& s, size_t& pos, std::string& result) {
             case 'u':
             case 'U': {
                 size_t digits = escaped == 'x' ? 2ul : (escaped == 'u' ? 4ul : 8ul);
-                if (not appendCodePoint(s, pos, digits, result)) {
+                if (not appendCodePoint(content, position, digits, result)) {
                     return false;
                 }
                 break;
@@ -98,47 +98,47 @@ bool parsePythonString(std::string const& s, size_t& pos, std::string& result) {
             default: result += escaped;  // \\, \' and \"
         }
     }
-    if (pos == s.size()) {
+    if (position == content.size()) {
         return false;
     }
-    ++pos;
+    ++position;
     return true;
 }
 
 // Parses a python dict literal {'token': id, ...} as written by create-py-vocab.py of rwth-i6/subword-nmt
-bool parsePythonDict(std::string const& s, VocabularyEntries& entries) {
-    size_t pos = s.find('{') + 1;
+bool parsePythonDict(std::string const& content, VocabularyEntries& entries) {
+    size_t position = content.find('{') + 1;
     while (true) {
-        pos = s.find_first_not_of(" \t\n\r,", pos);
-        if (pos == std::string::npos) {
+        position = content.find_first_not_of(" \t\n\r,", position);
+        if (position == std::string::npos) {
             return false;
         }
-        if (s[pos] == '}') {
+        if (content[position] == '}') {
             return true;
         }
         std::string token;
-        if ((s[pos] != '\'' and s[pos] != '"') or not parsePythonString(s, pos, token)) {
+        if ((content[position] != '\'' and content[position] != '"') or not parsePythonString(content, position, token)) {
             return false;
         }
-        pos = s.find_first_not_of(" \t\n\r", pos);
-        if (pos == std::string::npos or s[pos] != ':') {
+        position = content.find_first_not_of(" \t\n\r", position);
+        if (position == std::string::npos or content[position] != ':') {
             return false;
         }
-        char const* begin = s.c_str() + pos + 1;
+        char const* begin = content.c_str() + position + 1;
         char*       end   = nullptr;
         long        id    = std::strtol(begin, &end, 10);
         if (end == begin or id < 0 or id >= static_cast<long>(Tokenizer::AbstractTokenizer::invalidTokenId)) {
             return false;
         }
         entries.emplace_back(token, id);
-        pos = end - s.c_str();
+        position = end - content.c_str();
     }
 }
 
 // One token per line with the line index as id, further columns (e.g. counts) are ignored
-VocabularyEntries parseLineVocabulary(std::string const& s) {
+VocabularyEntries parseLineVocabulary(std::string const& content) {
     VocabularyEntries  entries;
-    std::istringstream lines(s);
+    std::istringstream lines(content);
     std::string        line;
     while (std::getline(lines, line)) {
         std::istringstream columns(line);
@@ -214,12 +214,12 @@ std::vector<std::string> BpeTokenizer::tokenize(std::string const& text) const {
 std::string BpeTokenizer::detokenize(std::vector<std::string> const& tokens) const {
     std::string text;
     bool        continueWord = true;
-    for (auto const& t : tokens) {
+    for (auto const& token : tokens) {
         if (not continueWord) {
             text += utf8::blank;
         }
-        continueWord = endsWith(t, separator_);
-        text.append(t, 0, continueWord ? t.size() - separator_.size() : t.size());
+        continueWord = endsWith(token, separator_);
+        text.append(token, 0, continueWord ? token.size() - separator_.size() : token.size());
     }
     return text;
 }
@@ -242,8 +242,8 @@ std::vector<AbstractTokenizer::TokenId> BpeTokenizer::encode(std::string const& 
         return Precursor::encode(text);
     }
     std::vector<TokenId> ids;
-    for (auto const& t : tokenize(text)) {
-        TokenId id = tokenId(t);
+    for (auto const& token : tokenize(text)) {
+        TokenId id = tokenId(token);
         ids.push_back(id == invalidTokenId ? unknownTokenId_ : id);
     }
     return ids;

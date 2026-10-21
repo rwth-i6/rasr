@@ -12,14 +12,17 @@
  *  See the License for the specific language governing permissions and
  *  limitations under the License.
  */
-#ifndef _TEST_TOKENIZER_HH
-#define _TEST_TOKENIZER_HH
+#ifndef _TEST_TOKENIZER_FIXTURE_HH
+#define _TEST_TOKENIZER_FIXTURE_HH
 
 #include <sstream>
+#include <string>
+#include <vector>
+
+#include <Tokenizer/Module.hh>
 
 #include <Test/File.hh>
 #include <Test/UnitTest.hh>
-#include <Tokenizer/Module.hh>
 
 namespace Test {
 
@@ -53,12 +56,12 @@ protected:
 
     // Space-separated string representation of token or id sequences for comparison and readable test failures
     template<typename T>
-    static std::string join(std::vector<T> const& v) {
-        std::ostringstream ss;
-        for (size_t i = 0ul; i < v.size(); ++i) {
-            ss << (i > 0ul ? " " : "") << v[i];
+    static std::string join(std::vector<T> const& values) {
+        std::ostringstream stream;
+        for (size_t i = 0ul; i < values.size(); ++i) {
+            stream << (i > 0ul ? " " : "") << values[i];
         }
-        return ss.str();
+        return stream.str();
     }
 };
 
@@ -66,4 +69,4 @@ inline std::string const TokenizerFixture::text = "the newest lower tower is wid
 
 }  // namespace Test
 
-#endif  // _TEST_TOKENIZER_HH
+#endif  // _TEST_TOKENIZER_FIXTURE_HH

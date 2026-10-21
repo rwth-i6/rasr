@@ -13,8 +13,8 @@
  *  limitations under the License.
  */
 
-#ifndef TOKENIZER_BPE_TOKENIZER_HH
-#define TOKENIZER_BPE_TOKENIZER_HH
+#ifndef _TOKENIZER_BPE_TOKENIZER_HH
+#define _TOKENIZER_BPE_TOKENIZER_HH
 
 #include <unordered_map>
 
@@ -73,4 +73,4 @@ private:
 
 }  // namespace Tokenizer
 
-#endif  // TOKENIZER_BPE_TOKENIZER_HH
+#endif  // _TOKENIZER_BPE_TOKENIZER_HH

@@ -47,8 +47,8 @@ T callPython(Core::Component const& component, T fallback, F&& f) {
     try {
         return f();
     }
-    catch (std::exception const& e) {  // Python exceptions and pybind11 cast errors
-        component.error("HuggingFace tokenizer error: %s", e.what());
+    catch (std::exception const& exception) {  // Python exceptions and pybind11 cast errors
+        component.error("HuggingFace tokenizer error: %s", exception.what());
         return fallback;
     }
 }
@@ -86,8 +86,8 @@ HuggingFaceTokenizer::HuggingFaceTokenizer(Core::Configuration const& config)
         vocabularySize_      = tokenizer.attr("get_vocab_size")(py::arg("with_added_tokens") = true).cast<u32>();
         tokenizer_.takeOver(tokenizer.release().ptr());
     }
-    catch (py::error_already_set const& e) {
-        criticalError("Failed to load HuggingFace tokenizer '%s': %s", tokenizerFile.c_str(), e.what());
+    catch (py::error_already_set const& exception) {
+        criticalError("Failed to load HuggingFace tokenizer '%s': %s", tokenizerFile.c_str(), exception.what());
         return;
     }
     log("Loaded HuggingFace tokenizer with vocabulary size %u from '%s'", vocabularySize_, tokenizerFile.c_str());
@@ -109,10 +109,10 @@ std::vector<std::string> HuggingFaceTokenizer::tokenize(std::string const& text)
 std::string HuggingFaceTokenizer::detokenize(std::vector<std::string> const& tokens) const {
     std::vector<TokenId> ids;
     ids.reserve(tokens.size());
-    for (auto const& t : tokens) {
-        TokenId id = tokenId(t);
+    for (auto const& token : tokens) {
+        TokenId id = tokenId(token);
         if (id == invalidTokenId) {
-            error("Token '%s' is not part of the vocabulary", t.c_str());
+            error("Token '%s' is not part of the vocabulary", token.c_str());
             continue;
         }
         ids.push_back(id);

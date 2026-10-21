@@ -28,7 +28,7 @@ void TokenizerFactory::registerTokenizer(const char* name, CreationFunction crea
     // Registering a name again replaces the previous type, e.g. when re-running python code that registers a tokenizer
     auto type = choices_[name];
     if (type != Core::Choice::IllegalValue) {
-        registry_.at(type) = std::move(creationFunction);
+        registry_[type] = std::move(creationFunction);
         return;
     }
     choices_.addChoice(name, registry_.size());
@@ -38,14 +38,14 @@ void TokenizerFactory::registerTokenizer(const char* name, CreationFunction crea
 TokenizerRef TokenizerFactory::createTokenizer(Core::Configuration const& config) const {
     auto type = paramTokenizerType(config);
     if (type == Core::Choice::IllegalValue) {
-        std::stringstream ss;
-        ss << "No valid tokenizer type defined in `" << config.getSelection() << "." << paramTokenizerType.name() << "`. ";
-        ss << "Possible values are: ";
-        choices_.printIdentifiers(ss);
-        Core::Application::us()->criticalError("%s", ss.str().c_str());
+        std::stringstream message;
+        message << "No valid tokenizer type defined in `" << config.getSelection() << "." << paramTokenizerType.name() << "`. ";
+        message << "Possible values are: ";
+        choices_.printIdentifiers(message);
+        Core::Application::us()->criticalError("%s", message.str().c_str());
         return {};
     }
-    return registry_.at(type)(config);
+    return registry_[type](config);
 }
 
 }  // namespace Tokenizer

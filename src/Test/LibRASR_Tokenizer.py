@@ -1,7 +1,7 @@
 """
 Tests for the tokenizer bindings of librasr. Requires librasr to be importable, e.g. via PYTHONPATH.
 
-Run with: python3 -m unittest discover src/Tools/LibRASR/test
+Run with: python3 src/Test/LibRASR_Tokenizer.py
 """
 
 import importlib.util
@@ -10,7 +10,7 @@ from pathlib import Path
 
 import librasr
 
-DATA_DIR = Path(__file__).resolve().parents[3] / "Test" / "data" / "tokenizer"
+DATA_DIR = Path(__file__).resolve().parent / "data" / "tokenizer"
 TEXT = "the newest lower tower is wider than straße xy"
 
 

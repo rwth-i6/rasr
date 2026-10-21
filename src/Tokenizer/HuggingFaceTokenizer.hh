@@ -13,8 +13,8 @@
  *  limitations under the License.
  */
 
-#ifndef TOKENIZER_HUGGING_FACE_TOKENIZER_HH
-#define TOKENIZER_HUGGING_FACE_TOKENIZER_HH
+#ifndef _TOKENIZER_HUGGING_FACE_TOKENIZER_HH
+#define _TOKENIZER_HUGGING_FACE_TOKENIZER_HH
 
 #include <Python/Utilities.hh>
 
@@ -57,4 +57,4 @@ private:
 
 }  // namespace Tokenizer
 
-#endif  // TOKENIZER_HUGGING_FACE_TOKENIZER_HH
+#endif  // _TOKENIZER_HUGGING_FACE_TOKENIZER_HH

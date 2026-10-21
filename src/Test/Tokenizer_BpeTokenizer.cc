@@ -14,7 +14,7 @@
  */
 #include <fstream>
 
-#include <Test/Tokenizer.hh>
+#include <Test/TokenizerFixture.hh>
 
 namespace Tokenizer {
 

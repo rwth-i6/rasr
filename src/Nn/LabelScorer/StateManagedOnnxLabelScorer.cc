@@ -268,7 +268,8 @@ std::vector<std::optional<ScoreAccessorRef>> StateManagedOnnxLabelScorer::comput
         if (not context->state and stateCache_.contains(context)) {
             context->state = *stateCache_.get(context);
         }
-        else {
+        // A context with a state was already forwarded and must not be forwarded again
+        if (not context->state or not scoreCache_.contains(context)) {
             uniqueUncachedScoringContexts.emplace(context);
         }
     }

@@ -8,9 +8,8 @@
 set -euo pipefail
 cd "$(dirname "$0")"
 
-# subword-nmt BPE: merge operations, plain vocabulary with counts and RETURNN python dict vocabulary
+# subword-nmt BPE: merge operations and RETURNN python dict vocabulary
 python3 "${I6_SUBWORD_NMT}/learn_bpe.py" --symbols 30 < corpus.txt > bpe.codes
-python3 "${I6_SUBWORD_NMT}/apply_bpe.py" --codes bpe.codes < corpus.txt | python3 "${I6_SUBWORD_NMT}/get_vocab.py" > bpe.vocab
 python3 "${I6_SUBWORD_NMT}/create-py-vocab.py" --txt corpus.txt --bpe bpe.codes --unk "<unk>" --out bpe.vocab.py
 
 # SentencePiece unigram model

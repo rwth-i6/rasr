@@ -19,7 +19,6 @@
 #include <cctype>
 #include <cstdlib>
 #include <iterator>
-#include <sstream>
 #include <unordered_set>
 #include <utility>
 
@@ -75,16 +74,6 @@ std::vector<std::string> splitWords(std::string const& text) {
 
 typedef std::vector<std::pair<std::string, u32>> VocabularyEntries;
 
-// Python dict literals start with "{" followed by a quote, unlike a line vocabulary whose first token is "{"
-bool isPythonDict(std::string const& content) {
-    size_t brace = content.find_first_not_of(utf8::whitespace);
-    if (brace == std::string::npos or content[brace] != '{') {
-        return false;
-    }
-    size_t next = content.find_first_not_of(utf8::whitespace, brace + 1);
-    return next != std::string::npos and (content[next] == '\'' or content[next] == '"' or content[next] == '}');
-}
-
 // Parses `digits` hex digits at `position` as unicode code point and appends it as UTF-8
 bool appendCodePoint(std::string const& content, size_t& position, size_t digits, std::string& result) {
     std::string hexDigits = content.substr(position, digits);
@@ -133,7 +122,11 @@ bool parsePythonString(std::string const& content, size_t& position, std::string
 
 // Parses a python dict literal {'token': id, ...} as written by create-py-vocab.py of rwth-i6/subword-nmt
 bool parsePythonDict(std::string const& content, VocabularyEntries& entries) {
-    size_t position = content.find('{') + 1;
+    size_t position = content.find_first_not_of(utf8::whitespace);
+    if (position == std::string::npos or content[position] != '{') {
+        return false;
+    }
+    ++position;
     while (true) {
         position = content.find_first_not_of(" \t\n\r,", position);
         if (position == std::string::npos) {
@@ -161,21 +154,6 @@ bool parsePythonDict(std::string const& content, VocabularyEntries& entries) {
     }
 }
 
-// One token per line with the line index as id, further columns (e.g. counts) are ignored
-VocabularyEntries parseLineVocabulary(std::string const& content) {
-    VocabularyEntries  entries;
-    std::istringstream lines(content);
-    std::string        line;
-    while (std::getline(lines, line)) {
-        std::istringstream columns(line);
-        std::string        token;
-        if (columns >> token) {
-            entries.emplace_back(token, entries.size());
-        }
-    }
-    return entries;
-}
-
 }  // namespace
 
 namespace Tokenizer {
@@ -187,7 +165,7 @@ const Core::ParameterString BpeTokenizer::paramCodesFile(
 
 const Core::ParameterString BpeTokenizer::paramVocabFile(
         "vocab-file",
-        "vocabulary file defining the token ids; one token per line or a python dict literal",
+        "RETURNN-style vocabulary file defining the token ids, i.e. a python dict literal {'token': id, ...}",
         "");
 
 const Core::ParameterString BpeTokenizer::paramSeparator(
@@ -313,10 +291,7 @@ void BpeTokenizer::loadVocabulary(std::string const& filename) {
     std::string content((std::istreambuf_iterator<char>(in)), std::istreambuf_iterator<char>());
 
     VocabularyEntries entries;
-    if (not isPythonDict(content)) {
-        entries = parseLineVocabulary(content);
-    }
-    else if (not parsePythonDict(content, entries)) {
+    if (not parsePythonDict(content, entries)) {
         criticalError("Malformed python dict in BPE vocabulary file '%s'", filename.c_str());
         return;
     }

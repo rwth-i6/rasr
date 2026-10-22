@@ -14,7 +14,7 @@ DATA_DIR = Path(__file__).resolve().parent / "data" / "tokenizer"
 TEXT = "the newest lower tower is wider than straße xy"
 
 
-def make_config(**params):
+def make_config(**params: str) -> librasr.Configuration:
     config = librasr.Configuration()
     config.set("*.log.channel", "nil")
     for key, value in params.items():
@@ -25,30 +25,30 @@ def make_config(**params):
 class CharTokenizer(librasr.Tokenizer):
     """Character-level tokenizer which only implements the abstract methods."""
 
-    def __init__(self, config):
+    def __init__(self, config: librasr._BaseConfig) -> None:
         super().__init__(config)
         self.vocab = list("abcdefghijklmnopqrstuvwxyz ")
 
-    def tokenize(self, text):
+    def tokenize(self, text: str) -> list[str]:
         return list(text)
 
-    def detokenize(self, tokens):
+    def detokenize(self, tokens: list[str]) -> str:
         return "".join(tokens)
 
-    def vocabulary_size(self):
+    def vocabulary_size(self) -> int:
         return len(self.vocab)
 
-    def token_str_to_id(self, token):
+    def token_str_to_id(self, token: str) -> int:
         return self.vocab.index(token) if token in self.vocab else librasr.Tokenizer.INVALID_TOKEN_ID
 
-    def token_id_to_str(self, id):
+    def token_id_to_str(self, id: int) -> str:
         return self.vocab[id]
 
 
 class UpperCaseTokenizer(CharTokenizer):
     """Additionally overrides `decode`."""
 
-    def decode(self, ids):
+    def decode(self, ids: list[int]) -> str:
         return super().decode(ids).upper()
 
 
@@ -59,13 +59,13 @@ librasr.register_tokenizer_type("test-upper-case", UpperCaseTokenizer)
 class ConfiguredTokenizerTest(unittest.TestCase):
     """Tokenizers configured in RASR and created via the tokenizer factory."""
 
-    def test_bpe(self):
+    def test_bpe(self) -> None:
         config = make_config(
             **{
-                "*.tokenizer.type": "bpe",
-                "*.tokenizer.codes-file": str(DATA_DIR / "bpe.codes"),
-                "*.tokenizer.vocab-file": str(DATA_DIR / "bpe.vocab.py"),
-                "*.tokenizer.unknown-token": "<unk>",
+                "lib-rasr.tokenizer.type": "bpe",
+                "lib-rasr.tokenizer.codes-file": str(DATA_DIR / "bpe.codes"),
+                "lib-rasr.tokenizer.vocab-file": str(DATA_DIR / "bpe.vocab.py"),
+                "lib-rasr.tokenizer.unknown-token": "<unk>",
             }
         )
         tokenizer = librasr.create_tokenizer(config)
@@ -79,23 +79,23 @@ class ConfiguredTokenizerTest(unittest.TestCase):
         self.assertEqual(tokenizer.encode(TEXT), [2, 8, 7, 3, 4, 30, 5, 9, 15, 29, 28, 19, 31, 24, 1, 1])
         self.assertEqual(tokenizer.decode([2, 8, 3, 1]), "the newest tower <unk>")
 
-    def test_sub_config(self):
+    def test_sub_config(self) -> None:
         config = make_config(
             **{
-                "*.prompt.tokenizer.type": "bpe",
-                "*.prompt.tokenizer.codes-file": str(DATA_DIR / "bpe.codes"),
+                "lib-rasr.prompt.tokenizer.type": "bpe",
+                "lib-rasr.prompt.tokenizer.codes-file": str(DATA_DIR / "bpe.codes"),
             }
         )
         tokenizer = librasr.create_tokenizer(librasr.Configuration(config, "prompt"))
         self.assertEqual(tokenizer.tokenize("wider"), ["wide@@", "r"])
 
     @unittest.skipIf(importlib.util.find_spec("tokenizers") is None, "python package 'tokenizers' is not available")
-    def test_huggingface(self):
+    def test_huggingface(self) -> None:
         config = make_config(
             **{
-                "*.tokenizer.type": "huggingface",
-                "*.tokenizer.tokenizer-file": str(DATA_DIR / "tokenizer.json"),
-                "*.tokenizer.add-special-tokens-on-encode": "true",
+                "lib-rasr.tokenizer.type": "huggingface",
+                "lib-rasr.tokenizer.tokenizer-file": str(DATA_DIR / "tokenizer.json"),
+                "lib-rasr.tokenizer.add-special-tokens-on-encode": "true",
             }
         )
         tokenizer = librasr.create_tokenizer(config)
@@ -108,16 +108,16 @@ class ConfiguredTokenizerTest(unittest.TestCase):
 class PythonTokenizerTest(unittest.TestCase):
     """Tokenizers implemented in python, used directly and via the tokenizer factory."""
 
-    def setUp(self):
+    def setUp(self) -> None:
         self.config = make_config()
 
-    def test_direct(self):
+    def test_direct(self) -> None:
         tokenizer = CharTokenizer(self.config)
         self.assertEqual(tokenizer.vocabulary_size(), 27)
         self.assertEqual(tokenizer.tokenize("ab c"), ["a", "b", " ", "c"])
 
-    def test_factory(self):
-        self.config.set("*.tokenizer.type", "test-chars")
+    def test_factory(self) -> None:
+        self.config.set("lib-rasr.tokenizer.type", "test-chars")
         tokenizer = librasr.create_tokenizer(self.config)
         self.assertIsInstance(tokenizer, CharTokenizer)
         # The default implementations of `encode` and `decode` in C++ call the python methods
@@ -125,13 +125,13 @@ class PythonTokenizerTest(unittest.TestCase):
         self.assertEqual(ids, [7, 4, 11, 11, 14, 26, 22, 14, 17, 11, 3])
         self.assertEqual(tokenizer.decode(ids), "hello world")
 
-    def test_override_default_method(self):
-        self.config.set("*.tokenizer.type", "test-upper-case")
+    def test_override_default_method(self) -> None:
+        self.config.set("lib-rasr.tokenizer.type", "test-upper-case")
         tokenizer = librasr.create_tokenizer(self.config)
         self.assertEqual(tokenizer.decode(tokenizer.encode("hello")), "HELLO")
 
-    def test_register_again(self):
-        self.config.set("*.tokenizer.type", "test-replaced")
+    def test_register_again(self) -> None:
+        self.config.set("lib-rasr.tokenizer.type", "test-replaced")
         librasr.register_tokenizer_type("test-replaced", CharTokenizer)
         librasr.register_tokenizer_type("test-replaced", UpperCaseTokenizer)
         self.assertIsInstance(librasr.create_tokenizer(self.config), UpperCaseTokenizer)

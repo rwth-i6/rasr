@@ -86,52 +86,50 @@ TEST_F(Tokenizer, BpeTokenizerTest, Separator) {
     EXPECT_EQ(tokenizer->detokenize(tokens), std::string("wider tower"));
 }
 
-// Vocabulary as written by get_vocab.py of rwth-i6/subword-nmt
-TEST_F(Tokenizer, BpeTokenizerTest, LineVocabulary) {
-    setTokenizerParameter("vocab-file", Test::dataFile("tokenizer/bpe.vocab"));
-    auto tokenizer = createTokenizer();
-    EXPECT_EQ(tokenizer->vocabularySize(), 32u);
-    EXPECT_EQ(tokenizer->tokenStrToId("tower"), 1u);
-    EXPECT_EQ(tokenizer->tokenStrToId("x@@"), AbstractTokenizer::invalidTokenId);
-    EXPECT_EQ(tokenizer->tokenIdToStr(6u), std::string("newest"));
-
-    std::string inVocabulary = "the newest lower tower is wider than straße";
-    auto        ids          = tokenizer->encode(inVocabulary);
-    EXPECT_EQ(join(ids), std::string("0 6 4 1 2 20 3 5 15 21 22 23 24 25"));
-    EXPECT_EQ(tokenizer->decode(ids), inVocabulary);
-}
-
-// Vocabulary as written by create-py-vocab.py from rwth-i6/subword-nmt
-TEST_F(Tokenizer, BpeTokenizerTest, DictVocabulary) {
+// Vocabulary as written by create-py-vocab.py of rwth-i6/subword-nmt
+TEST_F(Tokenizer, BpeTokenizerTest, Vocabulary) {
     setTokenizerParameter("vocab-file", Test::dataFile("tokenizer/bpe.vocab.py"));
-    setTokenizerParameter("unknown-token", "<unk>");
     auto tokenizer = createTokenizer();
     EXPECT_EQ(tokenizer->vocabularySize(), 34u);
+    EXPECT_EQ(tokenizer->tokenStrToId("tower"), 3u);
+    EXPECT_EQ(tokenizer->tokenStrToId("x@@"), AbstractTokenizer::invalidTokenId);
+    EXPECT_EQ(tokenizer->tokenIdToStr(3u), std::string("tower"));
+    // "<s>" and "</s>" share an id, the first one is used for decoding
     EXPECT_EQ(tokenizer->tokenStrToId("</s>"), 0u);
     EXPECT_EQ(tokenizer->tokenIdToStr(0u), std::string("<s>"));
 
+    std::string inVocabulary = "the newest lower tower is wider than straße";
+    auto        ids          = tokenizer->encode(inVocabulary);
+    EXPECT_EQ(join(ids), std::string("2 8 7 3 4 30 5 9 15 29 28 19 31 24"));
+    EXPECT_EQ(tokenizer->decode(ids), inVocabulary);
+}
+
+TEST_F(Tokenizer, BpeTokenizerTest, UnknownToken) {
+    setTokenizerParameter("vocab-file", Test::dataFile("tokenizer/bpe.vocab.py"));
+    setTokenizerParameter("unknown-token", "<unk>");
+    auto tokenizer = createTokenizer();
     EXPECT_EQ(join(tokenizer->encode(text)), std::string("2 8 7 3 4 30 5 9 15 29 28 19 31 24 1 1"));
     EXPECT_EQ(tokenizer->decode({2u, 8u, 3u, 1u}), std::string("the newest tower <unk>"));
 }
 
 TEST_F(Tokenizer, BpeTokenizerTest, OutOfVocabulary) {
-    setTokenizerParameter("vocab-file", Test::dataFile("tokenizer/bpe.vocab"));
+    setTokenizerParameter("vocab-file", Test::dataFile("tokenizer/bpe.vocab.py"));
     delayErrors();
     auto tokenizer = createTokenizer();
-    EXPECT_EQ(join(tokenizer->encode("the xy")), std::string("0"));
+    EXPECT_EQ(join(tokenizer->encode("the xy")), std::string("2"));
     EXPECT_TRUE(tokenizer->hasFatalErrors());
 }
 
 TEST_F(Tokenizer, BpeTokenizerTest, InvalidTokenId) {
-    setTokenizerParameter("vocab-file", Test::dataFile("tokenizer/bpe.vocab"));
+    setTokenizerParameter("vocab-file", Test::dataFile("tokenizer/bpe.vocab.py"));
     delayErrors();
     auto tokenizer = createTokenizer();
-    EXPECT_EQ(tokenizer->tokenIdToStr(32u), std::string());
+    EXPECT_EQ(tokenizer->tokenIdToStr(34u), std::string());
     EXPECT_TRUE(tokenizer->hasFatalErrors());
 }
 
 // Quotes and escape sequences as written by python's `repr`
-TEST_F(Tokenizer, BpeTokenizerTest, DictVocabularyEscapes) {
+TEST_F(Tokenizer, BpeTokenizerTest, VocabularyEscapes) {
     Test::Directory dir;
     setTokenizerParameter("vocab-file", writeFile(dir, "vocab.py", "{'<s>': 0, \"it's\": 1, 'a\\'b\\\\': 2, '\\u200b@@': 3, '\\xad': 4, 'ß': 5}\n"));
     auto tokenizer = createTokenizer();
@@ -141,16 +139,6 @@ TEST_F(Tokenizer, BpeTokenizerTest, DictVocabularyEscapes) {
     EXPECT_EQ(tokenizer->tokenStrToId("\u200b@@"), 3u);
     EXPECT_EQ(tokenizer->tokenStrToId("\u00ad"), 4u);
     EXPECT_EQ(tokenizer->tokenStrToId("ß"), 5u);
-}
-
-// A line vocabulary is not mistaken for a python dict because its first token is "{"
-TEST_F(Tokenizer, BpeTokenizerTest, LineVocabularyWithBraces) {
-    Test::Directory dir;
-    setTokenizerParameter("vocab-file", writeFile(dir, "vocab", "{ 10\n} 5\ntower 3\n"));
-    auto tokenizer = createTokenizer();
-    EXPECT_EQ(tokenizer->vocabularySize(), 3u);
-    EXPECT_EQ(tokenizer->tokenStrToId("{"), 0u);
-    EXPECT_EQ(tokenizer->tokenStrToId("tower"), 2u);
 }
 
 // Codes without version header are interpreted as version 0.1, i.e. the end-of-word marker is a separate symbol

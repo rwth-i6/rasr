@@ -28,9 +28,8 @@ single blanks.
 codes-file (string):
     merge operations as written by ``learn_bpe.py`` (versions 0.1 and 0.2)
 vocab-file (string):
-    optional vocabulary defining the token ids, either one token per line (id = line index, further columns such as
-    the counts written by ``get_vocab.py`` are ignored) or a RETURNN-style python dict literal as written by
-    ``create-py-vocab.py``
+    optional RETURNN-style vocabulary defining the token ids, i.e. a python dict literal ``{'<s>': 0, 'lo@@': 1, ...}``
+    as written by ``create-py-vocab.py``
 separator (string):
     suffix of non-final subwords, default ``@@``
 unknown-token (string):
@@ -43,7 +42,7 @@ unknown-token (string):
     [*.tokenizer]
     type          = bpe
     codes-file    = bpe.codes
-    vocab-file    = bpe.vocab
+    vocab-file    = bpe.vocab.py
     unknown-token = <unk>
 
 SentencePiece
@@ -92,7 +91,7 @@ Usage from python
     config = librasr.Configuration()
     config.set("lib-rasr.tokenizer.type", "bpe")
     config.set("lib-rasr.tokenizer.codes-file", "bpe.codes")
-    config.set("lib-rasr.tokenizer.vocab-file", "bpe.vocab")
+    config.set("lib-rasr.tokenizer.vocab-file", "bpe.vocab.py")
 
     tokenizer: librasr.Tokenizer = librasr.create_tokenizer(config)
     tokens = tokenizer.tokenize("the lower tower")  # e.g. ["the", "lo@@", "wer", "tower"]
@@ -137,7 +136,7 @@ configured like the built-in types, also for components that create their tokeni
     tokenizer = librasr.create_tokenizer(config)  # an instance of CharTokenizer
 
     tokens = tokenizer.tokenize("hello world")  # ["h", "e", "l", "l", "o", " ", "w", "o", "r", "l", "d"]
-    text = detokenize(tokens)  # "hello world"
+    text = tokenizer.detokenize(tokens)  # "hello world"
 
     ids = tokenizer.encode("hello world")  # [7, 4, 11, 11, 14, 26, 22, 14, 17, 11, 3]
     text = tokenizer.decode(ids)  # "hello world"

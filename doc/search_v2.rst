@@ -498,9 +498,8 @@ pronunciation) rather than being configurable as a separate parameter, so that i
 index used for the search tree itself.
 
 * ``max-beam-size``, ``max-word-end-beam-size``, ``word-end-score-threshold``, ``num-histogram-bins``,
-  ``sentence-end-fall-back``, ``recombination-mode``, ``cache-cleanup-interval``,
-  ``maximum-stable-delay``, ``maximum-stable-delay-pruning-interval``: same meaning and defaults as for
-  ``tree-timesync-beam-search`` above.
+  ``sentence-end-fall-back``, ``recombination-mode``, ``cache-cleanup-interval``: same meaning and defaults
+  as for ``tree-timesync-beam-search`` above.
 * ``score-threshold``: same meaning as for ``tree-timesync-beam-search`` above. Also interacts with
   ``length-norm-scale`` the same way as for ``lexiconfree-labelsync-beam-search`` above -- always expressed in
   un-normalized score units.

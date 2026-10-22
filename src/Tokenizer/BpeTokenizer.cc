@@ -188,10 +188,7 @@ BpeTokenizer::BpeTokenizer(Core::Configuration const& config)
         criticalError("BPE separator must not be empty");
     }
     loadCodes(paramCodesFile(config));
-    std::string vocabFile = paramVocabFile(config);
-    if (not vocabFile.empty()) {
-        loadVocabulary(vocabFile);
-    }
+    loadVocabulary(paramVocabFile(config));
     std::string unknownToken = paramUnknownToken(config);
     if (not unknownToken.empty()) {
         unknownTokenId_ = tokenStrToId(unknownToken);

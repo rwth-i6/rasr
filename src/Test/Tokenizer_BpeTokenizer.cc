@@ -25,6 +25,7 @@ public:
         TokenizerFixture::setUp();
         setTokenizerParameter("type", "bpe");
         setTokenizerParameter("codes-file", Test::dataFile("tokenizer/bpe.codes"));
+        setTokenizerParameter("vocab-file", Test::dataFile("tokenizer/bpe.vocab.py"));
     }
 
 protected:
@@ -88,7 +89,6 @@ TEST_F(Tokenizer, BpeTokenizerTest, Separator) {
 
 // Vocabulary as written by create-py-vocab.py of rwth-i6/subword-nmt
 TEST_F(Tokenizer, BpeTokenizerTest, Vocabulary) {
-    setTokenizerParameter("vocab-file", Test::dataFile("tokenizer/bpe.vocab.py"));
     auto tokenizer = createTokenizer();
     EXPECT_EQ(tokenizer->vocabularySize(), 34u);
     EXPECT_EQ(tokenizer->tokenStrToId("tower"), 3u);
@@ -105,7 +105,6 @@ TEST_F(Tokenizer, BpeTokenizerTest, Vocabulary) {
 }
 
 TEST_F(Tokenizer, BpeTokenizerTest, UnknownToken) {
-    setTokenizerParameter("vocab-file", Test::dataFile("tokenizer/bpe.vocab.py"));
     setTokenizerParameter("unknown-token", "<unk>");
     auto tokenizer = createTokenizer();
     EXPECT_EQ(join(tokenizer->encode(text)), std::string("2 8 7 3 4 30 5 9 15 29 28 19 31 24 1 1"));
@@ -113,7 +112,6 @@ TEST_F(Tokenizer, BpeTokenizerTest, UnknownToken) {
 }
 
 TEST_F(Tokenizer, BpeTokenizerTest, OutOfVocabulary) {
-    setTokenizerParameter("vocab-file", Test::dataFile("tokenizer/bpe.vocab.py"));
     delayErrors();
     auto tokenizer = createTokenizer();
     EXPECT_EQ(join(tokenizer->encode("the xy")), std::string("2"));
@@ -121,7 +119,6 @@ TEST_F(Tokenizer, BpeTokenizerTest, OutOfVocabulary) {
 }
 
 TEST_F(Tokenizer, BpeTokenizerTest, InvalidTokenId) {
-    setTokenizerParameter("vocab-file", Test::dataFile("tokenizer/bpe.vocab.py"));
     delayErrors();
     auto tokenizer = createTokenizer();
     EXPECT_EQ(tokenizer->tokenIdToStr(34u), std::string());

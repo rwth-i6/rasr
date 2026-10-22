@@ -84,6 +84,7 @@ class ConfiguredTokenizerTest(unittest.TestCase):
             **{
                 "lib-rasr.prompt.tokenizer.type": "bpe",
                 "lib-rasr.prompt.tokenizer.codes-file": str(DATA_DIR / "bpe.codes"),
+                "lib-rasr.prompt.tokenizer.vocab-file": str(DATA_DIR / "bpe.vocab.py"),
             }
         )
         tokenizer = librasr.create_tokenizer(librasr.Configuration(config, "prompt"))

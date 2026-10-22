@@ -30,7 +30,7 @@ namespace Tokenizer {
  * the last one of a word get the `separator` suffix, e.g. "lower" -> "lo@@ wer". `detokenize` joins words with single
  * blanks.
  *
- * The optional `vocab-file` defines the token ids as a RETURNN-style python dict literal {'<s>': 0, 'lo@@': 1, ...}.
+ * `vocab-file` defines the token ids as a RETURNN-style python dict literal {'<s>': 0, 'lo@@': 1, ...}.
  * When encoding, out-of-vocabulary tokens are mapped to `unknown-token` if it is set.
  */
 class BpeTokenizer : public AbstractTokenizer {

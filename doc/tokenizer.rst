@@ -28,7 +28,7 @@ single blanks.
 codes-file (string):
     merge operations as written by ``learn_bpe.py`` (versions 0.1 and 0.2)
 vocab-file (string):
-    optional RETURNN-style vocabulary defining the token ids, i.e. a python dict literal ``{'<s>': 0, 'lo@@': 1, ...}``
+    RETURNN-style vocabulary defining the token ids, i.e. a python dict literal ``{'<s>': 0, 'lo@@': 1, ...}``
     as written by ``create-py-vocab.py``
 separator (string):
     suffix of non-final subwords, default ``@@``

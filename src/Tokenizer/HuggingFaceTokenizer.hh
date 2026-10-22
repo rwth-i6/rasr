@@ -31,8 +31,8 @@ public:
     using Precursor = AbstractTokenizer;
 
     static const Core::ParameterString paramTokenizerFile;
-    static const Core::ParameterBool   paramAddSpecialTokens;
-    static const Core::ParameterBool   paramSkipSpecialTokens;
+    static const Core::ParameterBool   paramAddSpecialTokensOnEncode;
+    static const Core::ParameterBool   paramRemoveSpecialTokensOnDecode;
 
     HuggingFaceTokenizer(Core::Configuration const& config);
     ~HuggingFaceTokenizer();
@@ -41,15 +41,15 @@ public:
     std::string              detokenize(std::vector<std::string> const& tokens) const override;
 
     u32         vocabularySize() const override;
-    TokenId     tokenId(std::string const& token) const override;
-    std::string token(TokenId id) const override;
+    TokenId     tokenStrToId(std::string const& token) const override;
+    std::string tokenIdToStr(TokenId id) const override;
 
     std::vector<TokenId> encode(std::string const& text) const override;
     std::string          decode(std::vector<TokenId> const& ids) const override;
 
 private:
-    bool const addSpecialTokens_;
-    bool const skipSpecialTokens_;
+    bool const addSpecialTokensOnEncode_;
+    bool const removeSpecialTokensOnDecode_;
 
     Python::ObjRef tokenizer_;  // Instance of `tokenizers.Tokenizer`
     u32            vocabularySize_;

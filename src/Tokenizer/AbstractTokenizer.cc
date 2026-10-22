@@ -23,7 +23,7 @@ AbstractTokenizer::AbstractTokenizer(Core::Configuration const& config)
 std::vector<AbstractTokenizer::TokenId> AbstractTokenizer::encode(std::string const& text) const {
     std::vector<TokenId> ids;
     for (auto const& token : tokenize(text)) {
-        TokenId id = tokenId(token);
+        TokenId id = tokenStrToId(token);
         if (id == invalidTokenId) {
             error("Token '%s' is not part of the vocabulary", token.c_str());
             continue;
@@ -37,7 +37,7 @@ std::string AbstractTokenizer::decode(std::vector<TokenId> const& ids) const {
     std::vector<std::string> tokens;
     tokens.reserve(ids.size());
     for (auto id : ids) {
-        tokens.push_back(token(id));
+        tokens.push_back(tokenIdToStr(id));
     }
     return detokenize(tokens);
 }

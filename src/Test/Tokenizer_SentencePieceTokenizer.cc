@@ -36,10 +36,10 @@ TEST_F(Tokenizer, SentencePieceTokenizerTest, Tokenize) {
 TEST_F(Tokenizer, SentencePieceTokenizerTest, Vocabulary) {
     auto tokenizer = createTokenizer();
     EXPECT_EQ(tokenizer->vocabularySize(), 32u);
-    EXPECT_EQ(tokenizer->tokenId("<unk>"), 0u);
-    EXPECT_EQ(tokenizer->tokenId("▁tower"), 6u);
-    EXPECT_EQ(tokenizer->tokenId("xy"), AbstractTokenizer::invalidTokenId);
-    EXPECT_EQ(tokenizer->token(6u), std::string("▁tower"));
+    EXPECT_EQ(tokenizer->tokenStrToId("<unk>"), 0u);
+    EXPECT_EQ(tokenizer->tokenStrToId("▁tower"), 6u);
+    EXPECT_EQ(tokenizer->tokenStrToId("xy"), AbstractTokenizer::invalidTokenId);
+    EXPECT_EQ(tokenizer->tokenIdToStr(6u), std::string("▁tower"));
 }
 
 // Unknown pieces are encoded as the unknown id and decoded as " ⁇ "
@@ -85,7 +85,7 @@ TEST_F(Tokenizer, SentencePieceTokenizerTest, RareCharacters) {
 TEST_F(Tokenizer, SentencePieceTokenizerTest, InvalidTokenId) {
     delayErrors();
     auto tokenizer = createTokenizer();
-    EXPECT_EQ(tokenizer->token(32u), std::string());
+    EXPECT_EQ(tokenizer->tokenIdToStr(32u), std::string());
     EXPECT_TRUE(tokenizer->hasFatalErrors());
 }
 

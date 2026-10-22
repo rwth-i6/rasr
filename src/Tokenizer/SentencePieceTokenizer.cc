@@ -50,13 +50,13 @@ u32 SentencePieceTokenizer::vocabularySize() const {
     return processor_.GetPieceSize();
 }
 
-AbstractTokenizer::TokenId SentencePieceTokenizer::tokenId(std::string const& token) const {
+AbstractTokenizer::TokenId SentencePieceTokenizer::tokenStrToId(std::string const& token) const {
     // `PieceToId` returns the unknown id for unknown pieces
     int id = processor_.PieceToId(token);
     return (processor_.IsUnknown(id) and processor_.IdToPiece(id) != token) ? invalidTokenId : id;
 }
 
-std::string SentencePieceTokenizer::token(TokenId id) const {
+std::string SentencePieceTokenizer::tokenIdToStr(TokenId id) const {
     // `IdToPiece` does not check the range
     return checkTokenId(id) ? processor_.IdToPiece(id) : std::string();
 }

@@ -72,10 +72,12 @@ Loads a ``tokenizer.json`` file as shipped with most LLMs on the HuggingFace hub
 
 tokenizer-file (string):
     HuggingFace ``tokenizer.json`` file
-add-special-tokens (bool):
-    whether to add special tokens as defined by the tokenizer's post-processor (e.g. BOS) when encoding, default false
-skip-special-tokens (bool):
-    whether to drop special tokens when decoding, default true
+add-special-tokens-on-encode (bool):
+    whether ``tokenize`` and ``encode`` insert the special tokens defined by the post-processor of the tokenizer,
+    e.g. ``"hello"`` -> ``["<s>", "hello"]`` for a tokenizer that prepends a BOS token. Default false.
+remove-special-tokens-on-decode (bool):
+    whether ``decode`` and ``detokenize`` drop special tokens from the text, e.g. ``["<s>", "hello", "</s>"]`` ->
+    ``"hello"`` instead of ``"<s>hello</s>"``. Default true.
 
 Usage from python
 -----------------
@@ -100,8 +102,8 @@ Usage from python
   several tokenizers, pass sub-configs, e.g. ``librasr.create_tokenizer(librasr.Configuration(config, "prompt"))``
   for ``*.prompt.tokenizer.*``.
 * ``librasr.Tokenizer`` methods: ``tokenize(text)`` / ``detokenize(tokens)`` convert between text and token strings,
-  ``encode(text)`` / ``decode(ids)`` between text and token ids. Further ``vocabulary_size()``, ``token_id(token)``
-  (``librasr.Tokenizer.INVALID_TOKEN_ID`` if not in the vocabulary) and ``token(id)``.
+  ``encode(text)`` / ``decode(ids)`` between text and token ids. Further ``vocabulary_size()``, ``token_str_to_id(token)``
+  (``librasr.Tokenizer.INVALID_TOKEN_ID`` if not in the vocabulary) and ``token_id_to_str(id)``.
 
 To implement a tokenizer in python, subclass ``librasr.Tokenizer`` and register it under a type name. It can then be
 configured like the built-in types, also for components that create their tokenizer in C++:
@@ -122,14 +124,14 @@ configured like the built-in types, also for components that create their tokeni
         def vocabulary_size(self):
             return len(self.vocab)
 
-        def token_id(self, token):
+        def token_str_to_id(self, token):
             return self.vocab.index(token) if token in self.vocab else librasr.Tokenizer.INVALID_TOKEN_ID
 
-        def token(self, id):
+        def token_id_to_str(self, id):
             return self.vocab[id]
 
     librasr.register_tokenizer_type("chars", CharTokenizer)
 
-``tokenize``, ``detokenize``, ``vocabulary_size``, ``token_id`` and ``token`` must be implemented. ``encode`` and
+``tokenize``, ``detokenize``, ``vocabulary_size``, ``token_str_to_id`` and ``token_id_to_str`` must be implemented. ``encode`` and
 ``decode`` can be overridden, by default they are based on the other methods. Register the type before creating a
 tokenizer that uses it.

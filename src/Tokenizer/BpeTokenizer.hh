@@ -48,8 +48,8 @@ public:
     std::string              detokenize(std::vector<std::string> const& tokens) const override;
 
     u32         vocabularySize() const override;
-    TokenId     tokenId(std::string const& token) const override;
-    std::string token(TokenId id) const override;
+    TokenId     tokenStrToId(std::string const& token) const override;
+    std::string tokenIdToStr(TokenId id) const override;
 
     std::vector<TokenId> encode(std::string const& text) const override;
 

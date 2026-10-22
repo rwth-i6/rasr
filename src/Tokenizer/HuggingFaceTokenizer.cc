@@ -62,21 +62,23 @@ const Core::ParameterString HuggingFaceTokenizer::paramTokenizerFile(
         "HuggingFace tokenizer.json file",
         "");
 
-const Core::ParameterBool HuggingFaceTokenizer::paramAddSpecialTokens(
-        "add-special-tokens",
-        "whether to add special tokens (e.g. BOS) as defined by the tokenizer's post-processor when encoding",
+const Core::ParameterBool HuggingFaceTokenizer::paramAddSpecialTokensOnEncode(
+        "add-special-tokens-on-encode",
+        "whether `tokenize` and `encode` insert the special tokens defined by the post-processor of the tokenizer, "
+        "e.g. \"hello\" -> [\"<s>\", \"hello\"] for a tokenizer that prepends a BOS token",
         false);
 
-const Core::ParameterBool HuggingFaceTokenizer::paramSkipSpecialTokens(
-        "skip-special-tokens",
-        "whether to drop special tokens when decoding",
+const Core::ParameterBool HuggingFaceTokenizer::paramRemoveSpecialTokensOnDecode(
+        "remove-special-tokens-on-decode",
+        "whether `decode` and `detokenize` drop special tokens from the text, "
+        "e.g. [\"<s>\", \"hello\", \"</s>\"] -> \"hello\" instead of \"<s>hello</s>\"",
         true);
 
 HuggingFaceTokenizer::HuggingFaceTokenizer(Core::Configuration const& config)
         : Core::Component(config),
           Precursor(config),
-          addSpecialTokens_(paramAddSpecialTokens(config)),
-          skipSpecialTokens_(paramSkipSpecialTokens(config)),
+          addSpecialTokensOnEncode_(paramAddSpecialTokensOnEncode(config)),
+          removeSpecialTokensOnDecode_(paramRemoveSpecialTokensOnDecode(config)),
           vocabularySize_(0u) {
     initPython();
     std::string            tokenizerFile = paramTokenizerFile(config);
@@ -102,7 +104,7 @@ HuggingFaceTokenizer::~HuggingFaceTokenizer() {
 
 std::vector<std::string> HuggingFaceTokenizer::tokenize(std::string const& text) const {
     return callPython(*this, std::vector<std::string>(), [&] {
-        return py::handle(tokenizer_).attr("encode")(text, py::arg("add_special_tokens") = addSpecialTokens_).attr("tokens").cast<std::vector<std::string>>();
+        return py::handle(tokenizer_).attr("encode")(text, py::arg("add_special_tokens") = addSpecialTokensOnEncode_).attr("tokens").cast<std::vector<std::string>>();
     });
 }
 
@@ -110,7 +112,7 @@ std::string HuggingFaceTokenizer::detokenize(std::vector<std::string> const& tok
     std::vector<TokenId> ids;
     ids.reserve(tokens.size());
     for (auto const& token : tokens) {
-        TokenId id = tokenId(token);
+        TokenId id = tokenStrToId(token);
         if (id == invalidTokenId) {
             error("Token '%s' is not part of the vocabulary", token.c_str());
             continue;
@@ -124,14 +126,14 @@ u32 HuggingFaceTokenizer::vocabularySize() const {
     return vocabularySize_;
 }
 
-AbstractTokenizer::TokenId HuggingFaceTokenizer::tokenId(std::string const& token) const {
+AbstractTokenizer::TokenId HuggingFaceTokenizer::tokenStrToId(std::string const& token) const {
     return callPython(*this, invalidTokenId, [&] {
         py::object id = py::handle(tokenizer_).attr("token_to_id")(token);
         return id.is_none() ? invalidTokenId : id.cast<TokenId>();
     });
 }
 
-std::string HuggingFaceTokenizer::token(TokenId id) const {
+std::string HuggingFaceTokenizer::tokenIdToStr(TokenId id) const {
     if (not checkTokenId(id)) {
         return {};
     }
@@ -142,7 +144,7 @@ std::string HuggingFaceTokenizer::token(TokenId id) const {
 
 std::vector<AbstractTokenizer::TokenId> HuggingFaceTokenizer::encode(std::string const& text) const {
     return callPython(*this, std::vector<TokenId>(), [&] {
-        return py::handle(tokenizer_).attr("encode")(text, py::arg("add_special_tokens") = addSpecialTokens_).attr("ids").cast<std::vector<TokenId>>();
+        return py::handle(tokenizer_).attr("encode")(text, py::arg("add_special_tokens") = addSpecialTokensOnEncode_).attr("ids").cast<std::vector<TokenId>>();
     });
 }
 
@@ -154,7 +156,7 @@ std::string HuggingFaceTokenizer::decode(std::vector<TokenId> const& ids) const 
         }
     }
     return callPython(*this, std::string(), [&] {
-        return py::handle(tokenizer_).attr("decode")(ids, py::arg("skip_special_tokens") = skipSpecialTokens_).cast<std::string>();
+        return py::handle(tokenizer_).attr("decode")(ids, py::arg("skip_special_tokens") = removeSpecialTokensOnDecode_).cast<std::string>();
     });
 }
 

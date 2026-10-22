@@ -65,8 +65,8 @@ void bindTokenizer(py::module_& module) {
             " - `tokenize`\n"
             " - `detokenize`\n"
             " - `vocabulary_size`\n"
-            " - `token_id`\n"
-            " - `token`\n"
+            " - `token_str_to_id`\n"
+            " - `token_id_to_str`\n"
             "`encode` and `decode` can optionally be overridden.");
 
     pyTokenizer.attr("INVALID_TOKEN_ID") = Tokenizer::AbstractTokenizer::invalidTokenId;
@@ -94,14 +94,14 @@ void bindTokenizer(py::module_& module) {
             "Return the number of token ids.");
 
     pyTokenizer.def(
-            "token_id",
-            &Tokenizer::AbstractTokenizer::tokenId,
+            "token_str_to_id",
+            &Tokenizer::AbstractTokenizer::tokenStrToId,
             py::arg("token"),
             "Return the id of a token string or `INVALID_TOKEN_ID` if it is not part of the vocabulary.");
 
     pyTokenizer.def(
-            "token",
-            &Tokenizer::AbstractTokenizer::token,
+            "token_id_to_str",
+            &Tokenizer::AbstractTokenizer::tokenIdToStr,
             py::arg("id"),
             "Return the token string of an id.");
 

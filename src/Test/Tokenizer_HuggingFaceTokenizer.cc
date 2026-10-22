@@ -70,10 +70,10 @@ TEST_F(Tokenizer, HuggingFaceTokenizerTest, Vocabulary) {
     }
     auto tokenizer = createTokenizer();
     EXPECT_EQ(tokenizer->vocabularySize(), 300u);
-    EXPECT_EQ(tokenizer->tokenId("<s>"), 0u);
-    EXPECT_EQ(tokenizer->tokenId("Ġtower"), 266u);
-    EXPECT_EQ(tokenizer->tokenId("xy"), AbstractTokenizer::invalidTokenId);
-    EXPECT_EQ(tokenizer->token(266u), std::string("Ġtower"));
+    EXPECT_EQ(tokenizer->tokenStrToId("<s>"), 0u);
+    EXPECT_EQ(tokenizer->tokenStrToId("Ġtower"), 266u);
+    EXPECT_EQ(tokenizer->tokenStrToId("xy"), AbstractTokenizer::invalidTokenId);
+    EXPECT_EQ(tokenizer->tokenIdToStr(266u), std::string("Ġtower"));
 }
 
 TEST_F(Tokenizer, HuggingFaceTokenizerTest, EncodeDecode) {
@@ -91,14 +91,14 @@ TEST_F(Tokenizer, HuggingFaceTokenizerTest, SpecialTokens) {
     if (not tokenizersAvailable()) {
         return;
     }
-    setTokenizerParameter("add-special-tokens", "true");
-    setTokenizerParameter("skip-special-tokens", "false");
+    setTokenizerParameter("add-special-tokens-on-encode", "true");
+    setTokenizerParameter("remove-special-tokens-on-decode", "false");
     auto tokenizer = createTokenizer();
     auto ids       = tokenizer->encode("the tower");
     EXPECT_EQ(join(ids), std::string("0 277 266"));
     EXPECT_EQ(tokenizer->decode(ids), std::string("<s>the tower"));
 
-    setTokenizerParameter("skip-special-tokens", "true");
+    setTokenizerParameter("remove-special-tokens-on-decode", "true");
     EXPECT_EQ(createTokenizer()->decode(ids), std::string("the tower"));
 }
 
@@ -164,7 +164,7 @@ TEST_F(Tokenizer, HuggingFaceTokenizerTest, InvalidTokenId) {
     }
     delayErrors();
     auto tokenizer = createTokenizer();
-    EXPECT_EQ(tokenizer->token(300u), std::string());
+    EXPECT_EQ(tokenizer->tokenIdToStr(300u), std::string());
     EXPECT_EQ(tokenizer->decode({277u, 300u}), std::string());
     EXPECT_TRUE(tokenizer->hasFatalErrors());
 }

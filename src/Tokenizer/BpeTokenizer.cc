@@ -190,7 +190,7 @@ BpeTokenizer::BpeTokenizer(Core::Configuration const& config)
     }
     std::string unknownToken = paramUnknownToken(config);
     if (not unknownToken.empty()) {
-        unknownTokenId_ = tokenId(unknownToken);
+        unknownTokenId_ = tokenStrToId(unknownToken);
         if (unknownTokenId_ == invalidTokenId) {
             criticalError("Unknown token '%s' is not part of the vocabulary", unknownToken.c_str());
         }
@@ -228,12 +228,12 @@ u32 BpeTokenizer::vocabularySize() const {
     return tokens_.size();
 }
 
-AbstractTokenizer::TokenId BpeTokenizer::tokenId(std::string const& token) const {
+AbstractTokenizer::TokenId BpeTokenizer::tokenStrToId(std::string const& token) const {
     auto it = tokenIds_.find(token);
     return it == tokenIds_.end() ? invalidTokenId : it->second;
 }
 
-std::string BpeTokenizer::token(TokenId id) const {
+std::string BpeTokenizer::tokenIdToStr(TokenId id) const {
     return checkTokenId(id) ? tokens_[id] : std::string();
 }
 
@@ -243,7 +243,7 @@ std::vector<AbstractTokenizer::TokenId> BpeTokenizer::encode(std::string const& 
     }
     std::vector<TokenId> ids;
     for (auto const& token : tokenize(text)) {
-        TokenId id = tokenId(token);
+        TokenId id = tokenStrToId(token);
         ids.push_back(id == invalidTokenId ? unknownTokenId_ : id);
     }
     return ids;

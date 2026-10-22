@@ -38,10 +38,10 @@ class CharTokenizer(librasr.Tokenizer):
     def vocabulary_size(self):
         return len(self.vocab)
 
-    def token_id(self, token):
+    def token_str_to_id(self, token):
         return self.vocab.index(token) if token in self.vocab else librasr.Tokenizer.INVALID_TOKEN_ID
 
-    def token(self, id):
+    def token_id_to_str(self, id):
         return self.vocab[id]
 
 
@@ -73,9 +73,9 @@ class ConfiguredTokenizerTest(unittest.TestCase):
         self.assertEqual(" ".join(tokens), "the newest lower tower is wide@@ r than s@@ t@@ r@@ a@@ ß@@ e x@@ y")
         self.assertEqual(tokenizer.detokenize(tokens), TEXT)
         self.assertEqual(tokenizer.vocabulary_size(), 34)
-        self.assertEqual(tokenizer.token_id("tower"), 3)
-        self.assertEqual(tokenizer.token_id("x@@"), librasr.Tokenizer.INVALID_TOKEN_ID)
-        self.assertEqual(tokenizer.token(3), "tower")
+        self.assertEqual(tokenizer.token_str_to_id("tower"), 3)
+        self.assertEqual(tokenizer.token_str_to_id("x@@"), librasr.Tokenizer.INVALID_TOKEN_ID)
+        self.assertEqual(tokenizer.token_id_to_str(3), "tower")
         self.assertEqual(tokenizer.encode(TEXT), [2, 8, 7, 3, 4, 30, 5, 9, 15, 29, 28, 19, 31, 24, 1, 1])
         self.assertEqual(tokenizer.decode([2, 8, 3, 1]), "the newest tower <unk>")
 
@@ -95,7 +95,7 @@ class ConfiguredTokenizerTest(unittest.TestCase):
             **{
                 "*.tokenizer.type": "huggingface",
                 "*.tokenizer.tokenizer-file": str(DATA_DIR / "tokenizer.json"),
-                "*.tokenizer.add-special-tokens": "true",
+                "*.tokenizer.add-special-tokens-on-encode": "true",
             }
         )
         tokenizer = librasr.create_tokenizer(config)

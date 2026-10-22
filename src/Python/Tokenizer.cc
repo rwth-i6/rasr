@@ -36,12 +36,12 @@ u32 PythonTokenizer::vocabularySize() const {
     PYBIND11_OVERRIDE_PURE_NAME(u32, Precursor, "vocabulary_size", vocabularySize);
 }
 
-PythonTokenizer::TokenId PythonTokenizer::tokenId(std::string const& token) const {
-    PYBIND11_OVERRIDE_PURE_NAME(TokenId, Precursor, "token_id", tokenId, token);
+PythonTokenizer::TokenId PythonTokenizer::tokenStrToId(std::string const& token) const {
+    PYBIND11_OVERRIDE_PURE_NAME(TokenId, Precursor, "token_str_to_id", tokenStrToId, token);
 }
 
-std::string PythonTokenizer::token(TokenId id) const {
-    PYBIND11_OVERRIDE_PURE_NAME(std::string, Precursor, "token", token, id);
+std::string PythonTokenizer::tokenIdToStr(TokenId id) const {
+    PYBIND11_OVERRIDE_PURE_NAME(std::string, Precursor, "token_id_to_str", tokenIdToStr, id);
 }
 
 std::vector<PythonTokenizer::TokenId> PythonTokenizer::encode(std::string const& text) const {

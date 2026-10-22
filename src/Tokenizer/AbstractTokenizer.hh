@@ -47,15 +47,15 @@ public:
     virtual u32 vocabularySize() const = 0;
 
     // Returns `invalidTokenId` if `token` is not part of the vocabulary
-    virtual TokenId tokenId(std::string const& token) const = 0;
+    virtual TokenId tokenStrToId(std::string const& token) const = 0;
 
     // Raises an error and returns an empty string for invalid ids
-    virtual std::string token(TokenId id) const = 0;
+    virtual std::string tokenIdToStr(TokenId id) const = 0;
 
-    // Default: `tokenize` + `tokenId`, raises an error for out-of-vocabulary tokens
+    // Default: Apply `tokenize` then `tokenStrToId` to each item
     virtual std::vector<TokenId> encode(std::string const& text) const;
 
-    // Default: `token` + `detokenize`
+    // Default: Apply `tokenIdToStr` to each item then `detokenize`
     virtual std::string decode(std::vector<TokenId> const& ids) const;
 
 protected:

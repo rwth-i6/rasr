@@ -23,11 +23,12 @@
 namespace Tokenizer {
 
 /*
- * Byte-pair encoding as applied by subword-nmt (https://github.com/rsennrich/subword-nmt).
+ * Byte-pair encoding as applied by subword-nmt (https://github.com/rwth-i6/subword-nmt).
  *
- * Text is split at whitespace (blanks, tabs, newlines) and each word is segmented by applying the merge operations
- * from `codes-file` in order of priority. All subwords except the last one of a word get the `separator` suffix,
- * e.g. "lower" -> "lo@@ wer". `detokenize` joins words with single blanks.
+ * Text is split at whitespace (as python's `str.split()`, e.g. blanks, tabs, newlines and non-breaking spaces) and
+ * each word is segmented by applying the merge operations from `codes-file` in order of priority. All subwords except
+ * the last one of a word get the `separator` suffix, e.g. "lower" -> "lo@@ wer". `detokenize` joins words with single
+ * blanks.
  *
  * The optional `vocab-file` defines the token ids. It contains either one token per line (further columns
  * such as counts are ignored) or a RETURNN-style python dict literal {'<s>': 0, 'lo@@': 1, ...}.

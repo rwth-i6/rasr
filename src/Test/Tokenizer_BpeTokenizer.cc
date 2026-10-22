@@ -18,7 +18,7 @@
 
 namespace Tokenizer {
 
-// Expected values are taken from subword-nmt 0.3.8 (apply_bpe.py)
+// Expected values are taken from apply_bpe.py of rwth-i6/subword-nmt
 class BpeTokenizerTest : public Test::TokenizerFixture {
 public:
     virtual void setUp() {
@@ -51,12 +51,15 @@ TEST_F(Tokenizer, BpeTokenizerTest, EmptyInput) {
     EXPECT_EQ(tokenizer->detokenize({}), std::string());
 }
 
-// All whitespace characters are word boundaries and are normalized to single blanks
+// Whitespace characters of python's `str.split()` are word boundaries and are normalized to single blanks
 TEST_F(Tokenizer, BpeTokenizerTest, Whitespace) {
     auto tokenizer = createTokenizer();
     auto tokens    = tokenizer->tokenize("the\ttower\nis  low\r\n");
     EXPECT_EQ(join(tokens), std::string("the tower is l@@ o@@ w"));
     EXPECT_EQ(tokenizer->detokenize(tokens), std::string("the tower is low"));
+    EXPECT_EQ(join(tokenizer->tokenize("low\u00a0tower\u3000is")), std::string("l@@ o@@ w tower is"));
+    // Zero-width spaces are no whitespace in python
+    EXPECT_EQ(join(tokenizer->tokenize("low\u200btower")), std::string("l@@ o@@ w@@ \u200b@@ tower"));
 }
 
 TEST_F(Tokenizer, BpeTokenizerTest, Punctuation) {
@@ -83,7 +86,7 @@ TEST_F(Tokenizer, BpeTokenizerTest, Separator) {
     EXPECT_EQ(tokenizer->detokenize(tokens), std::string("wider tower"));
 }
 
-// Vocabulary as written by `subword-nmt get-vocab`
+// Vocabulary as written by get_vocab.py of rwth-i6/subword-nmt
 TEST_F(Tokenizer, BpeTokenizerTest, LineVocabulary) {
     setTokenizerParameter("vocab-file", Test::dataFile("tokenizer/bpe.vocab"));
     auto tokenizer = createTokenizer();

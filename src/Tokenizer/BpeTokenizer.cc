@@ -20,6 +20,7 @@
 #include <cstdlib>
 #include <iterator>
 #include <sstream>
+#include <unordered_set>
 #include <utility>
 
 #include <Core/CompressedStream.hh>
@@ -34,17 +35,42 @@ bool endsWith(std::string const& text, std::string const& suffix) {
     return text.size() >= suffix.size() and text.compare(text.size() - suffix.size(), suffix.size(), suffix) == 0;
 }
 
-std::vector<std::string> splitUtf8Characters(std::string const& word) {
+std::vector<std::string> splitUtf8Characters(std::string const& text) {
     std::vector<std::string> characters;
-    for (size_t i = 0; i < word.size();) {
+    for (size_t i = 0; i < text.size();) {
         size_t length = 1;
-        while (i + length < word.size() and utf8::byteType(word[i + length]) == utf8::multiByteTail) {
+        while (i + length < text.size() and utf8::byteType(text[i + length]) == utf8::multiByteTail) {
             ++length;
         }
-        characters.push_back(word.substr(i, length));
+        characters.push_back(text.substr(i, length));
         i += length;
     }
     return characters;
+}
+
+// Whitespace characters of python's `str.split()`, which rwth-i6/subword-nmt uses to split text into words
+bool isWhitespace(std::string const& character) {
+    static std::unordered_set<std::string> const whitespace = {
+            "\t", "\n", "\v", "\f", "\r", "\x1c", "\x1d", "\x1e", "\x1f", " ", "\u0085", "\u00a0", "\u1680",
+            "\u2000", "\u2001", "\u2002", "\u2003", "\u2004", "\u2005", "\u2006", "\u2007", "\u2008", "\u2009", "\u200a",
+            "\u2028", "\u2029", "\u202f", "\u205f", "\u3000"};
+    return whitespace.count(character) > 0ul;
+}
+
+std::vector<std::string> splitWords(std::string const& text) {
+    std::vector<std::string> words(1);
+    for (auto const& character : splitUtf8Characters(text)) {
+        if (not isWhitespace(character)) {
+            words.back() += character;
+        }
+        else if (not words.back().empty()) {
+            words.emplace_back();
+        }
+    }
+    if (words.back().empty()) {
+        words.pop_back();
+    }
+    return words;
 }
 
 typedef std::vector<std::pair<std::string, u32>> VocabularyEntries;
@@ -199,9 +225,7 @@ BpeTokenizer::BpeTokenizer(Core::Configuration const& config)
 
 std::vector<std::string> BpeTokenizer::tokenize(std::string const& text) const {
     std::vector<std::string> tokens;
-    std::istringstream       words(text);
-    std::string              word;
-    while (words >> word) {
+    for (auto const& word : splitWords(text)) {
         auto subwords = segmentWord(word);
         for (size_t i = 0ul; i + 1 < subwords.size(); ++i) {
             tokens.push_back(subwords[i] + separator_);

@@ -18,18 +18,19 @@ BPE
 
 tokenizer type: ``bpe``
 
-Byte-pair encoding as applied by `subword-nmt <https://github.com/rsennrich/subword-nmt>`_. Text is split at
-whitespace (blanks, tabs and newlines) and all subwords except the last one of a word get the ``separator`` suffix,
-e.g. ``lower`` -> ``lo@@ wer``. Detokenizing joins words with single blanks.
+Byte-pair encoding as applied by `subword-nmt <https://github.com/rwth-i6/subword-nmt>`_. Text is split at
+whitespace (as python's ``str.split()``, e.g. blanks, tabs, newlines and non-breaking spaces) and all subwords except
+the last one of a word get the ``separator`` suffix, e.g. ``lower`` -> ``lo@@ wer``. Detokenizing joins words with
+single blanks.
 
 **Configuration**
 
 codes-file (string):
-    merge operations as written by ``subword-nmt learn-bpe`` (versions 0.1 and 0.2)
+    merge operations as written by ``learn_bpe.py`` (versions 0.1 and 0.2)
 vocab-file (string):
     optional vocabulary defining the token ids, either one token per line (id = line index, further columns such as
-    the counts written by ``subword-nmt get-vocab`` are ignored) or a RETURNN-style python dict literal as written by
-    ``create-py-vocab.py`` of `rwth-i6/subword-nmt <https://github.com/rwth-i6/subword-nmt>`_
+    the counts written by ``get_vocab.py`` are ignored) or a RETURNN-style python dict literal as written by
+    ``create-py-vocab.py``
 separator (string):
     suffix of non-final subwords, default ``@@``
 unknown-token (string):
@@ -66,7 +67,7 @@ tokenizer type: ``huggingface``
 
 Loads a ``tokenizer.json`` file as shipped with most LLMs on the HuggingFace hub. It runs the python package
 `tokenizers <https://github.com/huggingface/tokenizers>`_ (``pip install tokenizers``), so it requires
-``MODULE_PYTHON`` but works in all RASR tools, not only via ``librasr``.
+``MODULE_PYTHON``.
 
 **Configuration**
 
@@ -82,25 +83,21 @@ remove-special-tokens-on-decode (bool):
 Usage from python
 -----------------
 
-``librasr`` can create any configured tokenizer and lets you implement tokenizers in python.
+``librasr`` can create any configured tokenizer and lets you implement custom tokenizers in python.
 
 .. code-block :: python
 
     import librasr
 
     config = librasr.Configuration()
-    config.set("*.tokenizer.type", "bpe")
-    config.set("*.tokenizer.codes-file", "bpe.codes")
-    config.set("*.tokenizer.vocab-file", "bpe.vocab")
+    config.set("lib-rasr.tokenizer.type", "bpe")
+    config.set("lib-rasr.tokenizer.codes-file", "bpe.codes")
+    config.set("lib-rasr.tokenizer.vocab-file", "bpe.vocab")
 
-    tokenizer = librasr.create_tokenizer(config)
+    tokenizer: librasr.Tokenizer = librasr.create_tokenizer(config)
     tokens = tokenizer.tokenize("the lower tower")  # e.g. ["the", "lo@@", "wer", "tower"]
-    ids = tokenizer.encode("the lower tower")
-    text = tokenizer.decode(ids)
 
-* ``librasr.create_tokenizer(config)`` : create the tokenizer configured under ``*.tokenizer.*``. To configure
-  several tokenizers, pass sub-configs, e.g. ``librasr.create_tokenizer(librasr.Configuration(config, "prompt"))``
-  for ``*.prompt.tokenizer.*``.
+* ``librasr.create_tokenizer(config)`` : create the tokenizer configured under ``lib-rasr.tokenizer``.
 * ``librasr.Tokenizer`` methods: ``tokenize(text)`` / ``detokenize(tokens)`` convert between text and token strings,
   ``encode(text)`` / ``decode(ids)`` between text and token ids. Further ``vocabulary_size()``, ``token_str_to_id(token)``
   (``librasr.Tokenizer.INVALID_TOKEN_ID`` if not in the vocabulary) and ``token_id_to_str(id)``.
@@ -110,28 +107,41 @@ configured like the built-in types, also for components that create their tokeni
 
 .. code-block :: python
 
+    import librasr
+
     class CharTokenizer(librasr.Tokenizer):
-        def __init__(self, config):
+        def __init__(self, config: librasr._BaseConfig) -> None:
             super().__init__(config)
             self.vocab = list("abcdefghijklmnopqrstuvwxyz ")
 
-        def tokenize(self, text):
+        def tokenize(self, text: str) -> list[str]:
             return list(text)
 
-        def detokenize(self, tokens):
+        def detokenize(self, tokens: list[str]) -> str:
             return "".join(tokens)
 
-        def vocabulary_size(self):
+        def vocabulary_size(self) -> int:
             return len(self.vocab)
 
-        def token_str_to_id(self, token):
+        def token_str_to_id(self, token: str) -> int:
             return self.vocab.index(token) if token in self.vocab else librasr.Tokenizer.INVALID_TOKEN_ID
 
-        def token_id_to_str(self, id):
+        def token_id_to_str(self, id: int) -> str:
             return self.vocab[id]
 
     librasr.register_tokenizer_type("chars", CharTokenizer)
 
-``tokenize``, ``detokenize``, ``vocabulary_size``, ``token_str_to_id`` and ``token_id_to_str`` must be implemented. ``encode`` and
-``decode`` can be overridden, by default they are based on the other methods. Register the type before creating a
-tokenizer that uses it.
+    config = librasr.Configuration()
+    config.set("lib-rasr.tokenizer.type", "chars")
+
+    tokenizer = librasr.create_tokenizer(config)  # an instance of CharTokenizer
+
+    tokens = tokenizer.tokenize("hello world")  # ["h", "e", "l", "l", "o", " ", "w", "o", "r", "l", "d"]
+    text = detokenize(tokens)  # "hello world"
+
+    ids = tokenizer.encode("hello world")  # [7, 4, 11, 11, 14, 26, 22, 14, 17, 11, 3]
+    text = tokenizer.decode(ids)  # "hello world"
+
+``tokenize``, ``detokenize``, ``vocabulary_size``, ``token_str_to_id`` and ``token_id_to_str`` must be implemented.
+``encode`` and ``decode`` can be overridden, by default they are based on the other methods. Register the type before
+creating a tokenizer that uses it.

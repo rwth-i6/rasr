@@ -51,15 +51,15 @@ std::string AllophoneStateFsaBuilder::getOrthographyBySegmentName(const std::str
     return iter->second;
 }
 
-py::tuple AllophoneStateFsaBuilder::buildBySegmentName(const std::string& segmentName) {
+AllophoneStateFsaBuilder::Fsa AllophoneStateFsaBuilder::buildBySegmentName(const std::string& segmentName) {
     return buildByOrthography(getOrthographyBySegmentName(segmentName));
 }
 
-py::tuple AllophoneStateFsaBuilder::buildByOrthography(const std::string& orthography) {
+AllophoneStateFsaBuilder::Fsa AllophoneStateFsaBuilder::buildByOrthography(const std::string& orthography) {
     Nn::AllophoneStateFsaExporter::ExportedAutomaton automaton = allophoneStateFsaExporter_->exportFsaForOrthography(orthography);
-    return py::make_tuple(
+    return Fsa(py::make_tuple(
             automaton.num_states,
             automaton.num_edges,
             py::array_t<u32>(automaton.edges.size(), automaton.edges.data()),
-            py::array_t<f32>(automaton.weights.size(), automaton.weights.data()));
+            py::array_t<f32>(automaton.weights.size(), automaton.weights.data())));
 }

@@ -34,3 +34,10 @@ jobs:
     - name: Import Python package
       run: |
         python3 -c "import librasr; print(librasr.__name__)"
+    - name: Check type stubs of Python package
+      run: |
+        cd rasr
+        python3 -m pip install pybind11-stubgen==3.0.0 mypy==2.4.0
+        scripts/generate-librasr-stubs.sh "$(python3 -c 'import librasr, os; print(os.path.dirname(librasr.__file__))')"
+        git diff --exit-code src/Tools/LibRASR/librasr.pyi
+        python3 -m mypy --strict --cache-dir=/dev/null src/Tools/LibRASR/librasr.pyi

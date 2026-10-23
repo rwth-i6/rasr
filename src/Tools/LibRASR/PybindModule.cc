@@ -15,6 +15,10 @@ PYBIND11_MODULE(librasr, m) {
     static DummyApplication app;
 
     m.doc() = "RASR python module";
+
+    // Registered first, as many functions take a configuration
+    bindConfiguration(m);
+
     m.def(
             "init_logging",
             [](Core::Configuration const& config) {
@@ -23,13 +27,11 @@ PYBIND11_MODULE(librasr, m) {
             py::arg("config"),
             "Initialize RASR logging from config. Call directly after importing librasr, before creating other RASR objects.");
 
-    bindConfiguration(m);
-
     py::class_<AllophoneStateFsaBuilder> pyFsaBuilder(m, "AllophoneStateFsaBuilder");
-    pyFsaBuilder.def(py::init<const Core::Configuration&>());
-    pyFsaBuilder.def("get_orthography_by_segment_name", &AllophoneStateFsaBuilder::getOrthographyBySegmentName);
-    pyFsaBuilder.def("build_by_orthography", &AllophoneStateFsaBuilder::buildByOrthography);
-    pyFsaBuilder.def("build_by_segment_name", &AllophoneStateFsaBuilder::buildBySegmentName);
+    pyFsaBuilder.def(py::init<const Core::Configuration&>(), py::arg("config"));
+    pyFsaBuilder.def("get_orthography_by_segment_name", &AllophoneStateFsaBuilder::getOrthographyBySegmentName, py::arg("segment_name"));
+    pyFsaBuilder.def("build_by_orthography", &AllophoneStateFsaBuilder::buildByOrthography, py::arg("orthography"));
+    pyFsaBuilder.def("build_by_segment_name", &AllophoneStateFsaBuilder::buildBySegmentName, py::arg("segment_name"));
 
     bindLabelScorer(m);
     bindLexicon(m);

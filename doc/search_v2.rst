@@ -1221,6 +1221,9 @@ Once installed, everything lives under a single import:
 
     import librasr
 
+``librasr`` ships type stubs, so IDEs and type checkers such as ``mypy`` know the signatures of all functions. After
+changing the Python bindings, regenerate them with ``scripts/generate-librasr-stubs.sh``, which the CI checks.
+
 If you built the extension manually via plain CMake instead of ``pip install .``, the compiled module ends up
 at ``arch/<system>-<architecture>-<build-type>/librasr*.so`` -- add that directory to ``PYTHONPATH`` (or
 ``sys.path``) before importing it.

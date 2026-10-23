@@ -274,7 +274,7 @@ class ConfigurationFromRasrTest(unittest.TestCase):
             librasr.SearchAlgorithm(config)
 
         scorer_config = RecordingLabelScorer.config
-        self.assertIsInstance(scorer_config, librasr.Configuration)
+        assert isinstance(scorer_config, librasr.Configuration)
         self.assertEqual(scorer_config.get_selection(), "lib-rasr.label-scorer")
         self.assertEqual(scorer_config["value"], "1")
 

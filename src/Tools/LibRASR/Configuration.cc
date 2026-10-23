@@ -194,22 +194,24 @@ void bindConfiguration(py::module_& module) {
                 config.setSelection("lib-rasr");
                 return config;
             }))
-            .def(py::init<Core::Configuration const&>())
-            .def(py::init(&subConfiguration))
+            .def(py::init<Core::Configuration const&>(), py::arg("config"))
+            .def(py::init(&subConfiguration), py::arg("config"), py::arg("selection"))
             .def("set", &setValue, py::arg("name"), py::arg("value") = "true", py::arg("delimiter") = " ",
                  "Set a value relative to the selection, e.g. config.set(\"search-algorithm.max-beam-size\", 12). '*' matches any names.\n"
                  "str, bool, int, float and path values are stored as strings in RASR's format, e.g. True as \"true\". "
                  "Lists and tuples of these are joined with `delimiter`, their elements must not contain it.")
             .def("__getitem__", &getValue, py::arg("name"), "Alias for get_str(name).")
             .def("enable_logging", &Core::Configuration::enableLogging)
-            .def("set_from_file", static_cast<bool (Core::Configuration::*)(std::string const&)>(&Core::Configuration::setFromFile))
+            .def("set_from_file", static_cast<bool (Core::Configuration::*)(std::string const&)>(&Core::Configuration::setFromFile), py::arg("filename"))
             .def("get_selection", &Core::Configuration::getSelection)
             .def("get_name", &Core::Configuration::getName)
-            .def("set_selection", [](Core::Configuration& self, std::string const& selection) {
-                checkPath(selection);
-                self.setSelection(selection);
-            })
-            .def("resolve", static_cast<std::string (Core::Configuration::*)(std::string const& value) const>(&Core::Configuration::resolve));
+            .def(
+                    "set_selection", [](Core::Configuration& self, std::string const& selection) {
+                        checkPath(selection);
+                        self.setSelection(selection);
+                    },
+                    py::arg("selection"))
+            .def("resolve", static_cast<std::string (Core::Configuration::*)(std::string const& value) const>(&Core::Configuration::resolve), py::arg("value"));
 
     // The getters read a value relative to the selection and parse it like the corresponding parameter of RASR components
     defineGetter<std::string>(

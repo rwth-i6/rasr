@@ -74,24 +74,7 @@ void bindSearchAlgorithm(py::module_& module) {
      * =========================
      */
 
-    py::class_<Speech::ModelCombination> pyModelCombination(
-            module,
-            "ModelCombination",
-            "Combination of lexicon, acoustic model, label scorer and language model.");
-
-    pyModelCombination.def(
-            "label_scorer",
-            &getLabelScorer,
-            py::arg("index") = 0ul,
-            py::return_value_policy::reference_internal,
-            "Return the label scorer.");
-
-    pyModelCombination.def(
-            "language_model",
-            &getLanguageModel,
-            py::return_value_policy::reference_internal,
-            "Return the language model.");
-
+    // Registered before ModelCombination, which returns it
     py::class_<Lm::ScaledLanguageModel> pyScaledLanguageModel(
             module,
             "ScaledLanguageModel",
@@ -109,6 +92,24 @@ void bindSearchAlgorithm(py::module_& module) {
             "scale",
             &Lm::ScaledLanguageModel::scale,
             "Return the current effective LM scale.");
+
+    py::class_<Speech::ModelCombination> pyModelCombination(
+            module,
+            "ModelCombination",
+            "Combination of lexicon, acoustic model, label scorer and language model.");
+
+    pyModelCombination.def(
+            "label_scorer",
+            &getLabelScorer,
+            py::arg("index") = 0ul,
+            py::return_value_policy::reference_internal,
+            "Return the label scorer.");
+
+    pyModelCombination.def(
+            "language_model",
+            &getLanguageModel,
+            py::return_value_policy::reference_internal,
+            "Return the language model.");
 
     /*
      * ========================

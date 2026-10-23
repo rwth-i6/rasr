@@ -236,6 +236,13 @@ std::string BpeTokenizer::tokenIdToStr(TokenId id) const {
     return checkTokenId(id) ? tokens_[id] : std::string();
 }
 
+AbstractTokenizer::WordBoundaryMarks BpeTokenizer::wordBoundaryMarks(TokenId id) const {
+    if (not checkTokenId(id)) {
+        return {false, false};
+    }
+    return {false, not endsWith(tokens_[id], separator_)};
+}
+
 std::vector<AbstractTokenizer::TokenId> BpeTokenizer::encode(std::string const& text) const {
     if (unknownTokenId_ == invalidTokenId) {
         return Precursor::encode(text);

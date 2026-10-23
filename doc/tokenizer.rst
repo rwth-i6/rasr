@@ -13,6 +13,24 @@ type (enum):
 Encoding out-of-vocabulary tokens (where not mapped to an unknown token) and decoding invalid ids raise an error,
 which terminates the program unless configured otherwise via ``on-error``.
 
+Word boundaries
+---------------
+
+Each token tells whether it marks a word boundary before and after itself. A word boundary lies between two
+consecutive tokens if the first one marks it after itself or the second one before itself. The start and end of a
+token sequence are always word boundaries. Most tokenizers only mark one side, so a token that does not mark a boundary
+does not mean that there is none:
+
+* BPE: tokens without the ``separator`` suffix mark a boundary after themselves, e.g. ``wer`` in ``lo@@ wer``.
+* SentencePiece: pieces with a leading ``▁`` mark a boundary before themselves. Control pieces such as ``<s>`` and the
+  unknown piece are words of their own.
+* HuggingFace: determined from the decoder in ``tokenizer.json``. Tokens with a leading ``Ġ`` (byte-level BPE, also
+  other whitespace such as newlines) or ``▁`` (``Metaspace``) and tokens without the ``##`` prefix of ``WordPiece``
+  mark a boundary before themselves, tokens with the ``</w>`` suffix of a ``BPEDecoder`` one after themselves. Special
+  tokens are words of their own. Other decoders are not supported.
+
+With byte-level BPE, a word on its own is tokenized differently than inside a text, e.g. ``the`` and ``Ġthe``.
+
 BPE
 ---
 
@@ -99,7 +117,8 @@ Usage from python
 * ``librasr.create_tokenizer(config)`` : create the tokenizer configured under ``lib-rasr.tokenizer``.
 * ``librasr.Tokenizer`` methods: ``tokenize(text)`` / ``detokenize(tokens)`` convert between text and token strings,
   ``encode(text)`` / ``decode(ids)`` between text and token ids. Further ``vocabulary_size()``, ``token_str_to_id(token)``
-  (``librasr.Tokenizer.INVALID_TOKEN_ID`` if not in the vocabulary) and ``token_id_to_str(id)``.
+  (``librasr.Tokenizer.INVALID_TOKEN_ID`` if not in the vocabulary), ``token_id_to_str(id)`` and ``word_boundary_marks(id)``,
+  which returns a ``librasr.Tokenizer.WordBoundaryMarks`` with the attributes ``before`` and ``after``.
 
 To implement a tokenizer in python, subclass ``librasr.Tokenizer`` and register it under a type name. It can then be
 configured like the built-in types, also for components that create their tokenizer in C++:
@@ -128,6 +147,10 @@ configured like the built-in types, also for components that create their tokeni
         def token_id_to_str(self, id: int) -> str:
             return self.vocab[id]
 
+        def word_boundary_marks(self, id: int) -> librasr.Tokenizer.WordBoundaryMarks:
+            blank = self.vocab[id] == " "  # blanks are words of their own
+            return librasr.Tokenizer.WordBoundaryMarks(before=blank, after=blank)
+
     librasr.register_tokenizer_type("chars", CharTokenizer)
 
     config = librasr.Configuration()
@@ -141,6 +164,7 @@ configured like the built-in types, also for components that create their tokeni
     ids = tokenizer.encode("hello world")  # [7, 4, 11, 11, 14, 26, 22, 14, 17, 11, 3]
     text = tokenizer.decode(ids)  # "hello world"
 
-``tokenize``, ``detokenize``, ``vocabulary_size``, ``token_str_to_id`` and ``token_id_to_str`` must be implemented.
+``tokenize``, ``detokenize``, ``vocabulary_size``, ``token_str_to_id``, ``token_id_to_str`` and ``word_boundary_marks`` must
+be implemented.
 ``encode`` and ``decode`` can be overridden, by default they are based on the other methods. Register the type before
 creating a tokenizer that uses it.

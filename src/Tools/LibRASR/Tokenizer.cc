@@ -67,9 +67,20 @@ void bindTokenizer(py::module_& module) {
             " - `vocabulary_size`\n"
             " - `token_str_to_id`\n"
             " - `token_id_to_str`\n"
+            " - `word_boundary_marks`\n"
             "`encode` and `decode` can optionally be overridden.");
 
     pyTokenizer.attr("INVALID_TOKEN_ID") = Tokenizer::AbstractTokenizer::invalidTokenId;
+
+    // Registered before `word_boundary_marks`, which returns it
+    using WordBoundaryMarks = Tokenizer::AbstractTokenizer::WordBoundaryMarks;
+    py::class_<WordBoundaryMarks>(pyTokenizer, "WordBoundaryMarks", "Word boundaries that a token marks before and after itself, see `Tokenizer.word_boundary_marks`.")
+            .def(py::init([](bool before, bool after) { return WordBoundaryMarks{before, after}; }), py::arg("before"), py::arg("after"))
+            .def_readwrite("before", &WordBoundaryMarks::before)
+            .def_readwrite("after", &WordBoundaryMarks::after)
+            .def("__repr__", [](WordBoundaryMarks const& self) {
+                return std::string("WordBoundaryMarks(before=") + (self.before ? "True" : "False") + ", after=" + (self.after ? "True" : "False") + ")";
+            });
 
     pyTokenizer.def(
             py::init<Core::Configuration const&>(),
@@ -104,6 +115,14 @@ void bindTokenizer(py::module_& module) {
             &Tokenizer::AbstractTokenizer::tokenIdToStr,
             py::arg("id"),
             "Return the token string of an id.");
+
+    pyTokenizer.def(
+            "word_boundary_marks",
+            &Tokenizer::AbstractTokenizer::wordBoundaryMarks,
+            py::arg("id"),
+            "Return the word boundaries that a token marks before and after itself. A word boundary lies between two consecutive\n"
+            "tokens if the first one marks it after itself or the second one before itself. Most tokenizers only mark one side,\n"
+            "e.g. BPE tokens without \"@@\" mark a boundary after themselves and SentencePiece pieces with \"▁\" one before themselves.");
 
     pyTokenizer.def(
             "encode",

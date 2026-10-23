@@ -41,6 +41,10 @@ public:
     TokenId     tokenStrToId(std::string const& token) const override;
     std::string tokenIdToStr(TokenId id) const override;
 
+    // Pieces that start a word begin with "▁", so only boundaries before tokens are marked.
+    // Control pieces such as "<s>" and the unknown piece are words of their own.
+    WordBoundaryMarks wordBoundaryMarks(TokenId id) const override;
+
     std::vector<TokenId> encode(std::string const& text) const override;
     std::string          decode(std::vector<TokenId> const& ids) const override;
 

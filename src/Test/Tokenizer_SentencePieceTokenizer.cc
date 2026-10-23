@@ -96,4 +96,11 @@ TEST_F(Tokenizer, SentencePieceTokenizerTest, DecodeInvalidTokenId) {
     EXPECT_TRUE(tokenizer->hasFatalErrors());
 }
 
+// Pieces that start a word begin with "▁", control pieces and the unknown piece are words of their own
+TEST_F(Tokenizer, SentencePieceTokenizerTest, WordBoundaryMarks) {
+    auto tokenizer = createTokenizer();
+    EXPECT_EQ(formatWordBoundaryMarks(*tokenizer, tokenizer->encode("the lower tower")), std::string("▁th:B- e:-- ▁low:B- er:-- ▁tower:B-"));
+    EXPECT_EQ(formatWordBoundaryMarks(*tokenizer, {0u, 1u, 2u}), std::string("<unk>:BA <s>:BA </s>:BA"));
+}
+
 }  // namespace Tokenizer

@@ -12,8 +12,6 @@
  *  See the License for the specific language governing permissions and
  *  limitations under the License.
  */
-#include <fstream>
-
 #include <Test/TokenizerFixture.hh>
 
 namespace Tokenizer {
@@ -26,14 +24,6 @@ public:
         setTokenizerParameter("type", "bpe");
         setTokenizerParameter("codes-file", Test::dataFile("tokenizer/bpe.codes"));
         setTokenizerParameter("vocab-file", Test::dataFile("tokenizer/bpe.vocab.py"));
-    }
-
-protected:
-    std::string writeFile(Test::Directory const& dir, std::string const& name, std::string const& content) {
-        std::string   path = Test::File(dir, name).path();
-        std::ofstream os(path.c_str());
-        os << content;
-        return path;
     }
 };
 
@@ -122,6 +112,19 @@ TEST_F(Tokenizer, BpeTokenizerTest, InvalidTokenId) {
     delayErrors();
     auto tokenizer = createTokenizer();
     EXPECT_EQ(tokenizer->tokenIdToStr(34u), std::string());
+    EXPECT_TRUE(tokenizer->hasFatalErrors());
+}
+
+// All subwords except the last one of a word end with the separator, so only boundaries after tokens are marked
+TEST_F(Tokenizer, BpeTokenizerTest, WordBoundaryMarks) {
+    auto tokenizer = createTokenizer();
+    EXPECT_EQ(formatWordBoundaryMarks(*tokenizer, tokenizer->encode("wider tower")), std::string("wide@@:-- r:-A tower:-A"));
+}
+
+TEST_F(Tokenizer, BpeTokenizerTest, WordBoundaryMarksInvalidTokenId) {
+    delayErrors();
+    auto tokenizer = createTokenizer();
+    EXPECT_FALSE(tokenizer->wordBoundaryMarks(34u).after);
     EXPECT_TRUE(tokenizer->hasFatalErrors());
 }
 

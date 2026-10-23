@@ -15,6 +15,8 @@
 
 #include "SentencePieceTokenizer.hh"
 
+#include <Core/StringUtilities.hh>
+
 namespace Tokenizer {
 
 const Core::ParameterString SentencePieceTokenizer::paramModelFile(
@@ -59,6 +61,16 @@ AbstractTokenizer::TokenId SentencePieceTokenizer::tokenStrToId(std::string cons
 std::string SentencePieceTokenizer::tokenIdToStr(TokenId id) const {
     // `IdToPiece` does not check the range
     return checkTokenId(id) ? processor_.IdToPiece(id) : std::string();
+}
+
+AbstractTokenizer::WordBoundaryMarks SentencePieceTokenizer::wordBoundaryMarks(TokenId id) const {
+    if (not checkTokenId(id)) {
+        return {false, false};
+    }
+    if (processor_.IsControl(id) or processor_.IsUnknown(id)) {
+        return {true, true};
+    }
+    return {Core::startsWith(processor_.IdToPiece(id), "\u2581"), false};
 }
 
 std::vector<AbstractTokenizer::TokenId> SentencePieceTokenizer::encode(std::string const& text) const {

@@ -33,6 +33,15 @@ public:
     }
 
 protected:
+    // A tokenizer.json with a word-level model and the special token "[S]"
+    static std::string minimalTokenizer(std::string const& decoder) {
+        return R"({"version": "1.0", "truncation": null, "padding": null, "normalizer": null, "pre_tokenizer": null, "post_processor": null,
+                   "added_tokens": [{"id": 4, "content": "[S]", "single_word": false, "lstrip": false, "rstrip": false, "normalized": false, "special": true}],
+                   "model": {"type": "WordLevel", "vocab": {"▁a": 0, "b": 1, "##c": 2, "d</w>": 3, "[S]": 4}, "unk_token": "b"},
+                   "decoder": )" +
+               decoder + "}";
+    }
+
     // The tests are skipped if the python package is not installed
     static bool tokenizersAvailable() {
         static bool available = [] {
@@ -166,6 +175,47 @@ TEST_F(Tokenizer, HuggingFaceTokenizerTest, InvalidTokenId) {
     auto tokenizer = createTokenizer();
     EXPECT_EQ(tokenizer->tokenIdToStr(300u), std::string());
     EXPECT_EQ(tokenizer->decode({277u, 300u}), std::string());
+    EXPECT_TRUE(tokenizer->hasFatalErrors());
+}
+
+// Byte-level BPE marks word starts with "Ġ", whitespace such as newlines and special tokens are words of their own
+TEST_F(Tokenizer, HuggingFaceTokenizerTest, WordBoundaryMarks) {
+    if (not tokenizersAvailable()) {
+        return;
+    }
+    setTokenizerParameter("add-special-tokens-on-encode", "true");
+    auto tokenizer = createTokenizer();
+    EXPECT_EQ(formatWordBoundaryMarks(*tokenizer, tokenizer->encode("the tower,\nlow")), std::string("<s>:BA the:-- Ġtower:B- ,:-- Ċ:BA lo:-- w:--"));
+}
+
+// The marking is determined from the decoder, here tested with minimal tokenizers
+TEST_F(Tokenizer, HuggingFaceTokenizerTest, WordBoundaryDecoders) {
+    if (not tokenizersAvailable()) {
+        return;
+    }
+    std::vector<std::pair<std::string, std::string>> decoders = {
+            {R"({"type": "Metaspace", "replacement": "▁", "prepend_scheme": "always", "split": true})", "▁a:B- b:-- ##c:-- d</w>:-- [S]:BA"},
+            {R"({"type": "Sequence", "decoders": [{"type": "Replace", "pattern": {"String": "▁"}, "content": " "}, {"type": "Fuse"}]})", "▁a:B- b:-- ##c:-- d</w>:-- [S]:BA"},
+            {R"({"type": "WordPiece", "prefix": "##", "cleanup": true})", "▁a:B- b:B- ##c:-- d</w>:B- [S]:BA"},
+            {R"({"type": "BPEDecoder", "suffix": "</w>"})", "▁a:-- b:-- ##c:-- d</w>:-A [S]:BA"},
+    };
+    Test::Directory dir;
+    for (auto const& [decoder, expected] : decoders) {
+        setTokenizerParameter("tokenizer-file", writeFile(dir, "tokenizer.json", minimalTokenizer(decoder)));
+        EXPECT_EQ(formatWordBoundaryMarks(*createTokenizer(), {0u, 1u, 2u, 3u, 4u}), expected);
+    }
+}
+
+TEST_F(Tokenizer, HuggingFaceTokenizerTest, WordBoundaryMarksUnknownDecoder) {
+    if (not tokenizersAvailable()) {
+        return;
+    }
+    Test::Directory dir;
+    setTokenizerParameter("tokenizer-file", writeFile(dir, "tokenizer.json", minimalTokenizer("null")));
+    delayErrors();
+    auto tokenizer = createTokenizer();
+    EXPECT_TRUE(tokenizer->wordBoundaryMarks(4u).before);  // Special tokens do not depend on the decoder
+    tokenizer->wordBoundaryMarks(0u);
     EXPECT_TRUE(tokenizer->hasFatalErrors());
 }
 

@@ -15,6 +15,7 @@
 #ifndef _TEST_TOKENIZER_FIXTURE_HH
 #define _TEST_TOKENIZER_FIXTURE_HH
 
+#include <fstream>
 #include <sstream>
 #include <string>
 #include <vector>
@@ -52,6 +53,23 @@ protected:
 
     Tokenizer::TokenizerRef createTokenizer() const {
         return Tokenizer::Module::instance().tokenizerFactory().createTokenizer(select("tokenizer"));
+    }
+
+    static std::string writeFile(Test::Directory const& dir, std::string const& name, std::string const& content) {
+        std::string   path = Test::File(dir, name).path();
+        std::ofstream os(path.c_str());
+        os << content;
+        return path;
+    }
+
+    // Word boundaries marked before ("B") and after ("A") the tokens, e.g. "lo@@:-- wer:-A"
+    static std::string formatWordBoundaryMarks(Tokenizer::AbstractTokenizer const& tokenizer, std::vector<Tokenizer::AbstractTokenizer::TokenId> const& ids) {
+        std::vector<std::string> marks;
+        for (auto id : ids) {
+            auto boundaries = tokenizer.wordBoundaryMarks(id);
+            marks.push_back(tokenizer.tokenIdToStr(id) + ":" + (boundaries.before ? "B" : "-") + (boundaries.after ? "A" : "-"));
+        }
+        return join(marks);
     }
 
     // Space-separated string representation of token or id sequences for comparison and readable test failures

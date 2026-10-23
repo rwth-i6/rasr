@@ -41,6 +41,7 @@ public:
     u32                      vocabularySize() const override;
     TokenId                  tokenStrToId(std::string const& token) const override;
     std::string              tokenIdToStr(TokenId id) const override;
+    WordBoundaryMarks        wordBoundaryMarks(TokenId id) const override;
 
     // Can be overridden in python, otherwise uses the default implementations
     std::vector<TokenId> encode(std::string const& text) const override;

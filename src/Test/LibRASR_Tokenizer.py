@@ -44,6 +44,11 @@ class CharTokenizer(librasr.Tokenizer):
     def token_id_to_str(self, id: int) -> str:
         return self.vocab[id]
 
+    # Blanks are words of their own
+    def word_boundary_marks(self, id: int) -> librasr.Tokenizer.WordBoundaryMarks:
+        blank = self.vocab[id] == " "
+        return librasr.Tokenizer.WordBoundaryMarks(before=blank, after=blank)
+
 
 class UpperCaseTokenizer(CharTokenizer):
     """Additionally overrides `decode`."""
@@ -77,6 +82,9 @@ class ConfiguredTokenizerTest(unittest.TestCase):
         self.assertEqual(tokenizer.token_str_to_id("x@@"), librasr.Tokenizer.INVALID_TOKEN_ID)
         self.assertEqual(tokenizer.token_id_to_str(3), "tower")
         self.assertEqual(tokenizer.encode(TEXT), [2, 8, 7, 3, 4, 30, 5, 9, 15, 29, 28, 19, 31, 24, 1, 1])
+        boundaries = tokenizer.word_boundary_marks(tokenizer.token_str_to_id("wide@@"))
+        self.assertEqual((boundaries.before, boundaries.after), (False, False))
+        self.assertTrue(tokenizer.word_boundary_marks(tokenizer.token_str_to_id("r")).after)
         self.assertEqual(tokenizer.decode([2, 8, 3, 1]), "the newest tower <unk>")
 
     def test_sub_config(self) -> None:
@@ -125,6 +133,9 @@ class PythonTokenizerTest(unittest.TestCase):
         ids = tokenizer.encode("hello world")
         self.assertEqual(ids, [7, 4, 11, 11, 14, 26, 22, 14, 17, 11, 3])
         self.assertEqual(tokenizer.decode(ids), "hello world")
+        # Calling the C++ method goes through RASR to the python implementation
+        boundaries = librasr.Tokenizer.word_boundary_marks(tokenizer, tokenizer.token_str_to_id(" "))
+        self.assertEqual(repr(boundaries), "WordBoundaryMarks(before=True, after=True)")
 
     def test_override_default_method(self) -> None:
         self.config.set("lib-rasr.tokenizer.type", "test-upper-case")

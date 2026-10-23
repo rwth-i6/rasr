@@ -19,6 +19,7 @@
 #include <pybind11/stl.h>
 
 #include <Core/Application.hh>
+#include <Core/StringUtilities.hh>
 #include <Python/Init.hh>
 
 namespace py = pybind11;
@@ -53,6 +54,21 @@ T callPython(Core::Component const& component, T fallback, F&& f) {
     }
 }
 
+// Byte-level BPE maps the whitespace bytes tab, newline, vertical tab, form feed, carriage return and blank to these
+// characters, each of them is two bytes long in UTF-8
+bool isByteLevelWhitespace(std::string const& character) {
+    static std::unordered_set<std::string> const whitespace = {"\u0109", "\u010a", "\u010b", "\u010c", "\u010d", "\u0120"};
+    return whitespace.count(character) > 0ul;
+}
+
+bool startsWithByteLevelWhitespace(std::string const& token) {
+    return token.size() >= 2ul and isByteLevelWhitespace(token.substr(0ul, 2ul));
+}
+
+bool endsWithByteLevelWhitespace(std::string const& token) {
+    return token.size() >= 2ul and isByteLevelWhitespace(token.substr(token.size() - 2ul));
+}
+
 }  // namespace
 
 namespace Tokenizer {
@@ -79,13 +95,20 @@ HuggingFaceTokenizer::HuggingFaceTokenizer(Core::Configuration const& config)
           Precursor(config),
           addSpecialTokensOnEncode_(paramAddSpecialTokensOnEncode(config)),
           removeSpecialTokensOnDecode_(paramRemoveSpecialTokensOnDecode(config)),
-          vocabularySize_(0u) {
+          vocabularySize_(0u),
+          wordBoundaryMarking_({WordBoundaryMarking::Type::Unknown, ""}) {
     initPython();
     std::string            tokenizerFile = paramTokenizerFile(config);
     py::gil_scoped_acquire gil;
     try {
         py::object tokenizer = py::module_::import("tokenizers").attr("Tokenizer").attr("from_file")(tokenizerFile);
         vocabularySize_      = tokenizer.attr("get_vocab_size")(py::arg("with_added_tokens") = true).cast<u32>();
+        wordBoundaryMarking_ = parseWordBoundaryMarking(py::module_::import("json").attr("loads")(tokenizer.attr("to_str")())["decoder"]);
+        for (auto item : tokenizer.attr("get_added_tokens_decoder")().cast<py::dict>()) {
+            if (item.second.attr("special").cast<bool>()) {
+                specialTokenIds_.insert(item.first.cast<TokenId>());
+            }
+        }
         tokenizer_.takeOver(tokenizer.release().ptr());
     }
     catch (py::error_already_set const& exception) {
@@ -142,6 +165,31 @@ std::string HuggingFaceTokenizer::tokenIdToStr(TokenId id) const {
     });
 }
 
+AbstractTokenizer::WordBoundaryMarks HuggingFaceTokenizer::wordBoundaryMarks(TokenId id) const {
+    if (not checkTokenId(id)) {
+        return {false, false};
+    }
+    if (specialTokenIds_.count(id) > 0ul) {
+        return {true, true};
+    }
+    std::string        token  = tokenIdToStr(id);
+    std::string const& marker = wordBoundaryMarking_.marker;
+    switch (wordBoundaryMarking_.type) {
+        case WordBoundaryMarking::Type::ByteLevel:
+            return {startsWithByteLevelWhitespace(token), endsWithByteLevelWhitespace(token)};
+        case WordBoundaryMarking::Type::Prefix:
+            return {Core::startsWith(token, marker), false};
+        case WordBoundaryMarking::Type::ContinuationPrefix:
+            return {not Core::startsWith(token, marker), false};
+        case WordBoundaryMarking::Type::Suffix:
+            return {false, token.size() >= marker.size() and token.compare(token.size() - marker.size(), marker.size(), marker) == 0};
+        case WordBoundaryMarking::Type::Unknown:
+            break;
+    }
+    error("Word boundaries are not supported for the decoder of this HuggingFace tokenizer");
+    return {false, false};
+}
+
 std::vector<AbstractTokenizer::TokenId> HuggingFaceTokenizer::encode(std::string const& text) const {
     return callPython(*this, std::vector<TokenId>(), [&] {
         return py::handle(tokenizer_).attr("encode")(text, py::arg("add_special_tokens") = addSpecialTokensOnEncode_).attr("ids").cast<std::vector<TokenId>>();
@@ -158,6 +206,38 @@ std::string HuggingFaceTokenizer::decode(std::vector<TokenId> const& ids) const 
     return callPython(*this, std::string(), [&] {
         return py::handle(tokenizer_).attr("decode")(ids, py::arg("skip_special_tokens") = removeSpecialTokensOnDecode_).cast<std::string>();
     });
+}
+
+HuggingFaceTokenizer::WordBoundaryMarking HuggingFaceTokenizer::parseWordBoundaryMarking(py::handle decoder) {
+    if (decoder.is_none()) {
+        return {WordBoundaryMarking::Type::Unknown, ""};
+    }
+    std::string type = decoder["type"].cast<std::string>();
+    if (type == "ByteLevel") {
+        return {WordBoundaryMarking::Type::ByteLevel, ""};
+    }
+    if (type == "Metaspace") {
+        return {WordBoundaryMarking::Type::Prefix, decoder["replacement"].cast<std::string>()};
+    }
+    if (type == "WordPiece") {
+        return {WordBoundaryMarking::Type::ContinuationPrefix, decoder["prefix"].cast<std::string>()};
+    }
+    if (type == "BPEDecoder") {
+        return {WordBoundaryMarking::Type::Suffix, decoder["suffix"].cast<std::string>()};
+    }
+    // E.g. Llama 2 replaces "▁" by a blank
+    if (type == "Replace" and decoder["content"].cast<std::string>() == " " and decoder["pattern"].contains("String")) {
+        return {WordBoundaryMarking::Type::Prefix, decoder["pattern"]["String"].cast<std::string>()};
+    }
+    if (type == "Sequence") {
+        for (auto element : decoder["decoders"]) {
+            WordBoundaryMarking marking = parseWordBoundaryMarking(element);
+            if (marking.type != WordBoundaryMarking::Type::Unknown) {
+                return marking;
+            }
+        }
+    }
+    return {WordBoundaryMarking::Type::Unknown, ""};
 }
 
 }  // namespace Tokenizer

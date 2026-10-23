@@ -37,6 +37,20 @@ public:
     typedef u32              TokenId;
     static constexpr TokenId invalidTokenId = Core::Type<TokenId>::max;
 
+    /*
+     * Word boundaries that a token marks before and after itself. A word boundary lies between two consecutive tokens
+     * if the first one marks it after itself or the second one before itself. The start and end of a token sequence
+     * are always word boundaries.
+     *
+     * Most tokenizers mark only one side, so false means that the token does not mark a boundary, not that there is
+     * none. E.g. the BPE token "wer" in "lo@@ wer" marks a boundary after itself but not whether a word starts before
+     * it, which is only shown by the previous token.
+     */
+    struct WordBoundaryMarks {
+        bool before;
+        bool after;
+    };
+
     AbstractTokenizer(Core::Configuration const& config);
     virtual ~AbstractTokenizer() = default;
 
@@ -51,6 +65,9 @@ public:
 
     // Raises an error and returns an empty string for invalid ids
     virtual std::string tokenIdToStr(TokenId id) const = 0;
+
+    // Raises an error and returns no boundaries for invalid ids
+    virtual WordBoundaryMarks wordBoundaryMarks(TokenId id) const = 0;
 
     // Default: Apply `tokenize` then `tokenStrToId` to each item
     virtual std::vector<TokenId> encode(std::string const& text) const;

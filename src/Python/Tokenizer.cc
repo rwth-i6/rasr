@@ -44,6 +44,10 @@ std::string PythonTokenizer::tokenIdToStr(TokenId id) const {
     PYBIND11_OVERRIDE_PURE_NAME(std::string, Precursor, "token_id_to_str", tokenIdToStr, id);
 }
 
+PythonTokenizer::WordBoundaryMarks PythonTokenizer::wordBoundaryMarks(TokenId id) const {
+    PYBIND11_OVERRIDE_PURE_NAME(WordBoundaryMarks, Precursor, "word_boundary_marks", wordBoundaryMarks, id);
+}
+
 std::vector<PythonTokenizer::TokenId> PythonTokenizer::encode(std::string const& text) const {
     PYBIND11_OVERRIDE_NAME(std::vector<TokenId>, Precursor, "encode", encode, text);
 }

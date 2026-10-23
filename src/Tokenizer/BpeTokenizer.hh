@@ -51,6 +51,9 @@ public:
     TokenId     tokenStrToId(std::string const& token) const override;
     std::string tokenIdToStr(TokenId id) const override;
 
+    // All subwords except the last one of a word end with the separator, so only boundaries after tokens are marked
+    WordBoundaryMarks wordBoundaryMarks(TokenId id) const override;
+
     std::vector<TokenId> encode(std::string const& text) const override;
 
 private:

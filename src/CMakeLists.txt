@@ -12,6 +12,7 @@ add_subdirectory(Mm)
 add_subdirectory(Search)
 add_subdirectory(Signal)
 add_subdirectory(Speech)
+add_subdirectory(Tokenizer)
 add_subdirectory(Tools)
 
 if(${MODULE_CART})

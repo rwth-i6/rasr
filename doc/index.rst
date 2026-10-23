@@ -12,6 +12,7 @@ Welcome to the RASR documentation!
    flf_nodes
    language_model
    search_v2
+   tokenizer
    training/index
    tools/index
    file_formats/index

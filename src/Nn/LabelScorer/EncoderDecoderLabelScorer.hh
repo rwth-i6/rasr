@@ -40,8 +40,8 @@ public:
     // Return the decoder label scorer
     Core::Ref<ScaledLabelScorer> getDecoderLabelScorer() const;
 
-    // Resets both encoder and decoder component
-    void reset() override;
+    // Forwarded to the encoder and the decoder scorer
+    void logStatistics() const override;
 
     // Signal end of feature stream to encoder, then encode features, pass them to the decoder and
     // finally signal end of feature stream to decoder.
@@ -63,6 +63,9 @@ public:
 
     // Same as `addInput` but adds features for multiple timesteps at once
     void addInputs(DataView const& input, size_t nTimesteps) override;
+
+    // Resets both encoder and decoder component
+    void reset() override;
 
     // Return accessor from decoder component
     std::optional<ScoreAccessorRef> getScoreAccessor(ScoringContextRef scoringContext) override;

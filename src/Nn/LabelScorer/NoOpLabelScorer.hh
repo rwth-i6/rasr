@@ -39,11 +39,10 @@ public:
     // Scoring context with step incremented by 1.
     ScoringContextRef extendedScoringContext(ScoringContextRef scoringContext, LabelIndex nextToken, TransitionType transitionType) override;
 
-    // Gets an accessor for the buffered scores at the requested step
-    std::optional<ScoreAccessorRef> getScoreAccessor(ScoringContextRef scoringContext) override;
-
 protected:
-    size_t getMinActiveInputIndex(Core::CollapsedVector<ScoringContextRef> const& activeContexts) const override;
+    // Gets an accessor for the buffered scores at the requested step
+    std::optional<ScoreAccessorRef> computeScoreAccessor(ScoringContextRef scoringContext) override;
+    size_t                          getMinActiveInputIndex(Core::CollapsedVector<ScoringContextRef> const& activeContexts) const override;
 };
 
 }  // namespace Nn

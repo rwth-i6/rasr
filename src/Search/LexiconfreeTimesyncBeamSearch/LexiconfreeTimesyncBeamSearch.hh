@@ -157,11 +157,6 @@ private:
     std::vector<std::pair<Score, Nn::LabelIndex>> tokenSelectionHeap_;
     std::vector<Nn::LabelIndex>                   selectedTokens_;
 
-    // Scores and timeframes read out of the accessors of the current label scorer, indexed like
-    // `scoringContexts_`
-    std::vector<std::optional<Nn::DenseScoreSpan>> denseScoreSpans_;
-    std::vector<Nn::TimeframeIndex>                scoreTimes_;
-
     Core::StopWatch initializationTime_;
     Core::StopWatch featureProcessingTime_;
     Core::StopWatch finalizeScoringTime_;  // Scoring time during finalizeHypotheses
@@ -226,16 +221,16 @@ private:
     bool scoreAndPruneExtensions();
 
     /*
-     * Read the scores and timeframes of the current label scorer into `denseScoreSpans_` and
-     * `scoreTimes_`. Lazily computing scorers do their work here.
+     * Read the scores and timeframes of the current label scorer into `denseScoreSpans` and
+     * `scoreTimes`. Lazily computing scorers do their work here.
      */
-    void readOutScoreAccessors(std::vector<std::optional<Nn::ScoreAccessorRef>> const& scoreAccessors);
+    void readOutScoreAccessors(std::vector<std::optional<Nn::ScoreAccessorRef>> const& scoreAccessors, std::vector<std::optional<Nn::DenseScoreSpan>>& denseScoreSpans, std::vector<Nn::TimeframeIndex>& scoreTimes) const;
 
     /*
      * Create the extension candidates in `extensions_` from the scores of the first label scorer,
      * pre-pruning by score while they are created.
      */
-    void createExtensions(std::vector<std::optional<Nn::ScoreAccessorRef>> const& scoreAccessors);
+    void createExtensions(std::vector<std::optional<Nn::ScoreAccessorRef>> const& scoreAccessors, std::vector<std::optional<Nn::DenseScoreSpan>> const& denseScoreSpans, std::vector<Nn::TimeframeIndex> const& scoreTimes);
 
     /*
      * Limit the tokens to extend a hypothesis with to the `maxExtensionsPerHyp_` tokens with the best dense score,
@@ -247,7 +242,7 @@ private:
     /*
      * Add the scores of label scorer `scorerIdx` to the existing extension candidates.
      */
-    void updateExtensionScores(size_t scorerIdx, std::vector<std::optional<Nn::ScoreAccessorRef>> const& scoreAccessors);
+    void updateExtensionScores(size_t scorerIdx, std::vector<std::optional<Nn::ScoreAccessorRef>> const& scoreAccessors, std::vector<std::optional<Nn::DenseScoreSpan>> const& denseScoreSpans, std::vector<Nn::TimeframeIndex> const& scoreTimes);
 
     /*
      * Collect the scoring contexts for the next label scorer into `scoringContexts_`, dropping the

@@ -174,28 +174,10 @@ CtcPrefixLabelScorer::CtcPrefixLabelScorer(Core::Configuration const& config, Mo
           ctcScorer_(Module::instance().labelScorerFactory().createLabelScorer(select("ctc-scorer"), modelCache)),
           expectMoreFeatures_(true),
           ctcScores_(std::make_shared<Math::FastMatrix<Score>>(vocabSize_, 0)) {
-    tracksScoreAccessorCache_ = true;
 }
 
 Core::Ref<ScaledLabelScorer> CtcPrefixLabelScorer::getCtcLabelScorer() const {
     return ctcScorer_;
-}
-
-void CtcPrefixLabelScorer::resetInternal() {
-    ctcScoreCollectionTime_.reset();
-    prefixFinalizationTime_.reset();
-    prefixExtensionTime_.reset();
-    ctcScorer_->reset();
-    expectMoreFeatures_ = true;
-}
-
-void CtcPrefixLabelScorer::logScoringBreakdown() const {
-    statisticsChannel_ << Core::XmlFull("prefix-finalization-time", prefixFinalizationTime_.elapsedMilliseconds());
-    statisticsChannel_ << Core::XmlFull("prefix-extension-time", prefixExtensionTime_.elapsedMilliseconds());
-}
-
-void CtcPrefixLabelScorer::logAdditionalStatistics() const {
-    statisticsChannel_ << Core::XmlFull("ctc-score-collection-time", ctcScoreCollectionTime_.elapsedMilliseconds()) + Core::XmlAttribute("unit", "milliseconds");
 }
 
 void CtcPrefixLabelScorer::logStatistics() const {
@@ -232,15 +214,36 @@ ScoringContextRef CtcPrefixLabelScorer::extendedScoringContext(ScoringContextRef
     return Core::ref(new CtcPrefixScoringContext(std::move(newLabelSeq), scoringContext));
 }
 
+void CtcPrefixLabelScorer::resetInternal() {
+    ctcScoreCollectionTime_.reset();
+    prefixFinalizationTime_.reset();
+    prefixExtensionTime_.reset();
+    ctcScorer_->reset();
+    expectMoreFeatures_ = true;
+}
+
 std::optional<ScoreAccessorRef> CtcPrefixLabelScorer::computeScoreAccessor(ScoringContextRef scoringContext) {
     if (expectMoreFeatures_) {
+        countUncomputedAccessors();
         return {};
     }
 
     auto context = Core::ref(dynamic_cast<const CtcPrefixScoringContext*>(scoringContext.get()));
+    if (not context->requiresFinalize) {
+        countUncomputedAccessors();
+    }
     finalizeScoringContext(context);
 
     return Core::ref(new CtcPrefixScoreAccessor(context, ctcScores_, scoringTime_, prefixExtensionTime_));
+}
+
+void CtcPrefixLabelScorer::logScoringBreakdown() const {
+    statisticsChannel_ << Core::XmlFull("prefix-finalization-time", prefixFinalizationTime_.elapsedMilliseconds());
+    statisticsChannel_ << Core::XmlFull("prefix-extension-time", prefixExtensionTime_.elapsedMilliseconds());
+}
+
+void CtcPrefixLabelScorer::logAdditionalStatistics() const {
+    statisticsChannel_ << Core::XmlFull("ctc-score-collection-time", ctcScoreCollectionTime_.elapsedMilliseconds()) + Core::XmlAttribute("unit", "milliseconds");
 }
 
 void CtcPrefixLabelScorer::setupCTCScores() {
@@ -276,9 +279,6 @@ void CtcPrefixLabelScorer::finalizeScoringContext(CtcPrefixScoringContextRef con
 
     // Nest-safe, so the outermost call of the recursion below owns the interval
     Core::StopWatch::Scope timer(prefixFinalizationTime_);
-
-    // Counts every prefix actually computed, including ancestors reached by the recursion below
-    ++numScoreAccessorsComputed_;
 
     if (scoringContext->labelSeq.empty()) {
         scoringContext->prefixScore = 0.0;

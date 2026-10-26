@@ -42,9 +42,9 @@ private:
  * The transition scores are all individually specified as config parameters.
  * It should be used together with a main LabelScorer
  */
-class TransitionLabelScorer : public LabelScorer {
+class TransitionLabelScorer : public StatTrackingLabelScorer {
 public:
-    using Precursor = LabelScorer;
+    using Precursor = StatTrackingLabelScorer;
 
     TransitionLabelScorer(Core::Configuration const& config);
     virtual ~TransitionLabelScorer() = default;

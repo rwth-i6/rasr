@@ -60,19 +60,19 @@ TransitionLabelScorer::TransitionLabelScorer(Core::Configuration const& config)
     }
 }
 
-void TransitionLabelScorer::resetInternal() {}
-
 void TransitionLabelScorer::signalNoMoreFeatures() {}
 
 ScoringContextRef TransitionLabelScorer::getInitialScoringContext() {
     return Core::ref(new ScoringContext());
 }
 
-void TransitionLabelScorer::addInput(DataView const& input) {}
-
 ScoringContextRef TransitionLabelScorer::extendedScoringContext(ScoringContextRef scoringContext, LabelIndex nextToken, TransitionType transitionType) {
     return Core::ref(new ScoringContext());
 }
+
+void TransitionLabelScorer::addInput(DataView const& input) {}
+
+void TransitionLabelScorer::resetInternal() {}
 
 std::optional<ScoreAccessorRef> TransitionLabelScorer::computeScoreAccessor(ScoringContextRef scoringContext) {
     return transitionScoreAccessor_;

@@ -22,22 +22,24 @@ EncoderDecoderLabelScorer::EncoderDecoderLabelScorer(Core::Configuration const& 
           LabelScorer(config),
           encoder_(encoder),
           decoder_(decoder) {
-    enabledTransitions_      = decoder_->enabledTransitions();
-    tracksScoringStatistics_ = false;
+    enabledTransitions_ = decoder_->enabledTransitions();
 }
 
 Core::Ref<ScaledLabelScorer> EncoderDecoderLabelScorer::getDecoderLabelScorer() const {
     return decoder_;
 }
 
-void EncoderDecoderLabelScorer::resetInternal() {
-    encoder_->reset();
-    decoder_->reset();
-}
-
 void EncoderDecoderLabelScorer::logStatistics() const {
     encoder_->logStatistics();
     decoder_->logStatistics();
+}
+
+void EncoderDecoderLabelScorer::signalNoMoreFeatures() {
+    encoder_->signalNoMoreFeatures();
+    // Call `passEncoderOutputsToDecoder()` before signaling segment end to the decoder since the decoder
+    // is supposed to receive all available encoder outputs before this signal
+    passEncoderOutputsToDecoder();
+    decoder_->signalNoMoreFeatures();
 }
 
 ScoringContextRef EncoderDecoderLabelScorer::getInitialScoringContext() {
@@ -62,19 +64,16 @@ void EncoderDecoderLabelScorer::addInputs(DataView const& input, size_t nTimeste
     passEncoderOutputsToDecoder();
 }
 
-void EncoderDecoderLabelScorer::signalNoMoreFeatures() {
-    encoder_->signalNoMoreFeatures();
-    // Call `passEncoderOutputsToDecoder()` before signaling segment end to the decoder since the decoder
-    // is supposed to receive all available encoder outputs before this signal
-    passEncoderOutputsToDecoder();
-    decoder_->signalNoMoreFeatures();
+void EncoderDecoderLabelScorer::reset() {
+    encoder_->reset();
+    decoder_->reset();
 }
 
-std::optional<ScoreAccessorRef> EncoderDecoderLabelScorer::computeScoreAccessor(ScoringContextRef scoringContext) {
+std::optional<ScoreAccessorRef> EncoderDecoderLabelScorer::getScoreAccessor(ScoringContextRef scoringContext) {
     return decoder_->getScoreAccessor(scoringContext);
 }
 
-std::vector<std::optional<ScoreAccessorRef>> EncoderDecoderLabelScorer::computeScoreAccessors(std::vector<ScoringContextRef> const& scoringContexts) {
+std::vector<std::optional<ScoreAccessorRef>> EncoderDecoderLabelScorer::getScoreAccessors(std::vector<ScoringContextRef> const& scoringContexts) {
     return decoder_->getScoreAccessors(scoringContexts);
 }
 

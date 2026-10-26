@@ -62,15 +62,14 @@ public:
     // Add inputs to sub-scorer
     virtual void addInputs(DataView const& input, size_t nTimesteps) override;
 
-protected:
     // Reset sub-scorer
-    void resetInternal() override;
+    void reset() override;
 
     // Score accessor wrapper that scales the scores
-    std::optional<ScoreAccessorRef> computeScoreAccessor(ScoringContextRef scoringContext) override;
+    std::optional<ScoreAccessorRef> getScoreAccessor(ScoringContextRef scoringContext) override;
 
     // Score accessor wrapper that scales the scores
-    std::vector<std::optional<ScoreAccessorRef>> computeScoreAccessors(std::vector<ScoringContextRef> const& scoringContexts) override;
+    std::vector<std::optional<ScoreAccessorRef>> getScoreAccessors(std::vector<ScoringContextRef> const& scoringContexts) override;
 
 private:
     Core::Ref<LabelScorer> scorer_;

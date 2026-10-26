@@ -35,6 +35,7 @@ std::optional<ScoreAccessorRef> StepwiseNoOpLabelScorer::computeScoreAccessor(Sc
     StepScoringContextRef stepScoringContext(dynamic_cast<StepScoringContext const*>(scoringContext.get()));
     auto                  input = getInput(stepScoringContext->currentStep);
     if (not input) {
+        countUncomputedAccessors();
         return {};
     }
 

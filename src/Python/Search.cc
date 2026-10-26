@@ -69,15 +69,6 @@ void SearchAlgorithm::finishSegment() {
     closeSegmentLog();
 }
 
-void SearchAlgorithm::closeSegmentLog() {
-    if (not segmentOpen_) {
-        return;
-    }
-    clog() << Core::XmlClose("segment");
-    segmentOpen_ = false;
-    ++segmentIndex_;
-}
-
 void SearchAlgorithm::putFeature(py::array_t<f32> const& feature) {
     size_t F = 0ul;
     if (feature.ndim() == 2) {
@@ -115,28 +106,6 @@ void SearchAlgorithm::putFeatures(py::array_t<f32> const& features) {
     }
 
     searchAlgorithm_->putFeatures({features, T * F}, T);
-}
-
-Traceback SearchAlgorithm::searchTracebackToPythonTraceback(Core::Ref<Search::Traceback const> traceback) {
-    std::vector<TracebackItem> result;
-    result.reserve(traceback->size());
-
-    u32 prevTime = 0;
-
-    for (auto it = traceback->begin(); it != traceback->end(); ++it) {
-        if (not it->pronunciation or not it->pronunciation->lemma()) {
-            continue;
-        }
-        result.push_back({
-                .lemma     = it->pronunciation->lemma()->symbol(),
-                .amScore   = it->score.acoustic,
-                .lmScore   = it->score.lm,
-                .startTime = prevTime,
-                .endTime   = it->time,
-        });
-        prevTime = it->time;
-    }
-    return result;
 }
 
 Traceback SearchAlgorithm::getCurrentBestTraceback() {
@@ -228,4 +197,35 @@ std::vector<Traceback> SearchAlgorithm::recognizeSegmentNBest(py::array_t<f32> c
     putFeatures(features);
     finishSegment();
     return getCurrentNBestList(nBestSize);
+}
+
+Traceback SearchAlgorithm::searchTracebackToPythonTraceback(Core::Ref<Search::Traceback const> traceback) {
+    std::vector<TracebackItem> result;
+    result.reserve(traceback->size());
+
+    u32 prevTime = 0;
+
+    for (auto it = traceback->begin(); it != traceback->end(); ++it) {
+        if (not it->pronunciation or not it->pronunciation->lemma()) {
+            continue;
+        }
+        result.push_back({
+                .lemma     = it->pronunciation->lemma()->symbol(),
+                .amScore   = it->score.acoustic,
+                .lmScore   = it->score.lm,
+                .startTime = prevTime,
+                .endTime   = it->time,
+        });
+        prevTime = it->time;
+    }
+    return result;
+}
+
+void SearchAlgorithm::closeSegmentLog() {
+    if (not segmentOpen_) {
+        return;
+    }
+    clog() << Core::XmlClose("segment");
+    segmentOpen_ = false;
+    ++segmentIndex_;
 }

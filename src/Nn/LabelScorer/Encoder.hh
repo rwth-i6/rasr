@@ -74,24 +74,17 @@ protected:
 
     bool expectMoreFeatures_;
 
+    Core::StopWatch encodeTime_;
+
+    // Total number of input features (T) handed to this encoder in the current segment
+    size_t numInputFeatures_ = 0ul;
+
     // Channel that `logStatistics` writes to. Disabled unless a target is configured.
     mutable Core::XmlChannel statisticsChannel_;
 
     // Clear the state that belongs to the concrete Encoder, e.g. input buffers and segment-end
     // flags. `reset` handles the statistics, so implementations must not touch them.
     virtual void resetInternal();
-
-    // Hook for subclasses to break down `encode-time`. Called inside that element, so only
-    // timers whose intervals are contained in it belong here.
-    virtual void logEncodeBreakdown() const {}
-
-    // Hook for subclasses to add statistics that are not part of `encode-time`.
-    virtual void logAdditionalStatistics() const {}
-
-    Core::StopWatch encodeTime_;
-
-    // Total number of input features (T) handed to this encoder in the current segment
-    size_t numInputFeatures_ = 0ul;
 
     // Encode features inside the input buffer and put the results into the output buffer
     virtual void encode() = 0;
@@ -103,6 +96,13 @@ protected:
     // Check if encoder is ready to encode.
     // By default, allow encoding only after segment end has been signaled.
     virtual bool canEncode() const;
+
+    // Hook for subclasses to break down `encode-time`. Called inside that element, so only
+    // timers whose intervals are contained in it belong here.
+    virtual void logEncodeBreakdown() const {}
+
+    // Hook for subclasses to add statistics that are not part of `encode-time`.
+    virtual void logAdditionalStatistics() const {}
 };
 
 }  // namespace Nn

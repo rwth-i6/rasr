@@ -84,12 +84,11 @@ public:
     LabelScorer(Core::Configuration const& config, TransitionPresetType defaultPreset = TransitionPresetType::NONE);
     virtual ~LabelScorer() = default;
 
-    // Prepares the LabelScorer to receive new inputs.
-    // Clears the accumulated timing and statistics and delegates to `resetInternal`.
-    void reset();
+    // Prepare the LabelScorer to receive the inputs of a new segment
+    virtual void reset() = 0;
 
-    // Log the timing and statistics accumulated since the last `reset`.
-    virtual void logStatistics() const;
+    // Log the statistics accumulated since the last `reset`
+    virtual void logStatistics() const = 0;
 
     // Tells the LabelScorer that there will be no more input features coming in the current segment
     virtual void signalNoMoreFeatures() = 0;
@@ -114,15 +113,10 @@ public:
     // that allows retrieving the scores of specific labels or transition types as well
     // as the associated timeframe.
     // Returns std::nullopt if the LabelScorer is not ready to score the context yet.
-    // Counts the request, times the call and delegates to `computeScoreAccessor`.
-    std::optional<ScoreAccessorRef> getScoreAccessor(ScoringContextRef scoringContext);
+    virtual std::optional<ScoreAccessorRef> getScoreAccessor(ScoringContextRef scoringContext) = 0;
 
-    // Perform scoring computation for a batch of contexts and return score accessors for each
-    // that allow retrieving the scores of specific labels or transition types as well
-    // as the associated timeframes.
-    // Returns std::nullopt for a context if the LabelScorer is not ready to score it yet.
-    // Counts the requests, times the call and delegates to `computeScoreAccessors`.
-    std::vector<std::optional<ScoreAccessorRef>> getScoreAccessors(std::vector<ScoringContextRef> const& scoringContexts);
+    // Same for a batch of contexts, possibly utilizing batched computation.
+    virtual std::vector<std::optional<ScoreAccessorRef>> getScoreAccessors(std::vector<ScoringContextRef> const& scoringContexts) = 0;
 
     // Check whether the given transition type can be scored by this LabelScorer
     inline bool scoresTransition(TransitionType transitionType) const {
@@ -133,12 +127,45 @@ public:
     TransitionSet enabledTransitions() const;
 
 protected:
+    TransitionSet enabledTransitions_;
+};
+
+/*
+ * Base class for LabelScorers that report their own timing and statistics.
+ *
+ * `reset` and `getScoreAccessor(s)` maintain the statistics and delegate to `resetInternal` and
+ * `computeScoreAccessor(s)`, which subclasses implement instead.
+ *
+ * LabelScorers that only forward to sub-scorers derive from `LabelScorer` directly, so that they
+ * neither pay for nor report statistics of their own.
+ */
+class StatTrackingLabelScorer : public LabelScorer {
+public:
+    StatTrackingLabelScorer(Core::Configuration const& config, TransitionPresetType defaultPreset = TransitionPresetType::NONE);
+
+    void reset() final;
+    void logStatistics() const override;
+
+    std::optional<ScoreAccessorRef>              getScoreAccessor(ScoringContextRef scoringContext) final;
+    std::vector<std::optional<ScoreAccessorRef>> getScoreAccessors(std::vector<ScoringContextRef> const& scoringContexts) final;
+
+protected:
+    // Time spent in `computeScoreAccessor(s)`. Scorers that compute scores lazily add those
+    // intervals as well.
+    Core::StopWatch scoringTime_;
+
+    size_t numScoreAccessorsRequested_ = 0ul;
+    // Scorers that compute lazily count from const paths, hence mutable.
+    mutable size_t numScoreAccessorsComputed_ = 0ul;
+
+    // Channel that `logStatistics` writes to. Disabled unless a target is configured.
+    mutable Core::XmlChannel statisticsChannel_;
+
     // Reset the state that belongs to the concrete LabelScorer, e.g. input buffers and
     // segment-end flags. `reset` handles the statistics, so implementations must not touch them.
     virtual void resetInternal() = 0;
 
-    // Compute the score accessor for a single context. `getScoreAccessor` handles the
-    // statistics, so implementations must not touch them.
+    // Compute the score accessor for a single context.
     virtual std::optional<ScoreAccessorRef> computeScoreAccessor(ScoringContextRef scoringContext) = 0;
 
     // Same for a batch of contexts. By default loops over the single-context version;
@@ -149,28 +176,12 @@ protected:
     // timers whose intervals are contained in it belong here.
     virtual void logScoringBreakdown() const {}
 
-    // Hook for subclasses to add timers that are not contained in `scoring-time`.
+    // Hook for subclasses to add statistics that are not part of `scoring-time`.
     virtual void logAdditionalStatistics() const {}
 
-    // Time spent in `computeScoreAccessor(s)`. Scorers that compute scores lazily add those
-    // intervals as well.
-    Core::StopWatch scoringTime_;
-    size_t          numScoreAccessorsRequested_ = 0ul;
-
-    // Contexts that had to be computed rather than served from an internal cache. Maintained and
-    // logged only by scorers that have such a cache, indicated by the flag below.
-    // Scorers that compute lazily count from const paths, hence mutable.
-    mutable size_t numScoreAccessorsComputed_ = 0ul;
-    bool           tracksScoreAccessorCache_  = false;
-
-    // Set to false by scorers that only forward to sub-scorers, so that they don't pay for
-    // statistics that they never report.
-    bool tracksScoringStatistics_ = true;
-
-    // Channel that `logStatistics` writes to. Disabled unless a target is configured.
-    mutable Core::XmlChannel statisticsChannel_;
-
-    TransitionSet enabledTransitions_;
+    // `getScoreAccessor(s)` counts one computation per request. Subclasses report requests that
+    // needed none, because they were served from a cache or could not be scored.
+    void countUncomputedAccessors(size_t num = 1ul) const;
 };
 
 }  // namespace Nn

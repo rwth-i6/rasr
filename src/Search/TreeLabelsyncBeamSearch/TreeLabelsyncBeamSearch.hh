@@ -190,6 +190,8 @@ private:
     Histogram           terminatedScoreHistogram_;
     float               lengthNormScale_;
     float               maxLabelsPerTimestep_;
+    Bliss::Lemma const* blankLemma_;
+    Bliss::Lemma const* silenceLemma_;
     Bliss::Lemma const* sentenceEndLemma_;
     Nn::LabelIndex      sentenceEndLabelIndex_;
     size_t              cacheCleanupInterval_;
@@ -220,11 +222,6 @@ private:
     std::vector<LabelHypothesis>              wordEndHypotheses_;
     std::vector<Nn::ScoringContextRef>        scoringContexts_;
     std::vector<LabelHypothesis>              tempHypotheses_;
-
-    // Scores and timeframes read out of the accessors of the current label scorer, indexed like
-    // `scoringContexts_`
-    std::vector<std::optional<Nn::DenseScoreSpan>> denseScoreSpans_;
-    std::vector<Nn::TimeframeIndex>                scoreTimes_;
 
     // Score accessors of the word-end hypothesis currently being expanded, indexed by label scorer
     std::vector<Nn::ScoreAccessorRef> wordEndScoreAccessors_;
@@ -263,7 +260,15 @@ private:
     Core::StopWatch wordEndExtensionTime_;
     Core::StopWatch wordEndScorePruningTime_;
     Core::StopWatch wordEndHypBuildingTime_;
-    Core::StopWatch lmTime_;
+    /*
+     * Language model time, reported inside the phase that made the calls: `lm-time` for scoring and
+     * `lm-history-extension-time` for extending a history. Extending a history is a node lookup for
+     * an n-gram model, but copies and hashes the token sequence for a recurrent one, so it is timed
+     * rather than left unaccounted for in its phase.
+     */
+    Core::StopWatch wordEndExtensionLmTime_;
+    Core::StopWatch lmHistoryExtensionTime_;
+    Core::StopWatch finalizeLmTime_;
     Core::StopWatch finalizeTime_;
 
     Core::Statistics<u32>              numInputHyps_;
@@ -308,21 +313,21 @@ private:
     bool scoreAndPruneExtensions();
 
     /*
-     * Read the scores and timeframes of the current label scorer into `denseScoreSpans_` and
-     * `scoreTimes_`. Lazily computing scorers do their work here.
+     * Read the scores and timeframes of the current label scorer into `denseScoreSpans` and
+     * `scoreTimes`. Lazily computing scorers do their work here.
      */
-    void readOutScoreAccessors(std::vector<std::optional<Nn::ScoreAccessorRef>> const& scoreAccessors);
+    void readOutScoreAccessors(std::vector<std::optional<Nn::ScoreAccessorRef>> const& scoreAccessors, std::vector<std::optional<Nn::DenseScoreSpan>>& denseScoreSpans, std::vector<Nn::TimeframeIndex>& scoreTimes) const;
 
     /*
      * Create the within-word extension candidates from the scores of the first label scorer,
      * pre-pruning by score while they are created.
      */
-    void createWithinWordExtensions(std::vector<std::optional<Nn::ScoreAccessorRef>> const& scoreAccessors);
+    void createWithinWordExtensions(std::vector<std::optional<Nn::ScoreAccessorRef>> const& scoreAccessors, std::vector<std::optional<Nn::DenseScoreSpan>> const& denseScoreSpans, std::vector<Nn::TimeframeIndex> const& scoreTimes);
 
     /*
      * Add the scores of label scorer `scorerIdx` to the existing within-word extension candidates.
      */
-    void updateWithinWordExtensionScores(size_t scorerIdx, std::vector<std::optional<Nn::ScoreAccessorRef>> const& scoreAccessors);
+    void updateWithinWordExtensionScores(size_t scorerIdx, std::vector<std::optional<Nn::ScoreAccessorRef>> const& scoreAccessors, std::vector<std::optional<Nn::DenseScoreSpan>> const& denseScoreSpans, std::vector<Nn::TimeframeIndex> const& scoreTimes);
 
     /*
      * Collect the scoring contexts for the next label scorer into `scoringContexts_`, dropping the

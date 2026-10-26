@@ -27,9 +27,9 @@ namespace Nn {
  * and timeframes as well as a flag that indicates whether more features are expected to be added to the buffer.
  * This serves as a base class for other LabelScorers.
  */
-class BufferedLabelScorer : public LabelScorer {
+class BufferedLabelScorer : public StatTrackingLabelScorer {
 public:
-    using Precursor = LabelScorer;
+    using Precursor = StatTrackingLabelScorer;
 
     BufferedLabelScorer(Core::Configuration const& config, TransitionPresetType defaultPreset);
 
@@ -43,10 +43,10 @@ public:
     virtual void cleanupCaches(Core::CollapsedVector<ScoringContextRef> const& activeContexts) override;
 
 protected:
+    bool expectMoreFeatures_;  // Flag to record segment end signal
+
     // Clears input buffer, timeframe buffer and segment end flag
     void resetInternal() override;
-
-    bool expectMoreFeatures_;  // Flag to record segment end signal
 
     // Get the minimum index of previously buffered inputs that is still needed to process the given active contexts.
     // Does not take previously deleted inputs into account, i.e. if 5 inputs were added and the active contexts

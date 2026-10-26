@@ -44,25 +44,19 @@ NoContextOnnxLabelScorer::NoContextOnnxLabelScorer(Core::Configuration const& co
           Precursor(config, TransitionPresetType::CTC),
           scoreCache_() {
     Core::Configuration modelConfig(config, "onnx-model");
-    auto                key   = modelConfig.getSelection();
-    onnxModel_                = modelCache.getOrCreate<Onnx::Model>(key, modelConfig, ioSpec);
-    inputFeatureName_         = onnxModel_->mapping.getOnnxName("input-feature");
-    scoresName_               = onnxModel_->mapping.getOnnxName("scores");
-    tracksScoreAccessorCache_ = true;
-}
-
-void NoContextOnnxLabelScorer::logScoringBreakdown() const {
-    statisticsChannel_ << Core::XmlFull("onnx-session-time", onnxSessionTime_.elapsedMilliseconds());
-}
-
-void NoContextOnnxLabelScorer::resetInternal() {
-    Precursor::resetInternal();
-    onnxSessionTime_.reset();
-    scoreCache_.clear();
+    auto                key = modelConfig.getSelection();
+    onnxModel_              = modelCache.getOrCreate<Onnx::Model>(key, modelConfig, ioSpec);
+    inputFeatureName_       = onnxModel_->mapping.getOnnxName("input-feature");
+    scoresName_             = onnxModel_->mapping.getOnnxName("scores");
 }
 
 ScoringContextRef NoContextOnnxLabelScorer::getInitialScoringContext() {
     return Core::ref(new StepScoringContext());
+}
+
+ScoringContextRef NoContextOnnxLabelScorer::extendedScoringContext(ScoringContextRef scoringContext, LabelIndex nextToken, TransitionType transitionType) {
+    StepScoringContextRef stepScoringContext(dynamic_cast<StepScoringContext const*>(scoringContext.get()));
+    return Core::ref(new StepScoringContext(stepScoringContext->currentStep + 1));
 }
 
 void NoContextOnnxLabelScorer::cleanupCaches(Core::CollapsedVector<ScoringContextRef> const& activeContexts) {
@@ -80,6 +74,44 @@ void NoContextOnnxLabelScorer::cleanupCaches(Core::CollapsedVector<ScoringContex
     }
 }
 
+void NoContextOnnxLabelScorer::resetInternal() {
+    Precursor::resetInternal();
+    onnxSessionTime_.reset();
+    scoreCache_.clear();
+}
+
+std::vector<std::optional<ScoreAccessorRef>> NoContextOnnxLabelScorer::computeScoreAccessors(std::vector<ScoringContextRef> const& scoringContexts) {
+    if (scoringContexts.empty()) {
+        return {};
+    }
+
+    std::vector<std::optional<ScoreAccessorRef>> scoreAccessors(scoringContexts.size(), std::nullopt);
+
+    size_t numComputed = 0ul;
+
+    for (size_t contextIndex = 0ul; contextIndex < scoringContexts.size(); ++contextIndex) {
+        StepScoringContextRef stepScoringContext(dynamic_cast<StepScoringContext const*>(scoringContexts[contextIndex].get()));
+        if (not getInput(stepScoringContext->currentStep)) {
+            // If input is not available, this context can't be forwarded
+            continue;
+        }
+        if (scoreCache_.find(stepScoringContext) == scoreCache_.end()) {
+            forwardContext(stepScoringContext);
+            ++numComputed;
+        }
+
+        scoreAccessors[contextIndex] = Core::ref(new VectorScoreAccessor(scoreCache_.at(stepScoringContext), stepScoringContext->currentStep));
+    }
+
+    countUncomputedAccessors(scoringContexts.size() - numComputed);
+
+    return scoreAccessors;
+}
+
+std::optional<ScoreAccessorRef> NoContextOnnxLabelScorer::computeScoreAccessor(ScoringContextRef scoringContext) {
+    return computeScoreAccessors({scoringContext})[0];
+}
+
 size_t NoContextOnnxLabelScorer::getMinActiveInputIndex(Core::CollapsedVector<ScoringContextRef> const& activeContexts) const {
     auto minTimeIndex = Core::Type<Speech::TimeframeIndex>::max;
     for (auto const& context : activeContexts.internalData()) {
@@ -90,37 +122,8 @@ size_t NoContextOnnxLabelScorer::getMinActiveInputIndex(Core::CollapsedVector<Sc
     return minTimeIndex;
 }
 
-ScoringContextRef NoContextOnnxLabelScorer::extendedScoringContext(ScoringContextRef scoringContext, LabelIndex nextToken, TransitionType transitionType) {
-    StepScoringContextRef stepScoringContext(dynamic_cast<StepScoringContext const*>(scoringContext.get()));
-    return Core::ref(new StepScoringContext(stepScoringContext->currentStep + 1));
-}
-
-std::vector<std::optional<ScoreAccessorRef>> NoContextOnnxLabelScorer::computeScoreAccessors(std::vector<ScoringContextRef> const& scoringContexts) {
-    if (scoringContexts.empty()) {
-        return {};
-    }
-
-    std::vector<std::optional<ScoreAccessorRef>> scoreAccessors(scoringContexts.size(), std::nullopt);
-
-    for (size_t contextIndex = 0ul; contextIndex < scoringContexts.size(); ++contextIndex) {
-        StepScoringContextRef stepScoringContext(dynamic_cast<StepScoringContext const*>(scoringContexts[contextIndex].get()));
-        if (not getInput(stepScoringContext->currentStep)) {
-            // If input is not available, this context can't be forwarded
-            continue;
-        }
-        if (scoreCache_.find(stepScoringContext) == scoreCache_.end()) {
-            forwardContext(stepScoringContext);
-            ++numScoreAccessorsComputed_;
-        }
-
-        scoreAccessors[contextIndex] = Core::ref(new VectorScoreAccessor(scoreCache_.at(stepScoringContext), stepScoringContext->currentStep));
-    }
-
-    return scoreAccessors;
-}
-
-std::optional<ScoreAccessorRef> NoContextOnnxLabelScorer::computeScoreAccessor(ScoringContextRef scoringContext) {
-    return computeScoreAccessors({scoringContext})[0];
+void NoContextOnnxLabelScorer::logScoringBreakdown() const {
+    statisticsChannel_ << Core::XmlFull("onnx-session-time", onnxSessionTime_.elapsedMilliseconds());
 }
 
 void NoContextOnnxLabelScorer::forwardContext(StepScoringContextRef const& scoringContext) {

@@ -30,8 +30,6 @@ namespace Nn {
  * combined_timeframe(request) = max_i { timeframe_i(request) }
  */
 class CombineLabelScorer : public LabelScorer {
-    using Precursor = LabelScorer;
-
 public:
     static Core::ParameterInt paramNumLabelScorers;
 
@@ -62,17 +60,18 @@ public:
     // Add inputs to all sub-scorers
     virtual void addInputs(DataView const& input, size_t nTimesteps) override;
 
-protected:
     // Reset all sub-scorers
-    void resetInternal() override;
+    void reset() override;
 
     // Get accessor that returns score-sum of all sub-scorers
-    std::optional<ScoreAccessorRef> computeScoreAccessor(ScoringContextRef scoringContext) override;
+    std::optional<ScoreAccessorRef> getScoreAccessor(ScoringContextRef scoringContext) override;
 
     // Get accessors that return score-sums of all sub-scorers
-    std::vector<std::optional<ScoreAccessorRef>> computeScoreAccessors(std::vector<ScoringContextRef> const& scoringContexts) override;
+    std::vector<std::optional<ScoreAccessorRef>> getScoreAccessors(std::vector<ScoringContextRef> const& scoringContexts) override;
 
 private:
+    using Precursor = LabelScorer;
+
     std::vector<Core::Ref<ScaledLabelScorer>> scorers_;
 };
 

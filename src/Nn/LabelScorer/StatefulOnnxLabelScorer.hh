@@ -90,14 +90,6 @@ typedef Core::Ref<OnnxHiddenStateScoringContext const> OnnxHiddenStateScoringCon
  * Since the encoder state inputs are optional, it can also be used for stateful language models without acoustic input.
  */
 class StatefulOnnxLabelScorer : public BufferedLabelScorer {
-    using Precursor = BufferedLabelScorer;
-
-    static const Core::ParameterBool paramBlankUpdatesHistory;
-    static const Core::ParameterBool paramSilenceUpdatesHistory;
-    static const Core::ParameterBool paramLoopUpdatesHistory;
-    static const Core::ParameterInt  paramMaxBatchSize;
-    static const Core::ParameterInt  paramMaxCachedScores;
-
 public:
     StatefulOnnxLabelScorer(Core::Configuration const& config, ModelCache& modelCache);
     virtual ~StatefulOnnxLabelScorer() = default;
@@ -122,22 +114,13 @@ protected:
     size_t                                       getMinActiveInputIndex(Core::CollapsedVector<ScoringContextRef> const& activeContexts) const override;
 
 private:
-    // Forward a batch of scoringContexts through the ONNX scorer model and put the resulting scores into the score cache
-    void cacheScores(std::vector<OnnxHiddenStateScoringContextRef> const& scoringContextBatch);
+    using Precursor = BufferedLabelScorer;
 
-    // Computes new hidden state based on previous hidden state and next token with batched state-updater call
-    std::vector<OnnxHiddenStateRef> updatedHiddenStates(std::vector<OnnxHiddenStateRef> const& hiddenStatesBatch, std::vector<s32> nextTokensBatch);
-
-    // Compute updated states for all non-finalized scoring contexts and put them into the state cache
-    void cacheStates(std::vector<OnnxHiddenStateScoringContextRef> const& scoringContextBatch);
-
-    // Since the hidden-state matrix depends on the encoder time axis, we cannot create properly create hidden-states until all encoder states have been passed.
-    // So getInitialScoringContext sets the initial hidden-state to a sentinel value (empty Ref) and when other functions such as `extendedScoringContext` and `getScoresWithTime`
-    // encounter this sentinel value they call `computeInitialHiddenState` instead to get a usable hidden-state.
-    OnnxHiddenStateRef computeInitialHiddenState();
-
-    void setupEncoderStatesValue();
-    void setupEncoderStatesSizeValue();
+    static const Core::ParameterBool paramBlankUpdatesHistory;
+    static const Core::ParameterBool paramSilenceUpdatesHistory;
+    static const Core::ParameterBool paramLoopUpdatesHistory;
+    static const Core::ParameterInt  paramMaxBatchSize;
+    static const Core::ParameterInt  paramMaxCachedScores;
 
     bool   blankUpdatesHistory_;
     bool   silenceUpdatesHistory_;
@@ -169,8 +152,6 @@ private:
     Onnx::Value encoderStatesValue_;
     Onnx::Value encoderStatesSizeValue_;
 
-    void logScoringBreakdown() const override;
-
     Core::StopWatch stateUpdateSessionTime_;
     Core::StopWatch scorerSessionTime_;
     // Building the batched session inputs from the individual hidden states and splitting the
@@ -180,6 +161,25 @@ private:
 
     Core::FIFOCache<OnnxHiddenStateScoringContextRef, std::shared_ptr<std::vector<Score>>, ScoringContextHash, ScoringContextEq> scoreCache_;
     Core::FIFOCache<OnnxHiddenStateScoringContextRef, OnnxHiddenStateRef, ScoringContextHash, ScoringContextEq>                  stateCache_;
+
+    // Forward a batch of scoringContexts through the ONNX scorer model and put the resulting scores into the score cache
+    void cacheScores(std::vector<OnnxHiddenStateScoringContextRef> const& scoringContextBatch);
+
+    // Computes new hidden state based on previous hidden state and next token with batched state-updater call
+    std::vector<OnnxHiddenStateRef> updatedHiddenStates(std::vector<OnnxHiddenStateRef> const& hiddenStatesBatch, std::vector<s32> nextTokensBatch);
+
+    // Compute updated states for all non-finalized scoring contexts and put them into the state cache
+    void cacheStates(std::vector<OnnxHiddenStateScoringContextRef> const& scoringContextBatch);
+
+    // Since the hidden-state matrix depends on the encoder time axis, we cannot create properly create hidden-states until all encoder states have been passed.
+    // So getInitialScoringContext sets the initial hidden-state to a sentinel value (empty Ref) and when other functions such as `extendedScoringContext` and `getScoresWithTime`
+    // encounter this sentinel value they call `computeInitialHiddenState` instead to get a usable hidden-state.
+    OnnxHiddenStateRef computeInitialHiddenState();
+
+    void setupEncoderStatesValue();
+    void setupEncoderStatesSizeValue();
+
+    void logScoringBreakdown() const override;
 };
 
 }  // namespace Nn

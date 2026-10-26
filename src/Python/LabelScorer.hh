@@ -34,9 +34,9 @@ namespace Python {
  * See https://pybind11.readthedocs.io/en/stable/advanced/classes.html for official documentation
  * on the "trampoline" pattern.
  */
-class PythonLabelScorer : public Nn::LabelScorer {
+class PythonLabelScorer : public Nn::StatTrackingLabelScorer {
 public:
-    using Precursor = Nn::LabelScorer;
+    using Precursor = Nn::StatTrackingLabelScorer;
 
     PythonLabelScorer(Core::Configuration const& config);
     virtual ~PythonLabelScorer() = default;
@@ -71,6 +71,8 @@ public:
     virtual std::vector<std::optional<std::pair<std::vector<Nn::Score>, Nn::TimeframeIndex>>> getPythonScoresWithTimes(std::vector<py::object> const& pythonContexts);
 
 protected:
+    py::object pyInstance_;  // Hold the Python wrapper
+
     // Must be overridden in python by name "reset"
     virtual void resetInternal() override;
 
@@ -79,8 +81,6 @@ protected:
 
     // Forwards to `getPythonScoresWithTimes`
     virtual std::vector<std::optional<Nn::ScoreAccessorRef>> computeScoreAccessors(std::vector<Nn::ScoringContextRef> const& scoringContexts) override;
-
-    py::object pyInstance_;  // Hold the Python wrapper
 };
 
 }  // namespace Python

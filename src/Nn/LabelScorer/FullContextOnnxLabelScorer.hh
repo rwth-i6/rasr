@@ -54,21 +54,9 @@ namespace Nn {
  * frame and the full sequence.
  */
 class FullContextOnnxLabelScorer : public BufferedLabelScorer {
-    using Precursor = BufferedLabelScorer;
-
-    static const Core::ParameterInt  paramStartLabelIndex;
-    static const Core::ParameterBool paramBlankUpdatesHistory;
-    static const Core::ParameterBool paramSilenceUpdatesHistory;
-    static const Core::ParameterBool paramLoopUpdatesHistory;
-    static const Core::ParameterBool paramVerticalLabelTransition;
-    static const Core::ParameterInt  paramMaxBatchSize;
-
 public:
     FullContextOnnxLabelScorer(Core::Configuration const& config, ModelCache& modelCache);
     virtual ~FullContextOnnxLabelScorer() = default;
-
-    // Clear feature buffer and cached scores
-    void reset() override;
 
     // Add a single input feature to the buffer
     void addInput(DataView const& input) override;
@@ -84,25 +72,27 @@ public:
     // Clean up input buffer as well as cached score vectors that are no longer needed
     void cleanupCaches(Core::CollapsedVector<ScoringContextRef> const& activeContexts) override;
 
+protected:
+    // Clear feature buffer and cached scores
+    void resetInternal() override;
+
     // If scores for the given scoring contexts are not yet cached, prepare and run an ONNX session to
     // compute the scores and cache them
-    std::vector<std::optional<ScoreAccessorRef>> getScoreAccessors(std::vector<ScoringContextRef> const& scoringContexts) override;
+    std::vector<std::optional<ScoreAccessorRef>> computeScoreAccessors(std::vector<ScoringContextRef> const& scoringContexts) override;
 
-    // Uses `getScoreAccessors` internally with some wrapping for vector packing/expansion
-    std::optional<ScoreAccessorRef> getScoreAccessor(ScoringContextRef scoringContext) override;
-
-protected:
-    size_t getMinActiveInputIndex(Core::CollapsedVector<ScoringContextRef> const& activeContexts) const override;
+    // Uses `computeScoreAccessors` internally with some wrapping for vector packing/expansion
+    std::optional<ScoreAccessorRef> computeScoreAccessor(ScoringContextRef scoringContext) override;
+    size_t                          getMinActiveInputIndex(Core::CollapsedVector<ScoringContextRef> const& activeContexts) const override;
 
 private:
-    // Forward a batch of histories through the ONNX model and put the resulting scores into the score cache
-    // The history tensor is padded to the longest one and history-size contains the true length of each entry.
-    // If a per-frame input-feature is used, all histories in the batch must be based on the same timestep
-    void forwardBatch(std::vector<SeqStepScoringContextRef> const& scoringContextBatch);
+    using Precursor = BufferedLabelScorer;
 
-    // Set up encoderStatesValue_/encoderStatesSizeValue_ from the full input buffer, unless already cached
-    void setupEncoderStatesValue();
-    void setupEncoderStatesSizeValue();
+    static const Core::ParameterInt  paramStartLabelIndex;
+    static const Core::ParameterBool paramBlankUpdatesHistory;
+    static const Core::ParameterBool paramSilenceUpdatesHistory;
+    static const Core::ParameterBool paramLoopUpdatesHistory;
+    static const Core::ParameterBool paramVerticalLabelTransition;
+    static const Core::ParameterInt  paramMaxBatchSize;
 
     size_t startLabelIndex_;
     bool   blankUpdatesHistory_;
@@ -124,7 +114,23 @@ private:
     Onnx::Value encoderStatesValue_;
     Onnx::Value encoderStatesSizeValue_;
 
+    Core::StopWatch onnxSessionTime_;
+    // Building the batched session inputs (incl. encoder states and padded histories) and copying the resulting scores into the cache
+    Core::StopWatch tensorMarshallingTime_;
+    Core::StopWatch contextPreparationTime_;
+
     std::unordered_map<SeqStepScoringContextRef, std::shared_ptr<std::vector<Score>>, ScoringContextHash, ScoringContextEq> scoreCache_;
+
+    // Forward a batch of histories through the ONNX model and put the resulting scores into the score cache.
+    // The history tensor is padded to the longest one and history-size contains the true length of each entry.
+    // If a per-frame input-feature is used, all histories in the batch must be based on the same timestep.
+    void forwardBatch(std::vector<SeqStepScoringContextRef> const& scoringContextBatch);
+
+    // Set up encoderStatesValue_/encoderStatesSizeValue_ from the full input buffer, unless already cached
+    void setupEncoderStatesValue();
+    void setupEncoderStatesSizeValue();
+
+    void logScoringBreakdown() const override;
 };
 
 }  // namespace Nn

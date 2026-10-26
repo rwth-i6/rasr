@@ -192,7 +192,10 @@ ScoringContextRef FixedContextOnnxLabelScorer::extendedScoringContext(ScoringCon
 void FixedContextOnnxLabelScorer::cleanupCaches(Core::CollapsedVector<ScoringContextRef> const& activeContexts) {
     Precursor::cleanupCaches(activeContexts);
 
-    std::unordered_set<ScoringContextRef, ScoringContextHash, ScoringContextEq> activeContextSet(activeContexts.internalData().begin(), activeContexts.internalData().end());
+    std::unordered_set<SeqStepScoringContextRef, ScoringContextHash, ScoringContextEq> activeContextSet;
+    for (auto const& context : activeContexts.internalData()) {
+        activeContextSet.emplace(cacheKey(SeqStepScoringContextRef(dynamic_cast<SeqStepScoringContext const*>(context.get()))));
+    }
 
     for (auto it = scoreCache_.begin(); it != scoreCache_.end();) {
         if (activeContextSet.find(it->first) == activeContextSet.end()) {
@@ -229,9 +232,12 @@ std::vector<std::optional<ScoreAccessorRef>> FixedContextOnnxLabelScorer::comput
 
     // Cast scoring contexts to concrete types
     std::vector<SeqStepScoringContextRef> seqStepScoringContexts;
+    std::vector<SeqStepScoringContextRef> cacheKeys;
     seqStepScoringContexts.reserve(scoringContexts.size());
+    cacheKeys.reserve(scoringContexts.size());
     for (auto const& scoringContext : scoringContexts) {
         seqStepScoringContexts.push_back(Core::ref(dynamic_cast<SeqStepScoringContext const*>(scoringContext.get())));
+        cacheKeys.push_back(cacheKey(seqStepScoringContexts.back()));
     }
 
     /*
@@ -271,9 +277,9 @@ std::vector<std::optional<ScoreAccessorRef>> FixedContextOnnxLabelScorer::comput
         std::unordered_set<SeqStepScoringContextRef, ScoringContextHash, ScoringContextEq> uniqueUncachedContexts;
 
         for (auto contextIndex : contextIndices) {
-            if (scoreCache_.find(seqStepScoringContexts[contextIndex]) == scoreCache_.end()) {
+            if (scoreCache_.find(cacheKeys[contextIndex]) == scoreCache_.end()) {
                 // Group by unique context
-                uniqueUncachedContexts.emplace(seqStepScoringContexts[contextIndex]);
+                uniqueUncachedContexts.emplace(cacheKeys[contextIndex]);
             }
         }
         contextPreparationTime_.stop();
@@ -295,7 +301,7 @@ std::vector<std::optional<ScoreAccessorRef>> FixedContextOnnxLabelScorer::comput
         // Create score accessors from cache
         contextPreparationTime_.start();
         for (auto const& contextIndex : contextIndices) {
-            auto const& scoreVec         = scoreCache_.at(seqStepScoringContexts[contextIndex]);
+            auto const& scoreVec         = scoreCache_.at(cacheKeys[contextIndex]);
             scoreAccessors[contextIndex] = Core::ref(new VectorScoreAccessor(scoreVec, seqStepScoringContexts[contextIndex]->currentStep));
         }
         contextPreparationTime_.stop();
@@ -323,6 +329,13 @@ size_t FixedContextOnnxLabelScorer::getMinActiveInputIndex(Core::CollapsedVector
     }
 
     return minTimeIndex;
+}
+
+SeqStepScoringContextRef FixedContextOnnxLabelScorer::cacheKey(SeqStepScoringContextRef const& scoringContext) const {
+    if (inputFeatureName_ != "") {
+        return scoringContext;
+    }
+    return Core::ref(new SeqStepScoringContext(scoringContext->labelSeq, 0ul));
 }
 
 void FixedContextOnnxLabelScorer::forwardBatch(std::vector<SeqStepScoringContextRef> const& scoringContextBatch) {

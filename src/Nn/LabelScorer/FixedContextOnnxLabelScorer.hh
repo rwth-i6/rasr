@@ -107,7 +107,11 @@ private:
     Core::StopWatch tensorMarshallingTime_;
     Core::StopWatch contextPreparationTime_;
 
+    // Keyed by `cacheKey` of the scoring contexts
     std::unordered_map<SeqStepScoringContextRef, std::shared_ptr<std::vector<Score>>, ScoringContextHash, ScoringContextEq> scoreCache_;
+
+    // Without a per-frame input-feature the step doesn't affect the scores, so it is dropped from the cache key
+    SeqStepScoringContextRef cacheKey(SeqStepScoringContextRef const& scoringContext) const;
 
     // Forward a batch of histories through the ONNX model and put the resulting scores into the score cache
     // If a per-frame input-feature is used, all histories in the batch must be based on the same timestep

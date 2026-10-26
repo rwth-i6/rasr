@@ -266,15 +266,12 @@ std::vector<std::optional<ScoreAccessorRef>> FullContextOnnxLabelScorer::compute
     for (size_t contextIndex = 0ul; contextIndex < scoringContexts.size(); ++contextIndex) {
         auto step = seqStepScoringContexts[contextIndex]->currentStep;
 
-        size_t groupKey = 0ul;
-        if (inputFeatureName_ != "") {
-            auto input = getInput(step);
-            if (not input) {
-                // If input is not available, this context can't be forwarded
-                continue;
-            }
-            groupKey = step;
+        // If no input exists for this step (e.g. past the end of the segment), this context can't be forwarded
+        if (not getInput(step)) {
+            continue;
         }
+
+        size_t groupKey = inputFeatureName_ != "" ? step : 0ul;
 
         contextsByTimestep[groupKey].push_back(contextIndex);
     }

@@ -26,6 +26,8 @@ namespace Core {
  */
 struct StopWatch {
 public:
+    class Scope;
+
     StopWatch();
 
     /*
@@ -43,6 +45,8 @@ public:
      */
     void reset();
 
+    bool isRunning() const;
+
     /*
      * Getter functions to get the total elapsed time in different units. Includes the current interval
      * if the timer is running.
@@ -57,6 +61,33 @@ private:
     bool                                  running_;
     std::chrono::steady_clock::time_point startTime_;
     size_t                                elapsedNanoseconds_;
+};
+
+/*
+ * Starts a StopWatch and stops it again when going out of scope. Only stops a timer it
+ * started itself, so guards on the same timer can nest.
+ */
+class StopWatch::Scope {
+public:
+    explicit Scope(StopWatch& watch)
+            : watch_(watch), ownsInterval_(not watch.isRunning()) {
+        if (ownsInterval_) {
+            watch_.start();
+        }
+    }
+
+    ~Scope() {
+        if (ownsInterval_) {
+            watch_.stop();
+        }
+    }
+
+    Scope(Scope const&)            = delete;
+    Scope& operator=(Scope const&) = delete;
+
+private:
+    StopWatch& watch_;
+    bool       ownsInterval_;
 };
 
 }  // namespace Core

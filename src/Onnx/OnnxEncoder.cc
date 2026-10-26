@@ -15,6 +15,8 @@
 
 #include "OnnxEncoder.hh"
 
+#include <Core/XmlStream.hh>
+
 namespace Onnx {
 
 /*
@@ -64,9 +66,35 @@ OnnxEncoder::OnnxEncoder(Core::Configuration const& config, Nn::ModelCache& mode
     stateManager_->setInitialStates(stateVariables_);
 }
 
-void OnnxEncoder::reset() {
-    Encoder::reset();
+void OnnxEncoder::resetInternal() {
+    Encoder::resetInternal();
+    onnxSessionTime_.reset();
+    numSessionRuns_ = 0ul;
     stateManager_->setInitialStates(stateVariables_);
+}
+
+void OnnxEncoder::encode() {
+    if (inputBuffer_.empty()) {
+        return;
+    }
+
+    size_t nInputs = inputBuffer_.size();
+
+    auto [outputView, nOutputs, outputSize] = runSession(0ul, nInputs);
+
+    size_t inputsPerOutput = (inputsPerOutput_ != 0ul) ? inputsPerOutput_ : (nInputs / nOutputs + (nInputs % nOutputs != 0ul));
+    size_t inputStep       = (inputStepSize_ != 0ul) ? inputStepSize_ : inputsPerOutput;
+    size_t startInput      = 0ul;
+
+    for (size_t t = 0ul; t < nOutputs; ++t) {
+        size_t endInput = std::min(startInput + inputsPerOutput, nInputs);
+        outputBuffer_.push_back(
+                Nn::EncodedSpan{
+                        .encoding    = {outputView, outputSize, t * outputSize},
+                        .input_start = startInput,
+                        .input_end   = endInput});
+        startInput = std::min(startInput + inputStep, std::max(nInputs, 1ul) - 1ul);
+    }
 }
 
 OnnxEncoder::SessionRunResult OnnxEncoder::runSession(size_t inputStartIndex, size_t nInputs, size_t leftZeroPadding, size_t rightZeroPadding) {
@@ -102,7 +130,10 @@ OnnxEncoder::SessionRunResult OnnxEncoder::runSession(size_t inputStartIndex, si
 
     // Run session
     std::vector<Value> sessionOutputs;
+    onnxSessionTime_.start();
     onnxModel_->session.run(std::move(sessionInputs), outputNames, sessionOutputs);
+    onnxSessionTime_.stop();
+    ++numSessionRuns_;
 
     // Retrieve outputs
     size_t T_out      = sessionOutputs.front().dimSize(1);
@@ -119,28 +150,12 @@ OnnxEncoder::SessionRunResult OnnxEncoder::runSession(size_t inputStartIndex, si
     return {.outputView = std::move(outputView), .nOutputs = T_out, .outputSize = outputSize};
 }
 
-void OnnxEncoder::encode() {
-    if (inputBuffer_.empty()) {
-        return;
-    }
+void OnnxEncoder::logEncodeBreakdown() const {
+    statisticsChannel_ << Core::XmlFull("onnx-session-time", onnxSessionTime_.elapsedMilliseconds());
+}
 
-    size_t nInputs = inputBuffer_.size();
-
-    auto [outputView, nOutputs, outputSize] = runSession(0ul, nInputs);
-
-    size_t inputsPerOutput = (inputsPerOutput_ != 0ul) ? inputsPerOutput_ : (nInputs / nOutputs + (nInputs % nOutputs != 0ul));
-    size_t inputStep       = (inputStepSize_ != 0ul) ? inputStepSize_ : inputsPerOutput;
-    size_t startInput      = 0ul;
-
-    for (size_t t = 0ul; t < nOutputs; ++t) {
-        size_t endInput = std::min(startInput + inputsPerOutput, nInputs);
-        outputBuffer_.push_back(
-                Nn::EncodedSpan{
-                        .encoding    = {outputView, outputSize, t * outputSize},
-                        .input_start = startInput,
-                        .input_end   = endInput});
-        startInput = std::min(startInput + inputStep, std::max(nInputs, 1ul) - 1ul);
-    }
+void OnnxEncoder::logAdditionalStatistics() const {
+    statisticsChannel_ << Core::XmlFull("num-session-runs", numSessionRuns_);
 }
 
 /*
@@ -221,8 +236,8 @@ ChunkedOnnxEncoder::ChunkedOnnxEncoder(Core::Configuration const& config, Nn::Mo
     initWindow(static_cast<WindowType>(paramWindowType(config)));
 }
 
-void ChunkedOnnxEncoder::reset() {
-    Precursor::reset();
+void ChunkedOnnxEncoder::resetInternal() {
+    Precursor::resetInternal();
     chunkCenterStart_     = 0ul;
     numDiscardedFeatures_ = 0ul;
     pendingOutputs_.clear();

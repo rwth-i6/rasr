@@ -1239,21 +1239,45 @@ this document -- you can build it programmatically, load it from a file, or both
     # load a standard RASR config file (same format as used by all other tools/examples in this document)
     config.set_from_file("recognition.config")
     # and/or set individual parameters directly, overriding anything loaded from file
-    config.set("*.search-algorithm.type", "lexiconfree-timesync-beam-search")
-    config.set("*.search-algorithm.max-beam-size", "12")
-    config.set("*.lexicon.file", "/path/to/lexicon.xml.gz")
+    config.set("search-algorithm.type", "lexiconfree-timesync-beam-search")
+    config.set("search-algorithm.max-beam-size", 12)
+    config.set("lexicon.file", "/path/to/lexicon.xml.gz")
 
-* ``Configuration()`` : create an empty configuration (default selection root is ``lib-rasr``, so both
-  ``*.foo`` and ``lib-rasr.foo`` style keys apply to it).
-* ``config.set(name, value="true")`` : set a single configuration key, e.g. ``config.set("*.search-algorithm.type", "tree-timesync-beam-search")``.
+* ``Configuration()`` : create an empty configuration with the selection ``lib-rasr``.
+* ``Configuration(other_config)`` / ``Configuration(other_config, selection)`` : create a configuration that shares
+  its values with ``other_config``, optionally with a selection relative to the one of ``other_config``, e.g.
+  ``Configuration(config, "search-algorithm")`` to build a sub-config for a nested component. Values set on it are
+  visible in ``other_config`` as well.
+* Python components created by RASR, e.g. label scorers, receive their config as a ``librasr.Configuration`` with
+  their own selection, e.g. ``lib-rasr.label-scorer``.
+
+Names passed to ``set``, the getters and ``config[name]`` are relative to the selection of the configuration, e.g.
+``search-algorithm.type`` refers to ``lib-rasr.search-algorithm.type`` for the selection ``lib-rasr``. When setting a
+value, ``*`` matches any number of names, e.g. ``*.log.channel`` sets the log channel of all components. When reading,
+the value of exactly one parameter is returned, so ``*`` is not allowed. Malformed names raise a ``ValueError``.
+
+* ``config.set(name, value="true", delimiter=" ")`` : set a value, e.g.
+  ``config.set("search-algorithm.max-beam-size", 12)``. ``value`` may be a ``str``, ``bool``, ``int``, ``float`` or
+  path and is stored as string in RASR's format, e.g. ``True`` as ``"true"``. Lists and tuples of these are joined with
+  ``delimiter``, e.g. ``config.set("max-beam-sizes", [4, 8], delimiter=",")``. Their elements must not contain the
+  delimiter.
+* ``config.get_str(name, default=None)``, ``get_bool``, ``get_int``, ``get_float`` : read a typed value, or
+  ``default`` if it is unset, e.g. ``config.get_int("search-algorithm.max-beam-size", 12)``. Values are parsed like
+  the parameters of RASR components (``ParameterBool``, ``ParameterInt``, ...), e.g. ``yes``/``on``/``1`` are ``True``,
+  ints have 32 bits and ``infinite``/``-infinite`` are the maximum/minimum value. Invalid values raise a
+  ``ValueError``.
+* ``config.get_str_list(name, default=None, delimiter=" ")``, ``get_int_list``, ``get_float_list`` : read a list of
+  values separated by ``delimiter`` like RASR's vector parameters, e.g.
+  ``config.get_int_list("max-beam-sizes", delimiter=",")``. Int and float lists also allow ranges such as ``1:4``.
+* ``config[name]`` : alias for ``config.get_str(name)``.
 * ``config.set_from_file(path)`` : load a ``.ini``-style RASR config file, same as ``--config=path`` for the
-  command-line tools. Returns ``True`` on success.
-* ``config[name]`` : read back a resolved value (``__getitem__``), returns ``None`` if unset. Always returns a
-  plain ``str`` (or ``None``) regardless of the parameter's actual type, so int/float/bool values need to be
-  parsed by the caller, e.g. ``int(config["*.search-algorithm.max-beam-size"])``.
-* ``config.get_selection()`` / ``config.set_selection(name)`` : get/set the selection root used when resolving relative keys.
+  command-line tools. Names in the file are absolute as in all RASR config files. Returns ``True`` on success.
+* ``config.get_selection()`` / ``config.set_selection(selection)`` : get/set the absolute selection of the
+  configuration, e.g. ``lib-rasr.search-algorithm``. ``config.get_name()`` returns its last name, e.g.
+  ``search-algorithm``.
 * ``config.resolve(value)`` : resolve ``$(VAR)`` substitutions in a string the same way the config parser does.
-* ``config.enable_logging()`` : turn on RASR's normal log output (XML log to stderr) for this process.
+* ``config.enable_logging()`` : print every parameter lookup and the configuration entry it is matched by to stderr,
+  e.g. to check which values the components read. This is the ``log-configuration`` option of the command-line tools.
 * ``librasr.init_logging(config)`` : initialize process-wide RASR logging from ``config``; call this after preparing
   the logging configuration and before constructing other RASR objects. This passes the configuration to
   ``Channel::Manager`` setup, so Python code can use the same channel options as the command-line tools, e.g.
@@ -1261,8 +1285,6 @@ this document -- you can build it programmatically, load it from a file, or both
   set broad target defaults such as ``*.encoding = utf-8`` or ``*.unbuffered = yes``, or configure a named target via
   ``*.channels.<target>.file`` / ``append`` / ``encoding``. If ``init_logging`` is not called explicitly,
   ``librasr`` falls back to its default logging settings when logging is first opened.
-* ``Configuration(other_config)`` / ``Configuration(other_config, selection)`` : copy a configuration, optionally
-  rooted at a different selection, e.g. to build a sub-config for a nested component.
 
 Running recognition: ``SearchAlgorithm``
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^

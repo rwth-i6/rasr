@@ -24,6 +24,7 @@
 
 #include <Core/Component.hh>
 #include <Core/Configuration.hh>
+#include <Core/StopWatch.hh>
 #include <Onnx/IOSpecification.hh>
 #include <Onnx/Model.hh>
 #include <Onnx/Value.hh>
@@ -98,6 +99,16 @@ public:
     std::vector<std::shared_ptr<std::vector<Score>>> scores(std::vector<OnnxHiddenStateRef> const& hiddenStatesBatch,
                                                             SessionInputs                          extraInputs = {});
 
+    // Time spent in the session runs of the individual models
+    Core::StopWatch const& initializerSessionTime() const;
+    Core::StopWatch const& updaterSessionTime() const;
+    Core::StopWatch const& scorerSessionTime() const;
+
+    // Time spent batching hidden states into session inputs and splitting session outputs back up
+    Core::StopWatch const& marshallingTime() const;
+
+    void resetTimers();
+
 private:
     using StateNameMap = std::unordered_map<std::string, std::string>;
 
@@ -127,6 +138,11 @@ private:
     StateNameMap scorerInputToStateNameMap_;
 
     std::string scorerScoresName_;
+
+    Core::StopWatch initializerSessionTime_;
+    Core::StopWatch updaterSessionTime_;
+    Core::StopWatch scorerSessionTime_;
+    Core::StopWatch marshallingTime_;
 };
 
 }  // namespace Nn

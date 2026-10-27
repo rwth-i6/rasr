@@ -165,14 +165,43 @@ void OnnxHiddenStateModel::collectStateOutputs(StateNameMap const&       outputT
     }
 }
 
+Core::StopWatch const& OnnxHiddenStateModel::initializerSessionTime() const {
+    return initializerSessionTime_;
+}
+
+Core::StopWatch const& OnnxHiddenStateModel::updaterSessionTime() const {
+    return updaterSessionTime_;
+}
+
+Core::StopWatch const& OnnxHiddenStateModel::scorerSessionTime() const {
+    return scorerSessionTime_;
+}
+
+Core::StopWatch const& OnnxHiddenStateModel::marshallingTime() const {
+    return marshallingTime_;
+}
+
+void OnnxHiddenStateModel::resetTimers() {
+    initializerSessionTime_.reset();
+    updaterSessionTime_.reset();
+    scorerSessionTime_.reset();
+    marshallingTime_.reset();
+}
+
 OnnxHiddenStateRef OnnxHiddenStateModel::initialHiddenState(SessionInputs extraInputs) {
     std::vector<std::string> sessionOutputNames;
     std::vector<std::string> stateNames;
-    collectStateOutputs(initializerOutputToStateNameMap_, sessionOutputNames, stateNames);
+    {
+        Core::StopWatch::Scope marshallingTimer(marshallingTime_);
+        collectStateOutputs(initializerOutputToStateNameMap_, sessionOutputNames, stateNames);
+    }
 
     std::vector<Onnx::Value> sessionOutputs;
+    initializerSessionTime_.start();
     stateInitializerOnnxModel_->session.run(std::move(extraInputs), sessionOutputNames, sessionOutputs);
+    initializerSessionTime_.stop();
 
+    Core::StopWatch::Scope marshallingTimer(marshallingTime_);
     return Core::ref(new OnnxHiddenState(std::move(stateNames), std::move(sessionOutputs)));
 }
 
@@ -185,21 +214,26 @@ std::vector<OnnxHiddenStateRef> OnnxHiddenStateModel::updatedHiddenStates(std::v
     /*
      * Create session inputs
      */
-    addStateInputs(updaterInputToStateNameMap_, hiddenStatesBatch, extraInputs);
+    std::vector<std::string> sessionOutputNames;
+    std::vector<std::string> stateNames;
+    {
+        Core::StopWatch::Scope marshallingTimer(marshallingTime_);
+        addStateInputs(updaterInputToStateNameMap_, hiddenStatesBatch, extraInputs);
+        collectStateOutputs(updaterOutputToStateNameMap_, sessionOutputNames, stateNames);
+    }
 
     /*
      * Run session
      */
-    std::vector<std::string> sessionOutputNames;
-    std::vector<std::string> stateNames;
-    collectStateOutputs(updaterOutputToStateNameMap_, sessionOutputNames, stateNames);
-
     std::vector<Onnx::Value> sessionOutputs;
+    updaterSessionTime_.start();
     stateUpdaterOnnxModel_->session.run(std::move(extraInputs), sessionOutputNames, sessionOutputs);
+    updaterSessionTime_.stop();
 
     /*
      * Return resulting hidden states
      */
+    Core::StopWatch::Scope          marshallingTimer(marshallingTime_);
     std::vector<OnnxHiddenStateRef> newHiddenStates;
     newHiddenStates.reserve(hiddenStatesBatch.size());
     for (size_t b = 0ul; b < hiddenStatesBatch.size(); ++b) {
@@ -223,17 +257,23 @@ std::vector<std::shared_ptr<std::vector<Score>>> OnnxHiddenStateModel::scores(st
     /*
      * Create session inputs
      */
-    addStateInputs(scorerInputToStateNameMap_, hiddenStatesBatch, extraInputs);
+    {
+        Core::StopWatch::Scope marshallingTimer(marshallingTime_);
+        addStateInputs(scorerInputToStateNameMap_, hiddenStatesBatch, extraInputs);
+    }
 
     /*
      * Run session
      */
     std::vector<Onnx::Value> sessionOutputs;
+    scorerSessionTime_.start();
     scorerOnnxModel_->session.run(std::move(extraInputs), {scorerScoresName_}, sessionOutputs);
+    scorerSessionTime_.stop();
 
     /*
      * Return resulting score vectors
      */
+    Core::StopWatch::Scope                           marshallingTimer(marshallingTime_);
     std::vector<std::shared_ptr<std::vector<Score>>> scoreVecs;
     scoreVecs.reserve(hiddenStatesBatch.size());
     for (size_t b = 0ul; b < hiddenStatesBatch.size(); ++b) {

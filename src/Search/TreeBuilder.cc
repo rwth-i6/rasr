@@ -1388,7 +1388,7 @@ StateId CtcTreeBuilder::extendPronunciation(StateId startState, Bliss::Pronuncia
                 // Add new (non-blank) state
                 currentState = extendState(currentState, desc);
 
-                if (labelLoop_ and not allophoneIsBlank) {
+                if (allophoneIsBlank ? blankLoop_ : labelLoop_) {
                     // Add loop for this state
                     addTransition(currentState, currentState);
                 }

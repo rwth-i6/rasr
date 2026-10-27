@@ -21,8 +21,9 @@ public:
 
     PriorLabelScorer(const Core::Configuration& config);
 
+protected:
     // Gets a prior-corrected accessor for the buffered scores at the requested step
-    std::optional<ScoreAccessorRef> getScoreAccessor(ScoringContextRef scoringContext) override;
+    std::optional<ScoreAccessorRef> computeScoreAccessor(ScoringContextRef scoringContext) override;
 
 private:
     const bool negateInput_;

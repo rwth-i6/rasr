@@ -82,21 +82,21 @@ public:
     StatefulTransducerOnnxLabelScorer(Core::Configuration const& config, ModelCache& modelCache);
     virtual ~StatefulTransducerOnnxLabelScorer() = default;
 
-    void reset() override;
-
     // If startLabelIndex is set, forward that through the state updater to obtain the start ScoringContext
     ScoringContextRef getInitialScoringContext() override;
 
     // Append the new token to the label sequence; does not update the hidden-state. This is only done once the scoringContext is used for scoring again.
     ScoringContextRef extendedScoringContext(ScoringContextRef scoringContext, LabelIndex nextToken, TransitionType transitionType) override;
 
+protected:
+    void resetInternal() override;
+
     // Update hidden state, run scorer and get an accessor for the output score vector
-    std::optional<ScoreAccessorRef> getScoreAccessor(ScoringContextRef scoringContext) override;
+    std::optional<ScoreAccessorRef> computeScoreAccessor(ScoringContextRef scoringContext) override;
 
     // Update hidden states (batched), run scorers (batched) and get accessor for the output score vectors
-    std::vector<std::optional<ScoreAccessorRef>> getScoreAccessors(std::vector<ScoringContextRef> const& scoringContexts) override;
+    std::vector<std::optional<ScoreAccessorRef>> computeScoreAccessors(std::vector<ScoringContextRef> const& scoringContexts) override;
 
-protected:
     size_t getMinActiveInputIndex(Core::CollapsedVector<ScoringContextRef> const& activeContexts) const override;
 
 private:
@@ -108,6 +108,8 @@ private:
 
     // Compute updated states for all non-finalized scoring contexts and put them into the state cache
     void cacheStates(std::vector<StepOnnxHiddenStateScoringContextRef> const& scoringContextBatch);
+
+    void logScoringBreakdown() const override;
 
     bool   blankUpdatesHistory_;
     bool   silenceUpdatesHistory_;
@@ -121,6 +123,11 @@ private:
 
     std::string scorerInputFeatureName_;
     std::string updaterTokenName_;
+
+    // Preparing the input-feature and token session inputs and moving hidden states between the caches
+    // and the batches. The session times and the marshalling done inside `hiddenStateModel_` are tracked there.
+    Core::StopWatch stateMarshallingTime_;
+    Core::StopWatch contextPreparationTime_;
 
     Core::FIFOCache<StepOnnxHiddenStateScoringContextRef, std::shared_ptr<std::vector<Score>>, ScoringContextHash, ScoringContextEq> scoreCache_;
     Core::FIFOCache<StepOnnxHiddenStateScoringContextRef, OnnxHiddenStateRef, ScoringContextHash, ScoringContextEq>                  stateCache_;

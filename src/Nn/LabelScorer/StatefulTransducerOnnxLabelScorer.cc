@@ -21,6 +21,7 @@
 
 #include <Core/Assertions.hh>
 #include <Core/ReferenceCounting.hh>
+#include <Core/XmlStream.hh>
 #include <Flow/Timestamp.hh>
 #include <Math/FastMatrix.hh>
 #include <Mm/Module.hh>
@@ -128,8 +129,11 @@ StatefulTransducerOnnxLabelScorer::StatefulTransducerOnnxLabelScorer(Core::Confi
     updaterTokenName_       = hiddenStateModel_.stateUpdaterOnnxName("token");
 }
 
-void StatefulTransducerOnnxLabelScorer::reset() {
-    Precursor::reset();
+void StatefulTransducerOnnxLabelScorer::resetInternal() {
+    Precursor::resetInternal();
+    hiddenStateModel_.resetTimers();
+    stateMarshallingTime_.reset();
+    contextPreparationTime_.reset();
     stateCache_.clear();
     scoreCache_.clear();
 }
@@ -208,7 +212,7 @@ ScoringContextRef StatefulTransducerOnnxLabelScorer::extendedScoringContext(Scor
     return newScoringContext;
 }
 
-std::vector<std::optional<ScoreAccessorRef>> StatefulTransducerOnnxLabelScorer::getScoreAccessors(std::vector<ScoringContextRef> const& scoringContexts) {
+std::vector<std::optional<ScoreAccessorRef>> StatefulTransducerOnnxLabelScorer::computeScoreAccessors(std::vector<ScoringContextRef> const& scoringContexts) {
     if (scoringContexts.empty()) {
         return {};
     }
@@ -216,6 +220,7 @@ std::vector<std::optional<ScoreAccessorRef>> StatefulTransducerOnnxLabelScorer::
     std::vector<std::optional<ScoreAccessorRef>> scoreAccessors(scoringContexts.size(), std::nullopt);
 
     // Cast scoring contexts to concrete types
+    contextPreparationTime_.start();
     std::vector<StepOnnxHiddenStateScoringContextRef> stepOnnxHiddenStateScoringContexts;
     stepOnnxHiddenStateScoringContexts.reserve(scoringContexts.size());
     for (auto const& scoringContext : scoringContexts) {
@@ -242,13 +247,17 @@ std::vector<std::optional<ScoreAccessorRef>> StatefulTransducerOnnxLabelScorer::
         it->second.push_back(contextIndex);
     }
 
+    contextPreparationTime_.stop();
+
     /*
      * Iterate over distinct timesteps
      */
+    size_t numComputed = 0ul;
     for (auto const& [timestep, contextIndices] : contextsWithTimestep) {
         /*
          * Identify unique scoring contexts that still need session runs
          */
+        contextPreparationTime_.start();
         std::unordered_set<StepOnnxHiddenStateScoringContextRef, ScoringContextHash, ScoringContextEq> uniqueUncachedScoringContexts;
 
         for (auto contextIndex : contextIndices) {
@@ -258,6 +267,8 @@ std::vector<std::optional<ScoreAccessorRef>> StatefulTransducerOnnxLabelScorer::
                 uniqueUncachedScoringContexts.emplace(scoringContextRef);
             }
         }
+        contextPreparationTime_.stop();
+        numComputed += uniqueUncachedScoringContexts.size();
 
         if (uniqueUncachedScoringContexts.empty()) {
             continue;
@@ -279,9 +290,12 @@ std::vector<std::optional<ScoreAccessorRef>> StatefulTransducerOnnxLabelScorer::
         cacheScores(scoringContextBatch);
     }
 
+    countUncomputedAccessors(scoringContexts.size() - numComputed);
+
     /*
      * Assign states from cache to scoring contexts and scores from cache to result vector
      */
+    contextPreparationTime_.start();
     for (size_t contextIndex = 0ul; contextIndex < scoringContexts.size(); ++contextIndex) {
         auto const& scoringContext = stepOnnxHiddenStateScoringContexts[contextIndex];
 
@@ -300,12 +314,13 @@ std::vector<std::optional<ScoreAccessorRef>> StatefulTransducerOnnxLabelScorer::
         auto const& scoreVec         = scoreCache_.get(scoringContext)->get();
         scoreAccessors[contextIndex] = Core::ref(new VectorScoreAccessor(scoreVec, scoringContext->currentStep));
     }
+    contextPreparationTime_.stop();
 
     return scoreAccessors;
 }
 
-std::optional<ScoreAccessorRef> StatefulTransducerOnnxLabelScorer::getScoreAccessor(ScoringContextRef scoringContext) {
-    return getScoreAccessors({scoringContext})[0];
+std::optional<ScoreAccessorRef> StatefulTransducerOnnxLabelScorer::computeScoreAccessor(ScoringContextRef scoringContext) {
+    return computeScoreAccessors({scoringContext})[0];
 }
 
 size_t StatefulTransducerOnnxLabelScorer::getMinActiveInputIndex(Core::CollapsedVector<ScoringContextRef> const& activeContexts) const {
@@ -313,7 +328,13 @@ size_t StatefulTransducerOnnxLabelScorer::getMinActiveInputIndex(Core::Collapsed
 }
 
 std::vector<OnnxHiddenStateRef> StatefulTransducerOnnxLabelScorer::updatedHiddenStates(std::vector<OnnxHiddenStateRef> const& hiddenStatesBatch, std::vector<s32> nextTokensBatch) {
-    return hiddenStateModel_.updatedHiddenStates(hiddenStatesBatch, {{updaterTokenName_, Onnx::Value::create(nextTokensBatch)}});
+    OnnxHiddenStateModel::SessionInputs sessionInputs;
+    {
+        Core::StopWatch::Scope marshallingTimer(stateMarshallingTime_);
+        sessionInputs.emplace_back(updaterTokenName_, Onnx::Value::create(nextTokensBatch));
+    }
+
+    return hiddenStateModel_.updatedHiddenStates(hiddenStatesBatch, std::move(sessionInputs));
 }
 
 void StatefulTransducerOnnxLabelScorer::cacheStates(std::vector<StepOnnxHiddenStateScoringContextRef> const& scoringContextBatch) {
@@ -350,36 +371,53 @@ void StatefulTransducerOnnxLabelScorer::cacheScores(std::vector<StepOnnxHiddenSt
         return;
     }
 
-    /*
-     * Collect the hidden state of each scoring context in the batch
-     */
-    std::vector<OnnxHiddenStateRef> hiddenStates;
-    hiddenStates.reserve(scoringContextBatch.size());
-    for (auto const& scoringContext : scoringContextBatch) {
-        if (scoringContext->requiresFinalize) {
-            hiddenStates.push_back((*stateCache_.get(scoringContext)).get());
-        }
-        else {
-            hiddenStates.push_back(scoringContext->hiddenState);
-        }
-    }
+    std::vector<OnnxHiddenStateRef>     hiddenStates;
+    OnnxHiddenStateModel::SessionInputs sessionInputs;
+    {
+        Core::StopWatch::Scope marshallingTimer(stateMarshallingTime_);
 
-    /*
-     * All scoring contexts in the batch are based on the same timestep and thus share the same input feature
-     */
-    auto                 inputFeatureDataView = getInput(scoringContextBatch.front()->currentStep);
-    f32 const*           inputFeatureData     = inputFeatureDataView->data();
-    std::vector<int64_t> inputFeatureShape    = {1ul, static_cast<int64_t>(inputFeatureDataView->size())};
+        /*
+         * Collect the hidden state of each scoring context in the batch
+         */
+        hiddenStates.reserve(scoringContextBatch.size());
+        for (auto const& scoringContext : scoringContextBatch) {
+            if (scoringContext->requiresFinalize) {
+                hiddenStates.push_back((*stateCache_.get(scoringContext)).get());
+            }
+            else {
+                hiddenStates.push_back(scoringContext->hiddenState);
+            }
+        }
+
+        /*
+         * All scoring contexts in the batch are based on the same timestep and thus share the same input feature
+         */
+        auto                 inputFeatureDataView = getInput(scoringContextBatch.front()->currentStep);
+        f32 const*           inputFeatureData     = inputFeatureDataView->data();
+        std::vector<int64_t> inputFeatureShape    = {1ul, static_cast<int64_t>(inputFeatureDataView->size())};
+        sessionInputs.emplace_back(scorerInputFeatureName_, Onnx::Value::create(inputFeatureData, inputFeatureShape));
+    }
 
     /*
      * Run scorer and put resulting scores into cache map
      */
-    auto scoreVecs = hiddenStateModel_.scores(hiddenStates, {{scorerInputFeatureName_, Onnx::Value::create(inputFeatureData, inputFeatureShape)}});
+    auto scoreVecs = hiddenStateModel_.scores(hiddenStates, std::move(sessionInputs));
     verify(scoreVecs.size() == scoringContextBatch.size());
 
+    Core::StopWatch::Scope marshallingTimer(stateMarshallingTime_);
     for (size_t b = 0ul; b < scoringContextBatch.size(); ++b) {
         scoreCache_.put(scoringContextBatch[b], scoreVecs[b]);
     }
+}
+
+void StatefulTransducerOnnxLabelScorer::logScoringBreakdown() const {
+    // The state initializer only runs in `getInitialScoringContext`, outside of the scoring time, so it is not reported here
+    auto stateMarshallingTime = stateMarshallingTime_.elapsedMilliseconds() + hiddenStateModel_.marshallingTime().elapsedMilliseconds();
+
+    statisticsChannel_ << Core::XmlFull("state-update-session-time", hiddenStateModel_.updaterSessionTime().elapsedMilliseconds());
+    statisticsChannel_ << Core::XmlFull("scorer-session-time", hiddenStateModel_.scorerSessionTime().elapsedMilliseconds());
+    statisticsChannel_ << Core::XmlFull("state-marshalling-time", stateMarshallingTime);
+    statisticsChannel_ << Core::XmlFull("context-preparation-time", contextPreparationTime_.elapsedMilliseconds());
 }
 
 }  // namespace Nn

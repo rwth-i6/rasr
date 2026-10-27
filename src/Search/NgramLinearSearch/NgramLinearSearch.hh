@@ -59,6 +59,11 @@ namespace Search {
  * current_word. Thus, inside the current pronunciation, hypotheses with
  * different predecessors but the same current pronunciation/state/scoring
  * context are equivalent.
+ *
+ * With `num-hmm-states` S > 1 every phoneme is a left-to-right chain of S
+ * states. Tied (default), all states read the phoneme's score column; untied
+ * (`tie-hmm-states = false`), state j of label a reads column a * S + j. The
+ * HMM state is part of the hypothesis and of the recombination key.
  */
 class NgramLinearSearch : public SearchAlgorithmV2 {
 public:
@@ -66,6 +71,8 @@ public:
     static const Core::ParameterFloat paramScoreThreshold;
     static const Core::ParameterInt         paramNumHistogramBins;
     static const Core::ParameterInt         paramBlankLabelIndex;
+    static const Core::ParameterInt         paramNumHmmStates;
+    static const Core::ParameterBool        paramTieHmmStates;
     static const Core::ParameterBool        paramLogStatistics;
     static const Core::ParameterBool        paramLogStepwiseStatistics;
 
@@ -110,6 +117,7 @@ protected:
     struct LabelHypothesis {
         Nn::ScoringContextRef scoringContext;
         Nn::LabelIndex                     currentToken;
+        u32                                hmmState;  // state within the current phoneme, 0 .. num-hmm-states - 1
         Lm::History                        lmHistory;
         Speech::TimeframeIndex             timeframe;
         Score                              score;
@@ -132,6 +140,9 @@ private:
     Histogram           scoreHistogram_;
 
     Nn::LabelIndex      blankLabelIndex_;
+    u32                 numHmmStates_;
+    bool                tieHmmStates_;
+    size_t              expectedScoreDimension_;  // score columns the HMM layout needs; 0 = not checked
 
     bool logStatistics_;
     bool logStepwiseStatistics_;
@@ -147,7 +158,7 @@ private:
 
     std::vector<LabelHypothesis> beam_;
     std::vector<LabelHypothesis> newBeam_;
-    std::unordered_map<Lm::History, size_t, Lm::History::Hash> seenHistories_;
+    std::vector<std::unordered_map<Lm::History, size_t, Lm::History::Hash>> seenHistories_;  // one per HMM state
 
     std::vector<Nn::ScoringContextRef> scoringContexts_;
 
@@ -168,6 +179,9 @@ private:
     void logStatistics() const;
 
     Nn::TransitionType inferTransitionType(Nn::LabelIndex previous, Nn::LabelIndex next) const;
+
+    Nn::LabelIndex emissionColumn(Nn::LabelIndex label, u32 hmmState) const;
+    void           checkScoreDimension(size_t featureSize) const;
 
     template<class Element>
     void scorePruning(std::vector<Element>& hypotheses, Score relativeThreshold, size_t maxBeamSize);

@@ -27,6 +27,7 @@ namespace Search {
 NgramLinearSearch::LabelHypothesis::LabelHypothesis()
         : scoringContext(),
           currentToken(Nn::invalidLabelIndex),
+          hmmState(0u),
           lmHistory(),
           timeframe(0),
           score(0.0),
@@ -50,6 +51,7 @@ std::string NgramLinearSearch::LabelHypothesis::toString() const {
         ss << ")";
     }
     ss << ", total score: " << score
+       << ", HMM state: " << hmmState
        << ", timeframe: " << timeframe
        << ", traceback: ";
 
@@ -89,6 +91,21 @@ const Core::ParameterInt NgramLinearSearch::paramBlankLabelIndex(
         "Index of the blank label in the lexicon. Can also be inferred from lexicon if it has a lemma with `special='blank'`. If not set, the search will not use blank.",
         Nn::invalidLabelIndex);
 
+const Core::ParameterInt NgramLinearSearch::paramNumHmmStates(
+        "num-hmm-states",
+        "Number of left-to-right HMM states per phoneme, all emitting the phoneme's label. Each state loops (label-loop score) "
+        "or moves on (label-to-label score). A phoneme is left, and the LM scores the next one, only from its last state. "
+        "With more than one state a segment must end in a last state and a phoneme may directly follow itself. "
+        "Blank keeps a single state.",
+        1, 1);
+
+const Core::ParameterBool NgramLinearSearch::paramTieHmmStates(
+        "tie-hmm-states",
+        "Whether all HMM states of a label share its score column (same emission score). If false, state j of label a reads column "
+        "a * num-hmm-states + j (phoneme-major), so the scores need num-labels * num-hmm-states columns. "
+        "Blank, which has a single state, reads the column of its last state.",
+        true);
+
 const Core::ParameterBool NgramLinearSearch::paramLogStatistics(
         "log-statistics",
         "Log statistics about the beam and the timing at the end of every search step.",
@@ -106,6 +123,9 @@ NgramLinearSearch::NgramLinearSearch(Core::Configuration const& config)
           scoreThreshold_(paramScoreThreshold(config)),
           scoreHistogram_(paramNumHistogramBins(config)),
           blankLabelIndex_(paramBlankLabelIndex(config)),
+          numHmmStates_(paramNumHmmStates(config)),
+          tieHmmStates_(paramTieHmmStates(config)),
+          expectedScoreDimension_(0ul),
           logStatistics_(paramLogStatistics(config)),
           logStepwiseStatistics_(paramLogStepwiseStatistics(config)),
           lexicon_(),
@@ -116,7 +136,7 @@ NgramLinearSearch::NgramLinearSearch(Core::Configuration const& config)
           pronunciations_(),
           beam_(),
           newBeam_(),
-          seenHistories_(),
+          seenHistories_(numHmmStates_),
           scoringContexts_(),
           currentSearchStep_(0ul),
           finishedSegment_(false),
@@ -153,6 +173,18 @@ bool NgramLinearSearch::setModelCombination(Speech::ModelCombination const& mode
     }
 
     initializePronunciations();
+
+    log() << "Use " << numHmmStates_ << " HMM state(s) per phoneme" << (tieHmmStates_ ? "" : " with untied emissions");
+
+    // The layout fixes the number of score columns once there is more than one state
+    if (numHmmStates_ > 1 or not tieHmmStates_) {
+        size_t numLabels = blankLabelIndex_ != Nn::invalidLabelIndex ? blankLabelIndex_ + 1ul : 0ul;
+        for (auto const& pron : pronunciations_) {
+            numLabels = std::max(numLabels, static_cast<size_t>(pron.label) + 1ul);
+        }
+        expectedScoreDimension_ = tieHmmStates_ ? numLabels : numLabels * numHmmStates_;
+        log() << "Expect " << expectedScoreDimension_ << " score columns per frame";
+    }
 
     return true;
 }
@@ -194,6 +226,18 @@ void NgramLinearSearch::finishSegment() {
     labelScorer_->signalNoMoreFeatures();
     featureProcessingTime_.stop();
     decodeManySteps();
+
+    // Only a hypothesis that has reached the last state of its phoneme (or is in blank) can end the segment
+    if (numHmmStates_ > 1) {
+        auto unfinished = [this](LabelHypothesis const& hyp) { return hyp.hmmState + 1 < numHmmStates_; };
+        if (std::all_of(beam_.begin(), beam_.end(), unfinished)) {
+            warning() << "No hypothesis ends in the last HMM state; keeping all " << beam_.size() << " hypotheses";
+        }
+        else {
+            beam_.erase(std::remove_if(beam_.begin(), beam_.end(), unfinished), beam_.end());
+        }
+    }
+
     finishedSegment_ = true;
     if (logStatistics_) {
     	logStatistics();
@@ -201,12 +245,16 @@ void NgramLinearSearch::finishSegment() {
 }
 
 void NgramLinearSearch::putFeature(Nn::DataView const& feature) {
+    checkScoreDimension(feature.size());
     featureProcessingTime_.start();
     labelScorer_->addInput(feature);
     featureProcessingTime_.stop();
 }
 
 void NgramLinearSearch::putFeatures(Nn::DataView const& features, size_t nTimesteps) {
+    if (nTimesteps > 0ul) {
+        checkScoreDimension(features.size() / nTimesteps);
+    }
     featureProcessingTime_.start();
     labelScorer_->addInputs(features, nTimesteps);
     featureProcessingTime_.stop();
@@ -266,7 +314,11 @@ bool NgramLinearSearch::decodeStep() {
     scoringTime_.stop();
 
     newBeam_.clear();
-    seenHistories_.clear();
+    for (auto& seen : seenHistories_) {
+        seen.clear();
+    }
+
+    u32 const lastHmmState = numHmmStates_ - 1u;
 
     size_t numHypsBeforeRecombination = 0ul;
 
@@ -282,24 +334,21 @@ bool NgramLinearSearch::decodeStep() {
             continue;
         }
 
-        for (size_t pronIndex = 0ul; pronIndex < pronunciations_.size(); ++pronIndex) {
-            Pronunciation const& pron = pronunciations_[pronIndex];
+        bool const inLabel = hyp.currentToken != Nn::invalidLabelIndex and hyp.currentToken != blankLabelIndex_;
 
-            if (pron.empty()) {
-                continue;
-            }
-
+        /*
+         * Extend `hyp` by `pron` via `transitionType` into HMM state `nextState`. `entersLemma` is false for a loop
+         * and for a step to the next state of the same phoneme, neither starts a new lemma, so neither is scored by
+         * the LM nor opens a new traceback item.
+         */
+        auto expand = [&](Pronunciation const& pron, Nn::TransitionType transitionType, u32 nextState, bool entersLemma) {
             Nn::LabelIndex nextToken = pron.label;
-
-            Nn::TransitionType transitionType = inferTransitionType(hyp.currentToken, nextToken);
 
             Lm::History newLmHistory = hyp.lmHistory;
             Score lmScore = 0.0;
 
             // Add LM-score and update LM-history if we predict a new label (and don't have a loop)
-            if (not (transitionType == Nn::TransitionType::LABEL_LOOP or transitionType == Nn::TransitionType::BLANK_LOOP)) {
-                Bliss::Lemma const* lemma = pron.lemmaPronunciation->lemma();
-
+            if (entersLemma) {
                 // get LM score
                 lmScore += languageModel_->score(newLmHistory, pron.st);
 
@@ -312,29 +361,29 @@ bool NgramLinearSearch::decodeStep() {
             std::optional<std::vector<Score>> amSubScores;
 
             if (labelScorer_->scoresTransition(transitionType)) {
-                amScore += (*scoreAccessor)->getScore(transitionType, nextToken);
+                Nn::LabelIndex column = emissionColumn(nextToken, nextState);
+                amScore += (*scoreAccessor)->getScore(transitionType, column);
                 timeframe = std::max(timeframe, (*scoreAccessor)->getTime());
-                amSubScores = (*scoreAccessor)->getSubScores(transitionType, nextToken);
+                amSubScores = (*scoreAccessor)->getSubScores(transitionType, column);
             }
 
             Score newScore = hyp.score + amScore + lmScore;
 
             if (scoreThreshold_ != Core::Type<Score>::max and newScore > bestNewScore + scoreThreshold_) {
-                continue;
+                return;
             }
             bestNewScore = std::min(bestNewScore, newScore);
 
-            //log() << "next token " << nextToken << " amScore " << amScore << " lmScore " << lmScore << "prev token " << hyp.currentToken << " extScore " << newScore;
-
             ++numHypsBeforeRecombination;
 
-            auto [it, inserted] = seenHistories_.try_emplace(newLmHistory, newBeam_.size());
+            // The LM history fixes the current lemma, the HMM state is the only other thing two hypotheses can differ in
+            auto [it, inserted] = seenHistories_[nextState].try_emplace(newLmHistory, newBeam_.size());
 
             if (not inserted) {
                 LabelHypothesis const& existingHyp = newBeam_[it->second];
 
                 if (newScore >= existingHyp.score) {
-                    continue;
+                    return;
                 }
             }
 
@@ -345,6 +394,7 @@ bool NgramLinearSearch::decodeStep() {
                                                 transitionType);
 
             newHyp.currentToken    = nextToken;
+            newHyp.hmmState        = nextState;
             newHyp.timeframe       = timeframe;
             newHyp.score           = newScore;
             newHyp.acousticScore   = hyp.acousticScore + amScore;
@@ -365,11 +415,11 @@ bool NgramLinearSearch::decodeStep() {
             }
 
             Core::Ref<LatticeTrace> predecessor;
-            if (transitionType == Nn::TransitionType::LABEL_LOOP or transitionType == Nn::TransitionType::BLANK_LOOP) {
-                predecessor = hyp.trace->predecessor;
+            if (entersLemma) {
+                predecessor = hyp.trace;
             }
             else {
-                predecessor = hyp.trace;
+                predecessor = hyp.trace->predecessor;
             }
 
             newHyp.trace = Core::ref(new LatticeTrace(
@@ -386,6 +436,43 @@ bool NgramLinearSearch::decodeStep() {
             else {
                 newBeam_[it->second] = std::move(newHyp);
             }
+        };
+
+        for (size_t pronIndex = 0ul; pronIndex < pronunciations_.size(); ++pronIndex) {
+            Pronunciation const& pron = pronunciations_[pronIndex];
+
+            if (pron.empty()) {
+                continue;
+            }
+
+            Nn::LabelIndex nextToken = pron.label;
+
+            if (inLabel and nextToken == hyp.currentToken) {
+                // Looping in the current state
+                expand(pron, Nn::TransitionType::LABEL_LOOP, hyp.hmmState, false);
+                if (hyp.hmmState < lastHmmState) {
+                    // Continue to the next state of the same phoneme
+                    expand(pron, Nn::TransitionType::LABEL_TO_LABEL, hyp.hmmState + 1, false);
+                }
+                else if (numHmmStates_ > 1) {
+                    // Out of the last state into the first one of the same phoneme again. With one state this is
+                    // indistinguishable from a loop, so a repeated phoneme only exists for more than one state.
+                    expand(pron, Nn::TransitionType::LABEL_TO_LABEL, 0u, true);
+                }
+                continue;
+            }
+
+            // A phoneme can only be left from its last state
+            if (inLabel and hyp.hmmState < lastHmmState) {
+                continue;
+            }
+
+            Nn::TransitionType transitionType = inferTransitionType(hyp.currentToken, nextToken);
+
+            // Blank has a single state; it counts as the last one, so it can end the segment
+            u32 nextState = nextToken == blankLabelIndex_ ? lastHmmState : 0u;
+
+            expand(pron, transitionType, nextState, transitionType != Nn::TransitionType::BLANK_LOOP);
         }
     }
 
@@ -583,6 +670,21 @@ Nn::TransitionType NgramLinearSearch::inferTransitionType(Nn::LabelIndex prevLab
         else {
             return Nn::TransitionType::LABEL_TO_LABEL;
         }
+    }
+}
+
+Nn::LabelIndex NgramLinearSearch::emissionColumn(Nn::LabelIndex label, u32 hmmState) const {
+    if (tieHmmStates_) {
+        return label;
+    }
+    return label * numHmmStates_ + hmmState;
+}
+
+void NgramLinearSearch::checkScoreDimension(size_t featureSize) const {
+    if (expectedScoreDimension_ != 0ul and featureSize != expectedScoreDimension_) {
+        criticalError() << "Scores have " << featureSize << " columns per frame, but " << numHmmStates_
+                        << " HMM state(s) with " << (tieHmmStates_ ? "tied" : "untied") << " emissions need "
+                        << expectedScoreDimension_;
     }
 }
 

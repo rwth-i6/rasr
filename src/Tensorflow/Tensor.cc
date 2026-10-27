@@ -136,8 +136,8 @@ template Tensor Tensor::createEmpty<u8>(std::vector<int64> const& dim);
 
 template<typename T>
 Tensor Tensor::zeros(std::initializer_list<int64> dim) {
-    Tensor res;
-    res.tensor_.reset(new tf::Tensor(ToDataType<T>::tf_type, dim));
+    Tensor res = createEmpty<T>(dim);
+
     tf::int64 total_size = std::accumulate(dim.begin(), dim.end(), 1l, [](tf::int64 a, tf::int64 b) { return a * b; });
     T*        data       = res.data<T>();
     for (tf::int64 i = 0ul; i < total_size; i++) {
@@ -159,9 +159,8 @@ template Tensor Tensor::zeros<u8>(std::initializer_list<int64> dim);
 
 template<typename T>
 Tensor Tensor::zeros(std::vector<int64> const& dim) {
-    Tensor          res;
-    tf::TensorShape shape(dim);
-    res.tensor_.reset(new tf::Tensor(ToDataType<T>::tf_type, shape));
+    Tensor res = createEmpty<T>(dim);
+
     tf::int64 total_size = std::accumulate(dim.begin(), dim.end(), 1l, [](tf::int64 a, tf::int64 b) { return a * b; });
     T*        data       = res.data<T>();
     for (tf::int64 i = 0ul; i < total_size; i++) {

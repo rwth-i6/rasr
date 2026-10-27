@@ -9,7 +9,6 @@
 
 #include "AbstractStateManager.hh"
 #include "CompressedVector.hh"
-#include "DummyCompressedVectorFactory.hh"
 #include "FixedQuantizationCompressedVectorFactory.hh"
 
 namespace Nn {
@@ -146,10 +145,6 @@ void TransformerStateManager<T, value_t, state_variable_t>::mergeStates(
     feed_dict.reserve(vars.size());
     targets.reserve(vars.size());
 
-    // Padding (zeros before shorter prefixes) is only needed if the prefixes differ in length,
-    // otherwise every element of the merged tensors is overwritten below
-    bool needs_padding = std::any_of(prefix_lengths.begin(), prefix_lengths.end(), [max_prefix](size_t len) { return len != max_prefix; });
-
     for (size_t v = 0ul; v < vars.size(); v++) {
         auto const& var = vars[v];
         require_ge(var.shape.size(), 2);
@@ -179,52 +174,33 @@ void TransformerStateManager<T, value_t, state_variable_t>::mergeStates(
             strides[d - 1ul] = tensor_dim[d + 1] * strides[d];
         }
 
-        value_t var_tensor  = needs_padding ? value_t::template zeros<T>(tensor_dim) : value_t::template createEmpty<T>(tensor_dim);
+        // Every element is written below, either with a prefix state or with zero padding
+        value_t var_tensor  = value_t::template createEmpty<T>(tensor_dim);
         T*      tensor_data = var_tensor.template data<T>();
 
         // All time steps have the same layout of contiguous blocks, only the start offset differs
         ContiguousBlockInfo step_layout(std::gslice(0ul, sizes, strides));
-        std::vector<size_t> block_offsets(step_layout.numBlocks());
-        for (size_t i = 0ul; i < block_offsets.size(); i++) {
-            block_offsets[i] = step_layout.blockOffset(i);
-        }
-        size_t const block_size = step_layout.blockSize();
 
         size_t state_offset = 0ul;
         for (size_t b = 0ul; b < prefix_lengths.size(); b++) {
             size_t prefix_length = prefix_lengths[b];
             size_t prefix_offset = original_prefix_lengths[b] - prefix_length;
+
+            // Zero padding before shorter prefixes
+            for (size_t p = 0ul; p < max_prefix - prefix_length; p++) {
+                T* step_data = tensor_data + b * batch_stride + p * strides[time_dim];
+                for (size_t i = 0ul; i < step_layout.numBlocks(); i++) {
+                    std::fill_n(step_data + step_layout.blockOffset(i), step_layout.blockSize(), T(0));
+                }
+            }
+
             for (size_t p = 0ul; p < prefix_length; p++) {
                 size_t start = b * batch_stride + (max_prefix - prefix_length + p) * strides[time_dim];
                 size_t idx   = state_offset;
                 if (not alwaysIncludeFirstTokenState_ or p != 0ul) {
                     idx += prefix_offset + p;
                 }
-                auto const* state_vector = prefix_states[idx]->at(v).get();
-
-                // Fast path if the stored values already have type T: copy the blocks directly
-                T const* src = nullptr;
-                if constexpr (std::is_same<T, float>::value) {
-                    if (auto const* uncompressed = dynamic_cast<UncompressedVector<float> const*>(state_vector)) {
-                        src = uncompressed->data();
-                    }
-                }
-                else {
-                    if (auto const* quantized = dynamic_cast<QuantizedFloatVectorFixedBits<T> const*>(state_vector)) {
-                        src = quantized->data().data();
-                    }
-                }
-                if (src != nullptr) {
-                    require_eq(state_vector->size(), step_layout.totalSize());
-                    for (size_t i = 0ul; i < block_offsets.size(); i++) {
-                        std::copy(src + i * block_size, src + (i + 1ul) * block_size, tensor_data + start + block_offsets[i]);
-                    }
-                    continue;
-                }
-
-                std::gslice         slice(start, sizes, strides);
-                ContiguousBlockInfo block_info(slice);
-                detail::uncompress(state_vector, tensor_data, block_info);
+                detail::uncompress(prefix_states[idx]->at(v).get(), tensor_data + start, step_layout);
             }
             state_offset += original_prefix_lengths[b];
         }
@@ -277,17 +253,19 @@ std::vector<typename TransformerStateManager<T, value_t, state_variable_t>::Prec
             strides[d - 1ul] = tensor.dimSize(d + 1) * strides[d];
         }
 
+        // All time steps have the same layout of contiguous blocks, only the start offset differs
+        ContiguousBlockInfo step_layout(std::gslice(0ul, sizes, strides));
+
         size_t output_idx = 0ul;
         for (size_t b = 0ul; b < suffix_lengths.size(); b++) {
             for (size_t p = 0ul; p < suffix_lengths[b]; p++) {
-                std::gslice         slice(b * batch_stride + (max_prefix + p) * strides[time_dim], sizes, strides);
-                ContiguousBlockInfo block_info(slice);
-                auto                compression_param_estimator = vector_factory.getEstimator();
+                size_t start                       = b * batch_stride + (max_prefix + p) * strides[time_dim];
+                auto   compression_param_estimator = vector_factory.getEstimator();
                 if (std::is_same<T, float>::value) {
-                    compression_param_estimator->accumulate(tensor.template data<float>(), block_info);
+                    compression_param_estimator->accumulate(tensor.template data<float>() + start, step_layout);
                 }
                 auto compression_params = compression_param_estimator->estimate();
-                result[output_idx].emplace_back(detail::compress<ContiguousBlockInfo>(tensor.template data<T>(), block_info, vector_factory, compression_params.get()));
+                result[output_idx].emplace_back(detail::compress<ContiguousBlockInfo>(tensor.template data<T>() + start, step_layout, vector_factory, compression_params.get()));
                 output_idx += 1ul;
             }
         }

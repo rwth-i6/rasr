@@ -2,11 +2,14 @@
 #define _NN_TRANSFORMER_STATE_MANAGER_HH
 
 #include <algorithm>
+#include <functional>
 #include <limits>
+#include <memory>
 #include <numeric>
-#include <thread>
 #include <type_traits>
 #include <valarray>
+
+#include <Core/ThreadPool.hh>
 
 #include "AbstractStateManager.hh"
 #include "CompressedVector.hh"
@@ -54,6 +57,18 @@ void uncompress(Nn::CompressedVector<float> const* vec, int8_t* dst, B const& b)
     qvec->load(dst, b);
 }
 
+// Mapper for Core::ThreadPool that just runs the submitted function
+class FunctionMapper {
+public:
+    FunctionMapper* clone() const {
+        return new FunctionMapper();
+    }
+    void map(std::function<void()> const& f) {
+        f();
+    }
+    void reset() {}
+};
+
 }  // namespace detail
 
 template<typename T, typename value_t, typename state_variable_t>
@@ -91,6 +106,9 @@ protected:
     const size_t maxHistory_;
     const bool   alwaysIncludeFirstTokenState_;
     const size_t numMergeThreads_;
+
+    // Persistent worker threads for mergeStates, only created if numMergeThreads_ > 1
+    std::unique_ptr<Core::ThreadPool<std::function<void()>, detail::FunctionMapper>> mergeThreadPool_;
 };
 
 template<typename T, typename value_t, typename state_variable_t>
@@ -111,7 +129,13 @@ TransformerStateManager<T, value_t, state_variable_t>::TransformerStateManager(C
         : Precursor(config),
           maxHistory_(paramMaxHistoryLength(config)),
           alwaysIncludeFirstTokenState_(paramAlwaysIncludeFirstTokenState(config)),
-          numMergeThreads_(paramNumMergeThreads(config)) {
+          numMergeThreads_(paramNumMergeThreads(config)),
+          mergeThreadPool_() {
+    if (numMergeThreads_ > 1ul) {
+        // The calling thread also takes part in merging, so one thread less is needed in the pool
+        mergeThreadPool_.reset(new Core::ThreadPool<std::function<void()>, detail::FunctionMapper>());
+        mergeThreadPool_->init(numMergeThreads_ - 1ul);
+    }
 }
 
 template<typename T, typename value_t, typename state_variable_t>
@@ -158,9 +182,9 @@ void TransformerStateManager<T, value_t, state_variable_t>::mergeStates(
 
     // Layout of the merged tensor of one state variable
     struct MergeLayout {
+        ContiguousBlockInfo step_layout;  // all time steps have the same layout of contiguous blocks, only the start offset differs
         size_t              batch_stride;
         size_t              time_stride;
-        ContiguousBlockInfo step_layout;  // all time steps have the same layout of contiguous blocks, only the start offset differs
     };
 
     // Compute the layouts and allocate the merged tensors sequentially, the copying below can then run in parallel
@@ -198,7 +222,7 @@ void TransformerStateManager<T, value_t, state_variable_t>::mergeStates(
 
         // Every element is written below, either with a prefix state or with zero padding
         var_tensors[v] = value_t::template createEmpty<T>(tensor_dim);
-        layouts.push_back(MergeLayout{batch_stride, strides[time_dim], ContiguousBlockInfo(std::gslice(0ul, sizes, strides))});
+        layouts.push_back(MergeLayout{ContiguousBlockInfo(std::gslice(0ul, sizes, strides)), batch_stride, strides[time_dim]});
     }
 
     // Copy the prefix states of state variable `v` into its merged tensor
@@ -232,28 +256,20 @@ void TransformerStateManager<T, value_t, state_variable_t>::mergeStates(
     };
 
     // Each thread merges every num_threads-th state variable, i.e. writes only into its own tensors
-    size_t num_threads = std::min(numMergeThreads_, vars.size());
-    if (num_threads > 1ul) {
-        std::vector<std::thread> threads;
-        threads.reserve(num_threads - 1ul);
-        for (size_t t = 1ul; t < num_threads; t++) {
-            threads.emplace_back([&merge_var, &vars, t, num_threads]() {
-                for (size_t v = t; v < vars.size(); v += num_threads) {
-                    merge_var(v);
-                }
-            });
-        }
-        for (size_t v = 0ul; v < vars.size(); v += num_threads) {
-            merge_var(v);
-        }
-        for (auto& thread : threads) {
-            thread.join();
-        }
+    size_t num_threads = std::max(1ul, std::min(numMergeThreads_, vars.size()));
+    for (size_t t = 1ul; t < num_threads; t++) {
+        mergeThreadPool_->submit([&merge_var, &vars, t, num_threads]() {
+            for (size_t v = t; v < vars.size(); v += num_threads) {
+                merge_var(v);
+            }
+        });
     }
-    else {
-        for (size_t v = 0ul; v < vars.size(); v++) {
-            merge_var(v);
-        }
+    for (size_t v = 0ul; v < vars.size(); v += num_threads) {
+        merge_var(v);
+    }
+    // The pool only exists if num-merge-threads > 1
+    if (num_threads > 1ul) {
+        mergeThreadPool_->wait();
     }
 
     for (size_t v = 0ul; v < vars.size(); v++) {

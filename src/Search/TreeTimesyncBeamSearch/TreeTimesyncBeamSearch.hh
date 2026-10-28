@@ -16,6 +16,8 @@
 #ifndef TREE_TIMESYNC_BEAM_SEARCH_HH
 #define TREE_TIMESYNC_BEAM_SEARCH_HH
 
+#include <memory>
+
 #include <Bliss/Lexicon.hh>
 #include <Core/Channel.hh>
 #include <Core/Parameter.hh>
@@ -24,6 +26,7 @@
 #include <Nn/LabelScorer/LabelScorer.hh>
 #include <Nn/LabelScorer/ScoringContext.hh>
 #include <Search/Histogram.hh>
+#include <Search/LanguageModelLookahead.hh>
 #include <Search/PersistentStateTree.hh>
 #include <Search/SearchV2.hh>
 #include <Search/Traceback.hh>
@@ -34,6 +37,7 @@ namespace Search {
  * Simple time synchronous beam search algorithm on a search tree built by a TreeBuilder.
  * At a word end, a language model score is added to the hypothesis score,
  * if no language model should be used, the LM-scale has to be set to 0.0.
+ * Full or sparse language model lookahead can optionally be used with the same or with a separate LM.
  * Performs separate pruning of within-word and word-end hypotheses
  * by max beam-size and by score difference to the best hypothesis.
  * Uses one or more LabelScorers for context initialization/extension and scoring.
@@ -51,8 +55,10 @@ public:
     static const Core::ParameterFloat       paramWordEndScoreThreshold;
     static const Core::ParameterInt         paramNumHistogramBins;
     static const Core::ParameterBool        paramCollapseRepeatedLabels;
+    static const Core::ParameterBool        paramLmLookahead;
+    static const Core::ParameterBool        paramSeparateLookaheadLm;
+    static const Core::ParameterBool        paramSparseLmLookAhead;
     static const Core::ParameterBool        paramSentenceEndFallBack;
-    static const Core::ParameterBool        paramLogStepwiseStatistics;
     static const Core::ParameterInt         paramCacheCleanupInterval;
     static const Core::ParameterInt         paramMaximumStableDelay;
     static const Core::ParameterInt         paramMaximumStableDelayPruningInterval;
@@ -83,12 +89,15 @@ protected:
      * Possible extension for some label hypothesis in the beam
      */
     struct WithinWordExtensionCandidate {
-        Nn::LabelIndex         nextToken;       // Proposed token to extend the hypothesis with
-        StateId                nextState;       // State in the search tree of this extension
-        Search::TimeframeIndex timeframe;       // Timestamp of `nextToken` for traceback
-        Score                  score;           // Would-be total score of the full hypothesis after extension
-        Nn::TransitionType     transitionType;  // Type of transition toward `nextToken`
-        size_t                 baseHypIndex;    // Index of base hypothesis in beam
+        Nn::LabelIndex                                    nextToken;         // Proposed token to extend the hypothesis with
+        StateId                                           nextState;         // State in the search tree of this extension
+        Search::TimeframeIndex                            timeframe;         // Timestamp of `nextToken` for traceback
+        Score                                             score;             // Would-be total score of the full hypothesis after extension
+        Score                                             lookaheadScore;    // LM-lookahead score, i.e. `lookahead`'s entry for `nextState` plus `lookaheadBackOff`
+        LanguageModelLookahead::ContextLookaheadReference lookahead;         // LM-lookahead table `nextState` was scored from; of lower order than the base hypothesis' history if this state had to back off
+        Score                                             lookaheadBackOff;  // Accumulated back-off score paid to descend to `lookahead`
+        Nn::TransitionType                                transitionType;    // Type of transition toward `nextToken`
+        size_t                                            baseHypIndex;      // Index of base hypothesis in beam
 
         bool operator<(WithinWordExtensionCandidate const& other) {
             return score < other.score;
@@ -111,13 +120,17 @@ protected:
      * Struct containing all information about a single hypothesis in the beam
      */
     struct LabelHypothesis {
-        std::vector<Nn::ScoringContextRef> scoringContexts;  // Context to compute scores based on this hypothesis
-        Nn::LabelIndex                     currentToken;     // Most recent token in associated label sequence (useful to infer transition type)
-        StateId                            currentState;     // Current state in the search tree
-        Lm::History                        lmHistory;        // Language model history
-        Speech::TimeframeIndex             timeframe;        // Timeframe of current token
-        Score                              score;            // Full score of the hypothesis
-        Core::Ref<LatticeTrace>            trace;            // Associated trace for traceback or lattice building of hypothesis
+        std::vector<Nn::ScoringContextRef>                scoringContexts;   // Context to compute scores based on this hypothesis
+        Nn::LabelIndex                                    currentToken;      // Most recent token in associated label sequence (useful to infer transition type)
+        StateId                                           currentState;      // Current state in the search tree
+        LanguageModelLookahead::ContextLookaheadReference lookahead;         // LM-lookahead table in use; of lower order than `lookaheadHistory` if this hypothesis had to back off
+        Lm::History                                       lmHistory;         // Language model history
+        Lm::History                                       lookaheadHistory;  // LM history of this hypothesis for the lookahead; changes only at word ends, never within a word
+        Speech::TimeframeIndex                            timeframe;         // Timeframe of current token
+        Score                                             score;             // Full score of the hypothesis
+        Score                                             lookaheadScore;    // LM-lookahead score
+        Score                                             lookaheadBackOff;  // Accumulated back-off score paid to descend from `lookaheadHistory` to `lookahead`
+        Core::Ref<LatticeTrace>                           trace;             // Associated trace for traceback or lattice building of hypothesis
 
 #ifdef SEARCHV2_DEBUG
         std::vector<Nn::LabelIndex>         tokenSequence;     // Full sequence of predicted tokens for debugging purposes
@@ -131,7 +144,7 @@ protected:
         LabelHypothesis(LabelHypothesis const& base, WithinWordExtensionCandidate const& extension, std::vector<Nn::ScoringContextRef> const& newScoringContexts);
 
         // Word-end constructor from base and word-end extension
-        LabelHypothesis(LabelHypothesis const& base, WordEndExtensionCandidate const& extension, Lm::History const& newLmHistory);
+        LabelHypothesis(LabelHypothesis const& base, WordEndExtensionCandidate const& extension, Lm::History const& newLmHistory, LanguageModelLookahead::ContextLookaheadReference const newLookahead, Lm::History const& newLookaheadHistory, Score newLookaheadBackOff);
 
         bool operator<(LabelHypothesis const& other) const {
             return score < other.score;
@@ -151,6 +164,8 @@ private:
     Histogram           scoreHistogram_;
     Nn::LabelIndex      blankLabelIndex_;
     Nn::LabelIndex      silenceLabelIndex_;
+    Bliss::Lemma const* blankLemma_;
+    Bliss::Lemma const* silenceLemma_;
     Bliss::Lemma const* sentenceEndLemma_;
     Nn::LabelIndex      sentenceEndLabelIndex_;
     size_t              cacheCleanupInterval_;
@@ -162,7 +177,11 @@ private:
     bool collapseRepeatedLabels_;
     bool sentenceEndFallback_;
     bool recombinationEnabled_;
-    bool logStepwiseStatistics_;
+    // Timing and beam statistics, per segment and per search step. Both are disabled unless a
+    // target is configured.
+    mutable Core::XmlChannel statisticsChannel_;
+    Core::XmlChannel         stepwiseStatisticsChannel_;
+    bool                     stepStatisticsOpen_ = false;
 
     std::vector<Core::Ref<Nn::LabelScorer>>        labelScorers_;
     Bliss::LexiconRef                              lexicon_;
@@ -170,7 +189,13 @@ private:
     Core::Ref<PersistentStateTree>                 network_;
     Core::Ref<const Am::AcousticModel>             acousticModel_;
     Core::Ref<Lm::ScaledLanguageModel>             languageModel_;
+    Core::Ref<Lm::ScaledLanguageModel>             lookaheadLm_;
     Core::Channel                                  debugChannel_;
+
+    bool                                    enableLmLookahead_;
+    bool                                    separateLookaheadLm_;
+    bool                                    sparseLmLookahead_;
+    std::unique_ptr<LanguageModelLookahead> lmLookahead_;
 
     // Pre-allocated intermediate vectors
     std::vector<int>                          hypIndexToContextIndexMap_;
@@ -182,22 +207,71 @@ private:
     std::vector<Nn::ScoringContextRef>        scoringContexts_;
     std::vector<LabelHypothesis>              tempHypotheses_;
 
+    // Distinct LM histories in the current beam, i.e. the active search trees
+    std::vector<Lm::History> activeTreeHistories_;
+
+    // Score accessors of the word-end hypothesis currently being expanded, indexed by label scorer
+    std::vector<Nn::ScoreAccessorRef> wordEndScoreAccessors_;
+
     // Precomputed successor/exit lookups (offset tables + contiguous data).
     std::vector<size_t>                    stateSuccessorsOffset_;
     std::vector<StateId>                   stateSuccessors_;
     std::vector<size_t>                    stateExitsOffset_;
     std::vector<PersistentStateTree::Exit> stateExits_;
 
+    // States of the blank and silence lemma, mapped to the lemma
+    robin_hood::unordered_map<StateId, Bliss::Lemma const*> pauseLemmaStates_;
+
     size_t currentSearchStep_;
     bool   finishedSegment_;
 
     Core::StopWatch initializationTime_;
     Core::StopWatch featureProcessingTime_;
-    Core::StopWatch scoringTime_;
+    Core::StopWatch finalizeScoringTime_;  // Scoring time during finalizeHypotheses
+    Core::StopWatch recognitionTime_;
+    /*
+     * Phases of `scoreAndPruneExtensions` per label scorer, adding up to the matching
+     * `scoreAndPruneExtensionsTimes_` entry. Scorers that compute scores lazily do that work
+     * during the score readout; the pruning phase also prepares the next scorer's contexts.
+     * The first scorer's readout also creates the extensions, which is where
+     * `withinWordLmLookaheadTime_` is spent.
+     */
+    std::vector<Core::StopWatch> scoreAndPruneExtensionsTimes_;
+    std::vector<Core::StopWatch> scoringTimes_;
+    std::vector<Core::StopWatch> scoreReadoutTimes_;
+    std::vector<Core::StopWatch> intermediatePruningTimes_;
+    Core::StopWatch              withinWordLmLookaheadTime_;
+    Core::StopWatch              buildWithinWordHypsTime_;
+    Core::StopWatch              recombinationTime_;
+    Core::StopWatch              beamPruningTime_;
+    /*
+     * Phases of `expandAndPruneWordEndHypotheses`, adding up to `wordEndExpansionTime_`, each with
+     * the language model calls it makes reported inside it.
+     */
+    Core::StopWatch wordEndExpansionTime_;
+    Core::StopWatch wordEndExtensionTime_;
+    Core::StopWatch wordEndScorePruningTime_;
+    Core::StopWatch wordEndHypBuildingTime_;
+    Core::StopWatch wordEndRecombinationTime_;
+    Core::StopWatch wordEndBeamPruningTime_;
+    /*
+     * Language model time, reported inside the phase that made the calls: `lm-time` for scoring and
+     * `lm-history-extension-time` for extending a history. Extending a history is a node lookup for
+     * an n-gram model, but copies and hashes the token sequence for a recurrent one, so it is timed
+     * rather than left unaccounted for in its phase.
+     */
+    Core::StopWatch wordEndExtensionLmTime_;
+    Core::StopWatch lmHistoryExtensionTime_;
+    Core::StopWatch finalizeLmTime_;
+    Core::StopWatch wordEndLmLookaheadTime_;
+    Core::StopWatch finalizeTime_;
 
-    std::vector<Core::Statistics<u32>> numHypsAfterIntermediatePruning_;
-    Core::Statistics<u32>              numHypsAfterRecombination_;
-    Core::Statistics<u32>              numHypsAfterPruning_;
+    Core::Statistics<u32>              numInputHyps_;
+    Core::Statistics<u32>              numWithinWordExtensionsAfterPrePruning_;
+    std::vector<Core::Statistics<u32>> numWithinWordHypsAfterIntermediatePruning_;
+    Core::Statistics<u32>              numWithinWordHypsAfterRecombination_;
+    Core::Statistics<u32>              numWithinWordHypsAfterPruning_;
+    Core::Statistics<u32>              numWordEndExtensionsBeforePruning_;
     Core::Statistics<u32>              numWordEndHypsAfterScorePruning_;
     Core::Statistics<u32>              numWordEndHypsAfterRecombination_;
     Core::Statistics<u32>              numWordEndHypsAfterBeamPruning_;
@@ -208,6 +282,11 @@ private:
     LabelHypothesis const& getWorstHypothesis() const;
 
     void logStatistics() const;
+
+    /*
+     * Log the timing and statistics of the search itself, without the label scorers.
+     */
+    void logOwnStatistics() const;
 
     /*
      * Infer type of transition between two tokens based on whether each of them is blank or silence,
@@ -227,6 +306,85 @@ private:
      * With `createTraceSiblings` the traces of the recombined hypotheses will be added as siblings (for word-end recombination).
      */
     void recombination(std::vector<LabelHypothesis>& hypotheses, bool createTraceSiblings);
+
+    /*
+     * Run the multi-scorer loop: create within-word extensions from the first scorer, update scores
+     * with subsequent scorers, apply intermediate pruning after each scorer.
+     * Populates `withinWordExtensions_`. Returns false if no extensions survive (decode step should abort).
+     */
+    bool scoreAndPruneExtensions();
+
+    /*
+     * Read the scores and timeframes of the current label scorer into `denseScoreSpans` and
+     * `scoreTimes`. Lazily computing scorers do their work here.
+     */
+    void readOutScoreAccessors(std::vector<std::optional<Nn::ScoreAccessorRef>> const& scoreAccessors, std::vector<std::optional<Nn::DenseScoreSpan>>& denseScoreSpans, std::vector<Nn::TimeframeIndex>& scoreTimes) const;
+
+    /*
+     * Create the within-word extension candidates from the scores of the first label scorer,
+     * pre-pruning by score while they are created.
+     */
+    void createWithinWordExtensions(std::vector<std::optional<Nn::ScoreAccessorRef>> const& scoreAccessors, std::vector<std::optional<Nn::DenseScoreSpan>> const& denseScoreSpans, std::vector<Nn::TimeframeIndex> const& scoreTimes);
+
+    /*
+     * Add the scores of label scorer `scorerIdx` to the existing within-word extension candidates.
+     */
+    void updateWithinWordExtensionScores(size_t scorerIdx, std::vector<std::optional<Nn::ScoreAccessorRef>> const& scoreAccessors, std::vector<std::optional<Nn::DenseScoreSpan>> const& denseScoreSpans, std::vector<Nn::TimeframeIndex> const& scoreTimes);
+
+    /*
+     * Collect the scoring contexts for the next label scorer into `scoringContexts_`, dropping the
+     * hypotheses whose extensions did not survive pruning.
+     */
+    void prepareNextScoringContexts(size_t scorerIdx);
+
+    /*
+     * Create new beam hypotheses from the surviving within-word extensions.
+     * Populates `newBeam_`.
+     */
+    void buildNewBeamFromExtensions();
+
+    /*
+     * Expand within-word hypotheses in `newBeam_` to word-end hypotheses by applying
+     * the language model. Prune and recombine the word-end hypotheses.
+     * Populates `wordEndHypotheses_`.
+     */
+    void expandAndPruneWordEndHypotheses();
+
+    /*
+     * Create one word-end extension candidate per exit of every hypothesis in `newBeam_`,
+     * applying the language model and the word-end transition scores.
+     * Populates `wordEndExtensions_`.
+     */
+    void createWordEndExtensions();
+
+    /*
+     * Create word-end hypotheses from the surviving extensions, updating the LM history and the
+     * lookahead. Populates `wordEndHypotheses_`.
+     */
+    void buildWordEndHypotheses();
+
+    /*
+     * Open the per-step statistics element before the first statistic of a step is written, and
+     * close it again when the step ends. A step that can't be scored yet writes nothing, so it
+     * neither opens an element nor consumes a step number.
+     */
+    void openStepStatistics();
+    void closeStepStatistics();
+
+    /*
+     * Log the per-step statistics and debug output for the current beam.
+     */
+    void logStepStatistics();
+
+    /*
+     * Retrieve or compute the LM lookahead for the given history
+     */
+    void getLmLookahead(LanguageModelLookahead::ContextLookaheadReference& lookahead, Lm::History history);
+
+    /*
+     * Compute the sparse or non-sparse LM lookahead score for an extension's state and history, with back-off if needed
+     */
+    Score getLmLookaheadScore(TreeTimesyncBeamSearch::WithinWordExtensionCandidate& extension);
 
     /*
      * Precompute successor and exit lookups for each state to avoid traversing the network structure during decoding.

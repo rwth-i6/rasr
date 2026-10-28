@@ -26,7 +26,12 @@ inline Core::Ref<const LatticeTraceback> latticeTraceback(Core::Ref<const Lattic
 
 class RootTraceSearcher {
 public:
-    RootTraceSearcher(const std::vector<Core::Ref<LatticeTrace>>& traces)
+    /*
+     * `headTracesAreFixed`: whether the head traces in `traces` are never replaced. In some searches, the head trace of a
+     * hypothesis may later be replaced by a copy with a different end time (ongoing label loops), so it doesn't qualify
+     * as root trace.
+     */
+    RootTraceSearcher(const std::vector<Core::Ref<LatticeTrace>>& traces, bool headTracesAreFixed = false)
             : rootTrace_(0) {
         for (std::vector<Core::Ref<LatticeTrace>>::const_iterator it = traces.begin(); it != traces.end(); ++it) {
             addTrace(it->get(), 0, true);
@@ -43,7 +48,7 @@ public:
         LatticeTrace* prev_trace = rootTrace_;
         while (desc.followers.size() == 1 && !desc.has_active_hyps) {  // can not be sure if current root trace still has active state
             LatticeTrace* follower = desc.followers.front();
-            if (traces_[follower].has_active_hyps) {
+            if (traces_[follower].has_active_hyps and not headTracesAreFixed) {
                 break;
             }
             prev_trace = rootTrace_;

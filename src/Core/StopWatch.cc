@@ -45,6 +45,10 @@ void StopWatch::reset() {
     running_            = false;
 }
 
+bool StopWatch::isRunning() const {
+    return running_;
+}
+
 double StopWatch::elapsedSeconds() const {
     return elapsedNanoseconds() / 1e9;
 }

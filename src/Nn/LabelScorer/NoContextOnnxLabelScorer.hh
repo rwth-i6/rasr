@@ -33,14 +33,9 @@ namespace Nn {
  * from the encoder. The NoContextOnnxLabelScorer can be used for this purpose.
  */
 class NoContextOnnxLabelScorer : public BufferedLabelScorer {
-    using Precursor = BufferedLabelScorer;
-
 public:
     NoContextOnnxLabelScorer(Core::Configuration const& config, ModelCache& modelCache);
     virtual ~NoContextOnnxLabelScorer() = default;
-
-    // Clear feature buffer and cached scores
-    void reset() override;
 
     // Initial scoring context contains step 0
     ScoringContextRef getInitialScoringContext() override;
@@ -51,23 +46,31 @@ public:
     // Clean up input buffer as well as cached score vectors that are no longer needed
     void cleanupCaches(Core::CollapsedVector<ScoringContextRef> const& activeContexts) override;
 
+protected:
+    // Clear feature buffer and cached scores
+    void resetInternal() override;
+
     // If scores for the given scoring contexts are not yet cached, prepare and run an ONNX session to
     // compute the scores and cache them
-    std::vector<std::optional<ScoreAccessorRef>> getScoreAccessors(std::vector<ScoringContextRef> const& scoringContexts) override;
+    std::vector<std::optional<ScoreAccessorRef>> computeScoreAccessors(std::vector<ScoringContextRef> const& scoringContexts) override;
 
-    // Uses `getScoreAccessors` internally with some wrapping for vector packing/expansion
-    std::optional<ScoreAccessorRef> getScoreAccessor(ScoringContextRef scoringContext) override;
-
-protected:
-    size_t getMinActiveInputIndex(Core::CollapsedVector<ScoringContextRef> const& activeContexts) const override;
+    // Uses `computeScoreAccessors` internally with some wrapping for vector packing/expansion
+    std::optional<ScoreAccessorRef> computeScoreAccessor(ScoringContextRef scoringContext) override;
+    size_t                          getMinActiveInputIndex(Core::CollapsedVector<ScoringContextRef> const& activeContexts) const override;
 
 private:
+    using Precursor = BufferedLabelScorer;
+
     std::shared_ptr<Onnx::Model> onnxModel_;
 
     std::string inputFeatureName_;
     std::string scoresName_;
 
+    Core::StopWatch onnxSessionTime_;
+
     std::unordered_map<StepScoringContextRef, std::shared_ptr<std::vector<Score>>, ScoringContextHash, ScoringContextEq> scoreCache_;
+
+    void logScoringBreakdown() const override;
 
     void forwardContext(StepScoringContextRef const& scoringContext);
 };

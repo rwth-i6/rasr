@@ -128,9 +128,12 @@ public:
      * Cost-domain log partition:
      *
      *   partitionCost = -log sum_paths exp(-pathCost)
+     *
+     * Double, as accumulated: the partition of a long segment is large (~1e5), where a
+     * float only resolves steps of a few hundredths.
      */
-    Score partitionCost() const {
-        return static_cast<Score>(partitionCost_);
+    double partitionCost() const {
+        return partitionCost_;
     }
 
     /**
@@ -138,8 +141,8 @@ public:
      *
      *   log P = -partitionCost
      */
-    Score logLikelihood() const {
-        return static_cast<Score>(-partitionCost_);
+    double logLikelihood() const {
+        return -partitionCost_;
     }
 
     /**

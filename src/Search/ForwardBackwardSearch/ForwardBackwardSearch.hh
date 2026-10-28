@@ -59,11 +59,27 @@ namespace Search {
  *
  *   partitionCost = scoreSum_s(alpha(s) + lmSentenceEnd(s)),  beta(s) = lmSentenceEnd(s)
  *
+ * Off by default, which is the old behaviour.
+ *
+ * HMM states (num-hmm-states S, default 1): every phoneme is S left-to-right
+ * states. A state loops (LABEL_LOOP score) or moves on to the next state of the
+ * same phoneme (LABEL_TO_LABEL score, no LM), only the last state leaves the
+ * phoneme, into another one or into the same one again, and that is where the LM
+ * scores. Blank keeps a single state, which counts as a last one. Only final
+ * states in a last state carry the partition. The state is part of the
+ * recombination key.
+ *
+ * Emissions are tied by default: all states of label a read score column a.
+ * With tie-hmm-states false, state j of label a reads column a * S + j
+ * (phoneme-major; blank reads its last state's column), and the gammas are
+ * per column, too. Either way labelGammas()[t][c] is the posterior of score
+ * column c at frame t, so d(partitionCost)/d(scores[t][c]) = labelGammas()[t][c].
+ *
  *
  * Build a time-layered search graph in the forward direction, then run a
  * backward pass over it and turn arc posteriors into label gammas.
  *
- * Only what the backward pass needs is kept for past layers. Each step
+ * Memory: only what the backward pass needs is kept for past layers. Each step
  * expands the current layer into candidate states, prunes the candidates, and
  * stores only the survivors (alpha, beta, token) and the arcs into them, as an arc
  * into a pruned state would get posterior 0 anyway. Scoring contexts and LM
@@ -86,6 +102,8 @@ public:
     static const Core::ParameterFloat paramScoreThreshold;
     static const Core::ParameterInt   paramNumHistogramBins;
     static const Core::ParameterBool  paramApplySentenceEndScore;
+    static const Core::ParameterInt   paramNumHmmStates;
+    static const Core::ParameterBool  paramTieHmmStates;
 
     explicit ForwardBackwardSearch(Core::Configuration const& config);
 
@@ -131,7 +149,8 @@ public:
      *
      *   labelGammas()[t][label]
      *
-     * Values are probabilities, not log-probabilities.
+     * Values are probabilities, not log-probabilities. With untied HMM states the
+     * second index is the score column label * num-hmm-states + state instead.
      */
     std::vector<std::vector<double>> const& labelGammas() const {
         return labelGammas_;
@@ -158,6 +177,7 @@ protected:
         double         alpha;
         double         beta;
         Nn::LabelIndex currentToken;
+        uint32_t       hmmState;
     };
 
     // The expansion data of a state in the current (last) layer. Only this
@@ -166,6 +186,7 @@ protected:
     struct ActiveState {
         StateId               id;
         Nn::LabelIndex        currentToken;
+        uint32_t              hmmState;
         Nn::ScoringContextRef scoringContext;
         Lm::History           lmHistory;
     };
@@ -182,11 +203,15 @@ protected:
     // Key for state recombination
     struct StateKey {
         Nn::LabelIndex        currentToken;
+        uint32_t              hmmState;
         Nn::ScoringContextRef scoringContext;
         Lm::History           lmHistory;
 
         bool operator==(StateKey const& other) const {
             if (currentToken != other.currentToken) {
+                return false;
+            }
+            if (hmmState != other.hmmState) {
                 return false;
             }
             if (!Nn::ScoringContextEq{}(scoringContext, other.scoringContext)) {
@@ -201,7 +226,7 @@ protected:
 
     struct StateKeyHash {
         size_t operator()(StateKey const& key) const {
-            return Core::combineHashes(Core::combineHashes(key.currentToken, Nn::ScoringContextHash{}(key.scoringContext)), Lm::History::Hash{}(key.lmHistory));
+            return Core::combineHashes(Core::combineHashes(Core::combineHashes(key.currentToken, key.hmmState), Nn::ScoringContextHash{}(key.scoringContext)), Lm::History::Hash{}(key.lmHistory));
         }
     };
 
@@ -233,6 +258,13 @@ private:
     Histogram       scoreHistogram_;
 
     bool            applySentenceEndScore_;
+
+    uint32_t        numHmmStates_;
+    bool            tieHmmStates_;
+    // number of score columns the topology reads; 0 = unchecked (one tied state, as before)
+    size_t          expectedScoreDimension_;
+    // width of a gamma row before any growth: labels_.size(), or expectedScoreDimension_ if set
+    size_t          numGammaColumns_;
 
     // surviving states of all layers; the states of a layer are contiguous
     std::vector<State>              states_;
@@ -278,6 +310,11 @@ private:
     double arcPosterior(Arc const& arc) const;
 
     Nn::TransitionType inferTransitionType(Nn::LabelIndex prevLabel, Nn::LabelIndex nextLabel) const;
+
+    // score column read by HMM state hmmState of label
+    Nn::LabelIndex emissionColumn(Nn::LabelIndex label, uint32_t hmmState) const;
+
+    void checkScoreDimension(size_t featureSize) const;
 
     /**
      * Cost-domain log-add:

@@ -173,6 +173,21 @@ const Core::ParameterBool ForwardBackwardSearch::paramApplySentenceEndScore(
         "Add the LM sentence-end score to every final state, i.e. to the partition and to the final betas.",
         false);
 
+const Core::ParameterInt ForwardBackwardSearch::paramNumHmmStates(
+        "num-hmm-states",
+        "Number of left-to-right HMM states per phoneme, all emitting the phoneme's label. Each state loops (label-loop score) "
+        "or moves on (label-to-label score). A phoneme is left, and the LM scores the next one, only from its last state. "
+        "With more than one state only final states in a last state carry the partition and a phoneme may directly follow "
+        "itself (collapse-repeated-labels then has no effect). Blank keeps a single state.",
+        1, 1);
+
+const Core::ParameterBool ForwardBackwardSearch::paramTieHmmStates(
+        "tie-hmm-states",
+        "Whether all HMM states of a label share its score column (same emission score). If false, state j of label a reads column "
+        "a * num-hmm-states + j (phoneme-major), so the scores need num-labels * num-hmm-states columns, and the gammas "
+        "are reported per column as well. Blank, which has a single state, reads the column of its last state.",
+        true);
+
 ForwardBackwardSearch::ForwardBackwardSearch(Core::Configuration const& config)
         : Core::Component(config),
           SearchAlgorithmV2(config),
@@ -191,6 +206,10 @@ ForwardBackwardSearch::ForwardBackwardSearch(Core::Configuration const& config)
           scoreThreshold_(paramScoreThreshold(config)),
           scoreHistogram_(paramNumHistogramBins(config)),
           applySentenceEndScore_(paramApplySentenceEndScore(config)),
+          numHmmStates_(static_cast<uint32_t>(paramNumHmmStates(config))),
+          tieHmmStates_(paramTieHmmStates(config)),
+          expectedScoreDimension_(0ul),
+          numGammaColumns_(0ul),
           states_(),
           layerStart_(),
           activeStates_(),
@@ -264,6 +283,23 @@ bool ForwardBackwardSearch::setModelCombination(Speech::ModelCombination const& 
 
     log() << "ForwardBackwardSearch uses " << labels_.size() << " frame-synchronous labels.";
 
+    log() << "Use " << numHmmStates_ << " HMM state(s) per phoneme" << (tieHmmStates_ ? "" : " with untied emissions");
+    if (numHmmStates_ > 1 and not collapseRepeatedLabels_) {
+        warning() << "collapse-repeated-labels is false, but has no effect with more than one HMM state";
+    }
+
+    numGammaColumns_ = labels_.size();
+    // The layout fixes the number of score columns once there is more than one state
+    if (numHmmStates_ > 1 or not tieHmmStates_) {
+        size_t numLabels = useBlank_ ? static_cast<size_t>(blankLabelIndex_) + 1ul : 0ul;
+        for (Nn::LabelIndex label : labels_) {
+            numLabels = std::max(numLabels, static_cast<size_t>(label) + 1ul);
+        }
+        expectedScoreDimension_ = tieHmmStates_ ? numLabels : numLabels * numHmmStates_;
+        numGammaColumns_        = expectedScoreDimension_;
+        log() << "Expect " << expectedScoreDimension_ << " score columns per frame";
+    }
+
     return true;
 }
 
@@ -285,11 +321,15 @@ void ForwardBackwardSearch::enterSegment(Bliss::SpeechSegment const* segment) {
             .alpha        = 0.0,
             .beta         = std::numeric_limits<double>::infinity(),
             .currentToken = Nn::invalidLabelIndex,
+            .hmmState     = numHmmStates_ - 1u,
     });
     layerStart_.push_back(0u);
+
+    // The initial state is between phonemes, such that any label may follow and an empty segment ends here
     activeStates_.push_back(ActiveState{
             .id             = 0u,
             .currentToken   = Nn::invalidLabelIndex,
+            .hmmState       = numHmmStates_ - 1u,
             .scoringContext = labelScorer_->getInitialScoringContext(),
             .lmHistory      = languageModel_->startHistory(),
     });
@@ -332,10 +372,14 @@ void ForwardBackwardSearch::finishSegment() {
 }
 
 void ForwardBackwardSearch::putFeature(Nn::DataView const& feature) {
+    checkScoreDimension(feature.size());
     labelScorer_->addInput(feature);
 }
 
 void ForwardBackwardSearch::putFeatures(Nn::DataView const& features, size_t nTimesteps) {
+    if (nTimesteps > 0ul) {
+        checkScoreDimension(features.size() / nTimesteps);
+    }
     labelScorer_->addInputs(features, nTimesteps);
 }
 
@@ -508,21 +552,27 @@ bool ForwardBackwardSearch::buildForwardStep() {
         auto const& scoreAccessor = scoreAccessors[statePos];
         Nn::TimeframeIndex time = (*scoreAccessor)->getTime();
 
-        for (size_t labelPos = 0ul; labelPos < labels_.size(); ++labelPos) {
+        uint32_t const lastHmmState = numHmmStates_ - 1u;
+        bool const inLabel = src.currentToken != Nn::invalidLabelIndex and not (useBlank_ and src.currentToken == blankLabelIndex_);
+
+        /*
+         * Expand `src` by labels_[labelPos] via `transitionType` into HMM state `nextState`. `entersLemma` is false
+         * for a loop and for a step to the next state of the same phoneme, neither starts a new lemma, so the LM
+         * does not score it.
+         */
+        auto expand = [&](size_t labelPos, Nn::TransitionType transitionType, uint32_t nextState, bool entersLemma) {
             Nn::LabelIndex label = labels_[labelPos];
             Bliss::Lemma const* lemma = labelLemmas_[labelPos];
 
-            Nn::TransitionType transitionType = inferTransitionType(src.currentToken, label);
-
             if (!labelScorer_->scoresTransition(transitionType)) {
-                continue;
+                return;
             }
 
-            Score acousticScore = (*scoreAccessor)->getScore(transitionType, label);
+            Score acousticScore = (*scoreAccessor)->getScore(transitionType, emissionColumn(label, nextState));
 
             Score lmScore = 0.0;
             Lm::History newLmHistory = src.lmHistory;
-            if (not (transitionType == Nn::TransitionType::LABEL_LOOP or transitionType == Nn::TransitionType::BLANK_LOOP)) {
+            if (entersLemma) {
                 Bliss::SyntacticTokenSequence const& sts = lemma->syntacticTokenSequence();
                 if (sts.size() != 0) {
                     auto const* st = sts.front();
@@ -534,7 +584,7 @@ bool ForwardBackwardSearch::buildForwardStep() {
             Score arcScore = acousticScore + lmScore;
 
             if (std::isinf(static_cast<double>(arcScore))) {
-                continue;
+                return;
             }
 
             Nn::ScoringContextRef nextScoringContext = labelScorer_->extendedScoringContext(
@@ -544,6 +594,7 @@ bool ForwardBackwardSearch::buildForwardStep() {
 
             StateKey key{
                     .currentToken   = label,
+                    .hmmState       = nextState,
                     .scoringContext = nextScoringContext,
                     .lmHistory      = newLmHistory};
 
@@ -563,6 +614,37 @@ bool ForwardBackwardSearch::buildForwardStep() {
                     .time           = time,
                     .score          = arcScore,
                     .transitionType = transitionType});
+        };
+
+        for (size_t labelPos = 0ul; labelPos < labels_.size(); ++labelPos) {
+            Nn::LabelIndex label = labels_[labelPos];
+
+            if (numHmmStates_ > 1 and inLabel and label == src.currentToken) {
+                // Looping in the current state
+                expand(labelPos, Nn::TransitionType::LABEL_LOOP, src.hmmState, false);
+                if (src.hmmState < lastHmmState) {
+                    // Continue to the next state of the same phoneme
+                    expand(labelPos, Nn::TransitionType::LABEL_TO_LABEL, src.hmmState + 1u, false);
+                }
+                else {
+                    // Out of the last state into the first one of the same phoneme again
+                    expand(labelPos, Nn::TransitionType::LABEL_TO_LABEL, 0u, true);
+                }
+                continue;
+            }
+
+            // A phoneme can only be left from its last state
+            if (inLabel and src.hmmState < lastHmmState) {
+                continue;
+            }
+
+            Nn::TransitionType transitionType = inferTransitionType(src.currentToken, label);
+
+            // Blank has a single state; it counts as the last one
+            uint32_t nextState = (useBlank_ and label == blankLabelIndex_) ? lastHmmState : 0u;
+
+            expand(labelPos, transitionType, nextState,
+                   not(transitionType == Nn::TransitionType::LABEL_LOOP or transitionType == Nn::TransitionType::BLANK_LOOP));
         }
     }
 
@@ -608,10 +690,12 @@ bool ForwardBackwardSearch::buildForwardStep() {
         states_.push_back(State{
                 .alpha        = candidateAlphas[candidate],
                 .beta         = std::numeric_limits<double>::infinity(),
-                .currentToken = key.currentToken});
+                .currentToken = key.currentToken,
+                .hmmState     = key.hmmState});
         nextActiveStates.push_back(ActiveState{
                 .id             = id,
                 .currentToken   = key.currentToken,
+                .hmmState       = key.hmmState,
                 .scoringContext = key.scoringContext,
                 .lmHistory      = key.lmHistory});
     }
@@ -683,7 +767,19 @@ void ForwardBackwardSearch::computeBackwardAndGammas() {
     // The final layer contains all states after the last forward step, the partition is the log-sum over all final-state alphas.
     // activeStates_ still holds the final layer (one entry per final state), which is where the LM histories are.
     verify_eq(activeStates_.size(), states_.size() - layerStart_.back());
+
+    // Only a final state in the last HMM state of its phoneme (or in blank) ends the segment. With one state that
+    // is every final state.
+    auto inLastHmmState = [this](ActiveState const& state) { return state.hmmState + 1u == numHmmStates_; };
+    bool const restrictToLastHmmState = std::any_of(activeStates_.begin(), activeStates_.end(), inLastHmmState);
+    if (not restrictToLastHmmState) {
+        warning() << "No final state is in the last HMM state; summing over all " << activeStates_.size() << " final states";
+    }
+
     for (ActiveState const& finalState : activeStates_) {
+        if (restrictToLastHmmState and not inLastHmmState(finalState)) {
+            continue;
+        }
         // beta(final) is the cost of the remaining suffix: 0, or the LM's sentence-end cost
         double endCost = applySentenceEndScore_ ? static_cast<double>(languageModel_->sentenceEndScore(finalState.lmHistory)) : 0.0;
 
@@ -706,10 +802,12 @@ void ForwardBackwardSearch::computeBackwardAndGammas() {
 
     // Compute arc posteriors and accumulate them into frame/label gammas
     // posterior(arc) = exp(partitionCost - (alpha(src) + arcCost + beta(dst)))
-    // labelGammas_[time][label] stores the posterior probability that `label` was emitted at scorer time `time`
+    // labelGammas_[time][column] stores the posterior probability that score column `column` was emitted at
+    // scorer time `time`, the column is the label itself unless the HMM states are untied
     for (std::vector<Arc> const& layerArcs : arcsByLayer_) {
         for (Arc const& arc : layerArcs) {
             double posterior = arcPosterior(arc);
+            size_t column    = static_cast<size_t>(emissionColumn(arc.label, states_[arc.dst].hmmState));
 
             size_t frame = static_cast<size_t>(arc.time);
 
@@ -718,15 +816,15 @@ void ForwardBackwardSearch::computeBackwardAndGammas() {
                 labelGammas_.resize(frame + 1ul);
 
                 for (size_t i = oldSize; i < labelGammas_.size(); ++i) {
-                    labelGammas_[i].assign(labels_.size(), 0.0);
+                    labelGammas_[i].assign(numGammaColumns_, 0.0);
                 }
             }
 
-            if (static_cast<size_t>(arc.label) >= labelGammas_[frame].size()) {
-                labelGammas_[frame].resize(static_cast<size_t>(arc.label) + 1ul, 0.0);
+            if (column >= labelGammas_[frame].size()) {
+                labelGammas_[frame].resize(column + 1ul, 0.0);
             }
 
-            labelGammas_[frame][arc.label] += posterior;
+            labelGammas_[frame][column] += posterior;
         }
     }
 }
@@ -767,6 +865,21 @@ Nn::TransitionType ForwardBackwardSearch::inferTransitionType(Nn::LabelIndex pre
         else {
             return Nn::TransitionType::LABEL_TO_LABEL;
         }
+    }
+}
+
+Nn::LabelIndex ForwardBackwardSearch::emissionColumn(Nn::LabelIndex label, uint32_t hmmState) const {
+    if (tieHmmStates_) {
+        return label;
+    }
+    return label * numHmmStates_ + hmmState;
+}
+
+void ForwardBackwardSearch::checkScoreDimension(size_t featureSize) const {
+    if (expectedScoreDimension_ != 0ul and featureSize != expectedScoreDimension_) {
+        criticalError() << "Scores have " << featureSize << " columns per frame, but " << numHmmStates_
+                        << " HMM state(s) with " << (tieHmmStates_ ? "tied" : "untied") << " emissions need "
+                        << expectedScoreDimension_;
     }
 }
 
@@ -832,6 +945,7 @@ void ForwardBackwardSearch::dumpGraphToDot(std::string const& filename) const {
             label << "s" << stateId
                   << "\nlayer=" << layer
                   << "\ntoken=" << state.currentToken
+                  << "\nhmm-state=" << state.hmmState
                   << "\nalpha=" << scoreToString(state.alpha)
                   << "\nbeta=" << scoreToString(state.beta);
 

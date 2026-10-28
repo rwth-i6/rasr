@@ -62,69 +62,6 @@ OnnxHiddenStateModel::OnnxHiddenStateModel(Core::Configuration const&           
     setupStateNameMaps();
 }
 
-void OnnxHiddenStateModel::setupStateNameMaps() {
-    auto initializerMetadataKeys = stateInitializerOnnxModel_->session.getCustomMetadataKeys();
-    auto updaterMetadataKeys     = stateUpdaterOnnxModel_->session.getCustomMetadataKeys();
-    auto scorerMetadataKeys      = scorerOnnxModel_->session.getCustomMetadataKeys();
-
-    // Map state initializer outputs to states
-    std::unordered_set<std::string> initializerStateNames;
-    for (auto const& key : initializerMetadataKeys) {
-        if (stateInitializerOnnxModel_->session.hasOutput(key)) {
-            auto stateName = stateInitializerOnnxModel_->session.getCustomMetadata(key);
-            initializerOutputToStateNameMap_.emplace(key, stateName);
-            initializerStateNames.insert(stateName);
-        }
-    }
-    if (initializerStateNames.empty()) {
-        error() << "State initializer does not define any hidden states.";
-    }
-
-    // Map state updater inputs and outputs to states
-    std::unordered_set<std::string> updaterStateNames;
-    for (auto const& key : updaterMetadataKeys) {
-        if (stateUpdaterOnnxModel_->session.hasInput(key)) {
-            auto stateName = stateUpdaterOnnxModel_->session.getCustomMetadata(key);
-            if (initializerStateNames.find(stateName) == initializerStateNames.end()) {
-                error() << "State updater input " << key << " associated with state " << stateName << " is not present in state initializer";
-            }
-            updaterInputToStateNameMap_.emplace(key, stateName);
-        }
-        if (stateUpdaterOnnxModel_->session.hasOutput(key)) {
-            auto stateName = stateUpdaterOnnxModel_->session.getCustomMetadata(key);
-            if (initializerStateNames.find(stateName) == initializerStateNames.end()) {
-                error() << "State updater output " << key << " associated with state " << stateName << " is not present in state initializer";
-            }
-            updaterOutputToStateNameMap_.emplace(key, stateName);
-            updaterStateNames.insert(stateName);
-        }
-    }
-    if (updaterOutputToStateNameMap_.empty()) {
-        error() << "State updater does not produce any updated hidden states";
-    }
-
-    // In the loop we checked that the updater outputs are a subset of the initializer outputs.
-    // If they have the same size, they are equal. Otherwise, some initializer outputs
-    // are not updater outputs.
-    if (initializerStateNames.size() != updaterStateNames.size()) {
-        warning() << "State initializer has states that are not updated by the state updater";
-    }
-
-    // Map scorer inputs to states
-    for (auto const& key : scorerMetadataKeys) {
-        if (scorerOnnxModel_->session.hasInput(key)) {
-            auto stateName = scorerOnnxModel_->session.getCustomMetadata(key);
-            if (initializerStateNames.find(stateName) == initializerStateNames.end()) {
-                error() << "Scorer input " << key << " associated with state " << stateName << " is not present in state initializer";
-            }
-            scorerInputToStateNameMap_.emplace(key, stateName);
-        }
-    }
-    if (scorerInputToStateNameMap_.empty()) {
-        error() << "Scorer does not take any input hidden-states";
-    }
-}
-
 std::string OnnxHiddenStateModel::stateInitializerOnnxName(std::string const& key) const {
     return stateInitializerOnnxModel_->mapping.getOnnxName(key);
 }
@@ -135,57 +72,6 @@ std::string OnnxHiddenStateModel::stateUpdaterOnnxName(std::string const& key) c
 
 std::string OnnxHiddenStateModel::scorerOnnxName(std::string const& key) const {
     return scorerOnnxModel_->mapping.getOnnxName(key);
-}
-
-void OnnxHiddenStateModel::addStateInputs(StateNameMap const&                    inputToStateNameMap,
-                                          std::vector<OnnxHiddenStateRef> const& hiddenStatesBatch,
-                                          SessionInputs&                         sessionInputs) const {
-    for (auto const& [inputName, stateName] : inputToStateNameMap) {
-        // Collect a vector of individual state values of shape [1, *] and afterwards concatenate
-        // them to a batched state tensor of shape [B, *]
-        std::vector<Onnx::Value const*> stateValues;
-        stateValues.reserve(hiddenStatesBatch.size());
-
-        for (auto const& hiddenState : hiddenStatesBatch) {
-            verify(hiddenState);
-            stateValues.push_back(&hiddenState->stateValueMap.at(stateName));
-        }
-        sessionInputs.emplace_back(inputName, Onnx::Value::concat(stateValues, 0));
-    }
-}
-
-void OnnxHiddenStateModel::collectStateOutputs(StateNameMap const&       outputToStateNameMap,
-                                               std::vector<std::string>& sessionOutputNames,
-                                               std::vector<std::string>& stateNames) {
-    sessionOutputNames.reserve(outputToStateNameMap.size());
-    stateNames.reserve(outputToStateNameMap.size());
-    for (auto const& [outputName, stateName] : outputToStateNameMap) {
-        sessionOutputNames.push_back(outputName);
-        stateNames.push_back(stateName);
-    }
-}
-
-Core::StopWatch const& OnnxHiddenStateModel::initializerSessionTime() const {
-    return initializerSessionTime_;
-}
-
-Core::StopWatch const& OnnxHiddenStateModel::updaterSessionTime() const {
-    return updaterSessionTime_;
-}
-
-Core::StopWatch const& OnnxHiddenStateModel::scorerSessionTime() const {
-    return scorerSessionTime_;
-}
-
-Core::StopWatch const& OnnxHiddenStateModel::marshallingTime() const {
-    return marshallingTime_;
-}
-
-void OnnxHiddenStateModel::resetTimers() {
-    initializerSessionTime_.reset();
-    updaterSessionTime_.reset();
-    scorerSessionTime_.reset();
-    marshallingTime_.reset();
 }
 
 OnnxHiddenStateRef OnnxHiddenStateModel::initialHiddenState(SessionInputs extraInputs) {
@@ -283,6 +169,120 @@ std::vector<std::shared_ptr<std::vector<Score>>> OnnxHiddenStateModel::scores(st
     }
 
     return scoreVecs;
+}
+
+Core::StopWatch const& OnnxHiddenStateModel::initializerSessionTime() const {
+    return initializerSessionTime_;
+}
+
+Core::StopWatch const& OnnxHiddenStateModel::updaterSessionTime() const {
+    return updaterSessionTime_;
+}
+
+Core::StopWatch const& OnnxHiddenStateModel::scorerSessionTime() const {
+    return scorerSessionTime_;
+}
+
+Core::StopWatch const& OnnxHiddenStateModel::marshallingTime() const {
+    return marshallingTime_;
+}
+
+void OnnxHiddenStateModel::resetTimers() {
+    initializerSessionTime_.reset();
+    updaterSessionTime_.reset();
+    scorerSessionTime_.reset();
+    marshallingTime_.reset();
+}
+
+void OnnxHiddenStateModel::setupStateNameMaps() {
+    auto initializerMetadataKeys = stateInitializerOnnxModel_->session.getCustomMetadataKeys();
+    auto updaterMetadataKeys     = stateUpdaterOnnxModel_->session.getCustomMetadataKeys();
+    auto scorerMetadataKeys      = scorerOnnxModel_->session.getCustomMetadataKeys();
+
+    // Map state initializer outputs to states
+    std::unordered_set<std::string> initializerStateNames;
+    for (auto const& key : initializerMetadataKeys) {
+        if (stateInitializerOnnxModel_->session.hasOutput(key)) {
+            auto stateName = stateInitializerOnnxModel_->session.getCustomMetadata(key);
+            initializerOutputToStateNameMap_.emplace(key, stateName);
+            initializerStateNames.insert(stateName);
+        }
+    }
+    if (initializerStateNames.empty()) {
+        error() << "State initializer does not define any hidden states.";
+    }
+
+    // Map state updater inputs and outputs to states
+    std::unordered_set<std::string> updaterStateNames;
+    for (auto const& key : updaterMetadataKeys) {
+        if (stateUpdaterOnnxModel_->session.hasInput(key)) {
+            auto stateName = stateUpdaterOnnxModel_->session.getCustomMetadata(key);
+            if (initializerStateNames.find(stateName) == initializerStateNames.end()) {
+                error() << "State updater input " << key << " associated with state " << stateName << " is not present in state initializer";
+            }
+            updaterInputToStateNameMap_.emplace(key, stateName);
+        }
+        if (stateUpdaterOnnxModel_->session.hasOutput(key)) {
+            auto stateName = stateUpdaterOnnxModel_->session.getCustomMetadata(key);
+            if (initializerStateNames.find(stateName) == initializerStateNames.end()) {
+                error() << "State updater output " << key << " associated with state " << stateName << " is not present in state initializer";
+            }
+            updaterOutputToStateNameMap_.emplace(key, stateName);
+            updaterStateNames.insert(stateName);
+        }
+    }
+    if (updaterOutputToStateNameMap_.empty()) {
+        error() << "State updater does not produce any updated hidden states";
+    }
+
+    // In the loop we checked that the updater outputs are a subset of the initializer outputs.
+    // If they have the same size, they are equal. Otherwise, some initializer outputs
+    // are not updater outputs.
+    if (initializerStateNames.size() != updaterStateNames.size()) {
+        warning() << "State initializer has states that are not updated by the state updater";
+    }
+
+    // Map scorer inputs to states
+    for (auto const& key : scorerMetadataKeys) {
+        if (scorerOnnxModel_->session.hasInput(key)) {
+            auto stateName = scorerOnnxModel_->session.getCustomMetadata(key);
+            if (initializerStateNames.find(stateName) == initializerStateNames.end()) {
+                error() << "Scorer input " << key << " associated with state " << stateName << " is not present in state initializer";
+            }
+            scorerInputToStateNameMap_.emplace(key, stateName);
+        }
+    }
+    if (scorerInputToStateNameMap_.empty()) {
+        error() << "Scorer does not take any input hidden-states";
+    }
+}
+
+void OnnxHiddenStateModel::addStateInputs(StateNameMap const&                    inputToStateNameMap,
+                                          std::vector<OnnxHiddenStateRef> const& hiddenStatesBatch,
+                                          SessionInputs&                         sessionInputs) const {
+    for (auto const& [inputName, stateName] : inputToStateNameMap) {
+        // Collect a vector of individual state values of shape [1, *] and afterwards concatenate
+        // them to a batched state tensor of shape [B, *]
+        std::vector<Onnx::Value const*> stateValues;
+        stateValues.reserve(hiddenStatesBatch.size());
+
+        for (auto const& hiddenState : hiddenStatesBatch) {
+            verify(hiddenState);
+            stateValues.push_back(&hiddenState->stateValueMap.at(stateName));
+        }
+        sessionInputs.emplace_back(inputName, Onnx::Value::concat(stateValues, 0));
+    }
+}
+
+void OnnxHiddenStateModel::collectStateOutputs(StateNameMap const&       outputToStateNameMap,
+                                               std::vector<std::string>& sessionOutputNames,
+                                               std::vector<std::string>& stateNames) {
+    sessionOutputNames.reserve(outputToStateNameMap.size());
+    stateNames.reserve(outputToStateNameMap.size());
+    for (auto const& [outputName, stateName] : outputToStateNameMap) {
+        sessionOutputNames.push_back(outputName);
+        stateNames.push_back(stateName);
+    }
 }
 
 }  // namespace Nn

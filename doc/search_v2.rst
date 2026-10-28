@@ -345,8 +345,11 @@ it for that timestep) or the per-timestep label limit is reached.
   so. ``sum`` also requires the same output token history and merges scores via log-sum-exp. ``viterbi`` ignores
   history and just keeps the better-scoring path. ``off`` disables recombination entirely. Default ``sum``.
 * ``collapse-repeated-labels``, ``cache-cleanup-interval``, ``maximum-stable-delay``,
-  ``maximum-stable-delay-pruning-interval``, ``log-stepwise-statistics``: same meaning and defaults as for
+  ``maximum-stable-delay-pruning-interval``: same meaning and defaults as for
   ``lexiconfree-timesync-beam-search`` above.
+
+In the ``stepwise-statistics`` channel (see :ref:`Logging channels`), each ``search-step-stats`` record contains
+one ``symbol-step-stats`` record per iteration of the inner loop.
 
 Like the other ``SearchV2`` algorithms, this one supports more than one label scorer at once (see
 :ref:`Multiple label scorers and per-stage parameters`), applied one after another within each symbol step with
@@ -359,7 +362,9 @@ extensions from the second scorer onward.
 Every configured label scorer should have ``vertical-label-transition = true`` set (where that parameter is
 available, e.g. :ref:`fixed-context-onnx`), so that its internal notion of time only advances on blank.
 The search itself has no way to enforce or check this, it just takes each label scorer's reported time as-is
-for a hypothesis's traceback timestamp.
+for a hypothesis's traceback timestamp. A label item ends at the frame it was emitted in, a blank item ends one
+frame later since blank consumes that frame. Blank is treated as pause in maximum-stable-delay pruning, which
+requires a lemma for it in the lexicon.
 
 Order of operations for one time-synchronous decoding step, assuming two label scorers ``L_1`` and ``L_2`` with
 ``max-beam-size = b_1 b_2`` and ``score-threshold = s_1 s_2``:
@@ -701,8 +706,8 @@ This means that regardless of how the search process develops in the future, the
 ``maximum-stable-delay`` pruning bounds how much the stable prefix can lag behind the current search step:
 The pruning runs every ``maximum-stable-delay-pruning-interval`` steps. After ``t`` decoded frames, the cutoff is
 ``c = t + 1 - maximum-stable-delay`` and the goal is to make sure that the stable partial traceback ends at ``c``
-or later. It is implemented by ``lexiconfree-timesync-beam-search``, ``tree-timesync-beam-search``
-and the classic ``advanced-tree-search``.
+or later. It is implemented by ``lexiconfree-timesync-beam-search``, ``lexiconfree-rnnt-timesync-beam-search``,
+``tree-timesync-beam-search`` and the classic ``advanced-tree-search``.
 
 1. **Reference:** the best hypothesis which has a lemma ending at ``c`` or later in its traceback or is currently
    in a pause (i.e. blank/silence segment). The earliest such lemma in the traceback is taken as the pruning root.
@@ -712,7 +717,8 @@ and the classic ``advanced-tree-search``.
    ongoing: this pause is split into two parts; before and after ``c``. Thus, if the reference contains such a pause,
    the partial pause up to ``c`` becomes the pruning root and all hypotheses that share the same partial pause are kept.
    The split is only cosmetic; it has no score contributions of its own. The score of the whole pause is attributed
-   to the remaining part. Only ``lexiconfree-timesync-beam-search`` and ``tree-timesync-beam-search`` split pauses.
+   to the remaining part. Only ``lexiconfree-timesync-beam-search``, ``lexiconfree-rnnt-timesync-beam-search`` and
+   ``tree-timesync-beam-search`` split pauses.
 
 Consequences:
 

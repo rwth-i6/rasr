@@ -449,7 +449,6 @@ void StatefulOnnxLabelScorer::setupEncoderStatesSizeValue() {
 }
 
 void StatefulOnnxLabelScorer::logScoringBreakdown() const {
-    // The initializer runs lazily from within scoring, so it counts towards the state-update session time
     auto stateUpdateSessionTime = hiddenStateModel_.initializerSessionTime().elapsedMilliseconds() + hiddenStateModel_.updaterSessionTime().elapsedMilliseconds();
     auto stateMarshallingTime   = stateMarshallingTime_.elapsedMilliseconds() + hiddenStateModel_.marshallingTime().elapsedMilliseconds();
 

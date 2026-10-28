@@ -140,6 +140,9 @@ void StatefulTransducerOnnxLabelScorer::resetInternal() {
 
 ScoringContextRef StatefulTransducerOnnxLabelScorer::getInitialScoringContext() {
     if (not initialScoringContext_) {
+        // Running the state initializer is part of computing scores, so it counts towards the scoring time
+        Core::StopWatch::Scope timer(scoringTime_);
+
         auto initialHiddenState = hiddenStateModel_.initialHiddenState();
         initialScoringContext_  = Core::ref(new StepOnnxHiddenStateScoringContext(0ul, std::vector<LabelIndex>(), initialHiddenState, false));
     }
@@ -411,10 +414,10 @@ void StatefulTransducerOnnxLabelScorer::cacheScores(std::vector<StepOnnxHiddenSt
 }
 
 void StatefulTransducerOnnxLabelScorer::logScoringBreakdown() const {
-    // The state initializer only runs in `getInitialScoringContext`, outside of the scoring time, so it is not reported here
-    auto stateMarshallingTime = stateMarshallingTime_.elapsedMilliseconds() + hiddenStateModel_.marshallingTime().elapsedMilliseconds();
+    auto stateUpdateSessionTime = hiddenStateModel_.initializerSessionTime().elapsedMilliseconds() + hiddenStateModel_.updaterSessionTime().elapsedMilliseconds();
+    auto stateMarshallingTime   = stateMarshallingTime_.elapsedMilliseconds() + hiddenStateModel_.marshallingTime().elapsedMilliseconds();
 
-    statisticsChannel_ << Core::XmlFull("state-update-session-time", hiddenStateModel_.updaterSessionTime().elapsedMilliseconds());
+    statisticsChannel_ << Core::XmlFull("state-update-session-time", stateUpdateSessionTime);
     statisticsChannel_ << Core::XmlFull("scorer-session-time", hiddenStateModel_.scorerSessionTime().elapsedMilliseconds());
     statisticsChannel_ << Core::XmlFull("state-marshalling-time", stateMarshallingTime);
     statisticsChannel_ << Core::XmlFull("context-preparation-time", contextPreparationTime_.elapsedMilliseconds());

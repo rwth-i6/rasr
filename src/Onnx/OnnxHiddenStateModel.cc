@@ -20,23 +20,45 @@
 #include <Core/Assertions.hh>
 #include <Core/ReferenceCounting.hh>
 
-namespace Nn {
+namespace Onnx {
+
+/*
+ * =============================
+ * ====== OnnxHiddenState ======
+ * =============================
+ */
+OnnxHiddenState::OnnxHiddenState()
+        : stateValueMap() {}
+
+OnnxHiddenState::OnnxHiddenState(std::vector<std::string>&& names, std::vector<Value>&& values) {
+    verify(names.size() == values.size());
+    stateValueMap.reserve(names.size());
+    for (size_t i = 0ul; i < names.size(); ++i) {
+        stateValueMap.emplace(std::move(names[i]), std::move(values[i]));
+    }
+}
+
+/*
+ * ==================================
+ * ====== OnnxHiddenStateModel ======
+ * ==================================
+ */
 
 // Every scorer model produces one score vector per batch entry. The rest of its IO is not part of
 // the hidden-state convention and is declared by the owner.
-static const Onnx::IOSpecification scorerScoresIoSpec{
+static const IOSpecification scorerScoresIoSpec{
         "scores",
-        Onnx::IODirection::OUTPUT,
+        IODirection::OUTPUT,
         false,
-        {Onnx::ValueType::TENSOR},
-        {Onnx::ValueDataType::FLOAT},
+        {ValueType::TENSOR},
+        {ValueDataType::FLOAT},
         {{-1, -2}}};  // [B, V]
 
-OnnxHiddenStateModel::OnnxHiddenStateModel(Core::Configuration const&                config,
-                                           ModelCache&                               modelCache,
-                                           std::vector<Onnx::IOSpecification> const& stateInitializerIoSpec,
-                                           std::vector<Onnx::IOSpecification> const& stateUpdaterIoSpec,
-                                           std::vector<Onnx::IOSpecification> const& scorerIoSpec)
+OnnxHiddenStateModel::OnnxHiddenStateModel(Core::Configuration const&          config,
+                                           Nn::ModelCache&                     modelCache,
+                                           std::vector<IOSpecification> const& stateInitializerIoSpec,
+                                           std::vector<IOSpecification> const& stateUpdaterIoSpec,
+                                           std::vector<IOSpecification> const& scorerIoSpec)
         : Core::Component(config),
           initializerOutputToStateNameMap_(),
           updaterInputToStateNameMap_(),
@@ -53,9 +75,9 @@ OnnxHiddenStateModel::OnnxHiddenStateModel(Core::Configuration const&           
     auto fullScorerIoSpec = scorerIoSpec;
     fullScorerIoSpec.push_back(scorerScoresIoSpec);
 
-    stateInitializerOnnxModel_ = modelCache.getOrCreate<Onnx::Model>(initializerKey, initializerModelConfig, stateInitializerIoSpec);
-    stateUpdaterOnnxModel_     = modelCache.getOrCreate<Onnx::Model>(updaterKey, updaterModelConfig, stateUpdaterIoSpec);
-    scorerOnnxModel_           = modelCache.getOrCreate<Onnx::Model>(scorerKey, scorerModelConfig, fullScorerIoSpec);
+    stateInitializerOnnxModel_ = modelCache.getOrCreate<Model>(initializerKey, initializerModelConfig, stateInitializerIoSpec);
+    stateUpdaterOnnxModel_     = modelCache.getOrCreate<Model>(updaterKey, updaterModelConfig, stateUpdaterIoSpec);
+    scorerOnnxModel_           = modelCache.getOrCreate<Model>(scorerKey, scorerModelConfig, fullScorerIoSpec);
 
     scorerScoresName_ = scorerOnnxModel_->mapping.getOnnxName("scores");
 
@@ -82,7 +104,7 @@ OnnxHiddenStateRef OnnxHiddenStateModel::initialHiddenState(SessionInputs extraI
         collectStateOutputs(initializerOutputToStateNameMap_, sessionOutputNames, stateNames);
     }
 
-    std::vector<Onnx::Value> sessionOutputs;
+    std::vector<Value> sessionOutputs;
     initializerSessionTime_.start();
     stateInitializerOnnxModel_->session.run(std::move(extraInputs), sessionOutputNames, sessionOutputs);
     initializerSessionTime_.stop();
@@ -111,7 +133,7 @@ std::vector<OnnxHiddenStateRef> OnnxHiddenStateModel::updatedHiddenStates(std::v
     /*
      * Run session
      */
-    std::vector<Onnx::Value> sessionOutputs;
+    std::vector<Value> sessionOutputs;
     updaterSessionTime_.start();
     stateUpdaterOnnxModel_->session.run(std::move(extraInputs), sessionOutputNames, sessionOutputs);
     updaterSessionTime_.stop();
@@ -123,7 +145,7 @@ std::vector<OnnxHiddenStateRef> OnnxHiddenStateModel::updatedHiddenStates(std::v
     std::vector<OnnxHiddenStateRef> newHiddenStates;
     newHiddenStates.reserve(hiddenStatesBatch.size());
     for (size_t b = 0ul; b < hiddenStatesBatch.size(); ++b) {
-        std::vector<Onnx::Value> stateValues;
+        std::vector<Value> stateValues;
         stateValues.reserve(sessionOutputs.size());
         for (size_t i = 0ul; i < sessionOutputs.size(); ++i) {
             stateValues.push_back(sessionOutputs[i].slice(b, b + 1, 0));
@@ -134,8 +156,8 @@ std::vector<OnnxHiddenStateRef> OnnxHiddenStateModel::updatedHiddenStates(std::v
     return newHiddenStates;
 }
 
-std::vector<std::shared_ptr<std::vector<Score>>> OnnxHiddenStateModel::scores(std::vector<OnnxHiddenStateRef> const& hiddenStatesBatch,
-                                                                              SessionInputs                          extraInputs) {
+std::vector<std::shared_ptr<std::vector<Nn::Score>>> OnnxHiddenStateModel::scores(std::vector<OnnxHiddenStateRef> const& hiddenStatesBatch,
+                                                                                  SessionInputs                          extraInputs) {
     if (hiddenStatesBatch.empty()) {
         return {};
     }
@@ -151,7 +173,7 @@ std::vector<std::shared_ptr<std::vector<Score>>> OnnxHiddenStateModel::scores(st
     /*
      * Run session
      */
-    std::vector<Onnx::Value> sessionOutputs;
+    std::vector<Value> sessionOutputs;
     scorerSessionTime_.start();
     scorerOnnxModel_->session.run(std::move(extraInputs), {scorerScoresName_}, sessionOutputs);
     scorerSessionTime_.stop();
@@ -159,11 +181,11 @@ std::vector<std::shared_ptr<std::vector<Score>>> OnnxHiddenStateModel::scores(st
     /*
      * Return resulting score vectors
      */
-    Core::StopWatch::Scope                           marshallingTimer(marshallingTime_);
-    std::vector<std::shared_ptr<std::vector<Score>>> scoreVecs;
+    Core::StopWatch::Scope                               marshallingTimer(marshallingTime_);
+    std::vector<std::shared_ptr<std::vector<Nn::Score>>> scoreVecs;
     scoreVecs.reserve(hiddenStatesBatch.size());
     for (size_t b = 0ul; b < hiddenStatesBatch.size(); ++b) {
-        auto scoreVec = std::make_shared<std::vector<Score>>();
+        auto scoreVec = std::make_shared<std::vector<Nn::Score>>();
         sessionOutputs.front().get(b, *scoreVec);
         scoreVecs.push_back(scoreVec);
     }
@@ -263,14 +285,14 @@ void OnnxHiddenStateModel::addStateInputs(StateNameMap const&                   
     for (auto const& [inputName, stateName] : inputToStateNameMap) {
         // Collect a vector of individual state values of shape [1, *] and afterwards concatenate
         // them to a batched state tensor of shape [B, *]
-        std::vector<Onnx::Value const*> stateValues;
+        std::vector<Value const*> stateValues;
         stateValues.reserve(hiddenStatesBatch.size());
 
         for (auto const& hiddenState : hiddenStatesBatch) {
             verify(hiddenState);
             stateValues.push_back(&hiddenState->stateValueMap.at(stateName));
         }
-        sessionInputs.emplace_back(inputName, Onnx::Value::concat(stateValues, 0));
+        sessionInputs.emplace_back(inputName, Value::concat(stateValues, 0));
     }
 }
 
@@ -285,4 +307,4 @@ void OnnxHiddenStateModel::collectStateOutputs(StateNameMap const&       outputT
     }
 }
 
-}  // namespace Nn
+}  // namespace Onnx

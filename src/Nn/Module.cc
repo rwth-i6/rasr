@@ -27,15 +27,18 @@
 #include "LabelScorer/CtcPrefixLabelScorer.hh"
 #include "LabelScorer/EncoderDecoderLabelScorer.hh"
 #include "LabelScorer/EncoderFactory.hh"
-#include "LabelScorer/FixedContextOnnxLabelScorer.hh"
-#include "LabelScorer/NoContextOnnxLabelScorer.hh"
 #include "LabelScorer/NoOpLabelScorer.hh"
 #include "LabelScorer/PriorLabelScorer.hh"
+#include "LabelScorer/TransitionLabelScorer.hh"
+#include "Statistics.hh"
+
+#ifdef MODULE_ONNX
+#include "LabelScorer/FixedContextOnnxLabelScorer.hh"
+#include "LabelScorer/NoContextOnnxLabelScorer.hh"
 #include "LabelScorer/StateManagedOnnxLabelScorer.hh"
 #include "LabelScorer/StatefulOnnxLabelScorer.hh"
 #include "LabelScorer/StatefulTransducerOnnxLabelScorer.hh"
-#include "LabelScorer/TransitionLabelScorer.hh"
-#include "Statistics.hh"
+#endif
 
 #ifdef MODULE_NN
 #include <Mm/FeatureScorerFactory.hh>
@@ -181,6 +184,7 @@ Module_::Module_()
                         scaledDecoder));
             });
 
+#ifdef MODULE_ONNX
     // Compute scores by forwarding a single input feature vector without history through an ONNX model
     labelScorerFactory_.registerLabelScorer(
             "no-context-onnx",
@@ -215,6 +219,7 @@ Module_::Module_()
             [](Core::Configuration const& config, ModelCache& modelCache) {
                 return Core::ref(new StateManagedOnnxLabelScorer(config, modelCache));
             });
+#endif
 
     // Returns predefined scores based on the transition type of each score request
     labelScorerFactory_.registerLabelScorer(

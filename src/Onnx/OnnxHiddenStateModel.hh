@@ -24,16 +24,28 @@
 
 #include <Core/Component.hh>
 #include <Core/Configuration.hh>
+#include <Core/ReferenceCounting.hh>
 #include <Core/StopWatch.hh>
-#include <Onnx/IOSpecification.hh>
-#include <Onnx/Model.hh>
-#include <Onnx/Value.hh>
+#include <Nn/LabelScorer/ModelCache.hh>
+#include <Nn/LabelScorer/Types.hh>
 
-#include "ModelCache.hh"
-#include "ScoringContext.hh"
-#include "Types.hh"
+#include "IOSpecification.hh"
+#include "Model.hh"
+#include "Value.hh"
 
-namespace Nn {
+namespace Onnx {
+
+/*
+ * Hidden state represented by a dictionary of named ONNX values
+ */
+struct OnnxHiddenState : public Core::ReferenceCounted {
+    std::unordered_map<std::string, Value> stateValueMap;
+
+    OnnxHiddenState();
+    OnnxHiddenState(std::vector<std::string>&& names, std::vector<Value>&& values);
+};
+
+typedef Core::Ref<OnnxHiddenState const> OnnxHiddenStateRef;
 
 /*
  * Bundle of the three ONNX models that make up a stateful scoring pipeline together with the
@@ -73,15 +85,15 @@ namespace Nn {
 class OnnxHiddenStateModel : public Core::Component {
 public:
     // Session inputs that are not hidden states and thus prepared by the owner
-    using SessionInputs = std::vector<std::pair<std::string, Onnx::Value>>;
+    using SessionInputs = std::vector<std::pair<std::string, Value>>;
 
     // The models are read from the sub-configurations "state-initializer-model", "state-updater-model"
     // and "scorer-model" of the given config
-    OnnxHiddenStateModel(Core::Configuration const&                config,
-                         ModelCache&                               modelCache,
-                         std::vector<Onnx::IOSpecification> const& stateInitializerIoSpec,
-                         std::vector<Onnx::IOSpecification> const& stateUpdaterIoSpec,
-                         std::vector<Onnx::IOSpecification> const& scorerIoSpec);
+    OnnxHiddenStateModel(Core::Configuration const&          config,
+                         Nn::ModelCache&                     modelCache,
+                         std::vector<IOSpecification> const& stateInitializerIoSpec,
+                         std::vector<IOSpecification> const& stateUpdaterIoSpec,
+                         std::vector<IOSpecification> const& scorerIoSpec);
 
     // ONNX name that the model maps the given IO specification key to, or "" if it doesn't have that IO
     std::string stateInitializerOnnxName(std::string const& key) const;
@@ -96,8 +108,8 @@ public:
                                                         SessionInputs                          extraInputs = {});
 
     // Run the scorer on a batch of hidden states to obtain one score vector per batch entry
-    std::vector<std::shared_ptr<std::vector<Score>>> scores(std::vector<OnnxHiddenStateRef> const& hiddenStatesBatch,
-                                                            SessionInputs                          extraInputs = {});
+    std::vector<std::shared_ptr<std::vector<Nn::Score>>> scores(std::vector<OnnxHiddenStateRef> const& hiddenStatesBatch,
+                                                                SessionInputs                          extraInputs = {});
 
     // Time spent in the session runs of the individual models
     Core::StopWatch const& initializerSessionTime() const;
@@ -127,9 +139,9 @@ private:
                                     std::vector<std::string>& sessionOutputNames,
                                     std::vector<std::string>& stateNames);
 
-    std::shared_ptr<Onnx::Model> stateInitializerOnnxModel_;
-    std::shared_ptr<Onnx::Model> stateUpdaterOnnxModel_;
-    std::shared_ptr<Onnx::Model> scorerOnnxModel_;
+    std::shared_ptr<Model> stateInitializerOnnxModel_;
+    std::shared_ptr<Model> stateUpdaterOnnxModel_;
+    std::shared_ptr<Model> scorerOnnxModel_;
 
     // Map input/output names of the onnx models to hidden state names
     StateNameMap initializerOutputToStateNameMap_;
@@ -145,6 +157,6 @@ private:
     Core::StopWatch marshallingTime_;
 };
 
-}  // namespace Nn
+}  // namespace Onnx
 
 #endif  // ONNX_HIDDEN_STATE_MODEL_HH

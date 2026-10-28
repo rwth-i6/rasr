@@ -37,7 +37,7 @@ namespace Nn {
 OnnxHiddenStateScoringContext::OnnxHiddenStateScoringContext()
         : labelSeq(), hiddenState(), requiresFinalize(false) {}
 
-OnnxHiddenStateScoringContext::OnnxHiddenStateScoringContext(std::vector<LabelIndex> const& labelSeq, OnnxHiddenStateRef state, bool requiresFinalize)
+OnnxHiddenStateScoringContext::OnnxHiddenStateScoringContext(std::vector<LabelIndex> const& labelSeq, Onnx::OnnxHiddenStateRef state, bool requiresFinalize)
         : labelSeq(labelSeq), hiddenState(state), requiresFinalize(requiresFinalize) {}
 
 bool OnnxHiddenStateScoringContext::isEqual(ScoringContextRef const& other) const {
@@ -86,7 +86,7 @@ const Core::ParameterInt StatefulOnnxLabelScorer::paramMaxCachedScores(
         "Maximum size of cache that maps scoring contexts to scores. This prevents memory overflow in case of very long audio segments.",
         10000);
 
-// The hidden states and the scores output are not part of the IO specs; they are handled by `OnnxHiddenStateModel`.
+// The hidden states and the scores output are not part of the IO specs; they are handled by `Onnx::OnnxHiddenStateModel`.
 // The scorer takes nothing but hidden states, so it has no IO spec of its own.
 static const std::vector<Onnx::IOSpecification> stateInitializerModelIoSpec = {
         Onnx::IOSpecification{
@@ -206,7 +206,7 @@ ScoringContextRef StatefulOnnxLabelScorer::extendedScoringContext(ScoringContext
 void StatefulOnnxLabelScorer::addInput(DataView const& input) {
     Precursor::addInput(input);
 
-    initialHiddenState_ = OnnxHiddenStateRef();
+    initialHiddenState_ = Onnx::OnnxHiddenStateRef();
 
     if (not encoderStatesValue_.empty()) {  // Any previously computed hidden state values are outdated now so reset them
         encoderStatesValue_     = Onnx::Value();
@@ -311,7 +311,7 @@ void StatefulOnnxLabelScorer::cacheScores(std::vector<OnnxHiddenStateScoringCont
     }
 
     // Fetched before the timed block below because it runs a session of its own
-    OnnxHiddenStateRef initialHiddenState;
+    Onnx::OnnxHiddenStateRef initialHiddenState;
     for (auto const& scoringContext : scoringContextBatch) {
         if (scoringContext->labelSeq.empty()) {
             initialHiddenState = computeInitialHiddenState();
@@ -322,7 +322,7 @@ void StatefulOnnxLabelScorer::cacheScores(std::vector<OnnxHiddenStateScoringCont
     /*
      * Collect the hidden state of each scoring context in the batch
      */
-    std::vector<OnnxHiddenStateRef> hiddenStates;
+    std::vector<Onnx::OnnxHiddenStateRef> hiddenStates;
     {
         Core::StopWatch::Scope marshallingTimer(stateMarshallingTime_);
         hiddenStates.reserve(scoringContextBatch.size());
@@ -345,8 +345,8 @@ void StatefulOnnxLabelScorer::cacheScores(std::vector<OnnxHiddenStateScoringCont
     }
 }
 
-std::vector<OnnxHiddenStateRef> StatefulOnnxLabelScorer::updatedHiddenStates(std::vector<OnnxHiddenStateRef> const& hiddenStatesBatch, std::vector<s32> nextTokensBatch) {
-    OnnxHiddenStateModel::SessionInputs sessionInputs;
+std::vector<Onnx::OnnxHiddenStateRef> StatefulOnnxLabelScorer::updatedHiddenStates(std::vector<Onnx::OnnxHiddenStateRef> const& hiddenStatesBatch, std::vector<s32> nextTokensBatch) {
+    Onnx::OnnxHiddenStateModel::SessionInputs sessionInputs;
     {
         Core::StopWatch::Scope marshallingTimer(stateMarshallingTime_);
 
@@ -368,7 +368,7 @@ std::vector<OnnxHiddenStateRef> StatefulOnnxLabelScorer::updatedHiddenStates(std
 
 void StatefulOnnxLabelScorer::cacheStates(std::vector<OnnxHiddenStateScoringContextRef> const& scoringContextBatch) {
     std::vector<OnnxHiddenStateScoringContextRef> nonFinalizedContexts;
-    std::vector<OnnxHiddenStateRef>               hiddenStates;
+    std::vector<Onnx::OnnxHiddenStateRef>         hiddenStates;
     std::vector<s32>                              nextTokens;
     for (auto const& scoringContext : scoringContextBatch) {
         if (not scoringContext->requiresFinalize) {
@@ -398,11 +398,11 @@ void StatefulOnnxLabelScorer::cacheStates(std::vector<OnnxHiddenStateScoringCont
     }
 }
 
-OnnxHiddenStateRef StatefulOnnxLabelScorer::computeInitialHiddenState() {
+Onnx::OnnxHiddenStateRef StatefulOnnxLabelScorer::computeInitialHiddenState() {
     verify(not expectMoreFeatures_ or (initializerEncoderStatesName_ == "" and initializerEncoderStatesSizeName_ == ""));
 
     if (not initialHiddenState_) {  // initialHiddenState_ is still sentinel value -> compute it
-        OnnxHiddenStateModel::SessionInputs sessionInputs;
+        Onnx::OnnxHiddenStateModel::SessionInputs sessionInputs;
         {
             Core::StopWatch::Scope marshallingTimer(stateMarshallingTime_);
 

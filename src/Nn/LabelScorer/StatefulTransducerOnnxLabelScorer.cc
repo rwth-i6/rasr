@@ -38,7 +38,7 @@ StepOnnxHiddenStateScoringContext::StepOnnxHiddenStateScoringContext()
 StepOnnxHiddenStateScoringContext::StepOnnxHiddenStateScoringContext(
         Speech::TimeframeIndex         step,
         std::vector<LabelIndex> const& labelSeq,
-        OnnxHiddenStateRef             state,
+        Onnx::OnnxHiddenStateRef       state,
         bool                           requiresFinalize)
         : currentStep(step),
           labelSeq(labelSeq),
@@ -94,7 +94,7 @@ const Core::ParameterInt StatefulTransducerOnnxLabelScorer::paramMaxCachedScores
         "Maximum size of cache that maps histories to scores. This prevents memory overflow in case of very long audio segments.",
         10000);
 
-// The hidden states and the scores output are not part of the IO spec; they are handled by `OnnxHiddenStateModel`
+// The hidden states and the scores output are not part of the IO spec; they are handled by `Onnx::OnnxHiddenStateModel`
 static const std::vector<Onnx::IOSpecification> scorerModelIoSpec = {
         Onnx::IOSpecification{
                 "input-feature",
@@ -335,8 +335,8 @@ void StatefulTransducerOnnxLabelScorer::cacheScores(std::vector<StepOnnxHiddenSt
         return;
     }
 
-    std::vector<OnnxHiddenStateRef>     hiddenStates;
-    OnnxHiddenStateModel::SessionInputs sessionInputs;
+    std::vector<Onnx::OnnxHiddenStateRef>     hiddenStates;
+    Onnx::OnnxHiddenStateModel::SessionInputs sessionInputs;
     {
         Core::StopWatch::Scope marshallingTimer(stateMarshallingTime_);
 
@@ -374,8 +374,8 @@ void StatefulTransducerOnnxLabelScorer::cacheScores(std::vector<StepOnnxHiddenSt
     }
 }
 
-std::vector<OnnxHiddenStateRef> StatefulTransducerOnnxLabelScorer::updatedHiddenStates(std::vector<OnnxHiddenStateRef> const& hiddenStatesBatch, std::vector<s32> nextTokensBatch) {
-    OnnxHiddenStateModel::SessionInputs sessionInputs;
+std::vector<Onnx::OnnxHiddenStateRef> StatefulTransducerOnnxLabelScorer::updatedHiddenStates(std::vector<Onnx::OnnxHiddenStateRef> const& hiddenStatesBatch, std::vector<s32> nextTokensBatch) {
+    Onnx::OnnxHiddenStateModel::SessionInputs sessionInputs;
     {
         Core::StopWatch::Scope marshallingTimer(stateMarshallingTime_);
         sessionInputs.emplace_back(updaterTokenName_, Onnx::Value::create(nextTokensBatch));
@@ -386,7 +386,7 @@ std::vector<OnnxHiddenStateRef> StatefulTransducerOnnxLabelScorer::updatedHidden
 
 void StatefulTransducerOnnxLabelScorer::cacheStates(std::vector<StepOnnxHiddenStateScoringContextRef> const& scoringContextBatch) {
     std::vector<StepOnnxHiddenStateScoringContextRef> nonFinalizedContexts;
-    std::vector<OnnxHiddenStateRef>                   hiddenStates;
+    std::vector<Onnx::OnnxHiddenStateRef>             hiddenStates;
     std::vector<s32>                                  nextTokens;
     for (auto const& scoringContext : scoringContextBatch) {
         if (not scoringContext->requiresFinalize) {

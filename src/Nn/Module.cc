@@ -20,8 +20,6 @@
 #include <Nn/FixedQuantizationCompressedVectorFactory.hh>
 #include <Nn/QuantizedCompressedVectorFactory.hh>
 #include <Nn/ReducedPrecisionCompressedVectorFactory.hh>
-#include <Onnx/OnnxLstmStateManager.hh>
-#include <Onnx/OnnxTransformerStateManager.hh>
 
 #include "LabelScorer/CombineLabelScorer.hh"
 #include "LabelScorer/CtcPrefixLabelScorer.hh"
@@ -33,6 +31,9 @@
 #include "Statistics.hh"
 
 #ifdef MODULE_ONNX
+#include <Onnx/OnnxLstmStateManager.hh>
+#include <Onnx/OnnxTransformerStateManager.hh>
+
 #include "LabelScorer/FixedContextOnnxLabelScorer.hh"
 #include "LabelScorer/NoContextOnnxLabelScorer.hh"
 #include "LabelScorer/StateManagedOnnxLabelScorer.hh"
@@ -66,12 +67,14 @@ enum CompressedVectorFactoryType {
     ReducedPrecisionCompressedVectorFactoryType
 };
 
+#ifdef MODULE_ONNX
 enum StateManagerType {
     LstmStateManagerType,
     TransformerStateManagerType,
     TransformerStateManager16BitType,
     TransformerStateManager8BitType,
 };
+#endif
 
 }  // namespace
 
@@ -88,6 +91,7 @@ const Core::ParameterChoice Module_::compressedVectorFactoryTypeParam(
         "type of compressed vector factory",
         DummyCompressedVectorFactoryType);
 
+#ifdef MODULE_ONNX
 const Core::Choice Module_::stateManagerTypeChoice(
         "lstm", LstmStateManagerType,
         "transformer", TransformerStateManagerType,
@@ -100,6 +104,7 @@ const Core::ParameterChoice Module_::stateManagerTypeParam(
         &Module_::stateManagerTypeChoice,
         "type of the state manager",
         LstmStateManagerType);
+#endif
 
 Module_::Module_()
         : formats_(nullptr),
@@ -267,6 +272,7 @@ CompressedVectorFactoryPtr<float> Module_::createCompressedVectorFactory(Core::C
     }
 }
 
+#ifdef MODULE_ONNX
 std::unique_ptr<AbstractStateManager<Onnx::Value, Onnx::OnnxStateVariable>> Module_::createStateManager(Core::Configuration const& config) {
     switch (stateManagerTypeParam(config)) {
         case LstmStateManagerType:
@@ -285,3 +291,4 @@ std::unique_ptr<AbstractStateManager<Onnx::Value, Onnx::OnnxStateVariable>> Modu
             defect();
     }
 }
+#endif

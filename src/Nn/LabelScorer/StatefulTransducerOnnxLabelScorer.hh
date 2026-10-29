@@ -17,6 +17,7 @@
 #define STATEFUL_TRANSDUCER_ONNX_LABEL_SCORER_HH
 
 #include <optional>
+#include <unordered_map>
 
 #include <Core/Component.hh>
 #include <Core/Configuration.hh>
@@ -51,6 +52,22 @@ struct StepOnnxHiddenStateScoringContext : public ScoringContext {
 };
 
 typedef Core::Ref<const StepOnnxHiddenStateScoringContext> StepOnnxHiddenStateScoringContextRef;
+
+/*
+ * Hash and equality of `StepOnnxHiddenStateScoringContext`s that only consider the label sequence and ignore the step.
+ * Used for caching hidden states, which only depend on the label sequence.
+ */
+struct LabelSeqHash {
+    size_t operator()(StepOnnxHiddenStateScoringContextRef const& scoringContext) const {
+        return labelSeqHash(scoringContext->labelSeq);
+    }
+};
+
+struct LabelSeqEq {
+    bool operator()(StepOnnxHiddenStateScoringContextRef const& lhs, StepOnnxHiddenStateScoringContextRef const& rhs) const {
+        return labelSeqEqual(lhs->labelSeq, rhs->labelSeq);
+    }
+};
 
 /*
  * Label Scorer that performs scoring by forwarding hidden states through an ONNX model.
@@ -100,14 +117,19 @@ protected:
     size_t getMinActiveInputIndex(Core::CollapsedVector<ScoringContextRef> const& activeContexts) const override;
 
 private:
+    // Hidden states that have been looked up or computed during one `computeScoreAccessors` call.
+    // Unlike the state cache, entries can't be evicted while the call still needs them.
+    using ResolvedStateMap = std::unordered_map<StepOnnxHiddenStateScoringContextRef, Onnx::OnnxNamedValuesRef, LabelSeqHash, LabelSeqEq>;
+
     // Forward a batch of scoringContexts through the ONNX scorer model and put the resulting scores into the score cache
-    void cacheScores(std::vector<StepOnnxHiddenStateScoringContextRef> const& scoringContextBatch);
+    void cacheScores(std::vector<StepOnnxHiddenStateScoringContextRef> const& scoringContextBatch, ResolvedStateMap const& resolvedStates);
 
     // Computes new hidden state based on previous hidden state and next token with batched state-updater call
     std::vector<Onnx::OnnxNamedValuesRef> updatedHiddenStates(std::vector<Onnx::OnnxNamedValuesRef> const& hiddenStatesBatch, std::vector<s32> nextTokensBatch);
 
-    // Compute updated states for all non-finalized scoring contexts and put them into the state cache
-    void cacheStates(std::vector<StepOnnxHiddenStateScoringContextRef> const& scoringContextBatch);
+    // Compute updated states for all non-finalized scoring contexts whose state isn't resolved yet and put them into the
+    // state cache and into `resolvedStates`
+    void cacheStates(std::vector<StepOnnxHiddenStateScoringContextRef> const& scoringContextBatch, ResolvedStateMap& resolvedStates);
 
     void logScoringBreakdown() const override;
 
@@ -130,7 +152,9 @@ private:
     Core::StopWatch contextPreparationTime_;
 
     Core::FIFOCache<StepOnnxHiddenStateScoringContextRef, std::shared_ptr<std::vector<Score>>, ScoringContextHash, ScoringContextEq> scoreCache_;
-    Core::FIFOCache<StepOnnxHiddenStateScoringContextRef, Onnx::OnnxNamedValuesRef, ScoringContextHash, ScoringContextEq>            stateCache_;
+
+    // Keyed by the label sequence only, since the hidden state doesn't depend on the step
+    Core::FIFOCache<StepOnnxHiddenStateScoringContextRef, Onnx::OnnxNamedValuesRef, LabelSeqHash, LabelSeqEq> stateCache_;
 };
 
 }  // namespace Nn

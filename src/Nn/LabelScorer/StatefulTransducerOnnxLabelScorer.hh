@@ -23,7 +23,7 @@
 #include <Core/FIFOCache.hh>
 #include <Core/ReferenceCounting.hh>
 #include <Mm/FeatureScorer.hh>
-#include <Onnx/OnnxHiddenStateModel.hh>
+#include <Onnx/OnnxInitUpdateScoreBundle.hh>
 #include <Speech/Feature.hh>
 
 #include "BufferedLabelScorer.hh"
@@ -40,11 +40,11 @@ namespace Nn {
 struct StepOnnxHiddenStateScoringContext : public ScoringContext {
     Speech::TimeframeIndex           currentStep;
     std::vector<LabelIndex>          labelSeq;  // Used for hashing
-    mutable Onnx::OnnxHiddenStateRef hiddenState;
+    mutable Onnx::OnnxNamedValuesRef hiddenState;
     mutable bool                     requiresFinalize;
 
     StepOnnxHiddenStateScoringContext();
-    StepOnnxHiddenStateScoringContext(Speech::TimeframeIndex step, std::vector<LabelIndex> const& labelSeq, Onnx::OnnxHiddenStateRef state, bool requiresFinalize);
+    StepOnnxHiddenStateScoringContext(Speech::TimeframeIndex step, std::vector<LabelIndex> const& labelSeq, Onnx::OnnxNamedValuesRef state, bool requiresFinalize);
 
     bool   isEqual(ScoringContextRef const& other) const override;
     size_t hash() const override;
@@ -60,7 +60,7 @@ typedef Core::Ref<const StepOnnxHiddenStateScoringContext> StepOnnxHiddenStateSc
  *  - A Scorer which computes scores based on the current input feature and the hidden states
  *
  * The models themselves as well as the mapping between their inputs/outputs and the hidden states are
- * handled by `Onnx::OnnxHiddenStateModel`; see there for the metadata convention that the models have to follow.
+ * handled by `Onnx::OnnxInitUpdateScoreBundle`; see there for the metadata convention that the models have to follow.
  *
  * A common use case for this Label Scorer would be a Transducer model with unlimited context.
  *
@@ -104,7 +104,7 @@ private:
     void cacheScores(std::vector<StepOnnxHiddenStateScoringContextRef> const& scoringContextBatch);
 
     // Computes new hidden state based on previous hidden state and next token with batched state-updater call
-    std::vector<Onnx::OnnxHiddenStateRef> updatedHiddenStates(std::vector<Onnx::OnnxHiddenStateRef> const& hiddenStatesBatch, std::vector<s32> nextTokensBatch);
+    std::vector<Onnx::OnnxNamedValuesRef> updatedHiddenStates(std::vector<Onnx::OnnxNamedValuesRef> const& hiddenStatesBatch, std::vector<s32> nextTokensBatch);
 
     // Compute updated states for all non-finalized scoring contexts and put them into the state cache
     void cacheStates(std::vector<StepOnnxHiddenStateScoringContextRef> const& scoringContextBatch);
@@ -117,7 +117,7 @@ private:
     bool   verticalLabelTransition_;
     size_t maxBatchSize_;
 
-    Onnx::OnnxHiddenStateModel hiddenStateModel_;
+    Onnx::OnnxInitUpdateScoreBundle initUpdateScoreBundle_;
 
     StepOnnxHiddenStateScoringContextRef initialScoringContext_;
 
@@ -125,12 +125,12 @@ private:
     std::string updaterTokenName_;
 
     // Preparing the input-feature and token session inputs and moving hidden states between the caches
-    // and the batches. The session times and the marshalling done inside `hiddenStateModel_` are tracked there.
+    // and the batches. The session times and the marshalling done inside `initUpdateScoreBundle_` are tracked there.
     Core::StopWatch stateMarshallingTime_;
     Core::StopWatch contextPreparationTime_;
 
     Core::FIFOCache<StepOnnxHiddenStateScoringContextRef, std::shared_ptr<std::vector<Score>>, ScoringContextHash, ScoringContextEq> scoreCache_;
-    Core::FIFOCache<StepOnnxHiddenStateScoringContextRef, Onnx::OnnxHiddenStateRef, ScoringContextHash, ScoringContextEq>            stateCache_;
+    Core::FIFOCache<StepOnnxHiddenStateScoringContextRef, Onnx::OnnxNamedValuesRef, ScoringContextHash, ScoringContextEq>            stateCache_;
 };
 
 }  // namespace Nn

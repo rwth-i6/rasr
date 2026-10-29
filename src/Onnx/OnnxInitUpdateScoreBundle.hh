@@ -13,8 +13,8 @@
  *  limitations under the License.
  */
 
-#ifndef ONNX_HIDDEN_STATE_MODEL_HH
-#define ONNX_HIDDEN_STATE_MODEL_HH
+#ifndef ONNX_INIT_UPDATE_SCORE_BUNDLE_HH
+#define ONNX_INIT_UPDATE_SCORE_BUNDLE_HH
 
 #include <memory>
 #include <string>
@@ -38,14 +38,14 @@ namespace Onnx {
 /*
  * Hidden state represented by a dictionary of named ONNX values
  */
-struct OnnxHiddenState : public Core::ReferenceCounted {
-    std::unordered_map<std::string, Value> stateValueMap;
+struct OnnxNamedValues : public Core::ReferenceCounted {
+    std::unordered_map<std::string, Value> valueMap;
 
-    OnnxHiddenState();
-    OnnxHiddenState(std::vector<std::string>&& names, std::vector<Value>&& values);
+    OnnxNamedValues();
+    OnnxNamedValues(std::vector<std::string>&& names, std::vector<Value>&& values);
 };
 
-typedef Core::Ref<OnnxHiddenState const> OnnxHiddenStateRef;
+typedef Core::Ref<OnnxNamedValues const> OnnxNamedValuesRef;
 
 /*
  * Bundle of the three ONNX models that make up a stateful scoring pipeline together with the
@@ -71,7 +71,7 @@ typedef Core::Ref<OnnxHiddenState const> OnnxHiddenStateRef;
  *
  * Any further model IO (input features, tokens, encoder states, ...) is not part of the hidden-state
  * convention and is declared by the owner via the IO specifications passed to the constructor. The
- * owner passes the corresponding values to `initialHiddenState`, `updatedHiddenStates` and `scores`
+ * owner passes the corresponding values to `initialState`, `updatedStates` and `scores`
  * as extra session inputs. The `scores` output of the Scorer is added by this class itself and must
  * not be part of the Scorer IO specification.
  *
@@ -82,18 +82,18 @@ typedef Core::Ref<OnnxHiddenState const> OnnxHiddenStateRef;
  * covered by this class and are instead handled by a RASR-side state manager
  * (see `StateManagedOnnxLabelScorer`).
  */
-class OnnxHiddenStateModel : public Core::Component {
+class OnnxInitUpdateScoreBundle : public Core::Component {
 public:
     // Session inputs that are not hidden states and thus prepared by the owner
     using SessionInputs = std::vector<std::pair<std::string, Value>>;
 
     // The models are read from the sub-configurations "state-initializer-model", "state-updater-model"
     // and "scorer-model" of the given config
-    OnnxHiddenStateModel(Core::Configuration const&          config,
-                         Nn::ModelCache&                     modelCache,
-                         std::vector<IOSpecification> const& stateInitializerIoSpec,
-                         std::vector<IOSpecification> const& stateUpdaterIoSpec,
-                         std::vector<IOSpecification> const& scorerIoSpec);
+    OnnxInitUpdateScoreBundle(Core::Configuration const&          config,
+                              Nn::ModelCache&                     modelCache,
+                              std::vector<IOSpecification> const& stateInitializerIoSpec,
+                              std::vector<IOSpecification> const& stateUpdaterIoSpec,
+                              std::vector<IOSpecification> const& scorerIoSpec);
 
     // ONNX name that the model maps the given IO specification key to, or "" if it doesn't have that IO
     std::string stateInitializerOnnxName(std::string const& key) const;
@@ -101,14 +101,14 @@ public:
     std::string scorerOnnxName(std::string const& key) const;
 
     // Run the state initializer to obtain the hidden state for the first step
-    OnnxHiddenStateRef initialHiddenState(SessionInputs extraInputs = {});
+    OnnxNamedValuesRef initialState(SessionInputs extraInputs = {});
 
     // Run the state updater on a batch of hidden states to obtain one updated hidden state per batch entry
-    std::vector<OnnxHiddenStateRef> updatedHiddenStates(std::vector<OnnxHiddenStateRef> const& hiddenStatesBatch,
-                                                        SessionInputs                          extraInputs = {});
+    std::vector<OnnxNamedValuesRef> updatedStates(std::vector<OnnxNamedValuesRef> const& hiddenStatesBatch,
+                                                  SessionInputs                          extraInputs = {});
 
     // Run the scorer on a batch of hidden states to obtain one score vector per batch entry
-    std::vector<std::shared_ptr<std::vector<Nn::Score>>> scores(std::vector<OnnxHiddenStateRef> const& hiddenStatesBatch,
+    std::vector<std::shared_ptr<std::vector<Nn::Score>>> scores(std::vector<OnnxNamedValuesRef> const& hiddenStatesBatch,
                                                                 SessionInputs                          extraInputs = {});
 
     // Time spent in the session runs of the individual models
@@ -130,7 +130,7 @@ private:
     // Add one batched state input per entry of the given map by concatenating the corresponding
     // state values of all hidden states in the batch along the batch axis
     void addStateInputs(StateNameMap const&                    inputToStateNameMap,
-                        std::vector<OnnxHiddenStateRef> const& hiddenStatesBatch,
+                        std::vector<OnnxNamedValuesRef> const& hiddenStatesBatch,
                         SessionInputs&                         sessionInputs) const;
 
     // Split the given map into the output names to request from a session run and the state names
@@ -159,4 +159,4 @@ private:
 
 }  // namespace Onnx
 
-#endif  // ONNX_HIDDEN_STATE_MODEL_HH
+#endif  // ONNX_INIT_UPDATE_SCORE_BUNDLE_HH

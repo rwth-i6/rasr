@@ -99,7 +99,6 @@ public:
     StatefulTransducerOnnxLabelScorer(Core::Configuration const& config, ModelCache& modelCache);
     virtual ~StatefulTransducerOnnxLabelScorer() = default;
 
-    // If startLabelIndex is set, forward that through the state updater to obtain the start ScoringContext
     ScoringContextRef getInitialScoringContext() override;
 
     // Append the new token to the label sequence; does not update the hidden-state. This is only done once the scoringContext is used for scoring again.

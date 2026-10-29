@@ -193,9 +193,8 @@ ScoringContextRef StatefulTransducerOnnxLabelScorer::extendedScoringContext(Scor
         requiresFinalize = true;
     }
 
-    // Re-use previous hidden-state but mark that finalization (i.e. hidden-state update) is required
-    auto newScoringContext              = Core::ref(new StepOnnxHiddenStateScoringContext(stepOnnxHiddenStateScoringContext->currentStep + timeIncrement, std::move(newLabelSeq), stepOnnxHiddenStateScoringContext->hiddenState, true));
-    newScoringContext->requiresFinalize = requiresFinalize;
+    // Re-use previous hidden-state; if a token was pushed, mark that finalization (i.e. hidden-state update) is required
+    auto newScoringContext = Core::ref(new StepOnnxHiddenStateScoringContext(stepOnnxHiddenStateScoringContext->currentStep + timeIncrement, std::move(newLabelSeq), stepOnnxHiddenStateScoringContext->hiddenState, requiresFinalize));
 
     auto hiddenState = stateCache_.get(newScoringContext);
     if (hiddenState) {
@@ -341,7 +340,13 @@ std::vector<std::optional<ScoreAccessorRef>> StatefulTransducerOnnxLabelScorer::
 }
 
 size_t StatefulTransducerOnnxLabelScorer::getMinActiveInputIndex(Core::CollapsedVector<ScoringContextRef> const& activeContexts) const {
-    return 0u;
+    auto minTimeIndex = Core::Type<Speech::TimeframeIndex>::max;
+    for (auto const& context : activeContexts.internalData()) {
+        StepOnnxHiddenStateScoringContextRef stepHistory(dynamic_cast<StepOnnxHiddenStateScoringContext const*>(context.get()));
+        minTimeIndex = std::min(minTimeIndex, stepHistory->currentStep);
+    }
+
+    return minTimeIndex;
 }
 
 void StatefulTransducerOnnxLabelScorer::cacheScores(std::vector<StepOnnxHiddenStateScoringContextRef> const& scoringContextBatch, ResolvedStateMap const& resolvedStates) {

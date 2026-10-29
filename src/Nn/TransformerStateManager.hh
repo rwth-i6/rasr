@@ -57,18 +57,6 @@ void uncompress(Nn::CompressedVector<float> const* vec, int8_t* dst, B const& b)
     qvec->load(dst, b);
 }
 
-// Mapper for Core::ThreadPool that just runs the submitted function
-class FunctionMapper {
-public:
-    FunctionMapper* clone() const {
-        return new FunctionMapper();
-    }
-    void map(std::function<void()> const& f) {
-        f();
-    }
-    void reset() {}
-};
-
 }  // namespace detail
 
 template<typename T, typename value_t, typename state_variable_t>
@@ -108,7 +96,7 @@ protected:
     const size_t numMergeThreads_;
 
     // Persistent worker threads for mergeStates, only created if numMergeThreads_ > 1
-    std::unique_ptr<Core::ThreadPool<std::function<void()>, detail::FunctionMapper>> mergeThreadPool_;
+    std::unique_ptr<Core::ThreadPool<std::function<void()>, Core::FunctionMapper>> mergeThreadPool_;
 };
 
 template<typename T, typename value_t, typename state_variable_t>
@@ -133,7 +121,7 @@ TransformerStateManager<T, value_t, state_variable_t>::TransformerStateManager(C
           mergeThreadPool_() {
     if (numMergeThreads_ > 1ul) {
         // The calling thread also takes part in merging, so one thread less is needed in the pool
-        mergeThreadPool_.reset(new Core::ThreadPool<std::function<void()>, detail::FunctionMapper>());
+        mergeThreadPool_.reset(new Core::ThreadPool<std::function<void()>, Core::FunctionMapper>());
         mergeThreadPool_->init(numMergeThreads_ - 1ul);
     }
 }

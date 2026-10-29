@@ -1,6 +1,7 @@
 add_library(
     RasrSearch STATIC
     Aligner.cc
+    BatchedSearchBase.cc
     LanguageModelLookahead.cc
     LatticeHandler.cc
     Module.cc

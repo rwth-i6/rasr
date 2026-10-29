@@ -40,6 +40,40 @@ TransitionSet LabelScorer::enabledTransitions() const {
     return enabledTransitions_;
 }
 
+bool LabelScorer::supportsMultipleSegments() const {
+    return false;
+}
+
+void LabelScorer::addSegment(SegmentId segment) {
+    reset();
+}
+
+void LabelScorer::removeSegment(SegmentId segment) {
+}
+
+void LabelScorer::signalNoMoreSegmentFeatures(SegmentId segment) {
+    signalNoMoreFeatures();
+}
+
+ScoringContextRef LabelScorer::getInitialSegmentScoringContext(SegmentId segment) {
+    return getInitialScoringContext();
+}
+
+void LabelScorer::addSegmentInput(SegmentId segment, DataView const& input) {
+    addInput(input);
+}
+
+void LabelScorer::addSegmentInputs(SegmentId segment, DataView const& input, size_t nTimesteps) {
+    if (not supportsMultipleSegments()) {
+        addInputs(input, nTimesteps);
+        return;
+    }
+    auto featureSize = input.size() / nTimesteps;
+    for (size_t t = 0ul; t < nTimesteps; ++t) {
+        addSegmentInput(segment, {input, featureSize, t * featureSize});
+    }
+}
+
 /*
  * =============================
  * === StatTrackingLabelScorer =

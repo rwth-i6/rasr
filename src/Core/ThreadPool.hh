@@ -16,6 +16,7 @@
 #define _CORE_THREAD_POOL_HH
 
 #include <deque>
+#include <functional>
 #include <vector>
 
 #include <Core/Assertions.hh>
@@ -51,6 +52,18 @@ public:
         return new NullMapper();
     }
     void map(const T& t) {}
+    void reset() {}
+};
+
+// Mapper that just runs the submitted function
+class FunctionMapper {
+public:
+    FunctionMapper* clone() const {
+        return new FunctionMapper();
+    }
+    void map(std::function<void()> const& f) {
+        f();
+    }
     void reset() {}
 };
 

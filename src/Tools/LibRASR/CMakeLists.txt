@@ -39,3 +39,7 @@ endif()
 if(${MODULE_TENSORFLOW})
     target_link_libraries(librasr PRIVATE RasrTensorflow)
 endif()
+
+if(${MODULE_TORCH})
+    target_link_libraries(librasr PRIVATE RasrTorch)
+endif()

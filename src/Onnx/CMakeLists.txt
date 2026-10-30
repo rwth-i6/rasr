@@ -9,6 +9,7 @@ add_library(
     OnnxEncoder.cc
     OnnxFeatureScorer.cc
     OnnxForwardNode.cc
+    OnnxInitUpdateScoreBundle.cc
     OnnxLstmStateManager.cc
     Session.cc
     StateManager.cc

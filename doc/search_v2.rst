@@ -736,8 +736,9 @@ built-in way to do this.
 
 Built-in label scorer types include:
 
-* ``no-context-onnx``, ``fixed-context-onnx``, ``stateful-onnx``, ``state-managed-onnx``: forward
-  features (and, depending on type, label history/hidden state) through an ONNX model.
+* ``no-context-onnx``, ``fixed-context-onnx``, ``stateful-onnx``, ``stateful-transducer-onnx``,
+  ``state-managed-onnx``: forward features (and, depending on type, label history/hidden state) through an ONNX
+  model.
 * ``encoder-decoder`` / ``encoder-only``: wrap a separate encoder (see :ref:`Encoders` below) that
   pre-processes features, combined with a decoder label scorer (or no decoder, for encoder-only models).
 * ``ctc-prefix``: wraps a time-synchronous CTC scorer and derives label-synchronous prefix scores from it
@@ -816,7 +817,7 @@ have no ``transition-preset`` of their own and always report whichever transitio
 ONNX model configuration
 ^^^^^^^^^^^^^^^^^^^^^^^^^
 
-The four ``*-onnx`` label scorers below (and the ``onnx``/``chunked-onnx`` :ref:`encoders <Encoders>` used by
+The ``*-onnx`` label scorers below (and the ``onnx``/``chunked-onnx`` :ref:`encoders <Encoders>` used by
 :ref:`encoder-decoder / encoder-only`) all wrap one or more ONNX Runtime sessions and share the same
 sub-configuration pattern for each wrapped model, under a model-specific selector (e.g. ``onnx-model`` for the
 single-model scorers):
@@ -910,7 +911,8 @@ stateful (recurrent) language model.
   the respective label types trigger a state update. Default ``false``.
 * ``max-batch-size`` (int): maximum number of hidden states forwarded through the scorer model at once. Default unbounded.
 * ``max-cached-score-vectors`` (int): size of an LRU cache mapping scoring contexts to already-computed score
-  vectors, to avoid recomputation and bound memory use on very long segments. Default ``1000``.
+  vectors, to avoid recomputation and bound memory use on very long segments. The same size is used for a second
+  cache that maps scoring contexts to their updated hidden states. Default ``10000``.
 * Default :ref:`transition-preset <Transition types and presets>`: ``lm``.
 
 .. code-block:: ini
@@ -920,6 +922,50 @@ stateful (recurrent) language model.
     state-initializer-model.session.file = /path/to/state_init.onnx
     state-updater-model.session.file     = /path/to/state_update.onnx
     scorer-model.session.file            = /path/to/scorer.onnx
+
+stateful-transducer-onnx
+^^^^^^^^^^^^^^^^^^^^^^^^^
+
+Transducer counterpart of ``stateful-onnx``: uses the same three ONNX models (state initializer, state updater,
+scorer) and the same hidden-state metadata convention, but each scoring context additionally tracks the current
+time step, and the scorer receives the input feature of that step alongside the hidden state(s). A typical use
+case is a neural transducer whose prediction network has unlimited (recurrent) context, i.e. the counterpart of
+``fixed-context-onnx`` without a fixed history window.
+
+Differences to ``stateful-onnx``:
+
+* the **state initializer** takes no inputs (in particular no encoder states), it is run once and its output is
+  reused across segments.
+* the **state updater** takes only the next ``token`` (plus the hidden state(s)), no encoder states.
+* the **scorer** takes the hidden state(s) and the ``input-feature`` of the context's current time step, with
+  shape ``[1, F]``. Since all contexts in a scorer batch share the same time step, this single feature row is
+  passed for the whole batch, so the model has to broadcast it against the ``[B, *]`` hidden states.
+
+The hidden state is updated lazily. Extending a context with a token only records the token and the state
+updater runs (batched) the next time that context is scored.
+
+* ``state-initializer-model.*`` / ``state-updater-model.*`` / ``scorer-model.*`` : as for ``stateful-onnx``.
+  Logical I/O names: ``token`` (state updater, required) and ``input-feature`` / ``scores`` (scorer, required).
+* ``blank-updates-history`` / ``silence-updates-history`` / ``loop-updates-history`` (bool): whether the
+  respective label types are fed to the state updater. Default ``false``.
+* ``vertical-label-transition`` (bool): as for ``fixed-context-onnx``, whether non-blank label transitions keep
+  the time step instead of advancing it. Default ``false``.
+* ``max-batch-size`` (int): maximum number of scoring contexts forwarded through the state updater and scorer
+  at once. Default unbounded.
+* ``max-cached-score-vectors`` (int): size of the score cache and of the hidden-state cache, as for
+  ``stateful-onnx``. Default ``10000``.
+* Default :ref:`transition-preset <Transition types and presets>`: ``transducer``.
+
+.. code-block:: ini
+
+    [*.search-algorithm.label-scorer]
+    type                                 = stateful-transducer-onnx
+    state-initializer-model.session.file = /path/to/state_init.onnx
+    state-updater-model.session.file     = /path/to/state_update.onnx
+    state-updater-model.io-map.token     = token
+    scorer-model.session.file            = /path/to/scorer.onnx
+    scorer-model.io-map.input-feature    = encoder_frame
+    scorer-model.io-map.scores           = log_probs
 
 state-managed-onnx
 ^^^^^^^^^^^^^^^^^^^^

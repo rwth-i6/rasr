@@ -471,6 +471,11 @@ bool LexiconfreeRNNTTimesyncBeamSearch::decodeStep() {
         return false;
     }
 
+    // Without hypotheses there is nothing to score, so no input can be consumed and the step would never progress
+    if (beam_.empty()) {
+        return false;
+    }
+
     recognitionTime_.start();
 
     // Start timestep with beam of previous timestep

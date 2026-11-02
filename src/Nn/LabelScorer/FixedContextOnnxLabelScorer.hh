@@ -24,14 +24,29 @@
 namespace Nn {
 
 /*
- * Label Scorer that performs scoring by forwarding the input feature at the current timestep together
- * with a fixed-size sequence of history tokens through an ONNX model.
+ * Label Scorer that performs scoring by forwarding some form of acoustic input together with a
+ * fixed-size sequence of history tokens through an ONNX model.
  * A common use case would be a neural transducer model with a fixed-size history.
+ *
+ * The acoustic input can be given to the ONNX model in one of two ways, depending on
+ * which inputs are mapped in the model's ONNX I/O spec:
+ *  - "input-feature": only the single input feature at the hypothesis' current timestep
+ *    is fed in, re-selected on every scoring call. This works incrementally as features
+ *    arrive.
+ *  - "encoder-states"/"encoder-states-size": the complete input sequence collected so far
+ *    is fed in as one tensor, together with its length. Since this requires the whole
+ *    sequence, scoring only starts once all features of the segment have been passed
+ *    (i.e. after `signalNoMoreFeatures`), and the input buffer is never trimmed.
+ * Both can also be mapped at once, in which case the model receives both the current
+ * frame and the full sequence.
  */
 class FixedContextOnnxLabelScorer : public BufferedLabelScorer {
 public:
     FixedContextOnnxLabelScorer(Core::Configuration const& config, ModelCache& modelCache);
     virtual ~FixedContextOnnxLabelScorer() = default;
+
+    // Add a single input feature to the buffer
+    void addInput(DataView const& input) override;
 
     // Initial scoring context contains step 0 and a history vector filled with the start label index
     ScoringContextRef getInitialScoringContext() override;
@@ -78,19 +93,33 @@ private:
     std::shared_ptr<Onnx::Model> onnxModel_;
 
     std::string inputFeatureName_;
+    std::string encoderStatesName_;
+    std::string encoderStatesSizeName_;
     std::string historyName_;
     std::string scoresName_;
 
+    // Store the onnx values with all encoder states and lengths inside so that it doesn't have to be recomputed every time
+    Onnx::Value encoderStatesValue_;
+    Onnx::Value encoderStatesSizeValue_;
+
     Core::StopWatch onnxSessionTime_;
-    // Building the batched session inputs and copying the resulting scores into the cache
+    // Building the batched session inputs (incl. encoder states) and copying the resulting scores into the cache
     Core::StopWatch tensorMarshallingTime_;
     Core::StopWatch contextPreparationTime_;
 
+    // Keyed by `cacheKey` of the scoring contexts
     std::unordered_map<SeqStepScoringContextRef, std::shared_ptr<std::vector<Score>>, ScoringContextHash, ScoringContextEq> scoreCache_;
 
+    // Without a per-frame input-feature the step doesn't affect the scores, so it is dropped from the cache key
+    SeqStepScoringContextRef cacheKey(SeqStepScoringContextRef const& scoringContext) const;
+
     // Forward a batch of histories through the ONNX model and put the resulting scores into the score cache
-    // Assumes that all histories in the batch are based on the same timestep
+    // If a per-frame input-feature is used, all histories in the batch must be based on the same timestep
     void forwardBatch(std::vector<SeqStepScoringContextRef> const& scoringContextBatch);
+
+    // Set up encoderStatesValue_/encoderStatesSizeValue_ from the full input buffer, unless already cached
+    void setupEncoderStatesValue();
+    void setupEncoderStatesSizeValue();
 
     void logScoringBreakdown() const override;
 };

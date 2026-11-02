@@ -279,8 +279,6 @@ void FeedForwardTrainer<T>::processBatch_finishWithError_naturalPairing(T error,
             "loss", (float)error);
 #endif
 
-start:
-
     // calculate number of classification errors and objective function
     if (statistics_->hasBaseStatistics()) {
         TIMER_START(start);

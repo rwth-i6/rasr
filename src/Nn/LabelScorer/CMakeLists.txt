@@ -25,6 +25,7 @@ if(${MODULE_ONNX})
                 FullContextOnnxLabelScorer.cc
                 NoContextOnnxLabelScorer.cc
                 StatefulOnnxLabelScorer.cc
+                StatefulTransducerOnnxLabelScorer.cc
                 StateManagedOnnxLabelScorer.cc
     )
 endif()

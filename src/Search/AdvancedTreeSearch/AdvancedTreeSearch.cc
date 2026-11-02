@@ -365,10 +365,10 @@ struct Correction {
 
     struct Hash {
         size_t operator()(const Correction& correction) const {
-            return StandardHash<size_t>()(correction.transit.final << 16 + correction.transit.initial +
-                                                                              StandardHash<size_t>()(reinterpret_cast<size_t>(correction.trace) +
-                                                                                                     StandardHash<int>()(correction.timeOffset +
-                                                                                                                         StandardHash<int>()(reinterpret_cast<const int&>(correction.scoreOffset)))));
+            return StandardHash<size_t>()((correction.transit.final << 16) + correction.transit.initial +
+                                          StandardHash<size_t>()(reinterpret_cast<size_t>(correction.trace) +
+                                                                 StandardHash<int>()(correction.timeOffset +
+                                                                                     StandardHash<int>()(reinterpret_cast<const int&>(correction.scoreOffset)))));
         }
     };
 };

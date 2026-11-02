@@ -17,34 +17,36 @@
 
 #include <cstddef>
 
+#include <cuda_runtime.h>
+
 /*
  * CUDA kernels of the GPU state managers (see `StateCopier`). Plain interface without RASR headers, compiled by nvcc.
  */
 namespace Onnx {
 namespace CudaKernels {
 
-// Device pointers to the block and to the time step start in the tensor
-struct BlockCopyTask {
+// Device pointers to the state and to the time step start in the tensor
+struct StateCopyTask {
     float const* src;
     float*       dst;
 };
 
-enum class BlockCopyDirection {
-    BlockToTensor,  // merge: contiguous block -> strided tensor
-    TensorToBlock,  // split: strided tensor -> contiguous block
+enum class StateCopyDirection {
+    StateToTensor,  // merge: contiguous state -> strided tensor
+    TensorToState,  // split: strided tensor -> contiguous state
 };
 
 /*
- * For each task copy `stepSize` floats between block and tensor. Block element i is tensor element
- * `blockOffsets[i / blockSize] + i % blockSize`. `tasks`/`blockOffsets` are device pointers, returns a cudaError_t.
+ * For each task copy `stepSize` floats between state and tensor. State element i is tensor element
+ * `runOffsets[i / runLength] + i % runLength`. `tasks`/`runOffsets` are device pointers.
  */
-int launchBlockCopy(BlockCopyTask const* tasks,
-                    size_t               numTasks,
-                    size_t const*        blockOffsets,
-                    size_t               blockSize,
-                    size_t               stepSize,
-                    BlockCopyDirection   direction,
-                    void*                stream);
+cudaError_t launchStateCopy(StateCopyTask const* tasks,
+                            size_t               numTasks,
+                            size_t const*        runOffsets,
+                            size_t               runLength,
+                            size_t               stepSize,
+                            StateCopyDirection   direction,
+                            cudaStream_t         stream);
 
 }  // namespace CudaKernels
 }  // namespace Onnx

@@ -20,88 +20,74 @@
 
 #include <Core/Application.hh>
 
-#include "Session.hh"
-
 namespace Onnx {
 
-namespace {
-
-void checkCuda(cudaError_t status, char const* what) {
-    checkCudaStatus(status, what);
-}
-
-cudaStream_t sharedStream() {
-    return static_cast<cudaStream_t>(Session::sharedCudaStream());
-}
-
-}  // namespace
-
-void checkCudaStatus(int status, char const* what) {
-    if (static_cast<cudaError_t>(status) != cudaSuccess) {
-        Core::Application::us()->criticalError("%s failed: %s", what, cudaGetErrorString(static_cast<cudaError_t>(status)));
+void checkCudaStatus(cudaError_t status, char const* what) {
+    if (status != cudaSuccess) {
+        Core::Application::us()->criticalError("%s failed: %s", what, cudaGetErrorString(status));
     }
 }
 
 /*
- * ===============================
- * ======= DeviceBlockPool =======
- * ===============================
+ * ==============================
+ * ======= DeviceSlotPool =======
+ * ==============================
  */
 
-DeviceBlockPool::DeviceBlockPool(size_t blockSize, size_t blocksPerChunk)
-        : blockSize_(blockSize),
-          blocksPerChunk_(blocksPerChunk) {
-    require_gt(blockSize_, 0ul);
-    require_gt(blocksPerChunk_, 0ul);
+DeviceSlotPool::DeviceSlotPool(size_t slotSize, size_t slotsPerChunk)
+        : slotSize_(slotSize),
+          slotsPerChunk_(slotsPerChunk) {
+    require_gt(slotSize_, 0ul);
+    require_gt(slotsPerChunk_, 0ul);
 }
 
-DeviceBlockPool::~DeviceBlockPool() {
+DeviceSlotPool::~DeviceSlotPool() {
     // Errors are ignored here: at program exit the CUDA context may already be destroyed
     for (void* chunk : chunks_) {
         cudaFree(chunk);
     }
 }
 
-size_t DeviceBlockPool::blockSize() const {
-    return blockSize_;
+size_t DeviceSlotPool::slotSize() const {
+    return slotSize_;
 }
 
-float* DeviceBlockPool::acquire() {
+float* DeviceSlotPool::acquire() {
     std::lock_guard<std::mutex> lock(mutex_);
-    if (freeBlocks_.empty()) {
+    if (freeSlots_.empty()) {
         void* chunk = nullptr;
-        checkCuda(cudaMalloc(&chunk, blocksPerChunk_ * blockSize_ * sizeof(float)), "Allocating device memory for states (cudaMalloc)");
+        checkCudaStatus(cudaMalloc(&chunk, slotsPerChunk_ * slotSize_ * sizeof(float)), "Allocating device memory for states (cudaMalloc)");
         chunks_.push_back(chunk);
-        freeBlocks_.reserve(freeBlocks_.size() + blocksPerChunk_);
-        // In reverse order, so that blocks are handed out in increasing address order
-        for (size_t i = blocksPerChunk_; i > 0ul; --i) {
-            freeBlocks_.push_back(static_cast<float*>(chunk) + (i - 1ul) * blockSize_);
+        freeSlots_.reserve(freeSlots_.size() + slotsPerChunk_);
+        // In reverse order, so that slots are handed out in increasing address order
+        for (size_t i = slotsPerChunk_; i > 0ul; --i) {
+            freeSlots_.push_back(static_cast<float*>(chunk) + (i - 1ul) * slotSize_);
         }
     }
-    float* block = freeBlocks_.back();
-    freeBlocks_.pop_back();
-    return block;
+    float* slot = freeSlots_.back();
+    freeSlots_.pop_back();
+    return slot;
 }
 
-void DeviceBlockPool::release(float* block) {
+void DeviceSlotPool::release(float* slot) {
     std::lock_guard<std::mutex> lock(mutex_);
-    freeBlocks_.push_back(block);
+    freeSlots_.push_back(slot);
 }
 
 /*
- * ================================
- * ======= DeviceBlockPools =======
- * ================================
+ * ===============================
+ * ======= DeviceSlotPools =======
+ * ===============================
  */
 
-DeviceBlockPools::DeviceBlockPools(size_t blocksPerChunk)
-        : blocksPerChunk_(blocksPerChunk) {
+DeviceSlotPools::DeviceSlotPools(size_t slotsPerChunk)
+        : slotsPerChunk_(slotsPerChunk) {
 }
 
-std::shared_ptr<DeviceBlockPool> const& DeviceBlockPools::get(size_t blockSize) {
-    auto iter = pools_.find(blockSize);
+std::shared_ptr<DeviceSlotPool> const& DeviceSlotPools::get(size_t slotSize) {
+    auto iter = pools_.find(slotSize);
     if (iter == pools_.end()) {
-        iter = pools_.emplace(blockSize, std::make_shared<DeviceBlockPool>(blockSize, blocksPerChunk_)).first;
+        iter = pools_.emplace(slotSize, std::make_shared<DeviceSlotPool>(slotSize, slotsPerChunk_)).first;
     }
     return iter->second;
 }
@@ -131,11 +117,11 @@ void* DeviceBuffer::allocate(size_t bytes) {
         size_t const capacity = std::max(bytes, capacity_ + capacity_ / 2ul);
         if (data_ != nullptr) {
             // cudaFree waits for pending work on the buffer
-            checkCuda(cudaFree(data_), "Freeing device memory (cudaFree)");
+            checkCudaStatus(cudaFree(data_), "Freeing device memory (cudaFree)");
             data_     = nullptr;
             capacity_ = 0ul;
         }
-        checkCuda(cudaMalloc(&data_, capacity), "Allocating device memory (cudaMalloc)");
+        checkCudaStatus(cudaMalloc(&data_, capacity), "Allocating device memory (cudaMalloc)");
         capacity_ = capacity;
     }
     return data_;
@@ -147,13 +133,13 @@ void* DeviceBuffer::allocate(size_t bytes) {
  * ============================
  */
 
-DeviceVector::DeviceVector(std::shared_ptr<DeviceBlockPool> pool, size_t size)
+DeviceVector::DeviceVector(std::shared_ptr<DeviceSlotPool> pool, size_t size)
         : pool_(std::move(pool)),
           data_(nullptr),
           size_(size) {
     if (size_ > 0ul) {
         require(pool_);
-        require_eq(size_, pool_->blockSize());
+        require_eq(size_, pool_->slotSize());
         data_ = pool_->acquire();
     }
 }
@@ -170,15 +156,19 @@ std::vector<float> DeviceVector::toHost() const {
     std::vector<float> result(size_);
     if (size_ > 0ul) {
         // The data may still be written on the shared stream
-        checkCuda(cudaStreamSynchronize(sharedStream()), "Synchronizing the shared CUDA stream");
-        checkCuda(cudaMemcpy(result.data(), data_, size_ * sizeof(float), cudaMemcpyDeviceToHost), "Copying a state from the device (cudaMemcpy)");
+        checkCudaStatus(cudaStreamSynchronize(sharedStream()), "Synchronizing the shared CUDA stream");
+        checkCudaStatus(cudaMemcpy(result.data(), data_, size_ * sizeof(float), cudaMemcpyDeviceToHost), "Copying a state from the device (cudaMemcpy)");
     }
     return result;
 }
 
 float DeviceVector::get(size_t pos) const {
     require_lt(pos, size_);
-    return toHost()[pos];
+    float result = 0.0f;
+    // The data may still be written on the shared stream
+    checkCudaStatus(cudaStreamSynchronize(sharedStream()), "Synchronizing the shared CUDA stream");
+    checkCudaStatus(cudaMemcpy(&result, data_ + pos, sizeof(float), cudaMemcpyDeviceToHost), "Copying a state element from the device (cudaMemcpy)");
+    return result;
 }
 
 void DeviceVector::uncompress(float* data, size_t size) const {
@@ -187,12 +177,12 @@ void DeviceVector::uncompress(float* data, size_t size) const {
     std::copy(host.begin(), host.end(), data);
 }
 
-void DeviceVector::uncompress(float* data, Nn::ContiguousBlockInfo const& block_info) const {
-    require_eq(block_info.totalSize(), size_);
+void DeviceVector::uncompress(float* data, Nn::ContiguousBlockInfo const& blockInfo) const {
+    require_eq(blockInfo.totalSize(), size_);
     auto host = toHost();
-    for (size_t i = 0ul; i < block_info.numBlocks(); i++) {
-        size_t offset = i * block_info.blockSize();
-        std::copy(host.begin() + offset, host.begin() + offset + block_info.blockSize(), data + block_info.blockOffset(i));
+    for (size_t i = 0ul; i < blockInfo.numBlocks(); i++) {
+        size_t offset = i * blockInfo.blockSize();
+        std::copy(host.begin() + offset, host.begin() + offset + blockInfo.blockSize(), data + blockInfo.blockOffset(i));
     }
 }
 

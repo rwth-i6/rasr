@@ -23,8 +23,6 @@
 
 #include <Core/Application.hh>
 
-#include "Session.hh"
-
 namespace Onnx {
 
 namespace {
@@ -32,10 +30,11 @@ namespace {
 // Layout of one time step in a tensor with shape `dims` (batch first), like in `Nn::TransformerStateManager`
 struct StepLayout {
     std::vector<int64_t> dims;
+    size_t               timeAxis    = 0ul;
     size_t               batchStride = 1ul;  // elements per batch entry
     size_t               timeStride  = 0ul;  // elements per time step
-    std::vector<size_t>  blockOffsets;       // contiguous runs of one time step, relative to its start
-    size_t               blockSize = 0ul;    // elements per run
+    std::vector<size_t>  runOffsets;         // contiguous runs of one time step, relative to its start
+    size_t               runLength = 0ul;    // elements per run
     size_t               stepSize  = 0ul;    // elements per time step
 
     size_t numElements() const {
@@ -48,7 +47,8 @@ StepLayout computeStepLayout(std::vector<int64_t> const& dims, size_t timeAxis) 
     require(timeAxis >= 1ul and timeAxis < dims.size());
 
     StepLayout layout;
-    layout.dims = dims;
+    layout.dims     = dims;
+    layout.timeAxis = timeAxis;
 
     size_t const          n = dims.size() - 1ul;  // without the batch axis
     std::valarray<size_t> sizes(n);
@@ -64,11 +64,11 @@ StepLayout computeStepLayout(std::vector<int64_t> const& dims, size_t timeAxis) 
     layout.timeStride = strides[timeAxis - 1ul];
 
     Nn::ContiguousBlockInfo blockInfo(std::gslice(0ul, sizes, strides));
-    layout.blockOffsets.resize(blockInfo.numBlocks());
-    for (size_t i = 0ul; i < layout.blockOffsets.size(); ++i) {
-        layout.blockOffsets[i] = blockInfo.blockOffset(i);
+    layout.runOffsets.resize(blockInfo.numBlocks());
+    for (size_t i = 0ul; i < layout.runOffsets.size(); ++i) {
+        layout.runOffsets[i] = blockInfo.blockOffset(i);
     }
-    layout.blockSize = blockInfo.blockSize();
+    layout.runLength = blockInfo.blockSize();
     layout.stepSize  = blockInfo.totalSize();
     return layout;
 }
@@ -84,16 +84,12 @@ size_t timeAxisOf(OnnxStateVariable const& var) {
     return 0ul;
 }
 
-cudaStream_t sharedStream() {
-    return static_cast<cudaStream_t>(Session::sharedCudaStream());
-}
-
 // Copy batch of one state variable with the given layout, without tasks yet
 StateCopier::Batch makeBatch(StepLayout const& layout) {
     StateCopier::Batch batch;
-    batch.blockOffsets = layout.blockOffsets;
-    batch.blockSize    = layout.blockSize;
-    batch.stepSize     = layout.stepSize;
+    batch.runOffsets = layout.runOffsets;
+    batch.runLength  = layout.runLength;
+    batch.stepSize   = layout.stepSize;
     return batch;
 }
 
@@ -110,8 +106,8 @@ const Core::ParameterBool TransformerGpuStateManager::paramAlwaysIncludeFirstTok
         "whether to always include the state of the first token, even if history is restricted by max-history",
         false);
 
-const Core::ParameterInt TransformerGpuStateManager::paramBlocksPerChunk(
-        "blocks-per-chunk",
+const Core::ParameterInt TransformerGpuStateManager::paramSlotsPerChunk(
+        "slots-per-chunk",
         "number of states (one time step of one state variable each) per device memory allocation of the state pool",
         4096,
         1);
@@ -120,7 +116,7 @@ TransformerGpuStateManager::TransformerGpuStateManager(Core::Configuration const
         : Precursor(config),
           maxHistory_(paramMaxHistoryLength(config)),
           alwaysIncludeFirstTokenState_(paramAlwaysIncludeFirstTokenState(config)),
-          pools_(paramBlocksPerChunk(config)) {
+          pools_(paramSlotsPerChunk(config)) {
 }
 
 TransformerGpuStateManager::~TransformerGpuStateManager() = default;
@@ -133,25 +129,25 @@ TransformerGpuStateManager::HistoryState TransformerGpuStateManager::initialStat
     HistoryState result;
     result.reserve(vars.size());
     for (size_t v = 0ul; v < vars.size(); ++v) {
-        result.emplace_back(new DeviceVector(nullptr, 0ul));
+        result.push_back(std::make_unique<DeviceVector>(nullptr, 0ul));
     }
     return result;
 }
 
 void TransformerGpuStateManager::mergeStates(StateVariables const&                   vars,
-                                             std::vector<size_t>&                    prefix_lengths,
-                                             std::vector<HistoryState const*> const& prefix_states,
-                                             FeedDict&                               feed_dict,
+                                             std::vector<size_t>&                    prefixLengths,
+                                             std::vector<HistoryState const*> const& prefixStates,
+                                             FeedDict&                               feedDict,
                                              TargetList&                             targets) {
-    std::vector<size_t> original_prefix_lengths(prefix_lengths);
+    std::vector<size_t> originalPrefixLengths(prefixLengths);
 
-    size_t max_prefix = 0ul;
-    for (size_t& len : prefix_lengths) {
-        len        = std::min(len, maxHistory_);
-        max_prefix = std::max(max_prefix, len);
+    size_t maxPrefix = 0ul;
+    for (size_t& len : prefixLengths) {
+        len       = std::min(len, maxHistory_);
+        maxPrefix = std::max(maxPrefix, len);
     }
     // Padding (zeros before shorter prefixes) is only needed if the prefixes differ in length
-    bool needs_padding = std::any_of(prefix_lengths.begin(), prefix_lengths.end(), [max_prefix](size_t len) { return len != max_prefix; });
+    bool needsPadding = std::any_of(prefixLengths.begin(), prefixLengths.end(), [maxPrefix](size_t len) { return len != maxPrefix; });
 
     // Layouts and positions of the merged tensors in the merged buffer
     std::vector<StepLayout> layouts;
@@ -162,8 +158,8 @@ void TransformerGpuStateManager::mergeStates(StateVariables const&              
     for (auto const& var : vars) {
         size_t const         timeAxis = timeAxisOf(var);
         std::vector<int64_t> dims(var.shape.begin(), var.shape.end());
-        dims[0]        = static_cast<int64_t>(prefix_lengths.size());
-        dims[timeAxis] = static_cast<int64_t>(max_prefix);
+        dims[0]        = static_cast<int64_t>(prefixLengths.size());
+        dims[timeAxis] = static_cast<int64_t>(maxPrefix);
         layouts.push_back(computeStepLayout(dims, timeAxis));
         tensorOffsets.push_back(totalFloats);
         totalFloats += alignDeviceFloats(layouts.back().numElements());
@@ -178,58 +174,62 @@ void TransformerGpuStateManager::mergeStates(StateVariables const&              
         batches.push_back(makeBatch(layout));
         auto& tasks = batches.back().tasks;
 
-        size_t state_offset = 0ul;
-        for (size_t b = 0ul; b < prefix_lengths.size(); ++b) {
-            size_t prefix_length = prefix_lengths[b];
-            size_t prefix_offset = original_prefix_lengths[b] - prefix_length;
-            for (size_t p = 0ul; p < prefix_length; ++p) {
-                size_t start = b * layout.batchStride + (max_prefix - prefix_length + p) * layout.timeStride;
-                size_t idx   = state_offset;
+        // All states come from the same state manager, so checking the type of the first one is enough
+        if (not prefixStates.empty() and dynamic_cast<DeviceVector const*>(prefixStates.front()->at(v).get()) == nullptr) {
+            criticalError("State of %s was not created by the transformer-gpu state manager", vars[v].input_state_key.c_str());
+        }
+
+        size_t stateOffset = 0ul;
+        for (size_t b = 0ul; b < prefixLengths.size(); ++b) {
+            size_t prefixLength = prefixLengths[b];
+            size_t prefixOffset = originalPrefixLengths[b] - prefixLength;
+            for (size_t p = 0ul; p < prefixLength; ++p) {
+                size_t start = b * layout.batchStride + (maxPrefix - prefixLength + p) * layout.timeStride;
+                size_t idx   = stateOffset;
                 if (not alwaysIncludeFirstTokenState_ or p != 0ul) {
-                    idx += prefix_offset + p;
+                    idx += prefixOffset + p;
                 }
-                auto const* state = dynamic_cast<DeviceVector const*>(prefix_states[idx]->at(v).get());
-                if (state == nullptr) {
-                    criticalError("State of %s was not created by the transformer-gpu state manager", vars[v].input_state_key.c_str());
-                }
+                auto const* state = static_cast<DeviceVector const*>(prefixStates[idx]->at(v).get());
                 require_eq(state->size(), layout.stepSize);
                 tasks.push_back({state->deviceData(), merged + tensorOffsets[v] + start});
             }
-            state_offset += original_prefix_lengths[b];
+            stateOffset += originalPrefixLengths[b];
         }
     }
 
-    if (needs_padding) {
+    if (needsPadding) {
         checkCudaStatus(cudaMemsetAsync(merged, 0, totalFloats * sizeof(float), sharedStream()), "Zeroing merged states");
     }
-    copier_.copy(batches, CudaKernels::BlockCopyDirection::BlockToTensor);
+    copier_.copy(batches, CudaKernels::StateCopyDirection::StateToTensor);
 
-    feed_dict.reserve(feed_dict.size() + vars.size());
+    feedDict.reserve(feedDict.size() + vars.size());
     targets.reserve(targets.size() + vars.size());
     for (size_t v = 0ul; v < vars.size(); ++v) {
-        feed_dict.emplace_back(vars[v].input_state_key, Value::wrapDeviceMemory<float>(merged + tensorOffsets[v], layouts[v].dims));
+        feedDict.emplace_back(vars[v].input_state_key, Value::wrapDeviceMemory<float>(merged + tensorOffsets[v], layouts[v].dims));
         targets.emplace_back(vars[v].output_state_key);
     }
 }
 
 std::vector<TransformerGpuStateManager::HistoryState> TransformerGpuStateManager::splitStates(
-        StateVariables const&                     vars,
-        std::vector<size_t>&                      suffix_lengths,
-        std::vector<Value> const&                 state_tensors,
-        Nn::CompressedVectorFactory<float> const& vector_factory) {
-    require_eq(vars.size(), state_tensors.size());
+        StateVariables const&     vars,
+        std::vector<size_t>&      suffixLengths,
+        std::vector<Value> const& stateTensors,
+        Nn::CompressedVectorFactory<float> const&) {
+    require_eq(vars.size(), stateTensors.size());
 
-    size_t max_suffix = *std::max_element(suffix_lengths.begin(), suffix_lengths.end());
-    size_t sum_suffix = std::accumulate(suffix_lengths.begin(), suffix_lengths.end(), 0ul);
+    size_t maxSuffix = *std::max_element(suffixLengths.begin(), suffixLengths.end());
+    size_t sumSuffix = std::accumulate(suffixLengths.begin(), suffixLengths.end(), 0ul);
 
     // Layouts of the state outputs
     std::vector<StepLayout> layouts;
     layouts.reserve(vars.size());
     for (size_t v = 0ul; v < vars.size(); ++v) {
-        auto const& tensor = state_tensors[v];
+        auto const& tensor = stateTensors[v];
         if (tensor.dataType() != ValueDataType::FLOAT) {
             criticalError("transformer-gpu state manager: state %s is not float", vars[v].output_state_key.c_str());
         }
+        // The merged state inputs are on the device, so the session puts the state outputs there as well
+        require(tensor.isOnDevice());
         size_t const         timeAxis = timeAxisOf(vars[v]);
         std::vector<int64_t> dims(tensor.numDims());
         for (int d = 0; d < tensor.numDims(); ++d) {
@@ -243,10 +243,8 @@ std::vector<TransformerGpuStateManager::HistoryState> TransformerGpuStateManager
         }
         layouts.push_back(computeStepLayout(dims, timeAxis));
     }
-    // Outputs in host memory are uploaded into a staging buffer
-    std::vector<float const*> bases = copier_.deviceData(state_tensors);
 
-    std::vector<HistoryState> result(sum_suffix);
+    std::vector<HistoryState> result(sumSuffix);
     for (auto& state : result) {
         state.reserve(vars.size());
     }
@@ -257,23 +255,22 @@ std::vector<TransformerGpuStateManager::HistoryState> TransformerGpuStateManager
         auto const& layout = layouts[v];
         batches.push_back(makeBatch(layout));
         auto&        tasks = batches.back().tasks;
-        float const* base  = bases[v];
+        float const* base  = stateTensors[v].rawData<float>();
 
-        size_t const timeAxis   = timeAxisOf(vars[v]);
-        size_t const max_prefix = static_cast<size_t>(layout.dims[timeAxis]) - max_suffix;
-        size_t       output_idx = 0ul;
-        for (size_t b = 0ul; b < suffix_lengths.size(); ++b) {
-            for (size_t p = 0ul; p < suffix_lengths[b]; ++p) {
-                size_t start = b * layout.batchStride + (max_prefix + p) * layout.timeStride;
-                auto*  state = new DeviceVector(pools_.get(layout.stepSize), layout.stepSize);
-                result[output_idx].emplace_back(state);
+        size_t const maxPrefix = static_cast<size_t>(layout.dims[layout.timeAxis]) - maxSuffix;
+        size_t       outputIdx = 0ul;
+        for (size_t b = 0ul; b < suffixLengths.size(); ++b) {
+            for (size_t p = 0ul; p < suffixLengths[b]; ++p) {
+                size_t start = b * layout.batchStride + (maxPrefix + p) * layout.timeStride;
+                auto   state = std::make_unique<DeviceVector>(pools_.get(layout.stepSize), layout.stepSize);
                 tasks.push_back({base + start, state->deviceData()});
-                output_idx += 1ul;
+                result[outputIdx].push_back(std::move(state));
+                outputIdx += 1ul;
             }
         }
     }
 
-    copier_.copy(batches, CudaKernels::BlockCopyDirection::TensorToBlock);
+    copier_.copy(batches, CudaKernels::StateCopyDirection::TensorToState);
 
     // The caller may release the output tensors right after this call, so the copies must be done
     checkCudaStatus(cudaStreamSynchronize(sharedStream()), "Synchronizing the shared CUDA stream after splitting states");

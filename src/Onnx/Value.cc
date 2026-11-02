@@ -1501,6 +1501,16 @@ Value Value::toHost() const {
 #endif
 }
 
+Value Value::view() const {
+    require(not empty());
+    require(value_.IsTensor());
+    auto info  = value_.GetTensorTypeAndShapeInfo();
+    auto shape = info.GetShape();
+    // The view shares the data, i.e. writing through it would change this value
+    return Value(Ort::Value::CreateTensor(value_.GetTensorMemoryInfo(), const_cast<void*>(value_.GetTensorRawData()), value_.GetTensorSizeInBytes(),
+                                          shape.data(), shape.size(), info.GetElementType()));
+}
+
 template<typename T>
 T* Value::rawData() {
     require(not empty());

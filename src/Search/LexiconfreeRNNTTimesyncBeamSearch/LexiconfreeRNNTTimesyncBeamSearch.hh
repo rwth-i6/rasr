@@ -218,8 +218,10 @@ private:
      * Score `extensions` (raw score) with labelScorers_[1..], applying intermediate score-threshold
      * and max-beam-size pruning after each of them except the last.
      * `countStatistics` enables the intermediate pruning statistics.
+     * Returns false if one of these label scorers can't score any of the needed contexts yet, e.g. because it
+     * hasn't received enough input. Then the timestep has to be redone later.
      */
-    void scoreAndPruneWithRemainingLabelScorers(std::vector<ExtensionCandidate>& extensions, std::vector<LabelHypothesis> const& baseHyps, bool countStatistics);
+    bool scoreAndPruneWithRemainingLabelScorers(std::vector<ExtensionCandidate>& extensions, std::vector<LabelHypothesis> const& baseHyps, bool countStatistics);
 
     /*
      * Append a new hypothesis to `hyps` for every extension in `extensions_` on top of its base hyp in `innerHyps_`

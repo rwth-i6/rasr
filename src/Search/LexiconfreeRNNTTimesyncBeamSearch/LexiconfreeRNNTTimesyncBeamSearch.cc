@@ -478,6 +478,18 @@ bool LexiconfreeRNNTTimesyncBeamSearch::decodeStep() {
 
     recognitionTime_.start();
 
+    // Discard the partial work of this timestep if a label scorer can't score it yet. `beam_` stays intact,
+    // so the timestep is redone from scratch once the label scorers have received more input
+    auto postponeTimestep = [this](bool symbolStepStatisticsOpen) {
+        if (symbolStepStatisticsOpen and stepwiseStatisticsChannel_.isOpen()) {
+            stepwiseStatisticsChannel_ << Core::XmlClose("symbol-step-stats");
+        }
+        outerHyps_.clear();
+        closeStepStatistics();
+        recognitionTime_.stop();
+        return false;
+    };
+
     // Start timestep with beam of previous timestep
     innerHyps_ = beam_;
 
@@ -512,10 +524,7 @@ bool LexiconfreeRNNTTimesyncBeamSearch::decodeStep() {
         bool anyScored = std::any_of(scoreAccessors.begin(), scoreAccessors.end(),
                                      [](auto const& a) { return a.has_value(); });
         if (not anyScored) {
-            outerHyps_.clear();
-            closeStepStatistics();
-            recognitionTime_.stop();
-            return false;
+            return postponeTimestep(false);
         }
 
         if (symbolStep == 0ul) {
@@ -542,7 +551,9 @@ bool LexiconfreeRNNTTimesyncBeamSearch::decodeStep() {
 
         // Unlike the non-blank extensions below, the blank extensions are not pruned after the first label scorer
         // because there is only one blank candidate per inner hyp, so an intermediate cut isn't needed for performance here
-        scoreAndPruneWithRemainingLabelScorers(extensions_, innerHyps_, false);
+        if (not scoreAndPruneWithRemainingLabelScorers(extensions_, innerHyps_, false)) {
+            return postponeTimestep(true);
+        }
 
         // Create new label hypotheses from extension candidates and add them to the set of all outer hyps of this timestep
         buildNewBeamTime_.start();
@@ -590,7 +601,9 @@ bool LexiconfreeRNNTTimesyncBeamSearch::decodeStep() {
             stepwiseStatisticsChannel_ << Core::XmlFull("num-hyps-after-intermediate-pruning", extensions_.size()) + Core::XmlAttribute("scorer", 1);
         }
 
-        scoreAndPruneWithRemainingLabelScorers(extensions_, innerHyps_, true);
+        if (not scoreAndPruneWithRemainingLabelScorers(extensions_, innerHyps_, true)) {
+            return postponeTimestep(true);
+        }
 
         // Prune extension candidates down to maxBeamSize based on the raw score
         // Intentionally not length-normalized here, matching torchaudio's RNNTBeamSearch reference
@@ -860,7 +873,7 @@ void LexiconfreeRNNTTimesyncBeamSearch::createExtensions(std::vector<std::option
     }
 }
 
-void LexiconfreeRNNTTimesyncBeamSearch::scoreAndPruneWithRemainingLabelScorers(std::vector<ExtensionCandidate>& extensions, std::vector<LabelHypothesis> const& baseHyps, bool countStatistics) {
+bool LexiconfreeRNNTTimesyncBeamSearch::scoreAndPruneWithRemainingLabelScorers(std::vector<ExtensionCandidate>& extensions, std::vector<LabelHypothesis> const& baseHyps, bool countStatistics) {
     for (size_t scorerIdx = 1ul; scorerIdx < labelScorers_.size(); ++scorerIdx) {
         Core::StopWatch::Scope scoreAndPruneTimer(scoreAndPruneExtensionsTimes_[scorerIdx]);
         auto const&            labelScorer = labelScorers_[scorerIdx];
@@ -879,6 +892,14 @@ void LexiconfreeRNNTTimesyncBeamSearch::scoreAndPruneWithRemainingLabelScorers(s
         {
             Core::StopWatch::Scope scoringTimer(scoringTimes_[scorerIdx]);
             scoreAccessors = labelScorer->getScoreAccessors(scoringContexts_);
+        }
+
+        // Without this check, all extensions would be pruned as unscorable below and the timestep would end
+        // with an empty beam
+        bool anyScored = std::any_of(scoreAccessors.begin(), scoreAccessors.end(),
+                                     [](auto const& a) { return a.has_value(); });
+        if (not scoringContexts_.empty() and not anyScored) {
+            return false;
         }
 
         {
@@ -927,6 +948,7 @@ void LexiconfreeRNNTTimesyncBeamSearch::scoreAndPruneWithRemainingLabelScorers(s
             }
         }
     }
+    return true;
 }
 
 void LexiconfreeRNNTTimesyncBeamSearch::buildHypsFromExtensions(std::vector<LabelHypothesis>& hyps) {

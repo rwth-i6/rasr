@@ -22,18 +22,22 @@ StepwiseNoOpLabelScorer::StepwiseNoOpLabelScorer(Core::Configuration const& conf
         : Core::Component(config),
           Precursor(config, TransitionPresetType::CTC) {}
 
-ScoringContextRef StepwiseNoOpLabelScorer::getInitialScoringContext() {
-    return Core::ref(new StepScoringContext());
+ScoringContextRef StepwiseNoOpLabelScorer::getInitialSegmentScoringContext(SegmentId segment) {
+    auto context     = Core::ref(new StepScoringContext());
+    context->segment = segment;
+    return context;
 }
 
 ScoringContextRef StepwiseNoOpLabelScorer::extendedScoringContext(ScoringContextRef scoringContext, LabelIndex nextToken, TransitionType transitionType) {
     StepScoringContextRef stepScoringContext(dynamic_cast<StepScoringContext const*>(scoringContext.get()));
-    return Core::ref(new StepScoringContext(stepScoringContext->currentStep + 1));
+    auto                  context = Core::ref(new StepScoringContext(stepScoringContext->currentStep + 1));
+    context->segment              = stepScoringContext->segment;
+    return context;
 }
 
 std::optional<ScoreAccessorRef> StepwiseNoOpLabelScorer::computeScoreAccessor(ScoringContextRef scoringContext) {
     StepScoringContextRef stepScoringContext(dynamic_cast<StepScoringContext const*>(scoringContext.get()));
-    auto                  input = getInput(stepScoringContext->currentStep);
+    auto                  input = getInput(stepScoringContext->segment, stepScoringContext->currentStep);
     if (not input) {
         countUncomputedAccessors();
         return {};

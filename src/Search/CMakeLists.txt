@@ -1,6 +1,7 @@
 add_library(
     RasrSearch STATIC
     Aligner.cc
+    BatchedSearchBase.cc
     LanguageModelLookahead.cc
     LatticeHandler.cc
     Module.cc
@@ -31,6 +32,10 @@ endif()
 if(${MODULE_ADVANCED_TREE_SEARCH})
     add_subdirectory(AdvancedTreeSearch)
 endif()
+add_subdirectory(BatchedLexiconfreeLabelsyncBeamSearch)
+add_subdirectory(BatchedLexiconfreeTimesyncBeamSearch)
+add_subdirectory(BatchedTreeLabelsyncBeamSearch)
+add_subdirectory(BatchedTreeTimesyncBeamSearch)
 add_subdirectory(LexiconfreeLabelsyncBeamSearch)
 add_subdirectory(LexiconfreeTimesyncBeamSearch)
 add_subdirectory(TreeLabelsyncBeamSearch)

@@ -15,6 +15,7 @@
 #ifndef STOPWATCH_HH
 #define STOPWATCH_HH
 
+#include <atomic>
 #include <chrono>
 #include <sys/time.h>
 
@@ -44,6 +45,11 @@ public:
      * Stops timer if it is running and resets accumulated time to zero.
      */
     void reset();
+
+    /*
+     * Add the accumulated time of another timer (without its current interval if it is running).
+     */
+    void add(StopWatch const& other);
 
     bool isRunning() const;
 
@@ -88,6 +94,46 @@ public:
 private:
     StopWatch& watch_;
     bool       ownsInterval_;
+};
+
+/*
+ * Thread-safe accumulator of timed intervals for code that may run in several threads at the same time,
+ * e.g. score accessors used by a multi-segment search that processes segments in parallel.
+ * Each `Scope` adds its own interval, so the intervals of different threads are summed up and
+ * the total can exceed the wall-clock time. Unlike `StopWatch::Scope`, scopes don't nest.
+ */
+class ConcurrentStopWatch {
+public:
+    class Scope;
+
+    ConcurrentStopWatch();
+
+    void add(std::chrono::steady_clock::duration duration);
+
+    void reset();
+
+    double elapsedMilliseconds() const;
+    double elapsedNanoseconds() const;
+
+private:
+    std::atomic<size_t> elapsedNanoseconds_;
+};
+
+class ConcurrentStopWatch::Scope {
+public:
+    explicit Scope(ConcurrentStopWatch& watch)
+            : watch_(watch), startTime_(std::chrono::steady_clock::now()) {}
+
+    ~Scope() {
+        watch_.add(std::chrono::steady_clock::now() - startTime_);
+    }
+
+    Scope(Scope const&)            = delete;
+    Scope& operator=(Scope const&) = delete;
+
+private:
+    ConcurrentStopWatch&                  watch_;
+    std::chrono::steady_clock::time_point startTime_;
 };
 
 }  // namespace Core

@@ -27,6 +27,11 @@ typedef Speech::TimeframeIndex TimeframeIndex;
 typedef Mm::EmissionIndex      LabelIndex;
 static constexpr LabelIndex    invalidLabelIndex = Core::Type<LabelIndex>::max;
 
+// Identifies a segment (utterance) in label scorers that can process several segments at the same time
+// (see the multi-segment interface of `LabelScorer`). Single-segment usage always refers to the default segment.
+typedef size_t             SegmentId;
+static constexpr SegmentId defaultSegmentId = 0ul;
+
 }  // namespace Nn
 
 #endif  // TYPES_HH

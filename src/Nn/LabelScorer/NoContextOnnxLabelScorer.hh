@@ -31,14 +31,22 @@ namespace Nn {
  * If the CTC output is the only output, the encoder and output layer can be put together into an "encoder-only" label scorer.
  * However, when the CTC output is one of several outputs based on a shared encoder, the CTC output head must be separated
  * from the encoder. The NoContextOnnxLabelScorer can be used for this purpose.
+ *
+ * With `max-batch-size` > 1, the inputs of several contexts (e.g. of different segments in multi-segment search)
+ * are stacked and forwarded in one session run. This requires a dynamic batch dimension of the input feature.
  */
 class NoContextOnnxLabelScorer : public BufferedLabelScorer {
 public:
+    static const Core::ParameterInt paramMaxBatchSize;
+
     NoContextOnnxLabelScorer(Core::Configuration const& config, ModelCache& modelCache);
     virtual ~NoContextOnnxLabelScorer() = default;
 
     // Initial scoring context contains step 0
-    ScoringContextRef getInitialScoringContext() override;
+    ScoringContextRef getInitialSegmentScoringContext(SegmentId segment) override;
+
+    // Remove buffered inputs and cached scores of the segment
+    void removeSegment(SegmentId segment) override;
 
     // Increment the step by 1
     ScoringContextRef extendedScoringContext(ScoringContextRef scoringContext, LabelIndex nextToken, TransitionType transitionType) override;
@@ -49,6 +57,7 @@ public:
 protected:
     // Clear feature buffer and cached scores
     void resetInternal() override;
+    void resetStatisticsInternal() override;
 
     // If scores for the given scoring contexts are not yet cached, prepare and run an ONNX session to
     // compute the scores and cache them
@@ -60,6 +69,8 @@ protected:
 
 private:
     using Precursor = BufferedLabelScorer;
+
+    size_t maxBatchSize_;
 
     std::shared_ptr<Onnx::Model> onnxModel_;
 
@@ -73,6 +84,9 @@ private:
     void logScoringBreakdown() const override;
 
     void forwardContext(StepScoringContextRef const& scoringContext);
+
+    // Forward the inputs of a batch of contexts at once by stacking them
+    void forwardBatch(std::vector<StepScoringContextRef> const& scoringContextBatch);
 };
 
 }  // namespace Nn

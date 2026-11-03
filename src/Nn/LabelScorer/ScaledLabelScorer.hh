@@ -44,6 +44,9 @@ public:
     // Forwarded to the wrapped scorer; scaling itself accumulates no statistics
     void logStatistics() const override;
 
+    // Reset the statistics of the sub-scorer
+    void resetStatistics() override;
+
     // Forward signal to sub-scorer
     void signalNoMoreFeatures() override;
 
@@ -64,6 +67,15 @@ public:
 
     // Reset sub-scorer
     void reset() override;
+
+    // Multi-segment functions are forwarded to the sub-scorer
+    bool              supportsMultipleSegments() const override;
+    void              addSegment(SegmentId segment) override;
+    void              removeSegment(SegmentId segment) override;
+    void              signalNoMoreSegmentFeatures(SegmentId segment) override;
+    ScoringContextRef getInitialSegmentScoringContext(SegmentId segment) override;
+    void              addSegmentInput(SegmentId segment, DataView const& input) override;
+    void              addSegmentInputs(SegmentId segment, DataView const& input, size_t nTimesteps) override;
 
     // Score accessor wrapper that scales the scores
     std::optional<ScoreAccessorRef> getScoreAccessor(ScoringContextRef scoringContext) override;

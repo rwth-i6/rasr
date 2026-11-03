@@ -55,6 +55,21 @@ public:
     // Return dummy-context
     ScoringContextRef getInitialScoringContext() override;
 
+    // Transition scores don't depend on any segment data
+    bool supportsMultipleSegments() const override;
+
+    // No op
+    void addSegment(SegmentId segment) override;
+
+    // No op
+    void signalNoMoreSegmentFeatures(SegmentId segment) override;
+
+    // No op
+    void addSegmentInput(SegmentId segment, DataView const& input) override;
+
+    // Return dummy-context
+    ScoringContextRef getInitialSegmentScoringContext(SegmentId segment) override;
+
     // Return dummy-context
     ScoringContextRef extendedScoringContext(ScoringContextRef scoringContext, LabelIndex nextToken, TransitionType transitionType) override;
 

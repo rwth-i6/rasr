@@ -1425,6 +1425,22 @@ the lemma.
     label_scorer = mc.label_scorer()           # index defaults to 0; pass an index for multiple label scorers
     label_scorer.set_scale(0.5)
 
+**Overriding the prompts of a** ``prefix-speech-lm-onnx`` **label scorer** per segment: unwrap the scaled label scorer
+via ``label_scorer()`` (and ``get_sub_scorer()`` for combined or encoder-decoder label scorers) and call
+``set_initial_prompt`` / ``set_suffix_prompt`` with a list of token ids after ``enter_segment`` and before passing
+features. The override only applies to that segment; later segments use the prompts of the config again.
+
+.. code-block:: python
+
+    prefix_lm = search.model_combination().label_scorer().label_scorer()
+    search.enter_segment("seg-1")
+    prefix_lm.set_suffix_prompt([12, 345, 6789])
+    search.put_features(features)
+    search.finish_segment()
+
+With ``BatchedSearchAlgorithm``, pass the segment handle: ``prefix_lm.set_suffix_prompt(prompt, segment=handle)``
+right after ``handle = search.add_segment(...)``.
+
 Writing a custom label scorer in Python
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 

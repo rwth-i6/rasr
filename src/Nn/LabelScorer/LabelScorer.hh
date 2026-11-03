@@ -77,6 +77,29 @@ namespace Nn {
  * Each concrete subclass internally implements a concrete type of scoring context which the outside
  * search algorithm is agnostic to. Depending on the model, this scoring context can consist of things like
  * the current timestep, a label history, a hidden state or other values.
+ *
+ * Multi-segment usage (e.g. by a `SearchAlgorithmV3` that decodes several segments in lockstep):
+ *  - Label scorers that return true in `supportsMultipleSegments` can hold the inputs of several segments
+ *    at the same time. Every segment is identified by a `SegmentId` chosen by the caller.
+ *  - A segment is registered via `addSegment`, receives its inputs via `addSegmentInput(s)` and
+ *    `signalNoMoreSegmentFeatures` and is released via `removeSegment`.
+ *  - `getInitialSegmentScoringContext` returns the initial context of a segment. All contexts derived from it via
+ *    `extendedScoringContext` belong to the same segment (see `ScoringContext::segment`).
+ *  - `getScoreAccessors` may receive contexts of different segments in one call which allows batching the
+ *    computations of all segments.
+ *  - `cleanupCaches` receives the active contexts of all segments.
+ *  - `extendedScoringContext` and the functions of the returned score accessors may be called in parallel from
+ *    several threads for contexts of different segments, also while another function (e.g. `getScoreAccessors`
+ *    for other segments) runs in another thread. They must therefore not modify data shared between segments,
+ *    and the other functions must not modify shared data that these two read (e.g. per-segment data should be
+ *    created in `addSegment`, not lazily). Statistics that they update must be thread-safe. All other functions
+ *    are called from one thread at a time.
+ *  - Statistics are accumulated over all segments since the last `reset` or `resetStatistics`.
+ *  - The single-segment functions (`reset`, `addInput(s)`, `signalNoMoreFeatures` and `getInitialScoringContext`)
+ *    act on the default segment, so single-segment search algorithms are not affected.
+ * Label scorers that do not support multiple segments get default implementations of the multi-segment functions
+ * that forward to the single-segment functions. They can be used by multi-segment search algorithms as long as
+ * only one segment is decoded at a time.
  */
 class LabelScorer : public virtual Core::Component,
                     public Core::ReferenceCounted {
@@ -87,8 +110,12 @@ public:
     // Prepare the LabelScorer to receive the inputs of a new segment
     virtual void reset() = 0;
 
-    // Log the statistics accumulated since the last `reset`
+    // Log the statistics accumulated since the last `reset` or `resetStatistics`
     virtual void logStatistics() const = 0;
+
+    // Clear the accumulated statistics (also of sub-scorers) without affecting the segments,
+    // e.g. after a multi-segment search logged them for several segments
+    virtual void resetStatistics() = 0;
 
     // Tells the LabelScorer that there will be no more input features coming in the current segment
     virtual void signalNoMoreFeatures() = 0;
@@ -126,6 +153,37 @@ public:
     // Return the set of all transition types that can get scored by this label scorer
     TransitionSet enabledTransitions() const;
 
+    /*
+     * Multi-segment interface
+     */
+
+    // Whether this LabelScorer can process several segments at the same time
+    virtual bool supportsMultipleSegments() const;
+
+    // Register a new segment and prepare to receive its inputs.
+    // Default (single-segment LabelScorers): `reset`
+    virtual void addSegment(SegmentId segment);
+
+    // Release all data that is stored for the given segment. Contexts of this segment can't be scored afterwards.
+    // Default (single-segment LabelScorers): no-op
+    virtual void removeSegment(SegmentId segment);
+
+    // Tells the LabelScorer that there will be no more input features coming for the given segment
+    // Default (single-segment LabelScorers): `signalNoMoreFeatures`
+    virtual void signalNoMoreSegmentFeatures(SegmentId segment);
+
+    // Gets initial scoring context of the given segment
+    // Default (single-segment LabelScorers): `getInitialScoringContext`
+    virtual ScoringContextRef getInitialSegmentScoringContext(SegmentId segment);
+
+    // Add a single input feature to the given segment
+    // Default (single-segment LabelScorers): `addInput`
+    virtual void addSegmentInput(SegmentId segment, DataView const& input);
+
+    // Add input features for multiple time steps at once to the given segment
+    // Default: loops over `addSegmentInput`, except for single-segment LabelScorers where it calls `addInputs`
+    virtual void addSegmentInputs(SegmentId segment, DataView const& input, size_t nTimesteps);
+
 protected:
     TransitionSet enabledTransitions_;
 };
@@ -145,14 +203,18 @@ public:
 
     void reset() final;
     void logStatistics() const override;
+    void resetStatistics() final;
 
     std::optional<ScoreAccessorRef>              getScoreAccessor(ScoringContextRef scoringContext) final;
     std::vector<std::optional<ScoreAccessorRef>> getScoreAccessors(std::vector<ScoringContextRef> const& scoringContexts) final;
 
 protected:
-    // Time spent in `computeScoreAccessor(s)`. Scorers that compute scores lazily add those
-    // intervals as well.
+    // Time spent in `computeScoreAccessor(s)`
     Core::StopWatch scoringTime_;
+
+    // Time spent computing scores lazily inside score accessors, which may run in several threads (see the
+    // multi-segment interface). Added to `scoring-time` when logging.
+    mutable Core::ConcurrentStopWatch lazyScoringTime_;
 
     size_t numScoreAccessorsRequested_ = 0ul;
     // Scorers that compute lazily count from const paths, hence mutable.
@@ -164,6 +226,9 @@ protected:
     // Reset the state that belongs to the concrete LabelScorer, e.g. input buffers and
     // segment-end flags. `reset` handles the statistics, so implementations must not touch them.
     virtual void resetInternal() = 0;
+
+    // Clear the timers and statistics of the concrete LabelScorer. Called by `reset` and `resetStatistics`.
+    virtual void resetStatisticsInternal() {}
 
     // Compute the score accessor for a single context.
     virtual std::optional<ScoreAccessorRef> computeScoreAccessor(ScoringContextRef scoringContext) = 0;

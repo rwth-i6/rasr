@@ -42,6 +42,9 @@ public:
     // Forwarded to the combined scorers; combining itself accumulates no statistics
     void logStatistics() const override;
 
+    // Reset the statistics of all sub-scorers
+    void resetStatistics() override;
+
     // Forward signal to all sub-scorers
     void signalNoMoreFeatures() override;
 
@@ -62,6 +65,15 @@ public:
 
     // Reset all sub-scorers
     void reset() override;
+
+    // Multi-segment functions are forwarded to the sub-scorers; supported if all of them support multiple segments
+    bool              supportsMultipleSegments() const override;
+    void              addSegment(SegmentId segment) override;
+    void              removeSegment(SegmentId segment) override;
+    void              signalNoMoreSegmentFeatures(SegmentId segment) override;
+    ScoringContextRef getInitialSegmentScoringContext(SegmentId segment) override;
+    void              addSegmentInput(SegmentId segment, DataView const& input) override;
+    void              addSegmentInputs(SegmentId segment, DataView const& input, size_t nTimesteps) override;
 
     // Get accessor that returns score-sum of all sub-scorers
     std::optional<ScoreAccessorRef> getScoreAccessor(ScoringContextRef scoringContext) override;

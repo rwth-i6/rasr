@@ -27,9 +27,19 @@ Encoder::Encoder(Core::Configuration const& config)
           statisticsChannel_(config, "statistics") {}
 
 void Encoder::reset() {
+    resetStatistics();
+    resetInternal();
+}
+
+void Encoder::resetStatistics() {
     encodeTime_.reset();
     numInputFeatures_ = 0ul;
-    resetInternal();
+    resetStatisticsInternal();
+}
+
+void Encoder::addStatistics(Encoder const& other) {
+    encodeTime_.add(other.encodeTime_);
+    numInputFeatures_ += other.numInputFeatures_;
 }
 
 void Encoder::logStatistics() const {

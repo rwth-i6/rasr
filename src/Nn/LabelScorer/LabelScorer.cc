@@ -40,6 +40,40 @@ TransitionSet LabelScorer::enabledTransitions() const {
     return enabledTransitions_;
 }
 
+bool LabelScorer::supportsMultipleSegments() const {
+    return false;
+}
+
+void LabelScorer::addSegment(SegmentId segment) {
+    reset();
+}
+
+void LabelScorer::removeSegment(SegmentId segment) {
+}
+
+void LabelScorer::signalNoMoreSegmentFeatures(SegmentId segment) {
+    signalNoMoreFeatures();
+}
+
+ScoringContextRef LabelScorer::getInitialSegmentScoringContext(SegmentId segment) {
+    return getInitialScoringContext();
+}
+
+void LabelScorer::addSegmentInput(SegmentId segment, DataView const& input) {
+    addInput(input);
+}
+
+void LabelScorer::addSegmentInputs(SegmentId segment, DataView const& input, size_t nTimesteps) {
+    if (not supportsMultipleSegments()) {
+        addInputs(input, nTimesteps);
+        return;
+    }
+    auto featureSize = input.size() / nTimesteps;
+    for (size_t t = 0ul; t < nTimesteps; ++t) {
+        addSegmentInput(segment, {input, featureSize, t * featureSize});
+    }
+}
+
 /*
  * =============================
  * === StatTrackingLabelScorer =
@@ -52,10 +86,16 @@ StatTrackingLabelScorer::StatTrackingLabelScorer(Core::Configuration const& conf
 }
 
 void StatTrackingLabelScorer::reset() {
+    resetStatistics();
+    resetInternal();
+}
+
+void StatTrackingLabelScorer::resetStatistics() {
     scoringTime_.reset();
+    lazyScoringTime_.reset();
     numScoreAccessorsRequested_ = 0ul;
     numScoreAccessorsComputed_  = 0ul;
-    resetInternal();
+    resetStatisticsInternal();
 }
 
 void StatTrackingLabelScorer::logStatistics() const {
@@ -64,7 +104,7 @@ void StatTrackingLabelScorer::logStatistics() const {
     }
 
     statisticsChannel_ << Core::XmlOpen("label-scorer-statistics") + Core::XmlAttribute("component", fullName());
-    statisticsChannel_ << Core::XmlOpen("scoring-time") + Core::XmlAttribute("unit", "milliseconds") + Core::XmlAttribute("total", scoringTime_.elapsedMilliseconds());
+    statisticsChannel_ << Core::XmlOpen("scoring-time") + Core::XmlAttribute("unit", "milliseconds") + Core::XmlAttribute("total", scoringTime_.elapsedMilliseconds() + lazyScoringTime_.elapsedMilliseconds());
     logScoringBreakdown();
     statisticsChannel_ << Core::XmlClose("scoring-time");
     logAdditionalStatistics();

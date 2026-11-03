@@ -16,6 +16,8 @@
 #ifndef CTC_PREFIX_LABEL_SCORER_HH
 #define CTC_PREFIX_LABEL_SCORER_HH
 
+#include <unordered_map>
+
 #include <Math/FastMatrix.hh>
 
 #include "LabelScorer.hh"
@@ -57,8 +59,8 @@ typedef Core::Ref<const CtcPrefixScoringContext> CtcPrefixScoringContextRef;
 class CtcPrefixScoreAccessor : public ScoreAccessor {
 public:
     // Extended-prefix scores are computed on access, so that time is charged to `scoringTime`,
-    // the owning scorer's timer. The accessor never outlives the scorer.
-    CtcPrefixScoreAccessor(CtcPrefixScoringContextRef const& scoringContext, std::shared_ptr<Math::FastMatrix<Score>> const& ctcScores, Core::StopWatch& scoringTime, Core::StopWatch& prefixExtensionTime);
+    // the owning scorer's (thread-safe) timer for lazy scoring. The accessor never outlives the scorer.
+    CtcPrefixScoreAccessor(CtcPrefixScoringContextRef const& scoringContext, std::shared_ptr<Math::FastMatrix<Score>> const& ctcScores, Core::ConcurrentStopWatch& scoringTime, Core::ConcurrentStopWatch& prefixExtensionTime);
 
     // Compute score of extended prefix with labelIndex on-demand
     Score getScore(TransitionType transitionType, LabelIndex labelIndex = invalidLabelIndex) const override;
@@ -69,8 +71,8 @@ public:
 private:
     CtcPrefixScoringContextRef               scoringContext_;
     std::shared_ptr<Math::FastMatrix<Score>> ctcScores_;
-    Core::StopWatch&                         scoringTime_;
-    Core::StopWatch&                         prefixExtensionTime_;
+    Core::ConcurrentStopWatch&               scoringTime_;
+    Core::ConcurrentStopWatch&               prefixExtensionTime_;
 };
 
 /*
@@ -98,8 +100,18 @@ public:
     ScoringContextRef getInitialScoringContext() override;
     ScoringContextRef extendedScoringContext(ScoringContextRef scoringContext, LabelIndex nextToken, TransitionType transitionType) override;
 
+    // Supported if the CTC sub-scorer supports multiple segments; CTC scores are kept per segment
+    bool              supportsMultipleSegments() const override;
+    void              addSegment(SegmentId segment) override;
+    void              removeSegment(SegmentId segment) override;
+    void              signalNoMoreSegmentFeatures(SegmentId segment) override;
+    ScoringContextRef getInitialSegmentScoringContext(SegmentId segment) override;
+    void              addSegmentInput(SegmentId segment, DataView const& input) override;
+    void              addSegmentInputs(SegmentId segment, DataView const& inputs, size_t nTimesteps) override;
+
 protected:
     void resetInternal() override;
+    void resetStatisticsInternal() override;
 
     std::optional<ScoreAccessorRef> computeScoreAccessor(ScoringContextRef scoringContext) override;
 
@@ -112,28 +124,38 @@ private:
     LabelIndex                   blankIndex_;
     size_t                       vocabSize_;
     Core::Ref<ScaledLabelScorer> ctcScorer_;
-    bool                         expectMoreFeatures_;
 
-    std::shared_ptr<Math::FastMatrix<Score>> ctcScores_;  // Cached T x V matrix of scores
+    struct SegmentData {
+        bool                                     expectMoreFeatures = true;
+        std::shared_ptr<Math::FastMatrix<Score>> ctcScores;  // Cached T x V matrix of scores
 
-    // Time spent building `ctcScores_`, including the sub-scorer time that the matrix is pulled from
+        SegmentData(size_t vocabSize);
+    };
+
+    std::unordered_map<SegmentId, SegmentData> segmentData_;
+
+    // Data of the segment, created if it doesn't exist yet
+    SegmentData& segmentData(SegmentId segment);
+
+    // Time spent building the CTC score matrices, including the sub-scorer time that the matrices are pulled from
     Core::StopWatch ctcScoreCollectionTime_;
 
     // Computing the time-wise prefix scores of a scoring context, and computing the score of a
     // prefix extended by one label. The latter is also reached from the former, in which case it
     // is counted as finalization.
-    // Finalization happens on a const path, hence mutable.
-    mutable Core::StopWatch prefixFinalizationTime_;
-    Core::StopWatch         prefixExtensionTime_;
+    // Finalization happens on a const path, hence mutable. Extension happens in the score accessors which may be
+    // used from several threads, hence thread-safe.
+    mutable Core::StopWatch   prefixFinalizationTime_;
+    Core::ConcurrentStopWatch prefixExtensionTime_;
 
     void logScoringBreakdown() const override;
     void logAdditionalStatistics() const override;
 
-    // Retrieve matrix of CTC scores from sub-scorer. Assumes that these scores only depend on timestep and label index, not history or transition type.
-    void setupCTCScores();
+    // Retrieve matrix of CTC scores of the segment from sub-scorer. Assumes that these scores only depend on timestep and label index, not history or transition type.
+    void setupCTCScores(SegmentId segment);
 
-    // Update prefix scores in scoringContext
-    void finalizeScoringContext(CtcPrefixScoringContextRef const& scoringContext) const;
+    // Update prefix scores in scoringContext using the CTC scores of its segment
+    void finalizeScoringContext(CtcPrefixScoringContextRef const& scoringContext, std::shared_ptr<Math::FastMatrix<Score>> const& ctcScores) const;
 };
 
 }  // namespace Nn

@@ -17,11 +17,17 @@
 
 namespace Nn {
 
-EncoderDecoderLabelScorer::EncoderDecoderLabelScorer(Core::Configuration const& config, Core::Ref<Encoder> const& encoder, Core::Ref<ScaledLabelScorer> const& decoder)
+EncoderDecoderLabelScorer::EncoderDecoderLabelScorer(Core::Configuration const&          config,
+                                                     Core::Ref<Encoder> const&           encoder,
+                                                     Core::Ref<ScaledLabelScorer> const& decoder,
+                                                     EncoderCreationFunction             createEncoder)
         : Core::Component(config),
           LabelScorer(config),
           encoder_(encoder),
-          decoder_(decoder) {
+          decoder_(decoder),
+          createEncoder_(std::move(createEncoder)),
+          segmentEncoders_(),
+          unusedEncoders_() {
     enabledTransitions_ = decoder_->enabledTransitions();
 }
 
@@ -30,16 +36,32 @@ Core::Ref<ScaledLabelScorer> EncoderDecoderLabelScorer::getDecoderLabelScorer() 
 }
 
 void EncoderDecoderLabelScorer::logStatistics() const {
+    collectEncoderStatistics();
     encoder_->logStatistics();
     decoder_->logStatistics();
 }
 
+void EncoderDecoderLabelScorer::resetStatistics() {
+    encoder_->resetStatistics();
+    for (auto& [segment, encoder] : segmentEncoders_) {
+        encoder->resetStatistics();
+    }
+    for (auto& encoder : unusedEncoders_) {
+        encoder->resetStatistics();
+    }
+    decoder_->resetStatistics();
+}
+
+void EncoderDecoderLabelScorer::collectEncoderStatistics() const {
+    // The statistics are moved, so they are not counted twice when they are collected again
+    for (auto const& [segment, encoder] : segmentEncoders_) {
+        encoder_->addStatistics(*encoder);
+        encoder->resetStatistics();
+    }
+}
+
 void EncoderDecoderLabelScorer::signalNoMoreFeatures() {
-    encoder_->signalNoMoreFeatures();
-    // Call `passEncoderOutputsToDecoder()` before signaling segment end to the decoder since the decoder
-    // is supposed to receive all available encoder outputs before this signal
-    passEncoderOutputsToDecoder();
-    decoder_->signalNoMoreFeatures();
+    signalNoMoreSegmentFeatures(defaultSegmentId);
 }
 
 ScoringContextRef EncoderDecoderLabelScorer::getInitialScoringContext() {
@@ -56,17 +78,22 @@ void EncoderDecoderLabelScorer::cleanupCaches(Core::CollapsedVector<ScoringConte
 
 void EncoderDecoderLabelScorer::addInput(DataView const& input) {
     encoder_->addInput(input);
-    passEncoderOutputsToDecoder();
+    passEncoderOutputsToDecoder(defaultSegmentId);
 }
 
 void EncoderDecoderLabelScorer::addInputs(DataView const& input, size_t nTimesteps) {
     encoder_->addInputs(input, nTimesteps);
-    passEncoderOutputsToDecoder();
+    passEncoderOutputsToDecoder(defaultSegmentId);
 }
 
 void EncoderDecoderLabelScorer::reset() {
     encoder_->reset();
     decoder_->reset();
+    for (auto& [segment, encoder] : segmentEncoders_) {
+        encoder->reset();
+        unusedEncoders_.push_back(encoder);
+    }
+    segmentEncoders_.clear();
 }
 
 std::optional<ScoreAccessorRef> EncoderDecoderLabelScorer::getScoreAccessor(ScoringContextRef scoringContext) {
@@ -77,10 +104,92 @@ std::vector<std::optional<ScoreAccessorRef>> EncoderDecoderLabelScorer::getScore
     return decoder_->getScoreAccessors(scoringContexts);
 }
 
-void EncoderDecoderLabelScorer::passEncoderOutputsToDecoder() {
+bool EncoderDecoderLabelScorer::supportsMultipleSegments() const {
+    return decoder_->supportsMultipleSegments() and createEncoder_;
+}
+
+void EncoderDecoderLabelScorer::addSegment(SegmentId segment) {
+    segmentEncoder(segment)->reset();
+    decoder_->addSegment(segment);
+}
+
+void EncoderDecoderLabelScorer::removeSegment(SegmentId segment) {
+    if (segment == defaultSegmentId) {
+        encoder_->reset();
+    }
+    else {
+        auto it = segmentEncoders_.find(segment);
+        if (it != segmentEncoders_.end()) {
+            encoder_->addStatistics(*it->second);
+            it->second->reset();
+            unusedEncoders_.push_back(it->second);
+            segmentEncoders_.erase(it);
+        }
+    }
+    decoder_->removeSegment(segment);
+}
+
+void EncoderDecoderLabelScorer::signalNoMoreSegmentFeatures(SegmentId segment) {
+    segmentEncoder(segment)->signalNoMoreFeatures();
+    // Call `passEncoderOutputsToDecoder()` before signaling segment end to the decoder since the decoder
+    // is supposed to receive all available encoder outputs before this signal
+    passEncoderOutputsToDecoder(segment);
+    if (segment == defaultSegmentId) {
+        decoder_->signalNoMoreFeatures();
+    }
+    else {
+        decoder_->signalNoMoreSegmentFeatures(segment);
+    }
+}
+
+ScoringContextRef EncoderDecoderLabelScorer::getInitialSegmentScoringContext(SegmentId segment) {
+    return decoder_->getInitialSegmentScoringContext(segment);
+}
+
+void EncoderDecoderLabelScorer::addSegmentInput(SegmentId segment, DataView const& input) {
+    segmentEncoder(segment)->addInput(input);
+    passEncoderOutputsToDecoder(segment);
+}
+
+void EncoderDecoderLabelScorer::addSegmentInputs(SegmentId segment, DataView const& input, size_t nTimesteps) {
+    segmentEncoder(segment)->addInputs(input, nTimesteps);
+    passEncoderOutputsToDecoder(segment);
+}
+
+Core::Ref<Encoder> const& EncoderDecoderLabelScorer::segmentEncoder(SegmentId segment) {
+    if (segment == defaultSegmentId) {
+        return encoder_;
+    }
+
+    auto it = segmentEncoders_.find(segment);
+    if (it != segmentEncoders_.end()) {
+        return it->second;
+    }
+
+    Core::Ref<Encoder> encoder;
+    if (not unusedEncoders_.empty()) {
+        encoder = unusedEncoders_.back();
+        unusedEncoders_.pop_back();
+    }
+    else {
+        if (not createEncoder_) {
+            error() << "Encoder-decoder label scorer can't create an encoder for segment " << segment << " because no encoder creation function was given";
+        }
+        encoder = createEncoder_();
+    }
+    return segmentEncoders_.emplace(segment, encoder).first->second;
+}
+
+void EncoderDecoderLabelScorer::passEncoderOutputsToDecoder(SegmentId segment) {
+    auto const&                encoder = segmentEncoder(segment);
     std::optional<EncodedSpan> encoderOutput;
-    while ((encoderOutput = encoder_->getNextOutput())) {
-        decoder_->addInput(encoderOutput->encoding);
+    while ((encoderOutput = encoder->getNextOutput())) {
+        if (segment == defaultSegmentId) {
+            decoder_->addInput(encoderOutput->encoding);
+        }
+        else {
+            decoder_->addSegmentInput(segment, encoderOutput->encoding);
+        }
     }
 }
 

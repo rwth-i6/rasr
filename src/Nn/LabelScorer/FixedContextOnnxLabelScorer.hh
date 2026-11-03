@@ -44,6 +44,10 @@ typedef Core::Ref<SeqStepScoringContext const> SeqStepScoringContextRef;
  * Label Scorer that performs scoring by forwarding the input feature at the current timestep together
  * with a fixed-size sequence of history tokens through an ONNX model.
  * A common use case would be a neural transducer model with a fixed-size history.
+ *
+ * By default, contexts are batched per input feature (i.e. per segment and timestep). With `stack-input-features`,
+ * contexts with different input features (e.g. of different segments in multi-segment search) are batched together
+ * and their input features are stacked to shape [B, F]. This requires a dynamic batch dimension of the input feature.
  */
 class FixedContextOnnxLabelScorer : public BufferedLabelScorer {
 public:
@@ -51,7 +55,10 @@ public:
     virtual ~FixedContextOnnxLabelScorer() = default;
 
     // Initial scoring context contains step 0 and a history vector filled with the start label index
-    ScoringContextRef getInitialScoringContext() override;
+    ScoringContextRef getInitialSegmentScoringContext(SegmentId segment) override;
+
+    // Remove buffered inputs and cached scores of the segment
+    void removeSegment(SegmentId segment) override;
 
     // May increment the step by 1 (except for vertical transitions) and may append the next token to the
     // history label sequence depending on the transition type and whether loops/blanks update the history
@@ -64,6 +71,7 @@ public:
 protected:
     // Clear feature buffer and cached scores
     void resetInternal() override;
+    void resetStatisticsInternal() override;
 
     // If scores for the given scoring contexts are not yet cached, prepare and run an ONNX session to
     // compute the scores and cache them
@@ -83,6 +91,7 @@ private:
     static const Core::ParameterBool paramLoopUpdatesHistory;
     static const Core::ParameterBool paramVerticalLabelTransition;
     static const Core::ParameterInt  paramMaxBatchSize;
+    static const Core::ParameterBool paramStackInputFeatures;
 
     size_t startLabelIndex_;
     size_t historyLength_;
@@ -91,6 +100,7 @@ private:
     bool   loopUpdatesHistory_;
     bool   verticalLabelTransition_;
     size_t maxBatchSize_;
+    bool   stackInputFeatures_;
 
     std::shared_ptr<Onnx::Model> onnxModel_;
 
@@ -106,7 +116,7 @@ private:
     std::unordered_map<SeqStepScoringContextRef, std::shared_ptr<std::vector<Score>>, ScoringContextHash, ScoringContextEq> scoreCache_;
 
     // Forward a batch of histories through the ONNX model and put the resulting scores into the score cache
-    // Assumes that all histories in the batch are based on the same timestep
+    // Assumes that all histories in the batch are based on the same input feature unless input features are stacked
     void forwardBatch(std::vector<SeqStepScoringContextRef> const& scoringContextBatch);
 
     void logScoringBreakdown() const override;

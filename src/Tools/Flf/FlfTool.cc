@@ -90,6 +90,8 @@ private:
 
     Flf::Processor* createProcessor(Flf::Network* network) {
         Flf::Processor* processor = 0;
+        if ((processor = Flf::BatchedCorpusProcessor::create(config, network)))
+            return processor;
         if ((processor = Flf::CorpusProcessor::create(config, network)))
             return processor;
         return new Flf::Processor(config, network);

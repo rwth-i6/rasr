@@ -197,4 +197,142 @@ void bindSearchAlgorithm(py::module_& module) {
             &SearchAlgorithm::modelCombination,
             py::return_value_policy::reference_internal,
             "Return the model combination used by the search.");
+
+    /*
+     * ================================
+     * === Batched Search Algorithm ===
+     * ================================
+     */
+    py::class_<BatchedSearchAlgorithm> pyBatchedSearchAlgorithm(
+            module,
+            "BatchedSearchAlgorithm",
+            "Class that can perform recognition of several segments at the same time using RASR.\n\n"
+            "The search algorithm is configured with a RASR config object (`search-algorithm.type` selects a multi-segment search).\n"
+            "All active segments are decoded in lockstep so that the label scorer computations of all segments are batched.\n"
+            "Segments are identified by handles: `add_segment()` returns a handle, features are passed via `put_features(handle, ...)`\n"
+            "and `signal_no_more_features(handle)` signals that all features of the segment have been passed. `decode_step()` and\n"
+            "`decode_many_steps()` advance the active segments. Once `is_finished(handle)` is true, the result can be retrieved via\n"
+            "`get_current_best_traceback(handle)` and the segment should be released via `remove_segment(handle)`.\n"
+            "New segments can be added at any time, also while other segments are being decoded (continuous batching).\n"
+            "The convenience function `recognize_segments` performs all these steps for a list of feature arrays.");
+
+    pyBatchedSearchAlgorithm.def(
+            py::init<const Core::Configuration&>(),
+            py::arg("config"),
+            "Initialize batched search algorithm using a RASR config.");
+
+    pyBatchedSearchAlgorithm.def(
+            "max_active_segments",
+            &BatchedSearchAlgorithm::maxActiveSegments,
+            "Maximum number of segments that can be decoded at the same time.");
+
+    pyBatchedSearchAlgorithm.def(
+            "num_active_segments",
+            &BatchedSearchAlgorithm::numActiveSegments,
+            "Number of segments that have been added and are not finished yet.");
+
+    pyBatchedSearchAlgorithm.def(
+            "add_segment",
+            &BatchedSearchAlgorithm::addSegment,
+            py::arg("name") = "",
+            "Add a new segment and return its handle. The optional name is used for logging.");
+
+    pyBatchedSearchAlgorithm.def(
+            "signal_no_more_features",
+            &BatchedSearchAlgorithm::signalNoMoreFeatures,
+            py::arg("segment"),
+            "Call after all features of the segment have been passed. Does not decode the segment yet.");
+
+    pyBatchedSearchAlgorithm.def(
+            "put_feature",
+            &BatchedSearchAlgorithm::putFeature,
+            py::arg("segment"),
+            py::arg("feature_vector"),
+            "Pass a single feature of the segment as a numpy array of shape [F] or [1, F].");
+
+    pyBatchedSearchAlgorithm.def(
+            "put_features",
+            &BatchedSearchAlgorithm::putFeatures,
+            py::arg("segment"),
+            py::arg("feature_array"),
+            "Pass multiple features of the segment as a numpy array of shape [T, F] or [1, T, F].");
+
+    pyBatchedSearchAlgorithm.def(
+            "decode_step",
+            &BatchedSearchAlgorithm::decodeStep,
+            "Decode one step for the active segments (with pipelining only for one group). Returns whether anything changed.");
+
+    pyBatchedSearchAlgorithm.def(
+            "decode_many_steps",
+            &BatchedSearchAlgorithm::decodeManySteps,
+            "Decode as far as possible for all active segments given their features. Returns the number of steps.");
+
+    pyBatchedSearchAlgorithm.def(
+            "is_finished",
+            &BatchedSearchAlgorithm::isFinished,
+            py::arg("segment"),
+            "Whether the search of the segment is finished.");
+
+    pyBatchedSearchAlgorithm.def(
+            "remove_segment",
+            &BatchedSearchAlgorithm::removeSegment,
+            py::arg("segment"),
+            "Release all data of the segment. The handle becomes invalid afterwards.");
+
+    pyBatchedSearchAlgorithm.def(
+            "segments",
+            &BatchedSearchAlgorithm::segments,
+            "Handles of all segments that have been added and not removed yet.");
+
+    pyBatchedSearchAlgorithm.def(
+            "get_current_best_traceback",
+            &BatchedSearchAlgorithm::getCurrentBestTraceback,
+            py::arg("segment"),
+            "Get the best traceback of the segment. Doesn't decode any further.");
+
+    pyBatchedSearchAlgorithm.def(
+            "get_common_prefix",
+            &BatchedSearchAlgorithm::getCommonPrefix,
+            py::arg("segment"),
+            "Get the stable traceback of the segment. Doesn't decode any further.");
+
+    pyBatchedSearchAlgorithm.def(
+            "get_current_n_best_list",
+            &BatchedSearchAlgorithm::getCurrentNBestList,
+            py::arg("segment"),
+            py::arg("n"),
+            "Get a n-best list of tracebacks of the segment. Doesn't decode any further.");
+
+    pyBatchedSearchAlgorithm.def(
+            "recognize_segments",
+            [](BatchedSearchAlgorithm&              self,
+               std::vector<py::array_t<f32>> const& features,
+               std::vector<std::string> const&      names) {
+                return self.recognizeSegments(features, names);
+            },
+            py::arg("features"),
+            py::arg("names") = std::vector<std::string>(),
+            "Convenience function to recognize a list of segments given their features as numpy arrays of shape [T, F] or [1, T, F].\n"
+            "Decodes up to `max_active_segments()` segments at the same time (configured in the search) with continuous\n"
+            "batching and returns the recognition results in the order of the inputs.\n"
+            "Optionally, `names` (only used for logging) can be given with one entry per segment.");
+
+    pyBatchedSearchAlgorithm.def(
+            "recognize_segments_n_best",
+            [](BatchedSearchAlgorithm&              self,
+               std::vector<py::array_t<f32>> const& features,
+               size_t                               nBestSize,
+               std::vector<std::string> const&      names) {
+                return self.recognizeSegmentsNBest(features, nBestSize, names);
+            },
+            py::arg("features"),
+            py::arg("n"),
+            py::arg("names") = std::vector<std::string>(),
+            "Same as `recognize_segments` but returns a n-best list of recognition results for each segment.");
+
+    pyBatchedSearchAlgorithm.def(
+            "model_combination",
+            &BatchedSearchAlgorithm::modelCombination,
+            py::return_value_policy::reference_internal,
+            "Return the model combination used by the search.");
 }

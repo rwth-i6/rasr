@@ -84,6 +84,8 @@ struct LabelSeqEq {
  * Note: This LabelScorer is similar to the `StatefulOnnxLabelScorer`. The difference is that in this one the ScoringContext also
  * contains the current step and the input feature at the current step is fed to the Scorer. Furthermore, the state initializer
  * and updater here only take tokens and no input features.
+ *
+ * Multiple segments: caches are kept per segment and contexts are batched per segment and timestep.
  */
 class StatefulTransducerOnnxLabelScorer : public BufferedLabelScorer {
     using Precursor = BufferedLabelScorer;
@@ -99,13 +101,18 @@ public:
     StatefulTransducerOnnxLabelScorer(Core::Configuration const& config, ModelCache& modelCache);
     virtual ~StatefulTransducerOnnxLabelScorer() = default;
 
-    ScoringContextRef getInitialScoringContext() override;
+    ScoringContextRef getInitialSegmentScoringContext(SegmentId segment) override;
+
+    // Create or remove buffered inputs and caches of the segment
+    void addSegment(SegmentId segment) override;
+    void removeSegment(SegmentId segment) override;
 
     // Append the new token to the label sequence; does not update the hidden-state. This is only done once the scoringContext is used for scoring again.
     ScoringContextRef extendedScoringContext(ScoringContextRef scoringContext, LabelIndex nextToken, TransitionType transitionType) override;
 
 protected:
     void resetInternal() override;
+    void resetStatisticsInternal() override;
 
     // Update hidden state, run scorer and get an accessor for the output score vector
     std::optional<ScoreAccessorRef> computeScoreAccessor(ScoringContextRef scoringContext) override;
@@ -137,10 +144,12 @@ private:
     bool   loopUpdatesHistory_;
     bool   verticalLabelTransition_;
     size_t maxBatchSize_;
+    size_t maxCachedScores_;
 
     Onnx::OnnxInitUpdateScoreBundle initUpdateScoreBundle_;
 
-    StepOnnxHiddenStateScoringContextRef initialScoringContext_;
+    // Doesn't depend on the segment, so it is shared by the initial contexts of all segments
+    Onnx::OnnxNamedValuesRef initialHiddenState_;
 
     std::string scorerInputFeatureName_;
     std::string updaterTokenName_;
@@ -150,10 +159,19 @@ private:
     Core::StopWatch stateMarshallingTime_;
     Core::StopWatch contextPreparationTime_;
 
-    Core::FIFOCache<StepOnnxHiddenStateScoringContextRef, std::shared_ptr<std::vector<Score>>, ScoringContextHash, ScoringContextEq> scoreCache_;
+    struct SegmentData {
+        Core::FIFOCache<StepOnnxHiddenStateScoringContextRef, std::shared_ptr<std::vector<Score>>, ScoringContextHash, ScoringContextEq> scoreCache;
 
-    // Keyed by the label sequence only, since the hidden state doesn't depend on the step
-    Core::FIFOCache<StepOnnxHiddenStateScoringContextRef, Onnx::OnnxNamedValuesRef, LabelSeqHash, LabelSeqEq> stateCache_;
+        // Keyed by the label sequence only, since the hidden state doesn't depend on the step
+        Core::FIFOCache<StepOnnxHiddenStateScoringContextRef, Onnx::OnnxNamedValuesRef, LabelSeqHash, LabelSeqEq> stateCache;
+
+        SegmentData(size_t maxCachedScores);
+    };
+
+    std::unordered_map<SegmentId, SegmentData> segmentData_;
+
+    // Data of the segment, created if it doesn't exist yet
+    SegmentData& segmentData(SegmentId segment);
 };
 
 }  // namespace Nn

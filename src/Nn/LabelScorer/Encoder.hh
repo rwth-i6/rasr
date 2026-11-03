@@ -51,8 +51,14 @@ public:
     // Clears the accumulated timing and statistics and delegates to `resetInternal`.
     void reset();
 
-    // Log the timing and statistics accumulated since the last `reset`.
+    // Log the timing and statistics accumulated since the last `reset` or `resetStatistics`.
     virtual void logStatistics() const;
+
+    // Clears the accumulated timing and statistics without affecting the buffers
+    void resetStatistics();
+
+    // Add the statistics of another encoder of the same type, e.g. the encoder of another segment
+    virtual void addStatistics(Encoder const& other);
 
     // Signal that no more features are expected for the current segment.
     void signalNoMoreFeatures();
@@ -85,6 +91,9 @@ protected:
     // Clear the state that belongs to the concrete Encoder, e.g. input buffers and segment-end
     // flags. `reset` handles the statistics, so implementations must not touch them.
     virtual void resetInternal();
+
+    // Clear the timers and statistics of the concrete Encoder. Called by `reset` and `resetStatistics`.
+    virtual void resetStatisticsInternal() {}
 
     // Encode features inside the input buffer and put the results into the output buffer
     virtual void encode() = 0;

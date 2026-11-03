@@ -25,6 +25,9 @@
 #include <Nn/LabelScorer/ScaledLabelScorer.hh>
 #include <Nn/Module.hh>
 #include <Python/LabelScorer.hh>
+#ifdef MODULE_ONNX
+#include <Nn/LabelScorer/PrefixSpeechLmOnnxLabelScorer.hh>
+#endif
 
 // Make it so that a `py::object` can use `Core::Ref` as a holder type instead of the usual `std::unique_ptr`.
 // See https://pybind11.readthedocs.io/en/stable/advanced/smart_ptrs.html#custom-smart-pointers for official documentation.
@@ -208,4 +211,34 @@ void bindLabelScorer(py::module_& module) {
             py::arg("index") = 0ul,
             py::return_value_policy::reference_internal,
             "Return the wrapped sub-scorer.");
+
+    pyScaledLabelScorer.def(
+            "label_scorer",
+            &Nn::ScaledLabelScorer::labelScorer,
+            "Return the label scorer that is scaled, e.g. to access functions of specific label scorer types.");
+
+#ifdef MODULE_ONNX
+    py::class_<Nn::PrefixSpeechLmOnnxLabelScorer, Nn::LabelScorer, Core::Ref<Nn::PrefixSpeechLmOnnxLabelScorer>> pyPrefixSpeechLmOnnxLabelScorer(
+            module,
+            "PrefixSpeechLmOnnxLabelScorer",
+            "Label scorer for prefix speech LMs; allows overriding the prompts of the config.");
+
+    pyPrefixSpeechLmOnnxLabelScorer.def(
+            "set_initial_prompt",
+            &Nn::PrefixSpeechLmOnnxLabelScorer::setInitialPrompt,
+            py::arg("prompt"),
+            py::arg("segment") = Nn::defaultSegmentId,
+            "Override the initial prompt (token ids before the speech embeddings) for a segment.\n"
+            "`segment` is the handle of a `BatchedSearchAlgorithm` segment; the default is the segment of `SearchAlgorithm`.\n"
+            "Call after `enter_segment` / `add_segment` and before passing the features of the segment.");
+
+    pyPrefixSpeechLmOnnxLabelScorer.def(
+            "set_suffix_prompt",
+            &Nn::PrefixSpeechLmOnnxLabelScorer::setSuffixPrompt,
+            py::arg("prompt"),
+            py::arg("segment") = Nn::defaultSegmentId,
+            "Override the suffix prompt (token ids after the speech embeddings) for a segment.\n"
+            "`segment` is the handle of a `BatchedSearchAlgorithm` segment; the default is the segment of `SearchAlgorithm`.\n"
+            "Call after `enter_segment` / `add_segment` and before passing the features of the segment.");
+#endif
 }

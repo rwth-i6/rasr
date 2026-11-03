@@ -17,6 +17,7 @@
 #include <Speech/CorpusVisitor.hh>
 
 #include "CorpusProcessor.hh"
+#include "RecognizerV3.hh"
 
 namespace Flf {
 
@@ -88,6 +89,82 @@ void CorpusProcessor::processSpeechSegment(Bliss::SpeechSegment* segment) {
 // -------------------------------------------------------------------------
 
 // -------------------------------------------------------------------------
+Processor* BatchedCorpusProcessor::create(const Core::Configuration& config, Network* network) {
+    SpeechSegmentNodeList speechSegNodes;
+    RecognizerNodeV3*     recognizer = 0;
+    for (Network::NodeList::iterator it = network->nodes().begin();
+         it != network->nodes().end(); ++it) {
+        SpeechSegmentNode* speechSegNode = dynamic_cast<SpeechSegmentNode*>(it->get());
+        if (speechSegNode)
+            speechSegNodes.push_back(speechSegNode);
+        RecognizerNodeV3* recognizerNode = dynamic_cast<RecognizerNodeV3*>(it->get());
+        if (recognizerNode) {
+            if (recognizer)
+                Core::Application::us()->criticalError("BatchedCorpusProcessor: Only one recognizer-v3 node is supported.");
+            recognizer = recognizerNode;
+        }
+    }
+    if (!recognizer)
+        return 0;
+    Core::Application::us()->log("BatchedCorpusProcessor: Process network with batched recognition.");
+    return new BatchedCorpusProcessor(config, network, speechSegNodes, recognizer);
+}
+
+BatchedCorpusProcessor::BatchedCorpusProcessor(const Core::Configuration& config, Network* network, SpeechSegmentNodeList const& speechSegNodes, RecognizerNodeV3* recognizer)
+        : Core::Component(config),
+          Processor(config, network),
+          Speech::CorpusProcessor(config),
+          corpusVisitor_(0),
+          speechSegNodes_(speechSegNodes),
+          recognizer_(recognizer),
+          good_(true) {
+}
+
+BatchedCorpusProcessor::~BatchedCorpusProcessor() {
+    delete corpusVisitor_;
+}
+
+bool BatchedCorpusProcessor::init(const std::vector<std::string>& arguments) {
+    corpusVisitor_ = new Speech::CorpusVisitor(config);
+    signOn(*corpusVisitor_);
+    return Processor::init(arguments);
+}
+
+void BatchedCorpusProcessor::run() {
+    Bliss::CorpusDescription corpusDescription(select("corpus"));
+    corpusDescription.accept(corpusVisitor_);
+    // Decode and process the remaining segments
+    processResults(true);
+}
+
+void BatchedCorpusProcessor::processSpeechSegment(Bliss::SpeechSegment* segment) {
+    recognizer_->addSegment(segment);
+    processResults(false);
+}
+
+void BatchedCorpusProcessor::processResults(bool all) {
+    while (recognizer_->hasPendingSegments()) {
+        if (recognizer_->nextResultReady()) {
+            if (!good_)
+                criticalError("At least one source node is out of data.");
+            ConstSegmentRef segment = recognizer_->prepareNextResult();
+            for (SpeechSegmentNodeList::iterator it = speechSegNodes_.begin(); it != speechSegNodes_.end(); ++it)
+                (*it)->setSegment(segment);
+            crawler_->reset();
+            network_->pull();
+            good_ = network_->sync(*crawler_);
+        }
+        else if (all or recognizer_->numActiveSegments() >= recognizer_->maxActiveSegments()) {
+            recognizer_->decodeStep();
+        }
+        else {
+            break;
+        }
+    }
+}
+// -------------------------------------------------------------------------
+
+// -------------------------------------------------------------------------
 SpeechSegmentNode::SpeechSegmentNode(const std::string& name, const Core::Configuration& config)
         : Node(name, config),
           blissSpeechSegment_(0) {}
@@ -114,8 +191,11 @@ ConstSegmentRef SpeechSegmentNode::sendSegment(Port to) {
 
 const void* SpeechSegmentNode::sendData(Port to) {
     verify(to == 1);
-    if (!blissSpeechSegment_)
+    if (!blissSpeechSegment_) {
+        if (segment_)
+            criticalError("SpeechSegmentNode: Bliss speech segment is not available in batched recognition (recognizer-v3)");
         criticalError("SpeechSegmentNode: Bliss speech segment not set");
+    }
     return blissSpeechSegment_;
 }
 

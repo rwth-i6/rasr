@@ -15,6 +15,8 @@
 
 #include "FixedContextOnnxLabelScorer.hh"
 
+#include <map>
+
 #include <Core/XmlStream.hh>
 
 #include "ScoreAccessor.hh"
@@ -107,6 +109,12 @@ static const std::vector<Onnx::IOSpecification> ioSpec = {
                 {Onnx::ValueDataType::FLOAT},
                 {{-1, -2}}}};
 
+const Core::ParameterBool FixedContextOnnxLabelScorer::paramStackInputFeatures(
+        "stack-input-features",
+        "Whether contexts with different input features (e.g. of different segments) are forwarded together by stacking the input features."
+        " Requires a dynamic batch dimension of the input feature.",
+        false);
+
 FixedContextOnnxLabelScorer::FixedContextOnnxLabelScorer(Core::Configuration const& config, ModelCache& modelCache)
         : Core::Component(config),
           Precursor(config, TransitionPresetType::TRANSDUCER),
@@ -117,6 +125,7 @@ FixedContextOnnxLabelScorer::FixedContextOnnxLabelScorer(Core::Configuration con
           loopUpdatesHistory_(paramLoopUpdatesHistory(config)),
           verticalLabelTransition_(paramVerticalLabelTransition(config)),
           maxBatchSize_(paramMaxBatchSize(config)),
+          stackInputFeatures_(paramStackInputFeatures(config)),
           scoreCache_() {
     Core::Configuration modelConfig(config, "onnx-model");
     auto                key = modelConfig.getSelection();
@@ -124,12 +133,32 @@ FixedContextOnnxLabelScorer::FixedContextOnnxLabelScorer(Core::Configuration con
     inputFeatureName_       = onnxModel_->mapping.getOnnxName("input-feature");
     historyName_            = onnxModel_->mapping.getOnnxName("history");
     scoresName_             = onnxModel_->mapping.getOnnxName("scores");
+
+    if (stackInputFeatures_) {
+        auto inputShape = onnxModel_->session.getInputShape(inputFeatureName_);
+        if (not inputShape.empty() and inputShape.front() == 1l) {
+            error() << "stack-input-features requires a dynamic batch dimension of the input feature but the ONNX model has a fixed batch size of 1";
+        }
+    }
 }
 
-ScoringContextRef FixedContextOnnxLabelScorer::getInitialScoringContext() {
+ScoringContextRef FixedContextOnnxLabelScorer::getInitialSegmentScoringContext(SegmentId segment) {
     auto hist = Core::ref(new SeqStepScoringContext());
     hist->labelSeq.resize(historyLength_, startLabelIndex_);
+    hist->segment = segment;
     return hist;
+}
+
+void FixedContextOnnxLabelScorer::removeSegment(SegmentId segment) {
+    Precursor::removeSegment(segment);
+    for (auto it = scoreCache_.begin(); it != scoreCache_.end();) {
+        if (it->first->segment == segment) {
+            it = scoreCache_.erase(it);
+        }
+        else {
+            ++it;
+        }
+    }
 }
 
 ScoringContextRef FixedContextOnnxLabelScorer::extendedScoringContext(ScoringContextRef scoringContext, LabelIndex nextToken, TransitionType transitionType) {
@@ -187,7 +216,9 @@ ScoringContextRef FixedContextOnnxLabelScorer::extendedScoringContext(ScoringCon
         newLabelSeq = seqStepScoringContext->labelSeq;
     }
 
-    return Core::ref(new SeqStepScoringContext(std::move(newLabelSeq), seqStepScoringContext->currentStep + timeIncrement));
+    auto newContext     = Core::ref(new SeqStepScoringContext(std::move(newLabelSeq), seqStepScoringContext->currentStep + timeIncrement));
+    newContext->segment = seqStepScoringContext->segment;
+    return newContext;
 }
 
 void FixedContextOnnxLabelScorer::cleanupCaches(Core::CollapsedVector<ScoringContextRef> const& activeContexts) {
@@ -207,10 +238,14 @@ void FixedContextOnnxLabelScorer::cleanupCaches(Core::CollapsedVector<ScoringCon
 
 void FixedContextOnnxLabelScorer::resetInternal() {
     Precursor::resetInternal();
+    scoreCache_.clear();
+}
+
+void FixedContextOnnxLabelScorer::resetStatisticsInternal() {
+    Precursor::resetStatisticsInternal();
     onnxSessionTime_.reset();
     tensorMarshallingTime_.reset();
     contextPreparationTime_.reset();
-    scoreCache_.clear();
 }
 
 std::vector<std::optional<ScoreAccessorRef>> FixedContextOnnxLabelScorer::computeScoreAccessors(std::vector<ScoringContextRef> const& scoringContexts) {
@@ -228,22 +263,24 @@ std::vector<std::optional<ScoreAccessorRef>> FixedContextOnnxLabelScorer::comput
     }
 
     /*
-     * Collect all requests that are based on the same timestep (-> same input feature) and
-     * group them together
+     * Collect all requests that are based on the same segment and timestep (-> same input feature) and
+     * group them together. If input features are stacked, all requests form a single group.
      */
-    std::unordered_map<size_t, std::vector<size_t>> contextsWithTimestep;  // Maps timestep to list of all indices of scoringContexts with that timestep
+    std::map<std::pair<SegmentId, size_t>, std::vector<size_t>> contextsWithInput;  // Maps segment and timestep to list of all indices of scoringContexts with that input
 
     for (size_t contextIndex = 0ul; contextIndex < scoringContexts.size(); ++contextIndex) {
-        auto step = seqStepScoringContexts[contextIndex]->currentStep;
+        auto segment = seqStepScoringContexts[contextIndex]->segment;
+        auto step    = seqStepScoringContexts[contextIndex]->currentStep;
 
-        auto input = getInput(step);
+        auto input = getInput(segment, step);
         if (not input) {
             // If input is not available, this context can't be forwarded
             continue;
         }
 
         // Create new vector if step value isn't present in map yet
-        auto [it, inserted] = contextsWithTimestep.emplace(step, std::vector<size_t>());
+        auto key            = stackInputFeatures_ ? std::make_pair(defaultSegmentId, 0ul) : std::make_pair(segment, static_cast<size_t>(step));
+        auto [it, inserted] = contextsWithInput.emplace(key, std::vector<size_t>());
         it->second.push_back(contextIndex);
     }
 
@@ -254,9 +291,9 @@ std::vector<std::optional<ScoreAccessorRef>> FixedContextOnnxLabelScorer::comput
     size_t numComputed = 0ul;
 
     /*
-     * Iterate over distinct timesteps
+     * Iterate over distinct inputs
      */
-    for (auto const& [timestep, contextIndices] : contextsWithTimestep) {
+    for (auto const& [input, contextIndices] : contextsWithInput) {
         /*
          * Identify unique histories that still need session runs
          */
@@ -289,7 +326,7 @@ std::vector<std::optional<ScoreAccessorRef>> FixedContextOnnxLabelScorer::comput
         contextPreparationTime_.start();
         for (auto const& contextIndex : contextIndices) {
             auto const& scoreVec         = scoreCache_.at(seqStepScoringContexts[contextIndex]);
-            scoreAccessors[contextIndex] = Core::ref(new VectorScoreAccessor(scoreVec, timestep));
+            scoreAccessors[contextIndex] = Core::ref(new VectorScoreAccessor(scoreVec, seqStepScoringContexts[contextIndex]->currentStep));
         }
         contextPreparationTime_.stop();
     }
@@ -324,10 +361,23 @@ void FixedContextOnnxLabelScorer::forwardBatch(std::vector<SeqStepScoringContext
 
     tensorMarshallingTime_.start();
 
-    // All requests in this iteration share the same input feature which is set up here
-    auto                 inputFeatureDataView = getInput(scoringContextBatch.front()->currentStep);
-    f32 const*           inputFeatureData     = inputFeatureDataView->data();
-    std::vector<int64_t> inputFeatureShape    = {1ul, static_cast<int64_t>(inputFeatureDataView->size())};
+    // Without stacking, all requests in this iteration share the same input feature which is set up here
+    auto        inputFeatureDataView = getInput(scoringContextBatch.front()->segment, scoringContextBatch.front()->currentStep);
+    Onnx::Value inputFeatureValue;
+    if (stackInputFeatures_) {
+        size_t featureSize = inputFeatureDataView->size();
+        inputFeatureValue  = Onnx::Value::createEmpty<f32>({static_cast<int64_t>(scoringContextBatch.size()), static_cast<int64_t>(featureSize)});
+        for (size_t b = 0ul; b < scoringContextBatch.size(); ++b) {
+            auto dataView = getInput(scoringContextBatch[b]->segment, scoringContextBatch[b]->currentStep);
+            verify(dataView and dataView->size() == featureSize);
+            std::copy(dataView->data(), dataView->data() + featureSize, inputFeatureValue.data<f32>(b));
+        }
+    }
+    else {
+        f32 const*           inputFeatureData  = inputFeatureDataView->data();
+        std::vector<int64_t> inputFeatureShape = {1ul, static_cast<int64_t>(inputFeatureDataView->size())};
+        inputFeatureValue                      = Onnx::Value::create(inputFeatureData, inputFeatureShape);
+    }
 
     // Create batched context input
     Math::FastMatrix<s32> historyMat(historyLength_, scoringContextBatch.size());
@@ -337,7 +387,7 @@ void FixedContextOnnxLabelScorer::forwardBatch(std::vector<SeqStepScoringContext
     }
 
     std::vector<std::pair<std::string, Onnx::Value>> sessionInputs;
-    sessionInputs.emplace_back(inputFeatureName_, Onnx::Value::create(inputFeatureData, inputFeatureShape));
+    sessionInputs.emplace_back(inputFeatureName_, std::move(inputFeatureValue));
     sessionInputs.emplace_back(historyName_, Onnx::Value::create(historyMat, true));
 
     tensorMarshallingTime_.stop();

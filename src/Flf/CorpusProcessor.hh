@@ -24,6 +24,7 @@
 namespace Flf {
 
 class SpeechSegmentNode;
+class RecognizerNodeV3;
 
 class CorpusProcessor : public Processor, public Speech::CorpusProcessor {
 private:
@@ -44,6 +45,40 @@ public:
     virtual void run();
     void         processSpeechSegment(Bliss::SpeechSegment* segment);
 
+    static Processor* create(const Core::Configuration& config, Network* network);
+};
+
+/*
+ * Corpus processor for networks with a `recognizer-v3` node, which decodes several segments at the same time.
+ *
+ * For each corpus segment, the features are extracted and passed to the recognizer node. Up to `max-active-segments`
+ * segments are decoded together; whenever the oldest segment is finished, the network is processed once for this
+ * segment: the `speech-segment` nodes send a copy of its segment information (the Bliss segment itself is not
+ * available anymore) and the recognizer node sends its lattice. So the results are processed in corpus order.
+ */
+class BatchedCorpusProcessor : public Processor, public Speech::CorpusProcessor {
+private:
+    typedef std::vector<SpeechSegmentNode*> SpeechSegmentNodeList;
+
+private:
+    Speech::CorpusVisitor* corpusVisitor_;
+    SpeechSegmentNodeList  speechSegNodes_;
+    RecognizerNodeV3*      recognizer_;
+    bool                   good_;
+
+    BatchedCorpusProcessor(const Core::Configuration& config, Network* network, SpeechSegmentNodeList const& speechSegNodes, RecognizerNodeV3* recognizer);
+
+    // Decode and process the network for all finished segments in corpus order.
+    // If `all` is false, decode only as long as the maximum number of active segments is reached.
+    void processResults(bool all);
+
+public:
+    virtual ~BatchedCorpusProcessor();
+    virtual bool init(const std::vector<std::string>& arguments);
+    virtual void run();
+    void         processSpeechSegment(Bliss::SpeechSegment* segment);
+
+    // Returns a processor if the network contains a `recognizer-v3` node
     static Processor* create(const Core::Configuration& config, Network* network);
 };
 
@@ -71,6 +106,13 @@ public:
 
     void setSpeechSegment(Bliss::SpeechSegment* blissSpeechSegment) {
         blissSpeechSegment_ = blissSpeechSegment;
+    }
+
+    // Set the segment information without a Bliss segment (used for batched recognition, where the Bliss segment
+    // isn't available anymore when the network is processed for a segment)
+    void setSegment(ConstSegmentRef segment) {
+        blissSpeechSegment_ = 0;
+        segment_            = segment;
     }
 
     virtual ConstSegmentRef sendSegment(Port to);

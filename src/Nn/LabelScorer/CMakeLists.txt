@@ -23,6 +23,7 @@ if(${MODULE_ONNX})
         RasrNn
         PRIVATE FixedContextOnnxLabelScorer.cc
                 NoContextOnnxLabelScorer.cc
+        OnnxEncoderStates.cc
                 PrefixSpeechLmOnnxLabelScorer.cc
                 StatefulOnnxLabelScorer.cc
                 StatefulTransducerOnnxLabelScorer.cc

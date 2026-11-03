@@ -16,6 +16,8 @@
 #ifndef STATE_MANAGED_ONNX_LABEL_SCORER_HH
 #define STATE_MANAGED_ONNX_LABEL_SCORER_HH
 
+#include <unordered_map>
+
 #include <Core/FIFOCache.hh>
 #include <Onnx/Model.hh>
 #include <Onnx/PersistentInput.hh>
@@ -54,19 +56,25 @@ typedef Core::Ref<StateManagedOnnxScoringContext const> StateManagedOnnxScoringC
  * Each scoring context stores only the state slice produced
  * for its most recent token plus a parent pointer, which allows transformer KV caches to
  * be represented as a tree instead of duplicating the full prefix state per context.
+ *
+ * With multiple segments, contexts of different segments are forwarded together if the model doesn't need encoder
+ * states or `stack-encoder-states` is enabled, otherwise per segment.
  */
 class StateManagedOnnxLabelScorer : public BufferedLabelScorer {
 public:
     StateManagedOnnxLabelScorer(Core::Configuration const& config, ModelCache& modelCache);
     virtual ~StateManagedOnnxLabelScorer() = default;
 
-    void addInput(DataView const& input) override;
+    void addSegment(SegmentId segment) override;
+    void removeSegment(SegmentId segment) override;
+    void addSegmentInput(SegmentId segment, DataView const& input) override;
 
-    ScoringContextRef getInitialScoringContext() override;
+    ScoringContextRef getInitialSegmentScoringContext(SegmentId segment) override;
     ScoringContextRef extendedScoringContext(ScoringContextRef scoringContext, LabelIndex nextToken, TransitionType transitionType) override;
 
 protected:
     void resetInternal() override;
+    void resetStatisticsInternal() override;
 
     std::optional<ScoreAccessorRef>              computeScoreAccessor(ScoringContextRef scoringContext) override;
     std::vector<std::optional<ScoreAccessorRef>> computeScoreAccessors(std::vector<ScoringContextRef> const& scoringContexts) override;
@@ -83,12 +91,15 @@ private:
     static const Core::ParameterBool      paramLoopUpdatesHistory;
     static const Core::ParameterInt       paramMaxBatchSize;
     static const Core::ParameterInt       paramMaxCachedScores;
+    static const Core::ParameterBool      paramStackEncoderStates;
 
     std::vector<size_t> startLabels_;
     bool                blankUpdatesHistory_;
     bool                silenceUpdatesHistory_;
     bool                loopUpdatesHistory_;
     size_t              maxBatchSize_;
+    size_t              maxCachedScores_;
+    bool                stackEncoderStates_;
 
     std::shared_ptr<Onnx::Model> onnxModel_;
 
@@ -102,21 +113,33 @@ private:
     std::string scoresName_;
     std::string encoderStatesName_;
     std::string encoderStatesSizeName_;
-
-    // Passed to every session run, as views to avoid copies (and uploaded to the device only once for CUDA sessions)
-    Onnx::PersistentInput encoderStatesValue_;
-    Onnx::Value           encoderStatesSizeValue_;
+    std::string encoderStatesIndexName_;
 
     Core::StopWatch onnxSessionTime_;
     // Merging the prefix states into the batched session inputs and splitting the outputs back up
     Core::StopWatch stateMarshallingTime_;
     Core::StopWatch contextPreparationTime_;
 
-    Core::FIFOCache<StateManagedOnnxScoringContextRef, std::shared_ptr<std::vector<Score>>, ScoringContextHash, ScoringContextEq> scoreCache_;
-    Core::FIFOCache<StateManagedOnnxScoringContextRef, std::shared_ptr<HistoryState>, ScoringContextHash, ScoringContextEq>       stateCache_;
+    struct SegmentData {
+        // Passed to every session run, as views to avoid copies (and uploaded to the device only once for CUDA sessions)
+        Onnx::PersistentInput encoderStatesValue;
+        Onnx::Value           encoderStatesSizeValue;
 
-    void setupEncoderStatesValue();
-    void setupEncoderStatesSizeValue();
+        Core::FIFOCache<StateManagedOnnxScoringContextRef, std::shared_ptr<std::vector<Score>>, ScoringContextHash, ScoringContextEq> scoreCache;
+        Core::FIFOCache<StateManagedOnnxScoringContextRef, std::shared_ptr<HistoryState>, ScoringContextHash, ScoringContextEq>       stateCache;
+
+        SegmentData(size_t maxCachedScores);
+    };
+
+    std::unordered_map<SegmentId, SegmentData> segmentData_;
+
+    // Data of the segment, created if it doesn't exist yet
+    SegmentData& segmentData(SegmentId segment);
+
+    bool usesEncoderStates() const;
+
+    void setupEncoderStatesValue(SegmentId segment);
+    void setupEncoderStatesSizeValue(SegmentId segment);
 
     // Forward a batch of scoringContexts through the ONNX model and put the resulting states and scores into the caches
     void cacheStatesAndScores(std::vector<StateManagedOnnxScoringContextRef> const& scoringContextBatch);

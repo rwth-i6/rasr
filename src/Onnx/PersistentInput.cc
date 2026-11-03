@@ -66,6 +66,10 @@ void PersistentInput::clear() {
     uploaded_ = false;
 }
 
+Value const& PersistentInput::host() const {
+    return host_;
+}
+
 Value PersistentInput::view(Session const& session) {
     require(not empty());
     if (not session.usesCuda()) {

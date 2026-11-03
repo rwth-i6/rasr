@@ -45,6 +45,9 @@ public:
     // Non-owning view as input for a run of `session`, valid until the next `set` or `clear`
     Value view(Session const& session);
 
+    // The tensor in host memory
+    Value const& host() const;
+
 private:
     Value  host_;
     void*  device_;          // copy of `host_` in device memory, if `uploaded_`

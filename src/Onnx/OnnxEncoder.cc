@@ -68,9 +68,21 @@ OnnxEncoder::OnnxEncoder(Core::Configuration const& config, Nn::ModelCache& mode
 
 void OnnxEncoder::resetInternal() {
     Encoder::resetInternal();
+    stateManager_->setInitialStates(stateVariables_);
+}
+
+void OnnxEncoder::resetStatisticsInternal() {
+    Encoder::resetStatisticsInternal();
     onnxSessionTime_.reset();
     numSessionRuns_ = 0ul;
-    stateManager_->setInitialStates(stateVariables_);
+}
+
+void OnnxEncoder::addStatistics(Nn::Encoder const& other) {
+    Encoder::addStatistics(other);
+    if (auto const* onnxEncoder = dynamic_cast<OnnxEncoder const*>(&other)) {
+        onnxSessionTime_.add(onnxEncoder->onnxSessionTime_);
+        numSessionRuns_ += onnxEncoder->numSessionRuns_;
+    }
 }
 
 void OnnxEncoder::encode() {

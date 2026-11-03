@@ -18,6 +18,7 @@
 #include <Core/Configuration.hh>
 #include <Core/Singleton.hh>
 #include "SearchV2.hh"
+#include "SearchV3.hh"
 
 #include "TreeBuilder.hh"
 
@@ -49,10 +50,19 @@ enum SearchTypeV2 {
     TreeTimesyncBeamSearchType
 };
 
+enum SearchTypeV3 {
+    BatchedLexiconfreeLabelsyncBeamSearchType,
+    BatchedLexiconfreeTimesyncBeamSearchType,
+    BatchedTreeLabelsyncBeamSearchType,
+    BatchedTreeTimesyncBeamSearchType,
+};
+
 class Module_ {
 private:
     static const Core::Choice          searchTypeV2Choice;
     static const Core::ParameterChoice searchTypeV2Param;
+    static const Core::Choice          searchTypeV3Choice;
+    static const Core::ParameterChoice searchTypeV3Param;
 
 public:
     Module_();
@@ -60,6 +70,7 @@ public:
     std::unique_ptr<AbstractTreeBuilder> createTreeBuilder(Core::Configuration config, const Bliss::Lexicon& lexicon, const Am::AcousticModel& acousticModel, Search::PersistentStateTree& network, bool initialize = true) const;
     SearchAlgorithm*                     createRecognizer(SearchType type, const Core::Configuration& config) const;
     SearchAlgorithmV2*                   createSearchAlgorithmV2(const Core::Configuration& config) const;
+    SearchAlgorithmV3*                   createSearchAlgorithmV3(const Core::Configuration& config) const;
     LatticeHandler*                      createLatticeHandler(const Core::Configuration& c) const;
 };
 

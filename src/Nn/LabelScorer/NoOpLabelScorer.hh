@@ -34,7 +34,7 @@ public:
     StepwiseNoOpLabelScorer(Core::Configuration const& config);
 
     // Initial scoring context just contains step 0.
-    ScoringContextRef getInitialScoringContext() override;
+    ScoringContextRef getInitialSegmentScoringContext(SegmentId segment) override;
 
     // Scoring context with step incremented by 1.
     ScoringContextRef extendedScoringContext(ScoringContextRef scoringContext, LabelIndex nextToken, TransitionType transitionType) override;

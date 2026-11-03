@@ -143,6 +143,22 @@ private:
         return static_cast<Object*>(Object::sentinel());
     }
 
+    /*
+     * The sentinel is never freed, so its reference count is not maintained (like for weak references). Otherwise,
+     * all threads would modify the same atomic counter whenever a void reference is created or destroyed, which
+     * doesn't scale with the number of threads.
+     */
+    static void acquire(const Object* o) {
+        if (Object::isNotSentinel(o)) {
+            ++o->referenceCount_;
+        }
+    }
+    static void release(const Object* o) {
+        if (Object::isNotSentinel(o) and !(--o->referenceCount_)) {
+            o->free();
+        }
+    }
+
     /**
      * Takes over the value of @param o.
      * - Correctly handles self assignment, i.e. if @param o ==
@@ -152,23 +168,19 @@ private:
      */
     void set(Object* o) {
         const Object* old = object_;
-        ++(object_ = o)->referenceCount_;
-        if (!(--old->referenceCount_)) {
-            verify_(Object::isNotSentinel(old));
-            old->free();
-        }
+        acquire(o);
+        object_ = o;
+        release(old);
     }
 
 public:
     Ref()
-            : object_(sentinel()) {
-        ++object_->referenceCount_;
-    }
+            : object_(sentinel()) {}
 
     explicit Ref(Object* o)
             : object_(o) {
         require_(o);
-        ++object_->referenceCount_;
+        acquire(object_);
     }
 
     /**
@@ -182,7 +194,7 @@ public:
      */
     Ref(const Ref& r)
             : object_(r.object_) {
-        ++object_->referenceCount_;
+        acquire(object_);
     }
     /**
      * Template Copy Constuctor.
@@ -196,19 +208,16 @@ public:
     template<class S>
     Ref(const Ref<S>& r)
             : object_(r._get()) {
-        ++object_->referenceCount_;
+        acquire(object_);
     }
     template<class S>
     Ref(const WeakRef<S>& r)
             : object_(r._get()) {
-        ++object_->referenceCount_;
+        acquire(object_);
     }
 
     ~Ref() {
-        if (!(--object_->referenceCount_)) {
-            verify_(Object::isNotSentinel(object_));
-            object_->free();
-        }
+        release(object_);
     }
 
     Ref& operator=(const Ref& rhs) {
@@ -232,10 +241,8 @@ public:
      */
     void reset() {
         if (Object::isNotSentinel(object_)) {
-            if (!(--object_->referenceCount_)) {
-                object_->free();
-            }
-            ++(object_ = sentinel())->referenceCount_;
+            release(object_);
+            object_ = sentinel();
         }
     }
 

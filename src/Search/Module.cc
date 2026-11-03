@@ -14,6 +14,10 @@
  */
 #include <Search/LatticeHandler.hh>
 #include <Search/Module.hh>
+#include "BatchedLexiconfreeLabelsyncBeamSearch/BatchedLexiconfreeLabelsyncBeamSearch.hh"
+#include "BatchedLexiconfreeTimesyncBeamSearch/BatchedLexiconfreeTimesyncBeamSearch.hh"
+#include "BatchedTreeLabelsyncBeamSearch/BatchedTreeLabelsyncBeamSearch.hh"
+#include "BatchedTreeTimesyncBeamSearch/BatchedTreeTimesyncBeamSearch.hh"
 #include "LexiconfreeLabelsyncBeamSearch/LexiconfreeLabelsyncBeamSearch.hh"
 #include "LexiconfreeTimesyncBeamSearch/LexiconfreeTimesyncBeamSearch.hh"
 #include "TreeBuilder.hh"
@@ -44,6 +48,16 @@ const Core::Choice Module_::searchTypeV2Choice(
 
 const Core::ParameterChoice Module_::searchTypeV2Param(
         "type", &Module_::searchTypeV2Choice, "type of search", SearchTypeV2::LexiconfreeTimesyncBeamSearchType);
+
+const Core::Choice Module_::searchTypeV3Choice(
+        "lexiconfree-labelsync-beam-search", SearchTypeV3::BatchedLexiconfreeLabelsyncBeamSearchType,
+        "lexiconfree-timesync-beam-search", SearchTypeV3::BatchedLexiconfreeTimesyncBeamSearchType,
+        "tree-labelsync-beam-search", SearchTypeV3::BatchedTreeLabelsyncBeamSearchType,
+        "tree-timesync-beam-search", SearchTypeV3::BatchedTreeTimesyncBeamSearchType,
+        Core::Choice::endMark());
+
+const Core::ParameterChoice Module_::searchTypeV3Param(
+        "type", &Module_::searchTypeV3Choice, "type of multi-segment search", SearchTypeV3::BatchedLexiconfreeTimesyncBeamSearchType);
 
 const Core::Choice choiceTreeBuilderType(
         "classic-hmm", static_cast<int>(TreeBuilderType::classicHmm),
@@ -134,6 +148,28 @@ SearchAlgorithmV2* Module_::createSearchAlgorithmV2(const Core::Configuration& c
             break;
         default:
             Core::Application::us()->criticalError("Unknown search algorithm type: %d", searchTypeV2Param(config));
+            break;
+    }
+    return searchAlgorithm;
+}
+
+SearchAlgorithmV3* Module_::createSearchAlgorithmV3(const Core::Configuration& config) const {
+    SearchAlgorithmV3* searchAlgorithm = nullptr;
+    switch (searchTypeV3Param(config)) {
+        case BatchedLexiconfreeLabelsyncBeamSearchType:
+            searchAlgorithm = new Search::BatchedLexiconfreeLabelsyncBeamSearch(config);
+            break;
+        case BatchedLexiconfreeTimesyncBeamSearchType:
+            searchAlgorithm = new Search::BatchedLexiconfreeTimesyncBeamSearch(config);
+            break;
+        case BatchedTreeLabelsyncBeamSearchType:
+            searchAlgorithm = new Search::BatchedTreeLabelsyncBeamSearch(config);
+            break;
+        case BatchedTreeTimesyncBeamSearchType:
+            searchAlgorithm = new Search::BatchedTreeTimesyncBeamSearch(config);
+            break;
+        default:
+            Core::Application::us()->criticalError("Unknown multi-segment search algorithm type: %d", searchTypeV3Param(config));
             break;
     }
     return searchAlgorithm;

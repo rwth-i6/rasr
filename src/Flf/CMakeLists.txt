@@ -46,6 +46,7 @@ add_library(
     PushForwardRescoring.cc
     Recognizer.cc
     RecognizerV2.cc
+    RecognizerV3.cc
     Rescale.cc
     Rescore.cc
     RescoreInternal.cc

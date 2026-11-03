@@ -17,6 +17,7 @@
 #define STATEFUL_ONNX_LABEL_SCORER_HH
 
 #include <optional>
+#include <unordered_map>
 
 #include <Core/Component.hh>
 #include <Core/Configuration.hh>
@@ -68,23 +69,36 @@ typedef Core::Ref<OnnxHiddenStateScoringContext const> OnnxHiddenStateScoringCon
  * Note: This LabelScorer is similar to the `StatefulTransducerOnnxLabelScorer`. The difference is that in this it is assumed that the
  * input features are processed into the hidden states and they are not directly fed into the scorer. For this, the state initializer
  * and updater here also take input features in addition to tokens.
+ *
+ * Multiple segments: Encoder states, initial hidden state and caches are kept per segment. Contexts of different
+ * segments are batched together if the state updater doesn't receive encoder states. Otherwise, they are forwarded
+ * per segment unless `stack-encoder-states` is enabled: then the encoder states of the segments are stacked to shape
+ * [B, T_max, E] (zero-padded) together with their sizes [B]. This requires a state updater with a dynamic batch dimension
+ * of the encoder states that masks the padding via the encoder states size.
+ * If the state updater has the optional input `encoder-states-index` [B], the encoder states are stacked only once per
+ * segment ([S, T_max, E] with sizes [S]) and the index contains the row of each batch entry.
  */
 class StatefulOnnxLabelScorer : public BufferedLabelScorer {
 public:
     StatefulOnnxLabelScorer(Core::Configuration const& config, ModelCache& modelCache);
     virtual ~StatefulOnnxLabelScorer() = default;
 
-    // If startLabelIndex is set, forward that through the state updater to obtain the start ScoringContext
-    ScoringContextRef getInitialScoringContext() override;
+    // Initial context with empty label sequence. The initial hidden state is only computed once it is needed.
+    ScoringContextRef getInitialSegmentScoringContext(SegmentId segment) override;
 
     // Append the new token to the label sequence; does not update the hidden-state. This is only done once the scoringContext is used for scoring again.
     ScoringContextRef extendedScoringContext(ScoringContextRef scoringContext, LabelIndex nextToken, TransitionType transitionType) override;
 
-    // Add a single input feature to buffer
-    void addInput(DataView const& input) override;
+    // Add a single input feature to buffer of the segment
+    void addSegmentInput(SegmentId segment, DataView const& input) override;
+
+    // Create or remove buffered inputs, encoder states and caches of the segment
+    void addSegment(SegmentId segment) override;
+    void removeSegment(SegmentId segment) override;
 
 protected:
     void resetInternal() override;
+    void resetStatisticsInternal() override;
 
     // Update hidden state, run scorer and get an accessor for the output score vector
     std::optional<ScoreAccessorRef> computeScoreAccessor(ScoringContextRef scoringContext) override;
@@ -101,27 +115,24 @@ private:
     static const Core::ParameterBool paramLoopUpdatesHistory;
     static const Core::ParameterInt  paramMaxBatchSize;
     static const Core::ParameterInt  paramMaxCachedScores;
+    static const Core::ParameterBool paramStackEncoderStates;
 
     bool   blankUpdatesHistory_;
     bool   silenceUpdatesHistory_;
     bool   loopUpdatesHistory_;
     size_t maxBatchSize_;
+    size_t maxCachedScores_;
+    bool   stackEncoderStates_;
 
     Onnx::OnnxInitUpdateScoreBundle initUpdateScoreBundle_;
-
-    Onnx::OnnxNamedValuesRef initialHiddenState_;
 
     std::string initializerEncoderStatesName_;
     std::string initializerEncoderStatesSizeName_;
 
     std::string updaterEncoderStatesName_;
     std::string updaterEncoderStatesSizeName_;
+    std::string updaterEncoderStatesIndexName_;
     std::string updaterTokenName_;
-
-    // Store the onnx values with all encoder states and lengths inside so that it doesn't have to be recomputed every time
-    // The encoder states are passed to the session runs as views to avoid copies (and uploaded to the device only once for CUDA sessions)
-    Onnx::PersistentInput encoderStatesValue_;
-    Onnx::Value           encoderStatesSizeValue_;
 
     // Preparing the session inputs that are not hidden states and moving hidden states between the
     // caches and the batches. The session times and the marshalling done inside `initUpdateScoreBundle_`
@@ -129,25 +140,45 @@ private:
     Core::StopWatch stateMarshallingTime_;
     Core::StopWatch contextPreparationTime_;
 
-    Core::FIFOCache<OnnxHiddenStateScoringContextRef, std::shared_ptr<std::vector<Score>>, ScoringContextHash, ScoringContextEq> scoreCache_;
-    Core::FIFOCache<OnnxHiddenStateScoringContextRef, Onnx::OnnxNamedValuesRef, ScoringContextHash, ScoringContextEq>            stateCache_;
+    struct SegmentData {
+        // Store the onnx values with all encoder states and lengths inside so that it doesn't have to be recomputed every time
+        // The encoder states are passed to the session runs as views to avoid copies (and uploaded to the device only once for CUDA sessions)
+        Onnx::PersistentInput encoderStatesValue;
+        Onnx::Value           encoderStatesSizeValue;
 
-    // Forward a batch of scoringContexts through the ONNX scorer model and put the resulting scores into the score cache
+        Onnx::OnnxNamedValuesRef initialHiddenState;
+
+        Core::FIFOCache<OnnxHiddenStateScoringContextRef, std::shared_ptr<std::vector<Score>>, ScoringContextHash, ScoringContextEq> scoreCache;
+        Core::FIFOCache<OnnxHiddenStateScoringContextRef, Onnx::OnnxNamedValuesRef, ScoringContextHash, ScoringContextEq>            stateCache;
+
+        SegmentData(size_t maxCachedScores);
+    };
+
+    std::unordered_map<SegmentId, SegmentData> segmentData_;
+
+    // Data of the segment, created if it doesn't exist yet
+    SegmentData& segmentData(SegmentId segment);
+
+    // Whether the state updater or state initializer receive encoder states (or their size)
+    bool usesEncoderStates() const;
+
+    // Forward a batch of scoringContexts through the ONNX scorer model and put the resulting scores into the score caches
     void cacheScores(std::vector<OnnxHiddenStateScoringContextRef> const& scoringContextBatch);
 
     // Computes new hidden state based on previous hidden state and next token with batched state-updater call
-    std::vector<Onnx::OnnxNamedValuesRef> updatedHiddenStates(std::vector<Onnx::OnnxNamedValuesRef> const& hiddenStatesBatch, std::vector<s32> nextTokensBatch);
+    // `segmentsBatch` contains the segment of each batch entry
+    std::vector<Onnx::OnnxNamedValuesRef> updatedHiddenStates(std::vector<Onnx::OnnxNamedValuesRef> const& hiddenStatesBatch, std::vector<s32> nextTokensBatch, std::vector<SegmentId> const& segmentsBatch);
 
-    // Compute updated states for all non-finalized scoring contexts and put them into the state cache
+    // Compute updated states for all non-finalized scoring contexts and put them into the state caches
     void cacheStates(std::vector<OnnxHiddenStateScoringContextRef> const& scoringContextBatch);
 
     // Since the hidden-state matrix depends on the encoder time axis, we cannot create properly create hidden-states until all encoder states have been passed.
     // So getInitialScoringContext sets the initial hidden-state to a sentinel value (empty Ref) and when other functions such as `extendedScoringContext` and `getScoresWithTime`
     // encounter this sentinel value they call `computeInitialHiddenState` instead to get a usable hidden-state.
-    Onnx::OnnxNamedValuesRef computeInitialHiddenState();
+    Onnx::OnnxNamedValuesRef computeInitialHiddenState(SegmentId segment);
 
-    void setupEncoderStatesValue();
-    void setupEncoderStatesSizeValue();
+    void setupEncoderStatesValue(SegmentId segment);
+    void setupEncoderStatesSizeValue(SegmentId segment);
 
     void logScoringBreakdown() const override;
 };

@@ -14,6 +14,9 @@
  */
 
 #include "CombineLabelScorer.hh"
+
+#include <algorithm>
+
 #include <Nn/Module.hh>
 #include "Types.hh"
 
@@ -142,6 +145,12 @@ void CombineLabelScorer::logStatistics() const {
     }
 }
 
+void CombineLabelScorer::resetStatistics() {
+    for (auto& scorer : scorers_) {
+        scorer->resetStatistics();
+    }
+}
+
 void CombineLabelScorer::signalNoMoreFeatures() {
     for (auto& scorer : scorers_) {
         scorer->signalNoMoreFeatures();
@@ -170,7 +179,9 @@ ScoringContextRef CombineLabelScorer::extendedScoringContext(ScoringContextRef s
     for (; scorerIt != scorers_.end(); ++scorerIt, ++contextIt) {
         extScoringContexts.push_back((*scorerIt)->extendedScoringContext(*contextIt, nextToken, transitionType));
     }
-    return Core::ref(new CombineScoringContext(std::move(extScoringContexts)));
+    auto extContext     = Core::ref(new CombineScoringContext(std::move(extScoringContexts)));
+    extContext->segment = combineContext->segment;
+    return extContext;
 }
 
 void CombineLabelScorer::cleanupCaches(Core::CollapsedVector<ScoringContextRef> const& activeContexts) {
@@ -280,6 +291,52 @@ std::vector<std::optional<ScoreAccessorRef>> CombineLabelScorer::getScoreAccesso
     }
 
     return combinedAccessors;
+}
+
+bool CombineLabelScorer::supportsMultipleSegments() const {
+    return std::all_of(scorers_.begin(), scorers_.end(), [](auto const& scorer) { return scorer->supportsMultipleSegments(); });
+}
+
+void CombineLabelScorer::addSegment(SegmentId segment) {
+    for (auto& scorer : scorers_) {
+        scorer->addSegment(segment);
+    }
+}
+
+void CombineLabelScorer::removeSegment(SegmentId segment) {
+    for (auto& scorer : scorers_) {
+        scorer->removeSegment(segment);
+    }
+}
+
+void CombineLabelScorer::signalNoMoreSegmentFeatures(SegmentId segment) {
+    for (auto& scorer : scorers_) {
+        scorer->signalNoMoreSegmentFeatures(segment);
+    }
+}
+
+ScoringContextRef CombineLabelScorer::getInitialSegmentScoringContext(SegmentId segment) {
+    std::vector<ScoringContextRef> scoringContexts;
+    scoringContexts.reserve(scorers_.size());
+
+    for (auto const& scorer : scorers_) {
+        scoringContexts.push_back(scorer->getInitialSegmentScoringContext(segment));
+    }
+    auto context     = Core::ref(new CombineScoringContext(std::move(scoringContexts)));
+    context->segment = segment;
+    return context;
+}
+
+void CombineLabelScorer::addSegmentInput(SegmentId segment, DataView const& input) {
+    for (auto& scorer : scorers_) {
+        scorer->addSegmentInput(segment, input);
+    }
+}
+
+void CombineLabelScorer::addSegmentInputs(SegmentId segment, DataView const& input, size_t nTimesteps) {
+    for (auto& scorer : scorers_) {
+        scorer->addSegmentInputs(segment, input, nTimesteps);
+    }
 }
 
 }  // namespace Nn

@@ -16,6 +16,9 @@
 #ifndef PREFIX_SPEECH_LM_ONNX_LABEL_SCORER_HH
 #define PREFIX_SPEECH_LM_ONNX_LABEL_SCORER_HH
 
+#include <optional>
+#include <unordered_map>
+
 #include <Core/FIFOCache.hh>
 #include <Onnx/Model.hh>
 
@@ -59,6 +62,9 @@ typedef Core::Ref<PrefixSpeechLmScoringContext const> PrefixSpeechLmScoringConte
  * to produce the initial states and score distribution and one which takes a new token and
  * existing states to output updated states and scores after incorporating the token.
  * The states are managed with a StateManager.
+ *
+ * Multiple segments: encoder states, the initial context and caches are kept per segment. The initializer runs
+ * once per segment, step contexts of all segments are batched together.
  */
 class PrefixSpeechLmOnnxLabelScorer : public BufferedLabelScorer {
     using Precursor    = BufferedLabelScorer;
@@ -77,24 +83,50 @@ public:
     PrefixSpeechLmOnnxLabelScorer(Core::Configuration const& config, ModelCache& modelCache);
     virtual ~PrefixSpeechLmOnnxLabelScorer() = default;
 
-    void addInput(DataView const& input) override;
+    void addSegment(SegmentId segment) override;
+    void removeSegment(SegmentId segment) override;
+    void addSegmentInput(SegmentId segment, DataView const& input) override;
 
-    ScoringContextRef getInitialScoringContext() override;
+    ScoringContextRef getInitialSegmentScoringContext(SegmentId segment) override;
+
+    // Override the initial or suffix prompt of the config for the given segment (default: the segment of single-segment search).
+    // Call after the segment was started (`enterSegment` / `addSegment`) and before its features are passed.
+    void setInitialPrompt(std::vector<s32> const& prompt, SegmentId segment = defaultSegmentId);
+    void setSuffixPrompt(std::vector<s32> const& prompt, SegmentId segment = defaultSegmentId);
     ScoringContextRef extendedScoringContext(ScoringContextRef scoringContext, LabelIndex nextToken, TransitionType transitionType) override;
 
 protected:
     void resetInternal() override;
+    void resetStatisticsInternal() override;
 
     std::optional<ScoreAccessorRef>              computeScoreAccessor(ScoringContextRef scoringContext) override;
     std::vector<std::optional<ScoreAccessorRef>> computeScoreAccessors(std::vector<ScoringContextRef> const& scoringContexts) override;
     size_t                                       getMinActiveInputIndex(Core::CollapsedVector<ScoringContextRef> const& activeContexts) const override;
 
 private:
-    void setupInitialStates();
+    struct SegmentData {
+        Onnx::Value encoderStatesValue;
+        Onnx::Value encoderStatesSizeValue;
+
+        PrefixSpeechLmScoringContextRef initialContext;
+
+        std::optional<std::vector<s32>> initialPrompt;  // Overrides of the prompts of the config
+        std::optional<std::vector<s32>> suffixPrompt;
+
+        Core::FIFOCache<PrefixSpeechLmScoringContextRef, std::shared_ptr<std::vector<Score>>, ScoringContextHash, ScoringContextEq> scoreCache;
+        Core::FIFOCache<PrefixSpeechLmScoringContextRef, std::shared_ptr<HistoryState>, ScoringContextHash, ScoringContextEq>       stateCache;
+
+        SegmentData(size_t maxCachedScores);
+    };
+
+    // Data of the segment, created if it doesn't exist yet
+    SegmentData& segmentData(SegmentId segment);
+
+    void setupInitialStates(SegmentId segment);
     void cacheStatesAndScores(std::vector<PrefixSpeechLmScoringContextRef> const& scoringContextBatch);
 
-    void setupEncoderStatesValue();
-    void setupEncoderStatesSizeValue();
+    void setupEncoderStatesValue(SegmentId segment);
+    void setupEncoderStatesSizeValue(SegmentId segment);
 
     void logScoringBreakdown() const override;
 
@@ -104,6 +136,7 @@ private:
     bool             silenceUpdatesHistory_;
     bool             loopUpdatesHistory_;
     size_t           maxBatchSize_;
+    size_t           maxCachedScores_;
 
     std::shared_ptr<Onnx::Model> initializerOnnxModel_;
     std::shared_ptr<Onnx::Model> stepOnnxModel_;
@@ -125,10 +158,6 @@ private:
     std::string stepPrefixLengthName_;
     std::string stepScoresName_;
 
-    Onnx::Value encoderStatesValue_;
-    Onnx::Value encoderStatesSizeValue_;
-
-    PrefixSpeechLmScoringContextRef initialContext_;
 
     // Includes both the initializer and the step session runs
     Core::StopWatch onnxSessionTime_;
@@ -136,8 +165,7 @@ private:
     Core::StopWatch stateMarshallingTime_;
     Core::StopWatch contextPreparationTime_;
 
-    Core::FIFOCache<PrefixSpeechLmScoringContextRef, std::shared_ptr<std::vector<Score>>, ScoringContextHash, ScoringContextEq> scoreCache_;
-    Core::FIFOCache<PrefixSpeechLmScoringContextRef, std::shared_ptr<HistoryState>, ScoringContextHash, ScoringContextEq>       stateCache_;
+    std::unordered_map<SegmentId, SegmentData> segmentData_;
 };
 
 }  // namespace Nn

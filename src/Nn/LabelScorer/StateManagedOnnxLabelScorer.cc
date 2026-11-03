@@ -15,10 +15,13 @@
 
 #include "StateManagedOnnxLabelScorer.hh"
 
+#include <algorithm>
+
 #include <Core/XmlStream.hh>
 
 #include <Nn/Module.hh>
 
+#include "OnnxEncoderStates.hh"
 #include "ScoreAccessor.hh"
 
 /*
@@ -91,6 +94,13 @@ static const std::vector<Onnx::IOSpecification> ioSpec = {
                 {Onnx::ValueDataType::INT32},
                 {{1}, {-1}}},
         Onnx::IOSpecification{
+                "encoder-states-index",
+                Onnx::IODirection::INPUT,
+                true,
+                {Onnx::ValueType::TENSOR},
+                {Onnx::ValueDataType::INT32},
+                {{-1}}},
+        Onnx::IOSpecification{
                 "scores",
                 Onnx::IODirection::OUTPUT,
                 false,
@@ -134,8 +144,16 @@ const Core::ParameterInt StateManagedOnnxLabelScorer::paramMaxBatchSize(
 
 const Core::ParameterInt StateManagedOnnxLabelScorer::paramMaxCachedScores(
         "max-cached-score-vectors",
-        "Maximum size of cache that maps scoring contexts to scores and state slices. This prevents memory overflow in case of very long audio segments.",
+        "Maximum size of cache that maps scoring contexts to scores and state slices. This prevents memory overflow in case of very long audio segments."
+        " In multi-segment usage this applies to each segment separately.",
         10000);
+
+const Core::ParameterBool StateManagedOnnxLabelScorer::paramStackEncoderStates(
+        "stack-encoder-states",
+        "Whether contexts of different segments are forwarded together by stacking the encoder states of their segments to shape"
+        " [B, T_max, E] (zero-padded). Requires a model with dynamic batch dimension of the encoder states that masks the padding"
+        " based on the encoder states size. Otherwise contexts are forwarded per segment.",
+        false);
 
 StateManagedOnnxLabelScorer::StateManagedOnnxLabelScorer(Core::Configuration const& config, ModelCache& modelCache)
         : Core::Component(config),
@@ -144,12 +162,11 @@ StateManagedOnnxLabelScorer::StateManagedOnnxLabelScorer(Core::Configuration con
           silenceUpdatesHistory_(paramSilenceUpdatesHistory(config)),
           loopUpdatesHistory_(paramLoopUpdatesHistory(config)),
           maxBatchSize_(paramMaxBatchSize(config)),
+          maxCachedScores_(paramMaxCachedScores(config)),
+          stackEncoderStates_(paramStackEncoderStates(config)),
           stateManager_(Module::instance().createStateManager(select("state-manager"))),
           stateVectorFactory_(Module::instance().createCompressedVectorFactory(select("state-compression"))),
-          encoderStatesValue_(),
-          encoderStatesSizeValue_(),
-          scoreCache_(paramMaxCachedScores(config)),
-          stateCache_(scoreCache_.maxSize()) {
+          segmentData_() {
     Core::Configuration modelConfig(config, "onnx-model");
     auto                key = modelConfig.getSelection();
     onnxModel_              = modelCache.getOrCreate<Onnx::Model>(key, modelConfig, ioSpec);
@@ -159,31 +176,71 @@ StateManagedOnnxLabelScorer::StateManagedOnnxLabelScorer(Core::Configuration con
     scoresName_             = onnxModel_->mapping.getOnnxName("scores");
     encoderStatesName_      = onnxModel_->mapping.getOnnxName("encoder-states");
     encoderStatesSizeName_  = onnxModel_->mapping.getOnnxName("encoder-states-size");
+    encoderStatesIndexName_ = onnxModel_->mapping.getOnnxName("encoder-states-index");
 
     stateVariables_ = onnxModel_->session.getStateVariablesMetadata();
 
     auto startLabels = paramStartLabels(config);
     startLabels_.insert(startLabels_.begin(), startLabels.begin(), startLabels.end());
+
+    if (stackEncoderStates_ and encoderStatesName_ != "") {
+        if (encoderStatesSizeName_ == "") {
+            error() << "stack-encoder-states requires the encoder-states-size input to mask the padding";
+        }
+        auto problem = checkStackableEncoderStatesInput(onnxModel_->session, encoderStatesName_);
+        if (not problem.empty()) {
+            error() << "stack-encoder-states is not possible with this model: " << problem;
+        }
+    }
 }
 
-void StateManagedOnnxLabelScorer::addInput(DataView const& input) {
-    Precursor::addInput(input);
-    encoderStatesValue_.clear();
-    encoderStatesSizeValue_ = Onnx::Value();
+StateManagedOnnxLabelScorer::SegmentData::SegmentData(size_t maxCachedScores)
+        : encoderStatesValue(),
+          encoderStatesSizeValue(),
+          scoreCache(maxCachedScores),
+          stateCache(maxCachedScores) {}
+
+StateManagedOnnxLabelScorer::SegmentData& StateManagedOnnxLabelScorer::segmentData(SegmentId segment) {
+    return segmentData_.try_emplace(segment, maxCachedScores_).first->second;
 }
 
-ScoringContextRef StateManagedOnnxLabelScorer::getInitialScoringContext() {
+bool StateManagedOnnxLabelScorer::usesEncoderStates() const {
+    return encoderStatesName_ != "" or encoderStatesSizeName_ != "";
+}
+
+void StateManagedOnnxLabelScorer::addSegment(SegmentId segment) {
+    Precursor::addSegment(segment);
+    // Create the segment data here, so that it is never inserted while contexts of other segments are processed
+    segmentData_.erase(segment);
+    segmentData(segment);
+}
+
+void StateManagedOnnxLabelScorer::removeSegment(SegmentId segment) {
+    Precursor::removeSegment(segment);
+    segmentData_.erase(segment);
+}
+
+void StateManagedOnnxLabelScorer::addSegmentInput(SegmentId segment, DataView const& input) {
+    Precursor::addSegmentInput(segment, input);
+    auto& data = segmentData(segment);
+    data.encoderStatesValue.clear();
+    data.encoderStatesSizeValue = Onnx::Value();
+}
+
+ScoringContextRef StateManagedOnnxLabelScorer::getInitialSegmentScoringContext(SegmentId segment) {
     auto rootState = stateManager_->initialState(stateVariables_, *stateVectorFactory_);
     if (rootState.empty()) {
         error("Initial recurrent state is empty.");
     }
 
-    auto context = Core::ref(new StateManagedOnnxScoringContext(std::move(rootState)));
+    auto context     = Core::ref(new StateManagedOnnxScoringContext(std::move(rootState)));
+    context->segment = segment;
 
     for (auto const label : startLabels_) {
         std::vector<LabelIndex> labelSeq(context->labelSeq);
         labelSeq.push_back(label);
-        context = Core::ref(new StateManagedOnnxScoringContext(std::move(labelSeq), context));
+        context          = Core::ref(new StateManagedOnnxScoringContext(std::move(labelSeq), context));
+        context->segment = segment;
         cacheStatesAndScores({context});
     }
     return context;
@@ -228,18 +285,21 @@ ScoringContextRef StateManagedOnnxLabelScorer::extendedScoringContext(ScoringCon
 
     std::vector<LabelIndex> labelSeq(context->labelSeq);
     labelSeq.push_back(nextToken);
-    return Core::ref(new StateManagedOnnxScoringContext(std::move(labelSeq), context));
+    auto newContext     = Core::ref(new StateManagedOnnxScoringContext(std::move(labelSeq), context));
+    newContext->segment = context->segment;
+    return newContext;
 }
 
 void StateManagedOnnxLabelScorer::resetInternal() {
     Precursor::resetInternal();
+    segmentData_.clear();
+}
+
+void StateManagedOnnxLabelScorer::resetStatisticsInternal() {
+    Precursor::resetStatisticsInternal();
     onnxSessionTime_.reset();
     stateMarshallingTime_.reset();
     contextPreparationTime_.reset();
-    encoderStatesValue_.clear();
-    encoderStatesSizeValue_ = Onnx::Value();
-    scoreCache_.clear();
-    stateCache_.clear();
 }
 
 std::optional<ScoreAccessorRef> StateManagedOnnxLabelScorer::computeScoreAccessor(ScoringContextRef scoringContext) {
@@ -252,10 +312,11 @@ std::vector<std::optional<ScoreAccessorRef>> StateManagedOnnxLabelScorer::comput
     }
 
     std::vector<std::optional<ScoreAccessorRef>> scoreAccessors(scoringContexts.size(), std::nullopt);
-    if ((encoderStatesName_ != "" or encoderStatesSizeName_ != "") and (expectMoreFeatures_ or bufferSize() == 0)) {
-        countUncomputedAccessors(scoringContexts.size());
-        return scoreAccessors;
-    }
+
+    // Only allow scoring once all encoder states of a segment have been passed
+    auto segmentReady = [this](SegmentId segment) {
+        return not usesEncoderStates() or (not expectMoreFeatures(segment) and bufferSize(segment) != 0);
+    };
 
     /*
      * Identify unique scoring contexts that still need session runs
@@ -265,12 +326,34 @@ std::vector<std::optional<ScoreAccessorRef>> StateManagedOnnxLabelScorer::comput
     for (auto const& scoringContext : scoringContexts) {
         StateManagedOnnxScoringContextRef context(dynamic_cast<StateManagedOnnxScoringContext const*>(scoringContext.get()));
         verify(context);
-        if (not context->state and stateCache_.contains(context)) {
-            context->state = *stateCache_.get(context);
+        if (not segmentReady(context->segment)) {
+            continue;
         }
-        else {
+        auto& data = segmentData(context->segment);
+        if (not context->state and data.stateCache.contains(context)) {
+            context->state = *data.stateCache.get(context);
+        }
+        // A context with a state was already forwarded (e.g. the start labels in `getInitialSegmentScoringContext`) and must not be
+        // forwarded again: its parent may already be released, as for state managers that don't require all parent states
+        if (not context->state or not data.scoreCache.contains(context)) {
             uniqueUncachedScoringContexts.emplace(context);
         }
+    }
+
+    /*
+     * Group contexts that can be forwarded together: all contexts if the model doesn't need
+     * encoder states or they are stacked, otherwise the contexts of each segment
+     */
+    bool                                                        groupBySegment = usesEncoderStates() and not stackEncoderStates_;
+    std::vector<std::vector<StateManagedOnnxScoringContextRef>> contextGroups;
+    std::unordered_map<SegmentId, size_t>                       segmentToGroupIndex;
+    for (auto const& scoringContext : uniqueUncachedScoringContexts) {
+        SegmentId groupKey  = groupBySegment ? scoringContext->segment : defaultSegmentId;
+        auto [it, inserted] = segmentToGroupIndex.emplace(groupKey, contextGroups.size());
+        if (inserted) {
+            contextGroups.emplace_back();
+        }
+        contextGroups[it->second].push_back(scoringContext);
     }
     contextPreparationTime_.stop();
 
@@ -279,16 +362,18 @@ std::vector<std::optional<ScoreAccessorRef>> StateManagedOnnxLabelScorer::comput
     /*
      * Fill state and score caches for all uncached scoring contexts
      */
-    std::vector<StateManagedOnnxScoringContextRef> scoringContextBatch;
-    scoringContextBatch.reserve(std::min(uniqueUncachedScoringContexts.size(), maxBatchSize_));
-    for (auto const& scoringContext : uniqueUncachedScoringContexts) {
-        scoringContextBatch.push_back(scoringContext);
-        if (scoringContextBatch.size() == maxBatchSize_) {
-            cacheStatesAndScores(scoringContextBatch);
-            scoringContextBatch.clear();
+    for (auto const& contextGroup : contextGroups) {
+        std::vector<StateManagedOnnxScoringContextRef> scoringContextBatch;
+        scoringContextBatch.reserve(std::min(contextGroup.size(), maxBatchSize_));
+        for (auto const& scoringContext : contextGroup) {
+            scoringContextBatch.push_back(scoringContext);
+            if (scoringContextBatch.size() == maxBatchSize_) {
+                cacheStatesAndScores(scoringContextBatch);
+                scoringContextBatch.clear();
+            }
         }
+        cacheStatesAndScores(scoringContextBatch);
     }
-    cacheStatesAndScores(scoringContextBatch);
 
     /*
      * Assign scores from cache to result vector
@@ -296,7 +381,10 @@ std::vector<std::optional<ScoreAccessorRef>> StateManagedOnnxLabelScorer::comput
     contextPreparationTime_.start();
     for (size_t i = 0ul; i < scoringContexts.size(); ++i) {
         StateManagedOnnxScoringContextRef context(dynamic_cast<StateManagedOnnxScoringContext const*>(scoringContexts[i].get()));
-        auto                              scores = scoreCache_.get(context);
+        if (not segmentReady(context->segment)) {
+            continue;
+        }
+        auto scores = segmentData(context->segment).scoreCache.get(context);
         verify(scores);
         scoreAccessors[i] = Core::ref(new VectorScoreAccessor(scores->get(), context->labelSeq.empty() ? 0ul : context->labelSeq.size() - 1ul));
     }
@@ -309,29 +397,31 @@ size_t StateManagedOnnxLabelScorer::getMinActiveInputIndex(Core::CollapsedVector
     return 0ul;
 }
 
-void StateManagedOnnxLabelScorer::setupEncoderStatesValue() {
-    if (not encoderStatesValue_.empty()) {
+void StateManagedOnnxLabelScorer::setupEncoderStatesValue(SegmentId segment) {
+    auto& data = segmentData(segment);
+    if (not data.encoderStatesValue.empty()) {
         return;
     }
 
-    u32  T                    = bufferSize();
-    auto inputFeatureDataView = getInput(0);
+    u32  T                    = bufferSize(segment);
+    auto inputFeatureDataView = getInput(segment, 0);
     verify(inputFeatureDataView);
 
     auto encoderStates = Onnx::Value::createEmpty<f32>({1l, static_cast<int64_t>(T), static_cast<int64_t>(inputFeatureDataView->size())});
     for (size_t t = 0ul; t < T; ++t) {
-        inputFeatureDataView = getInput(t);
+        inputFeatureDataView = getInput(segment, t);
         verify(inputFeatureDataView);
         std::copy(inputFeatureDataView->data(), inputFeatureDataView->data() + inputFeatureDataView->size(), encoderStates.data<f32>(0, t));
     }
-    encoderStatesValue_.set(std::move(encoderStates));
+    data.encoderStatesValue.set(std::move(encoderStates));
 }
 
-void StateManagedOnnxLabelScorer::setupEncoderStatesSizeValue() {
-    if (not encoderStatesSizeValue_.empty()) {
+void StateManagedOnnxLabelScorer::setupEncoderStatesSizeValue(SegmentId segment) {
+    auto& data = segmentData(segment);
+    if (not data.encoderStatesSizeValue.empty()) {
         return;
     }
-    encoderStatesSizeValue_ = Onnx::Value::create(std::vector<s32>{static_cast<s32>(bufferSize())});
+    data.encoderStatesSizeValue = Onnx::Value::create(std::vector<s32>{static_cast<s32>(bufferSize(segment))});
 }
 
 void StateManagedOnnxLabelScorer::cacheStatesAndScores(std::vector<StateManagedOnnxScoringContextRef> const& scoringContextBatch) {
@@ -340,7 +430,7 @@ void StateManagedOnnxLabelScorer::cacheStatesAndScores(std::vector<StateManagedO
     }
 
     // Can't score before any encoder features are buffered; defer (mirrors the guard in computeScoreAccessors()).
-    if ((not encoderStatesName_.empty() or not encoderStatesSizeName_.empty()) and bufferSize() == 0ul) {
+    if (usesEncoderStates() and std::any_of(scoringContextBatch.begin(), scoringContextBatch.end(), [this](auto const& context) { return bufferSize(context->segment) == 0ul; })) {
         return;
     }
 
@@ -387,13 +477,26 @@ void StateManagedOnnxLabelScorer::cacheStatesAndScores(std::vector<StateManagedO
         std::vector<s32> stateLengths(prefixLengths.begin(), prefixLengths.end());
         inputs.emplace_back(prefixLengthName_, Onnx::Value::create(stateLengths));
     }
-    if (encoderStatesName_ != "") {
-        setupEncoderStatesValue();
-        inputs.emplace_back(encoderStatesName_, encoderStatesValue_.view(onnxModel_->session));
-    }
-    if (encoderStatesSizeName_ != "") {
-        setupEncoderStatesSizeValue();
-        inputs.emplace_back(encoderStatesSizeName_, encoderStatesSizeValue_.view());
+    if (usesEncoderStates()) {
+        std::vector<SegmentId> segments;
+        segments.reserve(scoringContextBatch.size());
+        for (auto const& context : scoringContextBatch) {
+            segments.push_back(context->segment);
+        }
+        addEncoderStatesInputs(
+                {.states = encoderStatesName_, .size = encoderStatesSizeName_, .index = encoderStatesIndexName_},
+                onnxModel_->session,
+                segments,
+                [this](SegmentId segment) -> Onnx::PersistentInput& {
+                    setupEncoderStatesValue(segment);
+                    return segmentData(segment).encoderStatesValue;
+                },
+                [this](SegmentId segment) -> Onnx::Value const& {
+                    setupEncoderStatesSizeValue(segment);
+                    return segmentData(segment).encoderStatesSizeValue;
+                },
+                [this](SegmentId segment) { return bufferSize(segment); },
+                inputs);
     }
 
     targets.emplace(targets.begin(), scoresName_);
@@ -406,7 +509,7 @@ void StateManagedOnnxLabelScorer::cacheStatesAndScores(std::vector<StateManagedO
     for (size_t b = 0ul; b < scoringContextBatch.size(); ++b) {
         auto scores = std::make_shared<std::vector<Score>>();
         outputs.front().get(b, 0, *scores);
-        scoreCache_.put(scoringContextBatch[b], scores);
+        segmentData(scoringContextBatch[b]->segment).scoreCache.put(scoringContextBatch[b], scores);
     }
 
     std::vector<Onnx::Value> stateOutputs(std::make_move_iterator(outputs.begin() + 1), std::make_move_iterator(outputs.end()));
@@ -417,7 +520,7 @@ void StateManagedOnnxLabelScorer::cacheStatesAndScores(std::vector<StateManagedO
     verify_eq(splitStates.size(), scoringContextBatch.size());
     for (size_t i = 0ul; i < scoringContextBatch.size(); ++i) {
         scoringContextBatch[i]->state = std::make_shared<HistoryState>(std::move(splitStates[i]));
-        stateCache_.put(scoringContextBatch[i], scoringContextBatch[i]->state);
+        segmentData(scoringContextBatch[i]->segment).stateCache.put(scoringContextBatch[i], scoringContextBatch[i]->state);
         if (not stateManager_->requiresAllParentStates()) {
             scoringContextBatch[i]->parent.reset();
         }

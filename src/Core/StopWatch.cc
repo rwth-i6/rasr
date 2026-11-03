@@ -45,6 +45,10 @@ void StopWatch::reset() {
     running_            = false;
 }
 
+void StopWatch::add(StopWatch const& other) {
+    elapsedNanoseconds_ += other.elapsedNanoseconds_;
+}
+
 bool StopWatch::isRunning() const {
     return running_;
 }
@@ -71,6 +75,25 @@ double StopWatch::elapsedNanoseconds() const {
         return elapsedNanoseconds_ + std::chrono::duration_cast<std::chrono::nanoseconds>(currentTime - startTime_).count();
     }
     return elapsedNanoseconds_;
+}
+
+ConcurrentStopWatch::ConcurrentStopWatch()
+        : elapsedNanoseconds_(0ul) {}
+
+void ConcurrentStopWatch::add(std::chrono::steady_clock::duration duration) {
+    elapsedNanoseconds_.fetch_add(std::chrono::duration_cast<std::chrono::nanoseconds>(duration).count(), std::memory_order_relaxed);
+}
+
+void ConcurrentStopWatch::reset() {
+    elapsedNanoseconds_.store(0ul, std::memory_order_relaxed);
+}
+
+double ConcurrentStopWatch::elapsedMilliseconds() const {
+    return elapsedNanoseconds() / 1e6;
+}
+
+double ConcurrentStopWatch::elapsedNanoseconds() const {
+    return elapsedNanoseconds_.load(std::memory_order_relaxed);
 }
 
 }  // namespace Core

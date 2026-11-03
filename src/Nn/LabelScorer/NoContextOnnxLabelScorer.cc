@@ -39,24 +39,56 @@ static const std::vector<Onnx::IOSpecification> ioSpec = {
                 {Onnx::ValueDataType::FLOAT},
                 {{-1, -2}, {1, -2}}}};
 
+const Core::ParameterInt NoContextOnnxLabelScorer::paramMaxBatchSize(
+        "max-batch-size",
+        "Max number of contexts whose input features are stacked and forwarded through the ONNX model at once."
+        " Values > 1 require a dynamic batch dimension of the input feature.",
+        1,
+        1);
+
 NoContextOnnxLabelScorer::NoContextOnnxLabelScorer(Core::Configuration const& config, ModelCache& modelCache)
         : Core::Component(config),
           Precursor(config, TransitionPresetType::CTC),
+          maxBatchSize_(paramMaxBatchSize(config)),
           scoreCache_() {
     Core::Configuration modelConfig(config, "onnx-model");
     auto                key = modelConfig.getSelection();
     onnxModel_              = modelCache.getOrCreate<Onnx::Model>(key, modelConfig, ioSpec);
     inputFeatureName_       = onnxModel_->mapping.getOnnxName("input-feature");
     scoresName_             = onnxModel_->mapping.getOnnxName("scores");
+
+    if (maxBatchSize_ > 1ul) {
+        auto inputShape = onnxModel_->session.getInputShape(inputFeatureName_);
+        if (not inputShape.empty() and inputShape.front() == 1l) {
+            warning() << "ONNX model has a fixed batch size of 1 for the input feature; using max-batch-size 1";
+            maxBatchSize_ = 1ul;
+        }
+    }
 }
 
-ScoringContextRef NoContextOnnxLabelScorer::getInitialScoringContext() {
-    return Core::ref(new StepScoringContext());
+ScoringContextRef NoContextOnnxLabelScorer::getInitialSegmentScoringContext(SegmentId segment) {
+    auto context     = Core::ref(new StepScoringContext());
+    context->segment = segment;
+    return context;
+}
+
+void NoContextOnnxLabelScorer::removeSegment(SegmentId segment) {
+    Precursor::removeSegment(segment);
+    for (auto it = scoreCache_.begin(); it != scoreCache_.end();) {
+        if (it->first->segment == segment) {
+            it = scoreCache_.erase(it);
+        }
+        else {
+            ++it;
+        }
+    }
 }
 
 ScoringContextRef NoContextOnnxLabelScorer::extendedScoringContext(ScoringContextRef scoringContext, LabelIndex nextToken, TransitionType transitionType) {
     StepScoringContextRef stepScoringContext(dynamic_cast<StepScoringContext const*>(scoringContext.get()));
-    return Core::ref(new StepScoringContext(stepScoringContext->currentStep + 1));
+    auto                  context = Core::ref(new StepScoringContext(stepScoringContext->currentStep + 1));
+    context->segment              = stepScoringContext->segment;
+    return context;
 }
 
 void NoContextOnnxLabelScorer::cleanupCaches(Core::CollapsedVector<ScoringContextRef> const& activeContexts) {
@@ -76,8 +108,12 @@ void NoContextOnnxLabelScorer::cleanupCaches(Core::CollapsedVector<ScoringContex
 
 void NoContextOnnxLabelScorer::resetInternal() {
     Precursor::resetInternal();
-    onnxSessionTime_.reset();
     scoreCache_.clear();
+}
+
+void NoContextOnnxLabelScorer::resetStatisticsInternal() {
+    Precursor::resetStatisticsInternal();
+    onnxSessionTime_.reset();
 }
 
 std::vector<std::optional<ScoreAccessorRef>> NoContextOnnxLabelScorer::computeScoreAccessors(std::vector<ScoringContextRef> const& scoringContexts) {
@@ -89,9 +125,27 @@ std::vector<std::optional<ScoreAccessorRef>> NoContextOnnxLabelScorer::computeSc
 
     size_t numComputed = 0ul;
 
+    if (maxBatchSize_ > 1ul) {
+        // Collect all unique contexts that still need to be forwarded and forward them in batches
+        std::unordered_set<StepScoringContextRef, ScoringContextHash, ScoringContextEq> uniqueUncachedContexts;
+        std::vector<StepScoringContextRef>                                              contextBatch;
+        for (auto const& scoringContext : scoringContexts) {
+            StepScoringContextRef stepScoringContext(dynamic_cast<StepScoringContext const*>(scoringContext.get()));
+            if (getInput(stepScoringContext->segment, stepScoringContext->currentStep) and scoreCache_.find(stepScoringContext) == scoreCache_.end() and uniqueUncachedContexts.emplace(stepScoringContext).second) {
+                contextBatch.push_back(stepScoringContext);
+                ++numComputed;
+                if (contextBatch.size() == maxBatchSize_) {
+                    forwardBatch(contextBatch);
+                    contextBatch.clear();
+                }
+            }
+        }
+        forwardBatch(contextBatch);
+    }
+
     for (size_t contextIndex = 0ul; contextIndex < scoringContexts.size(); ++contextIndex) {
         StepScoringContextRef stepScoringContext(dynamic_cast<StepScoringContext const*>(scoringContexts[contextIndex].get()));
-        if (not getInput(stepScoringContext->currentStep)) {
+        if (not getInput(stepScoringContext->segment, stepScoringContext->currentStep)) {
             // If input is not available, this context can't be forwarded
             continue;
         }
@@ -130,7 +184,7 @@ void NoContextOnnxLabelScorer::forwardContext(StepScoringContextRef const& scori
     /*
      * Create session inputs
      */
-    auto                 inputDataView = getInput(scoringContext->currentStep);
+    auto                 inputDataView = getInput(scoringContext->segment, scoringContext->currentStep);
     f32 const*           inputData     = inputDataView->data();
     std::vector<int64_t> inputShape    = {1ul, static_cast<int64_t>(inputDataView->size())};
 
@@ -152,4 +206,42 @@ void NoContextOnnxLabelScorer::forwardContext(StepScoringContextRef const& scori
     sessionOutputs.front().get(0, *scoreVec);
     scoreCache_.emplace(scoringContext, scoreVec);
 }
+
+void NoContextOnnxLabelScorer::forwardBatch(std::vector<StepScoringContextRef> const& scoringContextBatch) {
+    if (scoringContextBatch.empty()) {
+        return;
+    }
+
+    /*
+     * Create session inputs by stacking the input features of all contexts
+     */
+    size_t featureSize = getInput(scoringContextBatch.front()->segment, scoringContextBatch.front()->currentStep)->size();
+    auto   inputValue  = Onnx::Value::createEmpty<f32>({static_cast<int64_t>(scoringContextBatch.size()), static_cast<int64_t>(featureSize)});
+    for (size_t b = 0ul; b < scoringContextBatch.size(); ++b) {
+        auto inputDataView = getInput(scoringContextBatch[b]->segment, scoringContextBatch[b]->currentStep);
+        verify(inputDataView and inputDataView->size() == featureSize);
+        std::copy(inputDataView->data(), inputDataView->data() + featureSize, inputValue.data<f32>(b));
+    }
+
+    std::vector<std::pair<std::string, Onnx::Value>> sessionInputs;
+    sessionInputs.emplace_back(inputFeatureName_, std::move(inputValue));
+
+    /*
+     * Run session
+     */
+    std::vector<Onnx::Value> sessionOutputs;
+    onnxSessionTime_.start();
+    onnxModel_->session.run(std::move(sessionInputs), {scoresName_}, sessionOutputs);
+    onnxSessionTime_.stop();
+
+    /*
+     * Put resulting scores into cache map
+     */
+    for (size_t b = 0ul; b < scoringContextBatch.size(); ++b) {
+        auto scoreVec = std::make_shared<std::vector<Score>>();
+        sessionOutputs.front().get(b, *scoreVec);
+        scoreCache_.emplace(scoringContextBatch[b], scoreVec);
+    }
+}
+
 }  // namespace Nn

@@ -86,6 +86,10 @@ void ScaledLabelScorer::logStatistics() const {
     scorer_->logStatistics();
 }
 
+void ScaledLabelScorer::resetStatistics() {
+    scorer_->resetStatistics();
+}
+
 void ScaledLabelScorer::signalNoMoreFeatures() {
     scorer_->signalNoMoreFeatures();
 }
@@ -131,6 +135,34 @@ std::vector<std::optional<ScoreAccessorRef>> ScaledLabelScorer::getScoreAccessor
         }
     }
     return result;
+}
+
+bool ScaledLabelScorer::supportsMultipleSegments() const {
+    return scorer_->supportsMultipleSegments();
+}
+
+void ScaledLabelScorer::addSegment(SegmentId segment) {
+    scorer_->addSegment(segment);
+}
+
+void ScaledLabelScorer::removeSegment(SegmentId segment) {
+    scorer_->removeSegment(segment);
+}
+
+void ScaledLabelScorer::signalNoMoreSegmentFeatures(SegmentId segment) {
+    scorer_->signalNoMoreSegmentFeatures(segment);
+}
+
+ScoringContextRef ScaledLabelScorer::getInitialSegmentScoringContext(SegmentId segment) {
+    return scorer_->getInitialSegmentScoringContext(segment);
+}
+
+void ScaledLabelScorer::addSegmentInput(SegmentId segment, DataView const& input) {
+    scorer_->addSegmentInput(segment, input);
+}
+
+void ScaledLabelScorer::addSegmentInputs(SegmentId segment, DataView const& input, size_t nTimesteps) {
+    scorer_->addSegmentInputs(segment, input, nTimesteps);
 }
 
 }  // namespace Nn

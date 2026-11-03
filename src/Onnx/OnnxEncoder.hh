@@ -37,6 +37,8 @@ public:
     OnnxEncoder(Core::Configuration const& config, Nn::ModelCache& modelCache);
     virtual ~OnnxEncoder() = default;
 
+    void addStatistics(Nn::Encoder const& other) override;
+
 protected:
     struct SessionRunResult {
         Nn::DataView outputView;
@@ -61,6 +63,7 @@ protected:
 
     // Clear buffers, segment end flag and ONNX state variables
     void resetInternal() override;
+    void resetStatisticsInternal() override;
 
     // Encode features inside the input buffer and put the results into the output buffer
     virtual void encode() override;

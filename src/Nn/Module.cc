@@ -85,6 +85,15 @@ enum StateManagerType {
 };
 #endif
 
+// Function to create further encoders with the same configuration, e.g. one encoder per segment.
+// The model cache is copied so that all these encoders share the models that are already loaded.
+EncoderDecoderLabelScorer::EncoderCreationFunction encoderCreationFunction(EncoderFactory const& encoderFactory, Core::Configuration const& config, ModelCache const& modelCache) {
+    auto sharedModelCache = std::make_shared<ModelCache>(modelCache);
+    return [&encoderFactory, config, sharedModelCache]() {
+        return encoderFactory.createEncoder(config, *sharedModelCache);
+    };
+}
+
 }  // namespace
 
 const Core::Choice Module_::compressedVectorFactoryTypeChoice(
@@ -182,10 +191,10 @@ Module_::Module_()
     labelScorerFactory_.registerLabelScorer(
             "encoder-decoder",
             [this](Core::Configuration const& config, ModelCache& modelCache) {
-                return Core::ref(new EncoderDecoderLabelScorer(
-                        config,
-                        encoderFactory_.createEncoder(Core::Configuration(config, "encoder"), modelCache),
-                        labelScorerFactory_.createLabelScorer(Core::Configuration(config, "decoder"), modelCache)));
+                Core::Configuration encoderConfig(config, "encoder");
+                auto                encoder = encoderFactory_.createEncoder(encoderConfig, modelCache);
+                auto                decoder = labelScorerFactory_.createLabelScorer(Core::Configuration(config, "decoder"), modelCache);
+                return Core::ref(new EncoderDecoderLabelScorer(config, encoder, decoder, encoderCreationFunction(encoderFactory_, encoderConfig, modelCache)));
             });
 
     // A label scorer consisting of an encoder that produces scores based on the features
@@ -196,10 +205,9 @@ Module_::Module_()
 
                 Core::Ref<ScaledLabelScorer> scaledDecoder = Core::ref(new ScaledLabelScorer(Core::Configuration(config, "decoder"), decoder));
 
-                return Core::ref(new EncoderDecoderLabelScorer(
-                        config,
-                        encoderFactory_.createEncoder(Core::Configuration(config, "encoder"), modelCache),
-                        scaledDecoder));
+                Core::Configuration encoderConfig(config, "encoder");
+                auto                encoder = encoderFactory_.createEncoder(encoderConfig, modelCache);
+                return Core::ref(new EncoderDecoderLabelScorer(config, encoder, scaledDecoder, encoderCreationFunction(encoderFactory_, encoderConfig, modelCache)));
             });
 
 #ifdef MODULE_ONNX

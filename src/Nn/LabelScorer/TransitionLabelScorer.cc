@@ -67,7 +67,25 @@ ScoringContextRef TransitionLabelScorer::getInitialScoringContext() {
 }
 
 ScoringContextRef TransitionLabelScorer::extendedScoringContext(ScoringContextRef scoringContext, LabelIndex nextToken, TransitionType transitionType) {
-    return Core::ref(new ScoringContext());
+    auto context     = Core::ref(new ScoringContext());
+    context->segment = scoringContext->segment;
+    return context;
+}
+
+bool TransitionLabelScorer::supportsMultipleSegments() const {
+    return true;
+}
+
+void TransitionLabelScorer::addSegment(SegmentId segment) {}
+
+void TransitionLabelScorer::signalNoMoreSegmentFeatures(SegmentId segment) {}
+
+void TransitionLabelScorer::addSegmentInput(SegmentId segment, DataView const& input) {}
+
+ScoringContextRef TransitionLabelScorer::getInitialSegmentScoringContext(SegmentId segment) {
+    auto context     = Core::ref(new ScoringContext());
+    context->segment = segment;
+    return context;
 }
 
 void TransitionLabelScorer::addInput(DataView const& input) {}

@@ -50,6 +50,7 @@
 #include "PushForwardRescoring.hh"
 #include "Recognizer.hh"
 #include "RecognizerV2.hh"
+#include "RecognizerV3.hh"
 #include "Rescale.hh"
 #include "Rescore.hh"
 #include "RescoreLm.hh"
@@ -2160,6 +2161,26 @@ void registerNodeCreators(NodeFactory* factory) {
                     "output:\n"
                     "  0:lattice",
                     &createRecognizerNodeV2));
+
+    factory->add(
+            NodeCreator(
+                    "recognizer-v3",
+                    "Batched recognizer that decodes several segments at the same time\n"
+                    "with a `SearchAlgorithmV3` (multi-segment search).\n"
+                    "Output are lattices in Flf format, sent in corpus order.\n"
+                    "The node is not driven by its input but by the batched corpus processor,\n"
+                    "which is used automatically if the network contains a recognizer-v3 node:\n"
+                    "The features of each corpus segment are extracted and passed to the search;\n"
+                    "up to max-active-segments segments are decoded at the same time and the network\n"
+                    "is processed for each finished segment. The speech-segment node then provides\n"
+                    "a copy of the segment information (the Bliss segment itself is not available).\n"
+                    "[*.network.recognizer-v3]\n"
+                    "type                = recognizer-v3\n"
+                    "max-active-segments = 16\n"
+                    "search-algorithm.type = lexiconfree-labelsync-beam-search\n"
+                    "output:\n"
+                    "  0:lattice",
+                    &createRecognizerNodeV3));
 
     factory->add(
             NodeCreator(

@@ -26,6 +26,7 @@
 #include "LabelScorer/EncoderDecoderLabelScorer.hh"
 #include "LabelScorer/EncoderFactory.hh"
 #include "LabelScorer/NoOpLabelScorer.hh"
+#include "LabelScorer/PrefixSpeechLmOnnxLabelScorer.hh"
 #include "LabelScorer/PriorLabelScorer.hh"
 #include "LabelScorer/TransitionLabelScorer.hh"
 #include "Statistics.hh"
@@ -204,6 +205,13 @@ Module_::Module_()
                 return Core::ref(new FixedContextOnnxLabelScorer(config, modelCache));
             });
 
+    // Feed speech-conditioned prompt into LM as prefix before decoding. Uses StateManager.
+    labelScorerFactory_.registerLabelScorer(
+            "prefix-speech-lm-onnx",
+            [](Core::Configuration const& config, ModelCache& modelCache) {
+                return Core::ref(new PrefixSpeechLmOnnxLabelScorer(config, modelCache));
+            });
+
     // Compute scores based on hidden state tensors.
     labelScorerFactory_.registerLabelScorer(
             "stateful-onnx",
@@ -225,6 +233,13 @@ Module_::Module_()
                 return Core::ref(new StateManagedOnnxLabelScorer(config, modelCache));
             });
 #endif
+
+    // Compute scores with recurrent ONNX state packing delegated to a StateManager.
+    labelScorerFactory_.registerLabelScorer(
+            "state-managed-onnx",
+            [](Core::Configuration const& config, ModelCache& modelCache) {
+                return Core::ref(new StateManagedOnnxLabelScorer(config, modelCache));
+            });
 
     // Returns predefined scores based on the transition type of each score request
     labelScorerFactory_.registerLabelScorer(

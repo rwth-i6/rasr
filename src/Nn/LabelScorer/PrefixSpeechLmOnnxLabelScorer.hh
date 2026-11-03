@@ -68,6 +68,7 @@ class PrefixSpeechLmOnnxLabelScorer : public BufferedLabelScorer {
     static const Core::ParameterIntVector paramInitialPromptLabels;
     static const Core::ParameterIntVector paramSuffixPromptLabels;
     static const Core::ParameterBool      paramBlankUpdatesHistory;
+    static const Core::ParameterBool      paramSilenceUpdatesHistory;
     static const Core::ParameterBool      paramLoopUpdatesHistory;
     static const Core::ParameterInt       paramMaxBatchSize;
     static const Core::ParameterInt       paramMaxCachedScores;
@@ -76,17 +77,17 @@ public:
     PrefixSpeechLmOnnxLabelScorer(Core::Configuration const& config, ModelCache& modelCache);
     virtual ~PrefixSpeechLmOnnxLabelScorer() = default;
 
-    void reset() override;
     void addInput(DataView const& input) override;
 
     ScoringContextRef getInitialScoringContext() override;
     ScoringContextRef extendedScoringContext(ScoringContextRef scoringContext, LabelIndex nextToken, TransitionType transitionType) override;
 
-    std::optional<ScoreAccessorRef>              getScoreAccessor(ScoringContextRef scoringContext) override;
-    std::vector<std::optional<ScoreAccessorRef>> getScoreAccessors(std::vector<ScoringContextRef> const& scoringContexts) override;
-
 protected:
-    size_t getMinActiveInputIndex(Core::CollapsedVector<ScoringContextRef> const& activeContexts) const override;
+    void resetInternal() override;
+
+    std::optional<ScoreAccessorRef>              computeScoreAccessor(ScoringContextRef scoringContext) override;
+    std::vector<std::optional<ScoreAccessorRef>> computeScoreAccessors(std::vector<ScoringContextRef> const& scoringContexts) override;
+    size_t                                       getMinActiveInputIndex(Core::CollapsedVector<ScoringContextRef> const& activeContexts) const override;
 
 private:
     void setupInitialStates();
@@ -95,9 +96,12 @@ private:
     void setupEncoderStatesValue();
     void setupEncoderStatesSizeValue();
 
+    void logScoringBreakdown() const override;
+
     std::vector<s32> initialPromptLabels_;
     std::vector<s32> suffixPromptLabels_;
     bool             blankUpdatesHistory_;
+    bool             silenceUpdatesHistory_;
     bool             loopUpdatesHistory_;
     size_t           maxBatchSize_;
 
@@ -125,6 +129,12 @@ private:
     Onnx::Value encoderStatesSizeValue_;
 
     PrefixSpeechLmScoringContextRef initialContext_;
+
+    // Includes both the initializer and the step session runs
+    Core::StopWatch onnxSessionTime_;
+    // Merging the prefix states into the batched session inputs and splitting the outputs back up
+    Core::StopWatch stateMarshallingTime_;
+    Core::StopWatch contextPreparationTime_;
 
     Core::FIFOCache<PrefixSpeechLmScoringContextRef, std::shared_ptr<std::vector<Score>>, ScoringContextHash, ScoringContextEq> scoreCache_;
     Core::FIFOCache<PrefixSpeechLmScoringContextRef, std::shared_ptr<HistoryState>, ScoringContextHash, ScoringContextEq>       stateCache_;

@@ -48,6 +48,7 @@ public:
     static const Core::ParameterIntVector   paramMaxBeamSizes;
     static const Core::ParameterFloatVector paramScoreThresholds;
     static const Core::ParameterInt         paramNumHistogramBins;
+    static const Core::ParameterBool        paramEnableHistogramPruning;
     static const Core::ParameterInt         paramSentenceEndLabelIndex;
     static const Core::ParameterInt         paramMaxExtensionsPerHyp;
     static const Core::ParameterInt         paramCacheCleanupInterval;
@@ -153,6 +154,7 @@ private:
     Histogram           scoreHistogram_;
     Histogram           activeScoreHistogram_;
     Histogram           terminatedScoreHistogram_;
+    bool                histogramPruningEnabled_;
     float               lengthNormScale_;
     float               maxLabelsPerTimestep_;
     Nn::LabelIndex      sentenceEndLabelIndex_;

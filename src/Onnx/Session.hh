@@ -68,6 +68,9 @@ public:
      */
     static void* sharedCudaStream();
 
+    // Whether the session runs on the CUDA execution provider, i.e. whether inputs in device memory save copies
+    bool usesCuda() const;
+
     std::string                     getCustomMetadata(std::string const& key) const;
     std::vector<std::string> const& getCustomMetadataKeys() const;
 

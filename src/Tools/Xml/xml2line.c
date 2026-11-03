@@ -18,7 +18,7 @@
 #include <string.h>
 #include <ctype.h>
 
-#include <libxml/SAX.h>
+#include <libxml/SAX2.h>
 #include <libxml/parserInternals.h>
 
 /*
@@ -233,8 +233,8 @@ static void error(void *ctx, const char *msg, ...)
   va_list ap;
 
   fprintf(stderr, "error in line %d column %d: ", 
-	  getLineNumber(ctx),
-	  getColumnNumber(ctx));
+	  xmlSAX2GetLineNumber(ctx),
+	  xmlSAX2GetColumnNumber(ctx));
 
   va_start(ap, msg);
   vfprintf(stderr, msg, ap);

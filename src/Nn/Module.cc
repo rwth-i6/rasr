@@ -34,6 +34,9 @@
 #ifdef MODULE_ONNX
 #include <Onnx/OnnxLstmStateManager.hh>
 #include <Onnx/OnnxTransformerStateManager.hh>
+#ifdef MODULE_CUDA
+#include <Onnx/TransformerGpuStateManager.hh>
+#endif
 
 #include "LabelScorer/FixedContextOnnxLabelScorer.hh"
 #include "LabelScorer/NoContextOnnxLabelScorer.hh"
@@ -74,6 +77,9 @@ enum StateManagerType {
     TransformerStateManagerType,
     TransformerStateManager16BitType,
     TransformerStateManager8BitType,
+#ifdef MODULE_CUDA
+    TransformerGpuStateManagerType,
+#endif
 };
 #endif
 
@@ -98,6 +104,9 @@ const Core::Choice Module_::stateManagerTypeChoice(
         "transformer", TransformerStateManagerType,
         "transformer-16bit", TransformerStateManager16BitType,
         "transformer-8bit", TransformerStateManager8BitType,
+#ifdef MODULE_CUDA
+        "transformer-gpu", TransformerGpuStateManagerType,
+#endif
         Core::Choice::endMark());
 
 const Core::ParameterChoice Module_::stateManagerTypeParam(
@@ -302,6 +311,11 @@ std::unique_ptr<AbstractStateManager<Onnx::Value, Onnx::OnnxStateVariable>> Modu
         case TransformerStateManager8BitType:
             return std::unique_ptr<AbstractStateManager<Onnx::Value, Onnx::OnnxStateVariable>>(
                     new Onnx::OnnxTransformerStateManager<int8_t>(config));
+#ifdef MODULE_CUDA
+        case TransformerGpuStateManagerType:
+            return std::unique_ptr<AbstractStateManager<Onnx::Value, Onnx::OnnxStateVariable>>(
+                    new Onnx::TransformerGpuStateManager(config));
+#endif
         default:
             defect();
     }

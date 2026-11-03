@@ -36,6 +36,9 @@ public:
     CombineLabelScorer(Core::Configuration const& config, ModelCache& modelCache);
     virtual ~CombineLabelScorer() = default;
 
+    // Return the number of sub-scorers
+    size_t numSubScorers() const;
+
     // Return the sub-scorer at `index`
     Core::Ref<ScaledLabelScorer> getSubScorer(size_t index) const;
 

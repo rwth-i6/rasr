@@ -134,6 +134,10 @@ CombineLabelScorer::CombineLabelScorer(Core::Configuration const& config, ModelC
     }
 }
 
+size_t CombineLabelScorer::numSubScorers() const {
+    return scorers_.size();
+}
+
 Core::Ref<ScaledLabelScorer> CombineLabelScorer::getSubScorer(size_t index) const {
     require(index < scorers_.size());
     return scorers_[index];

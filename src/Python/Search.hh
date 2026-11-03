@@ -17,6 +17,7 @@
 #define _PYTHON_SEARCH_HH
 
 #include <functional>
+#include <optional>
 
 #include <Flf/LatticeHandler.hh>
 #include <Flf/Lexicon.hh>
@@ -75,12 +76,20 @@ public:
     std::vector<Traceback> getCurrentNBestList(size_t nBestSize);
 
     // Convenience function to recognize a full segment given all the features as a tensor of shape [T, F]
+    // The optional prompts override the prompts of prefix speech LM label scorers for this segment.
     // Returns the recognition result
-    Traceback recognizeSegment(py::array_t<f32> const& features, std::string const& name = "");
+    Traceback recognizeSegment(py::array_t<f32> const&                features,
+                               std::string const&                     name          = "",
+                               std::optional<std::vector<s32>> const& initialPrompt = std::nullopt,
+                               std::optional<std::vector<s32>> const& suffixPrompt  = std::nullopt);
 
     // Convenience function to recognize a full segment given all the features as a tensor of shape [T, F]
     // Returns a n-best list of recognition results
-    std::vector<Traceback> recognizeSegmentNBest(py::array_t<f32> const& features, size_t nBestSize, std::string const& name = "");
+    std::vector<Traceback> recognizeSegmentNBest(py::array_t<f32> const&                features,
+                                                 size_t                                 nBestSize,
+                                                 std::string const&                     name          = "",
+                                                 std::optional<std::vector<s32>> const& initialPrompt = std::nullopt,
+                                                 std::optional<std::vector<s32>> const& suffixPrompt  = std::nullopt);
 
 private:
     std::unique_ptr<Flf::LatticeHandler>       latticeHandler_;
@@ -110,6 +119,9 @@ private:
 class BatchedSearchAlgorithm : public Core::Component {
 public:
     typedef Search::SearchAlgorithmV3::SegmentHandle SegmentHandle;
+
+    // Optional prompts with one entry per segment
+    typedef std::optional<std::vector<std::vector<s32>>> Prompts;
 
     BatchedSearchAlgorithm(const Core::Configuration& c);
 
@@ -160,12 +172,19 @@ public:
 
     // Convenience function to recognize several segments given their features as tensors of shape [T, F] each.
     // Decodes up to `maxActiveSegments()` segments at the same time. `names` (only used for logging) is either empty
-    // or has one entry per segment.
+    // or has one entry per segment. The optional prompts override the prompts of prefix speech LM label scorers per segment.
     // Returns the recognition results in the order of the inputs.
-    std::vector<Traceback> recognizeSegments(std::vector<py::array_t<f32>> const& features, std::vector<std::string> const& names = {});
+    std::vector<Traceback> recognizeSegments(std::vector<py::array_t<f32>> const& features,
+                                             std::vector<std::string> const&      names          = {},
+                                             Prompts const&                       initialPrompts = std::nullopt,
+                                             Prompts const&                       suffixPrompts  = std::nullopt);
 
     // Same as `recognizeSegments` but returns a n-best list of recognition results for each segment.
-    std::vector<std::vector<Traceback>> recognizeSegmentsNBest(std::vector<py::array_t<f32>> const& features, size_t nBestSize, std::vector<std::string> const& names = {});
+    std::vector<std::vector<Traceback>> recognizeSegmentsNBest(std::vector<py::array_t<f32>> const& features,
+                                                               size_t                               nBestSize,
+                                                               std::vector<std::string> const&      names          = {},
+                                                               Prompts const&                       initialPrompts = std::nullopt,
+                                                               Prompts const&                       suffixPrompts  = std::nullopt);
 
 private:
     std::unique_ptr<Flf::LatticeHandler>       latticeHandler_;
@@ -174,7 +193,11 @@ private:
     Speech::ModelCombination                   modelCombination_;
 
     // Recognize the segments with continuous batching and call `storeResult` for each segment once it is finished
-    void recognizeSegments(std::vector<py::array_t<f32>> const& features, std::vector<std::string> const& names, std::function<void(size_t, SegmentHandle)> const& storeResult);
+    void recognizeSegments(std::vector<py::array_t<f32>> const&              features,
+                           std::vector<std::string> const&                   names,
+                           Prompts const&                                    initialPrompts,
+                           Prompts const&                                    suffixPrompts,
+                           std::function<void(size_t, SegmentHandle)> const& storeResult);
 };
 
 #endif  // _PYTHON_SEARCH_HH

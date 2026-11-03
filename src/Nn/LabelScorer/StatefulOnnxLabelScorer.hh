@@ -77,6 +77,10 @@ typedef Core::Ref<OnnxHiddenStateScoringContext const> OnnxHiddenStateScoringCon
  * of the encoder states that masks the padding via the encoder states size.
  * If the state updater has the optional input `encoder-states-index` [B], the encoder states are stacked only once per
  * segment ([S, T_max, E] with sizes [S]) and the index contains the row of each batch entry.
+ * Limitation: When contexts of different segments are batched, their hidden states are concatenated along the batch
+ * dimension, so all other dimensions must match. This fails for hidden states whose shape depends on the encoder
+ * length T (e.g. attention weights [1, T]) if the segments have different lengths. Single-segment search is not
+ * affected since all hidden states belong to the same segment.
  */
 class StatefulOnnxLabelScorer : public BufferedLabelScorer {
 public:

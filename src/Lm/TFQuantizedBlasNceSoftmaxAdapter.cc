@@ -14,7 +14,9 @@
  */
 #include "TFQuantizedBlasNceSoftmaxAdapter.hh"
 
+#ifdef __AVX2__
 #include <immintrin.h>
+#endif
 
 #include <Nn/FixedQuantizationCompressedVectorFactory.hh>
 

@@ -45,6 +45,13 @@ enum class ValueDataType : int {
     BFLOAT16   = ONNX_TENSOR_ELEMENT_DATA_TYPE_BFLOAT16,
 };
 
+// Where the data of a tensor is (or should be) stored
+enum class MemoryLocation : int {
+    DEFAULT,  // decided by the callee, see `Session::run`
+    HOST,
+    DEVICE,  // CUDA device memory
+};
+
 class Value {
 public:
     friend Session;
@@ -67,6 +74,15 @@ public:
     static Value concat(Value const& a, Value const& b, int axis);
     static Value concat(std::vector<Value const*> const& values, int axis);
 
+    /*
+     * Wrap existing CUDA device memory of the current device as a tensor, without taking ownership.
+     * The memory must stay valid as long as the returned value is used (including session runs with it).
+     * The device is the current one (cudaGetDevice) at the time of the call, sessions use the device that was
+     * current when they were created (both must be the same, i.e. don't switch devices in between).
+     */
+    template<typename T>
+    static Value wrapDeviceMemory(T* data, std::vector<int64_t> const& dim);
+
     Value();
     Value(Value const& other);
     Value(Value&& value) noexcept;
@@ -75,6 +91,21 @@ public:
     bool empty() const;
 
     Value& operator=(Value&& other) noexcept;
+
+    /* -------------------- Memory location -------------------- */
+
+    // Whether the tensor data is in CUDA device memory
+    bool isOnDevice() const;
+
+    // Copy of the tensor in host memory (a plain copy for host tensors)
+    Value toHost() const;
+
+    // Raw data pointer regardless of the memory location, i.e. a device pointer for tensors on the device
+    template<typename T>
+    T* rawData();
+
+    template<typename T>
+    T const* rawData() const;
 
     /* -------------------- Getters -------------------- */
 
@@ -186,6 +217,9 @@ protected:
 
     template<typename T>
     void copyFrom(Ort::Value const& v);
+
+    // Aborts with a clear message if the tensor data is in device memory
+    void requireOnHost() const;
 
     Ort::Value const* rawValue() const;
 };

@@ -3,6 +3,15 @@
  */
 #include "Value.hh"
 
+#include <numeric>
+
+#include <Core/Application.hh>
+
+#ifdef MODULE_CUDA
+#include <cuda_runtime.h>
+#endif
+
+#include "Session.hh"
 #include "Util.hh"
 
 namespace {
@@ -197,6 +206,8 @@ template Value Value::zeros<s8>(std::vector<int64_t> const& dim);
 template Value Value::zeros<u8>(std::vector<int64_t> const& dim);
 
 Value Value::concat(Value const& a, Value const& b, int axis) {
+    a.requireOnHost();
+    b.requireOnHost();
     require_eq(a.numDims(), b.numDims());
     require_eq(a.value_.GetTensorTypeAndShapeInfo().GetElementType(), b.value_.GetTensorTypeAndShapeInfo().GetElementType());
 
@@ -279,6 +290,9 @@ Value Value::concat(Value const& a, Value const& b, int axis) {
 }
 
 Value Value::concat(std::vector<Value const*> const& values, int axis) {
+    for (auto const* value : values) {
+        value->requireOnHost();
+    }
     require(values.size() > 0);
 
     auto numDims     = values.front()->numDims();
@@ -389,6 +403,8 @@ Value Value::concat(std::vector<Value const*> const& values, int axis) {
 
 Value::Value(Value const& other)
         : value_(nullptr) {
+    // Copies are made on the host, so copying a tensor in device memory is an error
+    other.requireOnHost();
     switch (other.dataType()) {
         case ValueDataType::FLOAT: {
             copyFrom<float>(other.value_);
@@ -479,6 +495,7 @@ std::string Value::dataTypeName() const {
 
 template<typename T>
 void Value::get(Math::FastMatrix<T>& mat, bool transpose) const {
+    requireOnHost();
     ONNXTensorElementDataType expected_dtype = ToDataType<T>::onnx_tensor_element_type;
     require(not empty());
     require(value_.IsTensor());
@@ -519,6 +536,7 @@ template void Value::get<u8>(Math::FastMatrix<u8>&, bool) const;
 
 template<typename T>
 void Value::get(std::vector<Math::FastMatrix<T>>& batches, bool transpose) const {
+    requireOnHost();
     ONNXTensorElementDataType expected_dtype = ToDataType<T>::onnx_tensor_element_type;
     require(not empty());
     require(value_.IsTensor());
@@ -563,6 +581,7 @@ template void Value::get<u8>(std::vector<Math::FastMatrix<u8>>&, bool) const;
 
 template<typename T>
 void Value::get(Math::FastVector<T>& vec) const {
+    requireOnHost();
     ONNXTensorElementDataType expected_dtype = ToDataType<T>::onnx_tensor_element_type;
     require(not empty());
     require(value_.IsTensor());
@@ -587,6 +606,7 @@ template void Value::get<u8>(Math::FastVector<u8>&) const;
 
 template<typename T>
 void Value::get(std::vector<T>& vec) const {
+    requireOnHost();
     ONNXTensorElementDataType expected_dtype = ToDataType<T>::onnx_tensor_element_type;
     require(not empty());
     require(value_.IsTensor());
@@ -611,6 +631,7 @@ template void Value::get<u8>(std::vector<u8>&) const;
 
 template<typename T>
 void Value::get(T& val) const {
+    requireOnHost();
     ONNXTensorElementDataType expected_dtype = ToDataType<T>::onnx_tensor_element_type;
     require(not empty());
     require(value_.IsTensor());
@@ -637,6 +658,7 @@ template void Value::get<bool>(bool&) const;
 
 template<typename T>
 void Value::get(size_t dim0_idx, Math::FastMatrix<T>& mat, bool transpose) const {
+    requireOnHost();
     ONNXTensorElementDataType expected_dtype = ToDataType<T>::onnx_tensor_element_type;
     require(not empty());
     require(value_.IsTensor());
@@ -679,6 +701,7 @@ template void Value::get<u8>(size_t, Math::FastMatrix<u8>&, bool) const;
 
 template<typename T>
 void Value::get(size_t dim0_idx, Math::FastVector<T>& vec) const {
+    requireOnHost();
     ONNXTensorElementDataType expected_dtype = ToDataType<T>::onnx_tensor_element_type;
     require(not empty());
     require(value_.IsTensor());
@@ -704,6 +727,7 @@ template void Value::get<u8>(size_t, Math::FastVector<u8>&) const;
 
 template<typename T>
 void Value::get(size_t dim0_idx, std::vector<T>& vec) const {
+    requireOnHost();
     ONNXTensorElementDataType expected_dtype = ToDataType<T>::onnx_tensor_element_type;
     require(not empty());
     require(value_.IsTensor());
@@ -729,6 +753,7 @@ template void Value::get<u8>(size_t, std::vector<u8>&) const;
 
 template<typename T>
 void Value::get(size_t dim0_idx, T& val) const {
+    requireOnHost();
     ONNXTensorElementDataType expected_dtype = ToDataType<T>::onnx_tensor_element_type;
     require(not empty());
     require(value_.IsTensor());
@@ -755,6 +780,7 @@ template void Value::get<u8>(size_t, u8&) const;
 
 template<typename T>
 void Value::get(size_t dim0_idx, size_t dim1_idx, Math::FastVector<T>& vec) const {
+    requireOnHost();
     ONNXTensorElementDataType expected_dtype = ToDataType<T>::onnx_tensor_element_type;
     require(not empty());
     require(value_.IsTensor());
@@ -781,6 +807,7 @@ template void Value::get<u8>(size_t, size_t, Math::FastVector<u8>&) const;
 
 template<typename T>
 void Value::get(size_t dim0_idx, size_t dim1_idx, std::vector<T>& vec) const {
+    requireOnHost();
     ONNXTensorElementDataType expected_dtype = ToDataType<T>::onnx_tensor_element_type;
     require(not empty());
     require(value_.IsTensor());
@@ -807,6 +834,7 @@ template void Value::get<u8>(size_t, size_t, std::vector<u8>&) const;
 
 template<typename T>
 void Value::get(size_t dim0_idx, size_t dim1_idx, T& val) const {
+    requireOnHost();
     ONNXTensorElementDataType expected_dtype = ToDataType<T>::onnx_tensor_element_type;
     require(not empty());
     require(value_.IsTensor());
@@ -834,6 +862,7 @@ template void Value::get<u8>(size_t, size_t, u8&) const;
 
 template<typename T>
 T* Value::data() {
+    requireOnHost();
     ONNXTensorElementDataType expected_dtype = ToDataType<T>::onnx_tensor_element_type;
     require(not empty());
     require(value_.IsTensor());
@@ -856,6 +885,7 @@ template u8*  Value::data<u8>();
 
 template<typename T>
 T const* Value::data() const {
+    requireOnHost();
     ONNXTensorElementDataType expected_dtype = ToDataType<T>::onnx_tensor_element_type;
     require(not empty());
     require(value_.IsTensor());
@@ -878,6 +908,7 @@ template u8 const*  Value::data<u8>() const;
 
 template<typename T>
 T* Value::data(size_t dim0_idx) {
+    requireOnHost();
     ONNXTensorElementDataType expected_dtype = ToDataType<T>::onnx_tensor_element_type;
     require(not empty());
     require(value_.IsTensor());
@@ -906,6 +937,7 @@ template u8*  Value::data<u8>(size_t);
 
 template<typename T>
 T const* Value::data(size_t dim0_idx) const {
+    requireOnHost();
     ONNXTensorElementDataType expected_dtype = ToDataType<T>::onnx_tensor_element_type;
     require(not empty());
     require(value_.IsTensor());
@@ -932,6 +964,7 @@ template u8 const*  Value::data<u8>(size_t) const;
 
 template<typename T>
 T* Value::data(size_t dim0_idx, size_t dim1_idx) {
+    requireOnHost();
     ONNXTensorElementDataType expected_dtype = ToDataType<T>::onnx_tensor_element_type;
     require(not empty());
     require(value_.IsTensor());
@@ -961,6 +994,7 @@ template u8*  Value::data<u8>(size_t, size_t);
 
 template<typename T>
 T const* Value::data(size_t dim0_idx, size_t dim1_idx) const {
+    requireOnHost();
     ONNXTensorElementDataType expected_dtype = ToDataType<T>::onnx_tensor_element_type;
     require(not empty());
     require(value_.IsTensor());
@@ -990,6 +1024,7 @@ template u8 const*  Value::data<u8>(size_t, size_t) const;
 
 template<typename T>
 T* Value::data(size_t dim0_idx, size_t dim1_idx, size_t dim2_idx) {
+    requireOnHost();
     ONNXTensorElementDataType expected_dtype = ToDataType<T>::onnx_tensor_element_type;
     require(not empty());
     require(value_.IsTensor());
@@ -1020,6 +1055,7 @@ template u8*  Value::data<u8>(size_t, size_t, size_t);
 
 template<typename T>
 T const* Value::data(size_t dim0_idx, size_t dim1_idx, size_t dim2_idx) const {
+    requireOnHost();
     ONNXTensorElementDataType expected_dtype = ToDataType<T>::onnx_tensor_element_type;
     require(not empty());
     require(value_.IsTensor());
@@ -1049,6 +1085,7 @@ template s8 const*  Value::data<s8>(size_t, size_t, size_t) const;
 template u8 const*  Value::data<u8>(size_t, size_t, size_t) const;
 
 Value Value::slice(int64_t start, int64_t end, int axis) {
+    requireOnHost();
     start = start >= 0 ? start : dimSize(axis) + start;
     end   = end >= 0 ? end : dimSize(axis) + 1 + end;
 
@@ -1159,6 +1196,7 @@ Value Value::slice(int64_t start, int64_t end, int axis) {
 }
 
 Value Value::slice(std::vector<int64_t> const& start, std::vector<int64_t> const& end) {
+    requireOnHost();
     require_le(static_cast<int>(start.size()), numDims());
     require_eq(start.size(), end.size());
 
@@ -1365,6 +1403,7 @@ template void Value::set<bool>(bool const&);
 
 template<typename T>
 void Value::save(std::string const& path) const {
+    requireOnHost();
     std::ofstream out(path, std::ios::out | std::ios::trunc);
     for (int i = 0; i < numDims(); i++) {
         if (i > 0) {
@@ -1419,5 +1458,95 @@ void Value::copyFrom(Ort::Value const& v) {
 
     std::copy(src, src + total_size, tgt);
 }
+
+/* -------------------- Memory location -------------------- */
+
+bool Value::isOnDevice() const {
+    if (empty() or not value_.IsTensor()) {
+        return false;
+    }
+    return value_.GetTensorMemoryInfo().GetDeviceType() == OrtMemoryInfoDeviceType_GPU;
+}
+
+void Value::requireOnHost() const {
+    if (isOnDevice()) {
+        Core::Application::us()->criticalError("Onnx::Value: host access to a tensor in CUDA device memory, use toHost() first");
+    }
+}
+
+Value Value::toHost() const {
+    if (not isOnDevice()) {
+        return Value(*this);
+    }
+#ifdef MODULE_CUDA
+    auto info  = value_.GetTensorTypeAndShapeInfo();
+    auto shape = info.GetShape();
+
+    Ort::AllocatorWithDefaultOptions allocator;
+    Ort::Value                       host = Ort::Value::CreateTensor(allocator, shape.data(), shape.size(), info.GetElementType());
+
+    // Device data may still be written on the shared compute stream
+    auto        stream = static_cast<cudaStream_t>(Session::sharedCudaStream());
+    cudaError_t status = cudaStreamSynchronize(stream);
+    if (status == cudaSuccess) {
+        status = cudaMemcpy(host.GetTensorMutableRawData(), value_.GetTensorRawData(), value_.GetTensorSizeInBytes(), cudaMemcpyDeviceToHost);
+    }
+    if (status != cudaSuccess) {
+        Core::Application::us()->criticalError("Onnx::Value::toHost: copying from the CUDA device failed: %s", cudaGetErrorString(status));
+    }
+    return Value(std::move(host));
+#else
+    Core::Application::us()->criticalError("Onnx::Value::toHost: tensor in device memory but RASR was compiled without MODULE_CUDA");
+    return Value();
+#endif
+}
+
+template<typename T>
+T* Value::rawData() {
+    require(not empty());
+    require(value_.IsTensor());
+    require_eq(value_.GetTensorTypeAndShapeInfo().GetElementType(), ToDataType<T>::onnx_tensor_element_type);
+    return value_.GetTensorMutableData<T>();
+}
+
+template<typename T>
+T const* Value::rawData() const {
+    require(not empty());
+    require(value_.IsTensor());
+    require_eq(value_.GetTensorTypeAndShapeInfo().GetElementType(), ToDataType<T>::onnx_tensor_element_type);
+    return value_.GetTensorData<T>();
+}
+
+template<typename T>
+Value Value::wrapDeviceMemory(T* data, std::vector<int64_t> const& dim) {
+#ifdef MODULE_CUDA
+    int         device = 0;
+    cudaError_t status = cudaGetDevice(&device);
+    if (status != cudaSuccess) {
+        Core::Application::us()->criticalError("Onnx::Value::wrapDeviceMemory: could not get the current CUDA device: %s", cudaGetErrorString(status));
+    }
+    Ort::MemoryInfo memoryInfo("Cuda", OrtDeviceAllocator, device, OrtMemTypeDefault);
+    size_t          count = std::accumulate(dim.begin(), dim.end(), static_cast<int64_t>(1), std::multiplies<int64_t>());
+    return Value(Ort::Value::CreateTensor<T>(memoryInfo, data, count, dim.data(), dim.size()));
+#else
+    Core::Application::us()->criticalError("Onnx::Value::wrapDeviceMemory requires MODULE_CUDA");
+    return Value();
+#endif
+}
+
+#define INSTANTIATE_MEMORY_LOCATION_FUNCTIONS(T) \
+    template T*       Value::rawData<T>();       \
+    template T const* Value::rawData<T>() const; \
+    template Value    Value::wrapDeviceMemory<T>(T * data, std::vector<int64_t> const& dim);
+
+INSTANTIATE_MEMORY_LOCATION_FUNCTIONS(f32)
+INSTANTIATE_MEMORY_LOCATION_FUNCTIONS(f64)
+INSTANTIATE_MEMORY_LOCATION_FUNCTIONS(s64)
+INSTANTIATE_MEMORY_LOCATION_FUNCTIONS(s32)
+INSTANTIATE_MEMORY_LOCATION_FUNCTIONS(s16)
+INSTANTIATE_MEMORY_LOCATION_FUNCTIONS(s8)
+INSTANTIATE_MEMORY_LOCATION_FUNCTIONS(u8)
+
+#undef INSTANTIATE_MEMORY_LOCATION_FUNCTIONS
 
 }  // namespace Onnx

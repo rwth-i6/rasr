@@ -123,10 +123,11 @@ std::vector<typename LstmStateManager<value_t, state_variable_t>::Precursor::His
         size_t batch_size = tensor.dimSize(0);
         size_t state_size = tensor.dimSize(1);
         require_eq(batch_size, suffix_lengths.size());
+        float const* tensor_data = tensor.template data<f32>();  // rows are contiguous: [batch_size, state_size]
 
         for (size_t b = 0ul; b < batch_size; b++) {
             auto         compression_param_estimator = vector_factory.getEstimator();
-            float const* data                        = tensor.template data<f32>(b, 0);
+            float const* data                        = tensor_data + b * state_size;
             compression_param_estimator->accumulate(data, state_size);
             auto compression_params = compression_param_estimator->estimate();
             result[b].emplace_back(vector_factory.compress(data, state_size, compression_params.get()).release());

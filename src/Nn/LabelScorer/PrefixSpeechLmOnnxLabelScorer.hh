@@ -18,6 +18,7 @@
 
 #include <Core/FIFOCache.hh>
 #include <Onnx/Model.hh>
+#include <Tokenizer/AbstractTokenizer.hh>
 
 #include "BufferedLabelScorer.hh"
 #include "ModelCache.hh"
@@ -55,6 +56,8 @@ typedef Core::Ref<PrefixSpeechLmScoringContext const> PrefixSpeechLmScoringConte
  * [initial prompt tokens, speech encoder states in LM embedding space, suffix prompt tokens]
  * before scoring hypothesis tokens one-by-one as usual.
  *
+ * The prompts are given either as text, which is tokenized with the configured tokenizer, or directly as token ids.
+ *
  * The LabelScorer requires two ONNX models, one which takes the prompts and encoder states
  * to produce the initial states and score distribution and one which takes a new token and
  * existing states to output updated states and scores after incorporating the token.
@@ -82,6 +85,8 @@ private:
     using StateManager = AbstractStateManager<Onnx::Value, Onnx::OnnxStateVariable>;
     using HistoryState = StateManager::HistoryState;
 
+    static const Core::ParameterString    paramInitialPrompt;
+    static const Core::ParameterString    paramSuffixPrompt;
     static const Core::ParameterIntVector paramInitialPromptLabels;
     static const Core::ParameterIntVector paramSuffixPromptLabels;
     static const Core::ParameterBool      paramBlankUpdatesHistory;
@@ -129,6 +134,14 @@ private:
 
     Core::FIFOCache<PrefixSpeechLmScoringContextRef, std::shared_ptr<std::vector<Score>>, ScoringContextHash, ScoringContextEq> scoreCache_;
     Core::FIFOCache<PrefixSpeechLmScoringContextRef, std::shared_ptr<HistoryState>, ScoringContextHash, ScoringContextEq>       stateCache_;
+
+    // Get the token ids of a prompt from either its text parameter (tokenized with `tokenizer`) or its label parameter
+    std::vector<s32> getPromptLabels(Core::ParameterString const&    textParam,
+                                     Core::ParameterIntVector const& labelsParam,
+                                     Tokenizer::TokenizerRef&        tokenizer) const;
+
+    // Replace the escape sequences \n, \t, \r, \\ and \xHH in a text prompt
+    std::string unescapePrompt(std::string const& text) const;
 
     void setupInitialStates();
     void setupEncoderStatesValue();

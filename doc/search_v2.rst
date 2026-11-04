@@ -739,6 +739,8 @@ Built-in label scorer types include:
 * ``no-context-onnx``, ``fixed-context-onnx``, ``stateful-onnx``, ``stateful-transducer-onnx``,
   ``state-managed-onnx``: forward features (and, depending on type, label history/hidden state) through an ONNX
   model.
+* ``prefix-speech-lm-onnx``: speech LLM that is prompted with text prompts and the encoder states before
+  decoding.
 * ``encoder-decoder`` / ``encoder-only``: wrap a separate encoder (see :ref:`Encoders` below) that
   pre-processes features, combined with a decoder label scorer (or no decoder, for encoder-only models).
 * ``ctc-prefix``: wraps a time-synchronous CTC scorer and derives label-synchronous prefix scores from it
@@ -997,6 +999,57 @@ caches (splitting/merging/rebasing state across beam search steps) without quadr
     type                    = state-managed-onnx
     onnx-model.session.file = /path/to/aed_decoder.onnx
     state-manager.type      = transformer
+
+prefix-speech-lm-onnx
+^^^^^^^^^^^^^^^^^^^^^
+
+Label scorer for speech LLMs (decoder-only LMs conditioned on speech). The LM is first prefilled with the sequence
+``[initial prompt tokens, encoder states in LM embedding space, suffix prompt tokens]``, after which the hypothesis
+tokens are scored one by one. The encoder states are usually provided by an ``encoder-decoder`` label scorer that
+wraps this one as its ``decoder``. Like ``state-managed-onnx``, the KV cache is handled by a ``StateManager``.
+
+Two ONNX models are required:
+
+* ``initializer-model.*`` : prefills the prompt. Logical I/O names: ``initial-prompt``, ``initial-prompt-length``,
+  ``encoder-states``, ``encoder-states-size``, ``suffix-prompt``, ``suffix-prompt-length`` (inputs) and
+  ``scores`` (output). Everything except ``encoder-states`` and ``scores`` is optional. The state outputs
+  are the ones declared as state variables in the step model.
+* ``step-model.*`` : extends the cached states by one token. Logical I/O names: ``token``, ``token-length``,
+  ``prefix-length`` and ``scores``, plus the state variables declared in its metadata (see
+  :ref:`ONNX model configuration`).
+
+The prompts are given either as text or directly as token ids:
+
+* ``initial-prompt`` / ``suffix-prompt`` (string): text of the prompt fed before/after the encoder states.
+  It is tokenized with the tokenizer configured in ``tokenizer.*`` (see :doc:`tokenizer`); the resulting tokens are
+  logged. Since RASR configuration values cannot contain newlines, lose leading and trailing whitespace and end at
+  ``#`` or ``"``, the escape sequences ``\n``, ``\t``, ``\r``, ``\\`` and ``\xHH`` (a byte in hex, e.g. ``\x20``
+  for a blank) are replaced before tokenization.
+* ``initial-prompt-labels`` / ``suffix-prompt-labels`` (int list): token ids of the prompt fed before/after the
+  encoder states. Can't be combined with the respective text parameter.
+* ``tokenizer.*`` : configuration of the tokenizer, only needed if a text prompt is set. Note that special tokens
+  added by the tokenizer itself (e.g. ``add-special-tokens-on-encode`` of the ``huggingface`` tokenizer) are
+  inserted into each prompt separately.
+* ``state-manager.type`` : as for ``state-managed-onnx``, typically one of the ``transformer*`` variants.
+* ``blank-updates-history`` / ``loop-updates-history`` (bool): as above. Default ``false``.
+* ``max-batch-size`` (int): maximum number of scoring contexts forwarded through the step model at once. Default unbounded.
+* ``max-cached-score-vectors`` (int): size of the score-vector cache, as for ``stateful-onnx``.
+* Default :ref:`transition-preset <Transition types and presets>`: ``lm``.
+
+.. code-block:: ini
+
+    [*.search-algorithm.label-scorer]
+    type                                    = encoder-decoder
+    encoder.type                            = onnx
+    encoder.onnx-model.session.file         = /path/to/speech_encoder.onnx
+    decoder.type                            = prefix-speech-lm-onnx
+    decoder.initializer-model.session.file  = /path/to/llm_prefill.onnx
+    decoder.step-model.session.file         = /path/to/llm_step.onnx
+    decoder.state-manager.type              = transformer
+    decoder.initial-prompt                  = <|im_start|>user\n
+    decoder.suffix-prompt                   = Transcribe the audio.<|im_end|>\n<|im_start|>assistant\n
+    decoder.tokenizer.type                  = huggingface
+    decoder.tokenizer.tokenizer-file        = /path/to/tokenizer.json
 
 encoder-decoder / encoder-only
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^

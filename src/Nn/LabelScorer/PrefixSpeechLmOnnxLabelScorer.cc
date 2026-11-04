@@ -20,6 +20,7 @@
 
 #include <Core/XmlStream.hh>
 #include <Nn/Module.hh>
+#include <Tokenizer/Module.hh>
 
 #include "ScoreAccessor.hh"
 
@@ -147,9 +148,23 @@ static const std::vector<Onnx::IOSpecification> stepIoSpec = {
                 {Onnx::ValueDataType::FLOAT},
                 {{-1, -1, -2}, {-1, 1, -2}}}};
 
+const Core::ParameterString PrefixSpeechLmOnnxLabelScorer::paramInitialPrompt(
+        "initial-prompt",
+        "Text of the prompt fed into the LM before the input features. Tokenized with the tokenizer configured in the "
+        "`tokenizer` sub-component. Supports the escape sequences \\n, \\t, \\r, \\\\ and \\xHH. "
+        "Alternative to `initial-prompt-labels`.",
+        "");
+
+const Core::ParameterString PrefixSpeechLmOnnxLabelScorer::paramSuffixPrompt(
+        "suffix-prompt",
+        "Text of the prompt fed into the LM after the input features. Tokenized with the tokenizer configured in the "
+        "`tokenizer` sub-component. Supports the escape sequences \\n, \\t, \\r, \\\\ and \\xHH. "
+        "Alternative to `suffix-prompt-labels`.",
+        "");
+
 const Core::ParameterIntVector PrefixSpeechLmOnnxLabelScorer::paramInitialPromptLabels(
         "initial-prompt-labels",
-        "Token ids for the prompt fed into the LM before the input features.",
+        "Token ids for the prompt fed into the LM before the input features. Alternative to `initial-prompt`.",
         "",
         0,
         Core::Type<s32>::max,
@@ -157,7 +172,7 @@ const Core::ParameterIntVector PrefixSpeechLmOnnxLabelScorer::paramInitialPrompt
 
 const Core::ParameterIntVector PrefixSpeechLmOnnxLabelScorer::paramSuffixPromptLabels(
         "suffix-prompt-labels",
-        "Token ids for the prompt fed into the LM after the input features.",
+        "Token ids for the prompt fed into the LM after the input features. Alternative to `suffix-prompt`.",
         "",
         0,
         Core::Type<s32>::max,
@@ -219,10 +234,92 @@ PrefixSpeechLmOnnxLabelScorer::PrefixSpeechLmOnnxLabelScorer(Core::Configuration
     stepPrefixLengthName_               = stepOnnxModel_->mapping.getOnnxName("prefix-length");
     stepScoresName_                     = stepOnnxModel_->mapping.getOnnxName("scores");
 
-    auto initialPromptLabels = paramInitialPromptLabels(config);
-    auto suffixPromptLabels  = paramSuffixPromptLabels(config);
-    initialPromptLabels_.insert(initialPromptLabels_.begin(), initialPromptLabels.begin(), initialPromptLabels.end());
-    suffixPromptLabels_.insert(suffixPromptLabels_.begin(), suffixPromptLabels.begin(), suffixPromptLabels.end());
+    // Only needed to tokenize the prompts, hence created lazily and not kept beyond the constructor
+    Tokenizer::TokenizerRef tokenizer;
+    initialPromptLabels_ = getPromptLabels(paramInitialPrompt, paramInitialPromptLabels, tokenizer);
+    suffixPromptLabels_  = getPromptLabels(paramSuffixPrompt, paramSuffixPromptLabels, tokenizer);
+}
+
+std::vector<s32> PrefixSpeechLmOnnxLabelScorer::getPromptLabels(Core::ParameterString const&    textParam,
+                                                                Core::ParameterIntVector const& labelsParam,
+                                                                Tokenizer::TokenizerRef&        tokenizer) const {
+    std::string text   = textParam(config);
+    auto        labels = labelsParam(config);
+
+    if (text.empty()) {
+        return std::vector<s32>(labels.begin(), labels.end());
+    }
+    if (not labels.empty()) {
+        criticalError("Only one of `%s` and `%s` can be set", textParam.name().c_str(), labelsParam.name().c_str());
+    }
+
+    if (not tokenizer) {
+        tokenizer = Tokenizer::Module::instance().tokenizerFactory().createTokenizer(select("tokenizer"));
+    }
+
+    text     = unescapePrompt(text);
+    auto ids = tokenizer->encode(text);
+
+    std::vector<s32> result;
+    result.reserve(ids.size());
+    auto logChannel = log("Tokenized %s into %zu tokens:", textParam.name().c_str(), ids.size());
+    for (auto id : ids) {
+        if (id > static_cast<Tokenizer::AbstractTokenizer::TokenId>(Core::Type<s32>::max)) {
+            criticalError("Token id %u of %s exceeds the int32 range of the ONNX input", id, textParam.name().c_str());
+        }
+        result.push_back(static_cast<s32>(id));
+        logChannel << " " << id << " (" << tokenizer->tokenIdToStr(id) << ")";
+    }
+    return result;
+}
+
+std::string PrefixSpeechLmOnnxLabelScorer::unescapePrompt(std::string const& text) const {
+    auto hexValue = [](char c) -> int {
+        if (c >= '0' and c <= '9') {
+            return c - '0';
+        }
+        if (c >= 'a' and c <= 'f') {
+            return c - 'a' + 10;
+        }
+        if (c >= 'A' and c <= 'F') {
+            return c - 'A' + 10;
+        }
+        return -1;
+    };
+
+    std::string result;
+    result.reserve(text.size());
+    for (size_t i = 0ul; i < text.size(); ++i) {
+        if (text[i] != '\\') {
+            result.push_back(text[i]);
+            continue;
+        }
+        if (i + 1ul == text.size()) {
+            criticalError("Prompt '%s' ends with an incomplete escape sequence", text.c_str());
+            break;
+        }
+        char c = text[++i];
+        switch (c) {
+            case 'n': result.push_back('\n'); break;
+            case 't': result.push_back('\t'); break;
+            case 'r': result.push_back('\r'); break;
+            case '\\': result.push_back('\\'); break;
+            case 'x': {
+                int high = i + 2ul < text.size() ? hexValue(text[i + 1ul]) : -1;
+                int low  = i + 2ul < text.size() ? hexValue(text[i + 2ul]) : -1;
+                if (high < 0 or low < 0) {
+                    criticalError("Invalid escape sequence '\\x' in prompt '%s', expected two hex digits", text.c_str());
+                    break;
+                }
+                result.push_back(static_cast<char>(high * 16 + low));
+                i += 2ul;
+                break;
+            }
+            default:
+                criticalError("Unknown escape sequence '\\%c' in prompt '%s'", c, text.c_str());
+        }
+    }
+    return result;
 }
 
 void PrefixSpeechLmOnnxLabelScorer::addInput(DataView const& input) {

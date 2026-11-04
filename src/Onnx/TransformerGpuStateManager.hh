@@ -61,9 +61,10 @@ private:
     const size_t maxHistory_;
     const bool   alwaysIncludeFirstTokenState_;
 
-    DeviceSlotPools pools_;         // by slot size (floats per state)
-    DeviceBuffer    mergedBuffer_;  // merged state inputs of the model
-    StateCopier     copier_;
+    DeviceSlotPools pools_;             // by slot size (floats per state)
+    DeviceBuffer    mergedBuffer_;      // merged state inputs of the model
+    DeviceBuffer    mergeInputBuffer_;  // state pointers, batch and layout data of `mergeStates`
+    StateCopier     copier_;            // copies of `splitStates`
 };
 
 }  // namespace Onnx

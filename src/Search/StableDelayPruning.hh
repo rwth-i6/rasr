@@ -97,7 +97,7 @@ private:
     static void keepThrough(std::vector<Hypothesis> const& hyps, std::vector<bool>& keep, LatticeTrace const* root) {
         for (size_t i = 0ul; i < hyps.size(); ++i) {
             LatticeTrace const* curr = hyps[i].trace->get();
-            while (curr and curr != root and curr->time > root->time) {
+            while (curr and curr != root and curr->time >= root->time) {
                 curr = curr->predecessor.get();
             }
             keep[i] = curr == root;

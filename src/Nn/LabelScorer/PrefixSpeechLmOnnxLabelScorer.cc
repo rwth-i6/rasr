@@ -210,9 +210,8 @@ PrefixSpeechLmOnnxLabelScorer::PrefixSpeechLmOnnxLabelScorer(Core::Configuration
           maxBatchSize_(paramMaxBatchSize(config)),
           stateManager_(Module::instance().createStateManager(select("state-manager"))),
           stateVectorFactory_(Module::instance().createCompressedVectorFactory(select("state-compression"))),
-          encoderStatesValue_(),
-          encoderStatesSizeValue_(),
           initialContext_(),
+          initialScores_(),
           scoreCache_(paramMaxCachedScores(config)),
           stateCache_(scoreCache_.maxSize()) {
     Core::Configuration initializerModelConfig(config, "initializer-model");
@@ -256,8 +255,6 @@ PrefixSpeechLmOnnxLabelScorer::PrefixSpeechLmOnnxLabelScorer(Core::Configuration
 
 void PrefixSpeechLmOnnxLabelScorer::addInput(DataView const& input) {
     Precursor::addInput(input);
-    encoderStatesValue_     = Onnx::Value();
-    encoderStatesSizeValue_ = Onnx::Value();
     scoreCache_.clear();
     stateCache_.clear();
 }
@@ -317,9 +314,8 @@ void PrefixSpeechLmOnnxLabelScorer::resetInternal() {
     stepSessionTime_.reset();
     stateMarshallingTime_.reset();
     contextPreparationTime_.reset();
-    encoderStatesValue_     = Onnx::Value();
-    encoderStatesSizeValue_ = Onnx::Value();
-    initialContext_         = PrefixSpeechLmScoringContextRef();
+    initialContext_ = PrefixSpeechLmScoringContextRef();
+    initialScores_.reset();
     scoreCache_.clear();
     stateCache_.clear();
 }
@@ -334,7 +330,7 @@ std::vector<std::optional<ScoreAccessorRef>> PrefixSpeechLmOnnxLabelScorer::comp
     }
 
     std::vector<std::optional<ScoreAccessorRef>> scoreAccessors(scoringContexts.size(), std::nullopt);
-    if (expectMoreFeatures_ or bufferSize() == 0ul) {
+    if (not isPrefilled() and (expectMoreFeatures_ or bufferSize() == 0ul)) {
         countUncomputedAccessors(scoringContexts.size());
         return scoreAccessors;
     }
@@ -398,7 +394,8 @@ std::vector<std::optional<ScoreAccessorRef>> PrefixSpeechLmOnnxLabelScorer::comp
 }
 
 size_t PrefixSpeechLmOnnxLabelScorer::getMinActiveInputIndex(Core::CollapsedVector<ScoringContextRef> const& activeContexts) const {
-    return 0ul;
+    // All inputs are needed for the prefill and none afterwards
+    return isPrefilled() ? Core::Type<size_t>::max : 0ul;
 }
 
 std::vector<s32> PrefixSpeechLmOnnxLabelScorer::getPromptLabels(Core::ParameterString const&        textParam,
@@ -476,11 +473,18 @@ std::string PrefixSpeechLmOnnxLabelScorer::unescapePrompt(std::string const& tex
     return result;
 }
 
+bool PrefixSpeechLmOnnxLabelScorer::isPrefilled() const {
+    return initialContext_ and initialContext_->state;
+}
+
 void PrefixSpeechLmOnnxLabelScorer::setupInitialStates() {
     if (not initialContext_) {
         getInitialScoringContext();
     }
-    if (scoreCache_.contains(initialContext_)) {
+    if (isPrefilled()) {
+        if (not scoreCache_.contains(initialContext_)) {
+            scoreCache_.put(initialContext_, initialScores_);
+        }
         return;
     }
 
@@ -500,11 +504,9 @@ void PrefixSpeechLmOnnxLabelScorer::setupInitialStates() {
         }
     }
 
-    setupEncoderStatesValue();
-    inputs.emplace_back(initializerEncoderStatesName_, encoderStatesValue_);
+    inputs.emplace_back(initializerEncoderStatesName_, createEncoderStatesValue());
     if (initializerEncoderStatesSizeName_ != "") {
-        setupEncoderStatesSizeValue();
-        inputs.emplace_back(initializerEncoderStatesSizeName_, encoderStatesSizeValue_);
+        inputs.emplace_back(initializerEncoderStatesSizeName_, Onnx::Value::create(std::vector<s32>{static_cast<s32>(bufferSize())}));
     }
 
     if (initializerSuffixPromptName_ != "") {
@@ -545,8 +547,8 @@ void PrefixSpeechLmOnnxLabelScorer::setupInitialStates() {
     }
     verify_gt(stateLength, 0ul);
 
-    auto scores = std::make_shared<std::vector<Score>>();
-    outputs.front().get(0, *scores);
+    initialScores_ = std::make_shared<std::vector<Score>>();
+    outputs.front().get(0, *initialScores_);
 
     std::vector<Onnx::Value> stateOutputs(std::make_move_iterator(outputs.begin() + 1), std::make_move_iterator(outputs.end()));
     std::vector<size_t>      suffixLengths{stateLength};
@@ -572,32 +574,21 @@ void PrefixSpeechLmOnnxLabelScorer::setupInitialStates() {
     initialContext_->parent        = parent;
     initialContext_->state         = std::make_shared<HistoryState>(std::move(promptStates.back()));
 
-    scoreCache_.put(initialContext_, scores);
-    stateCache_.put(initialContext_, initialContext_->state);
+    scoreCache_.put(initialContext_, initialScores_);
 }
 
-void PrefixSpeechLmOnnxLabelScorer::setupEncoderStatesValue() {
-    if (not encoderStatesValue_.empty()) {
-        return;
-    }
-
+Onnx::Value PrefixSpeechLmOnnxLabelScorer::createEncoderStatesValue() const {
     u32  T                    = bufferSize();
     auto inputFeatureDataView = getInput(0);
     verify(inputFeatureDataView);
 
-    encoderStatesValue_ = Onnx::Value::createEmpty<f32>({1l, static_cast<int64_t>(T), static_cast<int64_t>(inputFeatureDataView->size())});
+    auto value = Onnx::Value::createEmpty<f32>({1l, static_cast<int64_t>(T), static_cast<int64_t>(inputFeatureDataView->size())});
     for (size_t t = 0ul; t < T; ++t) {
         inputFeatureDataView = getInput(t);
         verify(inputFeatureDataView);
-        std::copy(inputFeatureDataView->data(), inputFeatureDataView->data() + inputFeatureDataView->size(), encoderStatesValue_.data<f32>(0, t));
+        std::copy(inputFeatureDataView->data(), inputFeatureDataView->data() + inputFeatureDataView->size(), value.data<f32>(0, t));
     }
-}
-
-void PrefixSpeechLmOnnxLabelScorer::setupEncoderStatesSizeValue() {
-    if (not encoderStatesSizeValue_.empty()) {
-        return;
-    }
-    encoderStatesSizeValue_ = Onnx::Value::create(std::vector<s32>{static_cast<s32>(bufferSize())});
+    return value;
 }
 
 void PrefixSpeechLmOnnxLabelScorer::cacheStatesAndScores(std::vector<PrefixSpeechLmScoringContextRef> const& scoringContextBatch) {

@@ -126,10 +126,9 @@ private:
     std::string stepPrefixLengthName_;
     std::string stepScoresName_;
 
-    Onnx::Value encoderStatesValue_;
-    Onnx::Value encoderStatesSizeValue_;
-
     PrefixSpeechLmScoringContextRef initialContext_;
+    // Kept outside of `scoreCache_` since the prefill can't be recomputed once the inputs are cleaned up
+    std::shared_ptr<std::vector<Score>> initialScores_;
 
     // Session runs of the initializer model that prefill the prompt and encoder states
     Core::StopWatch initializerSessionTime_;
@@ -150,9 +149,11 @@ private:
     // Replace the escape sequences \n, \t, \r, \\ and \xHH in a text prompt
     std::string unescapePrompt(std::string const& text) const;
 
-    void setupInitialStates();
-    void setupEncoderStatesValue();
-    void setupEncoderStatesSizeValue();
+    // Whether the prompt and encoder states have been prefilled for the current segment
+    bool isPrefilled() const;
+
+    void        setupInitialStates();
+    Onnx::Value createEncoderStatesValue() const;
 
     // Forward a batch of scoringContexts through the step ONNX model and put the resulting states and scores into the caches
     void cacheStatesAndScores(std::vector<PrefixSpeechLmScoringContextRef> const& scoringContextBatch);

@@ -38,5 +38,6 @@ if(${MODULE_PYTHON})
 endif()
 
 if(${MODULE_ONNX})
-    target_link_libraries(RasrNn PUBLIC RasrOnnx)
+    # RasrTokenizer is only needed by PrefixSpeechLmOnnxLabelScorer
+    target_link_libraries(RasrNn PUBLIC RasrOnnx RasrTokenizer)
 endif()

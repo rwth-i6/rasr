@@ -18,11 +18,14 @@
 
 #include <Core/FIFOCache.hh>
 #include <Onnx/Model.hh>
-#include <Tokenizer/AbstractTokenizer.hh>
 
 #include "BufferedLabelScorer.hh"
 #include "ModelCache.hh"
 #include "ScoringContext.hh"
+
+namespace Tokenizer {
+class AbstractTokenizer;
+}  // namespace Tokenizer
 
 namespace Nn {
 
@@ -30,6 +33,7 @@ namespace Nn {
  * Scoring context for prefix speech LMs.
  * `labelSeq` contains only labels emitted by search, not from the prompt and speech-embeddings.
  * `historyLength` contains the total LM cache length, including prompt and speech-embedding positions.
+ * It is only known once the context has been scored and is 0 before.
  * Hashing and equality operators are based only on the `labelSeq`.
  */
 struct PrefixSpeechLmScoringContext : public ScoringContext {
@@ -43,7 +47,7 @@ struct PrefixSpeechLmScoringContext : public ScoringContext {
     mutable std::shared_ptr<HistoryState> state;
 
     PrefixSpeechLmScoringContext();
-    PrefixSpeechLmScoringContext(std::vector<LabelIndex>&& labelSeq, size_t historyLength, Core::Ref<PrefixSpeechLmScoringContext const> parent, std::shared_ptr<HistoryState> state = {});
+    PrefixSpeechLmScoringContext(std::vector<LabelIndex>&& labelSeq, Core::Ref<PrefixSpeechLmScoringContext const> parent);
 
     bool   isEqual(ScoringContextRef const& other) const override;
     size_t hash() const override;
@@ -90,6 +94,7 @@ private:
     static const Core::ParameterIntVector paramInitialPromptLabels;
     static const Core::ParameterIntVector paramSuffixPromptLabels;
     static const Core::ParameterBool      paramBlankUpdatesHistory;
+    static const Core::ParameterBool      paramSilenceUpdatesHistory;
     static const Core::ParameterBool      paramLoopUpdatesHistory;
     static const Core::ParameterInt       paramMaxBatchSize;
     static const Core::ParameterInt       paramMaxCachedScores;
@@ -97,6 +102,7 @@ private:
     std::vector<s32> initialPromptLabels_;
     std::vector<s32> suffixPromptLabels_;
     bool             blankUpdatesHistory_;
+    bool             silenceUpdatesHistory_;
     bool             loopUpdatesHistory_;
     size_t           maxBatchSize_;
 
@@ -135,10 +141,11 @@ private:
     Core::FIFOCache<PrefixSpeechLmScoringContextRef, std::shared_ptr<std::vector<Score>>, ScoringContextHash, ScoringContextEq> scoreCache_;
     Core::FIFOCache<PrefixSpeechLmScoringContextRef, std::shared_ptr<HistoryState>, ScoringContextHash, ScoringContextEq>       stateCache_;
 
-    // Get the token ids of a prompt from either its text parameter (tokenized with `tokenizer`) or its label parameter
-    std::vector<s32> getPromptLabels(Core::ParameterString const&    textParam,
-                                     Core::ParameterIntVector const& labelsParam,
-                                     Tokenizer::TokenizerRef&        tokenizer) const;
+    // Get the token ids of a prompt from either its text parameter (tokenized with `tokenizer`) or its label parameter.
+    // `tokenizer` may be null if the text parameter is not set.
+    std::vector<s32> getPromptLabels(Core::ParameterString const&        textParam,
+                                     Core::ParameterIntVector const&     labelsParam,
+                                     Tokenizer::AbstractTokenizer const* tokenizer) const;
 
     // Replace the escape sequences \n, \t, \r, \\ and \xHH in a text prompt
     std::string unescapePrompt(std::string const& text) const;

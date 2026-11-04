@@ -64,7 +64,6 @@ target_link_libraries(
            RasrMm
            RasrSearch
            RasrSpeech
-           RasrTokenizer
 )
 
 if(${MODULE_PYTHON})

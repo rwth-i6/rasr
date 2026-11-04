@@ -1031,7 +1031,7 @@ The prompts are given either as text or directly as token ids:
   added by the tokenizer itself (e.g. ``add-special-tokens-on-encode`` of the ``huggingface`` tokenizer) are
   inserted into each prompt separately.
 * ``state-manager.type`` : as for ``state-managed-onnx``, typically one of the ``transformer*`` variants.
-* ``blank-updates-history`` / ``loop-updates-history`` (bool): as above. Default ``false``.
+* ``blank-updates-history`` / ``silence-updates-history`` / ``loop-updates-history`` (bool): as above. Default ``false``.
 * ``max-batch-size`` (int): maximum number of scoring contexts forwarded through the step model at once. Default unbounded.
 * ``max-cached-score-vectors`` (int): size of the score-vector cache, as for ``stateful-onnx``.
 * Default :ref:`transition-preset <Transition types and presets>`: ``lm``.

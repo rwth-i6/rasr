@@ -34,21 +34,10 @@
 
 namespace Nn {
 
-OnnxHiddenState::OnnxHiddenState()
-        : stateValueMap() {}
-
-OnnxHiddenState::OnnxHiddenState(std::vector<std::string>&& names, std::vector<Onnx::Value>&& values) {
-    verify(names.size() == values.size());
-    stateValueMap.reserve(names.size());
-    for (size_t i = 0ul; i < names.size(); ++i) {
-        stateValueMap.emplace(std::move(names[i]), std::move(values[i]));
-    }
-}
-
 OnnxHiddenStateScoringContext::OnnxHiddenStateScoringContext()
         : labelSeq(), hiddenState(), requiresFinalize(false) {}
 
-OnnxHiddenStateScoringContext::OnnxHiddenStateScoringContext(std::vector<LabelIndex> const& labelSeq, OnnxHiddenStateRef state, bool requiresFinalize)
+OnnxHiddenStateScoringContext::OnnxHiddenStateScoringContext(std::vector<LabelIndex> const& labelSeq, Onnx::OnnxNamedValuesRef state, bool requiresFinalize)
         : labelSeq(labelSeq), hiddenState(state), requiresFinalize(requiresFinalize) {}
 
 bool OnnxHiddenStateScoringContext::isEqual(ScoringContextRef const& other) const {
@@ -95,19 +84,11 @@ const Core::ParameterInt StatefulOnnxLabelScorer::paramMaxBatchSize(
 const Core::ParameterInt StatefulOnnxLabelScorer::paramMaxCachedScores(
         "max-cached-score-vectors",
         "Maximum size of cache that maps scoring contexts to scores. This prevents memory overflow in case of very long audio segments.",
-        1000);
+        10000);
 
-// Scorer only takes hidden states as input which are not part of the IO spec
-const std::vector<Onnx::IOSpecification> scorerModelIoSpec = {
-        Onnx::IOSpecification{
-                "scores",
-                Onnx::IODirection::OUTPUT,
-                false,
-                {Onnx::ValueType::TENSOR},
-                {Onnx::ValueDataType::FLOAT},
-                {{-1, -2}}}};  // [B, V]
-
-const std::vector<Onnx::IOSpecification> stateInitializerModelIoSpec = {
+// The hidden states and the scores output are not part of the IO specs; they are handled by `Onnx::OnnxInitUpdateScoreBundle`.
+// The scorer takes nothing but hidden states, so it has no IO spec of its own.
+static const std::vector<Onnx::IOSpecification> stateInitializerModelIoSpec = {
         Onnx::IOSpecification{
                 "encoder-states",
                 Onnx::IODirection::INPUT,
@@ -123,7 +104,7 @@ const std::vector<Onnx::IOSpecification> stateInitializerModelIoSpec = {
                 {Onnx::ValueDataType::INT32},
                 {{1}, {-1}}}};  // [1] or [B]
 
-const std::vector<Onnx::IOSpecification> stateUpdaterModelIoSpec = {
+static const std::vector<Onnx::IOSpecification> stateUpdaterModelIoSpec = {
         Onnx::IOSpecification{
                 "encoder-states",
                 Onnx::IODirection::INPUT,
@@ -153,94 +134,17 @@ StatefulOnnxLabelScorer::StatefulOnnxLabelScorer(Core::Configuration const& conf
           silenceUpdatesHistory_(paramSilenceUpdatesHistory(config)),
           loopUpdatesHistory_(paramLoopUpdatesHistory(config)),
           maxBatchSize_(paramMaxBatchSize(config)),
+          initUpdateScoreBundle_(config, modelCache, stateInitializerModelIoSpec, stateUpdaterModelIoSpec, {}),
           initialHiddenState_(),
-          initializerOutputToStateNameMap_(),
-          updaterInputToStateNameMap_(),
-          updaterOutputToStateNameMap_(),
-          scorerInputToStateNameMap_(),
           encoderStatesValue_(),
           encoderStatesSizeValue_(),
           scoreCache_(paramMaxCachedScores(config)),
           stateCache_(scoreCache_.maxSize()) {
-    Core::Configuration initializerModelConfig(config, "state-initializer-model");
-    Core::Configuration updaterModelConfig(config, "state-updater-model");
-    Core::Configuration scorerModelConfig(config, "scorer-model");
-
-    auto initializerKey = initializerModelConfig.getSelection();
-    auto updaterKey     = updaterModelConfig.getSelection();
-    auto scorerKey      = scorerModelConfig.getSelection();
-
-    scorerOnnxModel_           = modelCache.getOrCreate<Onnx::Model>(scorerKey, scorerModelConfig, scorerModelIoSpec);
-    stateInitializerOnnxModel_ = modelCache.getOrCreate<Onnx::Model>(initializerKey, initializerModelConfig, stateInitializerModelIoSpec);
-    stateUpdaterOnnxModel_     = modelCache.getOrCreate<Onnx::Model>(updaterKey, updaterModelConfig, stateUpdaterModelIoSpec);
-
-    scorerScoresName_                 = scorerOnnxModel_->mapping.getOnnxName("scores");
-    initializerEncoderStatesName_     = stateInitializerOnnxModel_->mapping.getOnnxName("encoder-states");
-    initializerEncoderStatesSizeName_ = stateInitializerOnnxModel_->mapping.getOnnxName("encoder-states-size");
-    updaterEncoderStatesName_         = stateUpdaterOnnxModel_->mapping.getOnnxName("encoder-states");
-    updaterEncoderStatesSizeName_     = stateUpdaterOnnxModel_->mapping.getOnnxName("encoder-states-size");
-    updaterTokenName_                 = stateUpdaterOnnxModel_->mapping.getOnnxName("token");
-
-    auto initializerMetadataKeys = stateInitializerOnnxModel_->session.getCustomMetadataKeys();
-    auto updaterMetadataKeys     = stateUpdaterOnnxModel_->session.getCustomMetadataKeys();
-    auto scorerMetadataKeys      = scorerOnnxModel_->session.getCustomMetadataKeys();
-
-    // Map state initializer outputs to states
-    std::unordered_set<std::string> initializerStateNames;
-    for (auto const& key : initializerMetadataKeys) {
-        if (stateInitializerOnnxModel_->session.hasOutput(key)) {
-            auto stateName = stateInitializerOnnxModel_->session.getCustomMetadata(key);
-            initializerOutputToStateNameMap_.emplace(key, stateName);
-            initializerStateNames.insert(stateName);
-        }
-    }
-    if (initializerStateNames.empty()) {
-        error() << "State initializer does not define any hidden states.";
-    }
-
-    // Map state updater inputs and outputs to states
-    std::unordered_set<std::string> updaterStateNames;
-    for (auto const& key : updaterMetadataKeys) {
-        if (stateUpdaterOnnxModel_->session.hasInput(key)) {
-            auto stateName = stateUpdaterOnnxModel_->session.getCustomMetadata(key);
-            if (initializerStateNames.find(stateName) == initializerStateNames.end()) {
-                error() << "State updater input " << key << " associated with state " << stateName << " is not present in state initializer";
-            }
-            updaterInputToStateNameMap_.emplace(key, stateName);
-        }
-        if (stateUpdaterOnnxModel_->session.hasOutput(key)) {
-            auto stateName = stateUpdaterOnnxModel_->session.getCustomMetadata(key);
-            if (initializerStateNames.find(stateName) == initializerStateNames.end()) {
-                error() << "State updater output " << key << " associated with state " << stateName << " is not present in state initializer";
-            }
-            updaterOutputToStateNameMap_.emplace(key, stateName);
-            updaterStateNames.insert(stateName);
-        }
-    }
-    if (updaterOutputToStateNameMap_.empty()) {
-        error() << "State updater does not produce any updated hidden states";
-    }
-
-    // In the loop we checked that the updater outputs are a subset of the initializer outputs.
-    // If they have the same size, they are equal. Otherwise, some initializer outputs
-    // are not updater outputs.
-    if (initializerStateNames.size() != updaterStateNames.size()) {
-        warning() << "State initializer has states that are not updated by the state updater";
-    }
-
-    // Map scorer inputs to states
-    for (auto const& key : scorerMetadataKeys) {
-        if (scorerOnnxModel_->session.hasInput(key)) {
-            auto stateName = scorerOnnxModel_->session.getCustomMetadata(key);
-            if (initializerStateNames.find(stateName) == initializerStateNames.end()) {
-                error() << "Scorer input " << key << " associated with state " << stateName << " is not present in state initializer";
-            }
-            scorerInputToStateNameMap_.emplace(key, stateName);
-        }
-    }
-    if (scorerInputToStateNameMap_.empty()) {
-        error() << "Scorer does not take any input";
-    }
+    initializerEncoderStatesName_     = initUpdateScoreBundle_.stateInitializerOnnxName("encoder-states");
+    initializerEncoderStatesSizeName_ = initUpdateScoreBundle_.stateInitializerOnnxName("encoder-states-size");
+    updaterEncoderStatesName_         = initUpdateScoreBundle_.stateUpdaterOnnxName("encoder-states");
+    updaterEncoderStatesSizeName_     = initUpdateScoreBundle_.stateUpdaterOnnxName("encoder-states-size");
+    updaterTokenName_                 = initUpdateScoreBundle_.stateUpdaterOnnxName("token");
 }
 
 ScoringContextRef StatefulOnnxLabelScorer::getInitialScoringContext() {
@@ -302,7 +206,7 @@ ScoringContextRef StatefulOnnxLabelScorer::extendedScoringContext(ScoringContext
 void StatefulOnnxLabelScorer::addInput(DataView const& input) {
     Precursor::addInput(input);
 
-    initialHiddenState_ = OnnxHiddenStateRef();
+    initialHiddenState_ = Onnx::OnnxNamedValuesRef();
 
     if (not encoderStatesValue_.empty()) {  // Any previously computed hidden state values are outdated now so reset them
         encoderStatesValue_     = Onnx::Value();
@@ -312,8 +216,7 @@ void StatefulOnnxLabelScorer::addInput(DataView const& input) {
 
 void StatefulOnnxLabelScorer::resetInternal() {
     Precursor::resetInternal();
-    stateUpdateSessionTime_.reset();
-    scorerSessionTime_.reset();
+    initUpdateScoreBundle_.resetTimers();
     stateMarshallingTime_.reset();
     contextPreparationTime_.reset();
     stateCache_.clear();
@@ -408,7 +311,7 @@ void StatefulOnnxLabelScorer::cacheScores(std::vector<OnnxHiddenStateScoringCont
     }
 
     // Fetched before the timed block below because it runs a session of its own
-    OnnxHiddenStateRef initialHiddenState;
+    Onnx::OnnxNamedValuesRef initialHiddenState;
     for (auto const& scoringContext : scoringContextBatch) {
         if (scoringContext->labelSeq.empty()) {
             initialHiddenState = computeInitialHiddenState();
@@ -417,54 +320,33 @@ void StatefulOnnxLabelScorer::cacheScores(std::vector<OnnxHiddenStateScoringCont
     }
 
     /*
-     * Create session inputs
+     * Collect the hidden state of each scoring context in the batch
      */
-    std::vector<std::pair<std::string, Onnx::Value>> sessionInputs;
+    std::vector<Onnx::OnnxNamedValuesRef> hiddenStates;
     {
         Core::StopWatch::Scope marshallingTimer(stateMarshallingTime_);
-        for (auto const& [inputName, stateName] : scorerInputToStateNameMap_) {
-            // Collect a vector of individual state values of shape [1, *] and afterwards concatenate
-            // them to a batched state tensor of shape [B, *]
-            std::vector<Onnx::Value const*> stateValues;
-            stateValues.reserve(scoringContextBatch.size());
-
-            for (auto const& scoringContext : scoringContextBatch) {
-                OnnxHiddenStateRef hiddenState = scoringContext->labelSeq.empty()
-                                                         ? initialHiddenState
-                                                         : (*stateCache_.get(scoringContext)).get();
-                verify(hiddenState);
-                stateValues.push_back(&hiddenState->stateValueMap.at(stateName));
-            }
-            sessionInputs.emplace_back(inputName, Onnx::Value::concat(stateValues, 0));
+        hiddenStates.reserve(scoringContextBatch.size());
+        for (auto const& scoringContext : scoringContextBatch) {
+            hiddenStates.push_back(scoringContext->labelSeq.empty()
+                                           ? initialHiddenState
+                                           : (*stateCache_.get(scoringContext)).get());
         }
     }
 
     /*
-     * Run session
+     * Run scorer and put resulting scores into cache map
      */
-    std::vector<Onnx::Value> sessionOutputs;
-    scorerSessionTime_.start();
-    scorerOnnxModel_->session.run(std::move(sessionInputs), {scorerScoresName_}, sessionOutputs);
-    scorerSessionTime_.stop();
+    auto scoreVecs = initUpdateScoreBundle_.scores(hiddenStates);
+    verify(scoreVecs.size() == scoringContextBatch.size());
 
-    /*
-     * Put resulting scores into cache map
-     */
     Core::StopWatch::Scope marshallingTimer(stateMarshallingTime_);
     for (size_t b = 0ul; b < scoringContextBatch.size(); ++b) {
-        auto scoreVec = std::make_shared<std::vector<Score>>();
-        sessionOutputs.front().get(b, *scoreVec);
-        scoreCache_.put(scoringContextBatch[b], scoreVec);
+        scoreCache_.put(scoringContextBatch[b], scoreVecs[b]);
     }
 }
 
-std::vector<OnnxHiddenStateRef> StatefulOnnxLabelScorer::updatedHiddenStates(std::vector<OnnxHiddenStateRef> const& hiddenStatesBatch, std::vector<s32> nextTokensBatch) {
-    /*
-     * Create session inputs
-     */
-    std::vector<std::pair<std::string, Onnx::Value>> sessionInputs;
-    std::vector<std::string>                         sessionOutputNames;
-    std::vector<std::string>                         stateNames;
+std::vector<Onnx::OnnxNamedValuesRef> StatefulOnnxLabelScorer::updatedHiddenStates(std::vector<Onnx::OnnxNamedValuesRef> const& hiddenStatesBatch, std::vector<s32> nextTokensBatch) {
+    Onnx::OnnxInitUpdateScoreBundle::SessionInputs sessionInputs;
     {
         Core::StopWatch::Scope marshallingTimer(stateMarshallingTime_);
 
@@ -479,51 +361,14 @@ std::vector<OnnxHiddenStateRef> StatefulOnnxLabelScorer::updatedHiddenStates(std
         if (updaterTokenName_ != "") {
             sessionInputs.emplace_back(updaterTokenName_, Onnx::Value::create(nextTokensBatch));
         }
-
-        for (auto const& [inputName, stateName] : updaterInputToStateNameMap_) {
-            std::vector<Onnx::Value const*> stateValues;
-            stateValues.reserve(hiddenStatesBatch.size());
-            for (size_t b = 0ul; b < hiddenStatesBatch.size(); ++b) {
-                stateValues.push_back(&hiddenStatesBatch[b]->stateValueMap.at(stateName));
-            }
-            sessionInputs.emplace_back(inputName, Onnx::Value::concat(stateValues, 0));
-        }
-
-        for (auto const& [outputName, stateName] : updaterOutputToStateNameMap_) {
-            sessionOutputNames.push_back(outputName);
-            stateNames.push_back(stateName);
-        }
     }
 
-    /*
-     * Run session
-     */
-    std::vector<Onnx::Value> sessionOutputs;
-    stateUpdateSessionTime_.start();
-    stateUpdaterOnnxModel_->session.run(std::move(sessionInputs), sessionOutputNames, sessionOutputs);
-    stateUpdateSessionTime_.stop();
-
-    /*
-     * Return resulting hidden states
-     */
-    Core::StopWatch::Scope          marshallingTimer(stateMarshallingTime_);
-    std::vector<OnnxHiddenStateRef> newHiddenStates;
-    for (size_t b = 0ul; b < hiddenStatesBatch.size(); ++b) {
-        OnnxHiddenStateRef       newHiddenState = Core::ref(new OnnxHiddenState());
-        std::vector<Onnx::Value> stateValues;
-        stateValues.reserve(sessionOutputs.size());
-        for (size_t i = 0; i < sessionOutputs.size(); ++i) {
-            stateValues.push_back(sessionOutputs[i].slice(b, b + 1, 0));
-        }
-        newHiddenStates.push_back(Core::ref(new OnnxHiddenState({stateNames.begin(), stateNames.end()}, std::move(stateValues))));
-    }
-
-    return newHiddenStates;
+    return initUpdateScoreBundle_.updatedStates(hiddenStatesBatch, std::move(sessionInputs));
 }
 
 void StatefulOnnxLabelScorer::cacheStates(std::vector<OnnxHiddenStateScoringContextRef> const& scoringContextBatch) {
     std::vector<OnnxHiddenStateScoringContextRef> nonFinalizedContexts;
-    std::vector<OnnxHiddenStateRef>               hiddenStates;
+    std::vector<Onnx::OnnxNamedValuesRef>         hiddenStates;
     std::vector<s32>                              nextTokens;
     for (auto const& scoringContext : scoringContextBatch) {
         if (not scoringContext->requiresFinalize) {
@@ -553,16 +398,11 @@ void StatefulOnnxLabelScorer::cacheStates(std::vector<OnnxHiddenStateScoringCont
     }
 }
 
-OnnxHiddenStateRef StatefulOnnxLabelScorer::computeInitialHiddenState() {
+Onnx::OnnxNamedValuesRef StatefulOnnxLabelScorer::computeInitialHiddenState() {
     verify(not expectMoreFeatures_ or (initializerEncoderStatesName_ == "" and initializerEncoderStatesSizeName_ == ""));
 
     if (not initialHiddenState_) {  // initialHiddenState_ is still sentinel value -> compute it
-        /*
-         * Create session inputs
-         */
-        std::vector<std::pair<std::string, Onnx::Value>> sessionInputs;
-        std::vector<std::string>                         sessionOutputNames;
-        std::vector<std::string>                         stateNames;
+        Onnx::OnnxInitUpdateScoreBundle::SessionInputs sessionInputs;
         {
             Core::StopWatch::Scope marshallingTimer(stateMarshallingTime_);
 
@@ -574,26 +414,9 @@ OnnxHiddenStateRef StatefulOnnxLabelScorer::computeInitialHiddenState() {
                 setupEncoderStatesSizeValue();
                 sessionInputs.emplace_back(initializerEncoderStatesSizeName_, encoderStatesSizeValue_);
             }
-
-            for (auto const& [outputName, stateName] : initializerOutputToStateNameMap_) {
-                sessionOutputNames.push_back(outputName);
-                stateNames.push_back(stateName);
-            }
         }
 
-        /*
-         * Run session
-         */
-        std::vector<Onnx::Value> sessionOutputs;
-        stateUpdateSessionTime_.start();
-        stateInitializerOnnxModel_->session.run(std::move(sessionInputs), sessionOutputNames, sessionOutputs);
-        stateUpdateSessionTime_.stop();
-
-        /*
-         * Return resulting hidden state
-         */
-        Core::StopWatch::Scope marshallingTimer(stateMarshallingTime_);
-        initialHiddenState_ = Core::ref(new OnnxHiddenState(std::move(stateNames), std::move(sessionOutputs)));
+        initialHiddenState_ = initUpdateScoreBundle_.initialState(std::move(sessionInputs));
     }
 
     return initialHiddenState_;
@@ -626,9 +449,12 @@ void StatefulOnnxLabelScorer::setupEncoderStatesSizeValue() {
 }
 
 void StatefulOnnxLabelScorer::logScoringBreakdown() const {
-    statisticsChannel_ << Core::XmlFull("state-update-session-time", stateUpdateSessionTime_.elapsedMilliseconds());
-    statisticsChannel_ << Core::XmlFull("scorer-session-time", scorerSessionTime_.elapsedMilliseconds());
-    statisticsChannel_ << Core::XmlFull("state-marshalling-time", stateMarshallingTime_.elapsedMilliseconds());
+    auto stateUpdateSessionTime = initUpdateScoreBundle_.initializerSessionTime().elapsedMilliseconds() + initUpdateScoreBundle_.updaterSessionTime().elapsedMilliseconds();
+    auto stateMarshallingTime   = stateMarshallingTime_.elapsedMilliseconds() + initUpdateScoreBundle_.marshallingTime().elapsedMilliseconds();
+
+    statisticsChannel_ << Core::XmlFull("state-update-session-time", stateUpdateSessionTime);
+    statisticsChannel_ << Core::XmlFull("scorer-session-time", initUpdateScoreBundle_.scorerSessionTime().elapsedMilliseconds());
+    statisticsChannel_ << Core::XmlFull("state-marshalling-time", stateMarshallingTime);
     statisticsChannel_ << Core::XmlFull("context-preparation-time", contextPreparationTime_.elapsedMilliseconds());
 }
 

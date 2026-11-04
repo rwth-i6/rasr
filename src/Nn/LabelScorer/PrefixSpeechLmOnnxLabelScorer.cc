@@ -1,0 +1,688 @@
+/** Copyright 2026 RWTH Aachen University. All rights reserved.
+ *
+ *  Licensed under the RWTH ASR License (the "License");
+ *  you may not use this file except in compliance with the License.
+ *  You may obtain a copy of the License at
+ *
+ *      http://www.hltpr.rwth-aachen.de/rwth-asr/rwth-asr-license.html
+ *
+ *  Unless required by applicable law or agreed to in writing, software
+ *  distributed under the License is distributed on an "AS IS" BASIS,
+ *  WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ *  See the License for the specific language governing permissions and
+ *  limitations under the License.
+ */
+
+#include "PrefixSpeechLmOnnxLabelScorer.hh"
+
+#include <algorithm>
+#include <unordered_set>
+
+#include <Core/XmlStream.hh>
+#include <Nn/Module.hh>
+#include <Tokenizer/AbstractTokenizer.hh>
+#include <Tokenizer/Module.hh>
+
+#include "ScoreAccessor.hh"
+
+namespace Nn {
+
+/*
+ * ====================================
+ * === PrefixSpeechLmScoringContext ===
+ * ====================================
+ */
+PrefixSpeechLmScoringContext::PrefixSpeechLmScoringContext()
+        : labelSeq(),
+          historyLength(0ul),
+          parent(),
+          state() {
+}
+
+PrefixSpeechLmScoringContext::PrefixSpeechLmScoringContext(std::vector<LabelIndex>&& labelSeq, Core::Ref<PrefixSpeechLmScoringContext const> parent)
+        : labelSeq(std::move(labelSeq)),
+          historyLength(0ul),
+          parent(parent),
+          state() {
+}
+
+size_t PrefixSpeechLmScoringContext::hash() const {
+    return labelSeqHash(labelSeq);
+}
+
+bool PrefixSpeechLmScoringContext::isEqual(ScoringContextRef const& other) const {
+    auto* otherPtr = dynamic_cast<const PrefixSpeechLmScoringContext*>(other.get());
+    if (otherPtr == nullptr) {
+        return false;
+    }
+
+    return labelSeqEqual(labelSeq, otherPtr->labelSeq);
+}
+
+/*
+ * =====================================
+ * === PrefixSpeechLmOnnxLabelScorer ===
+ * =====================================
+ */
+
+static const std::vector<Onnx::IOSpecification> initializerIoSpec = {
+        Onnx::IOSpecification{
+                "initial-prompt",
+                Onnx::IODirection::INPUT,
+                true,
+                {Onnx::ValueType::TENSOR},
+                {Onnx::ValueDataType::INT32},
+                {{-1, -1}, {1, -1}}},
+        Onnx::IOSpecification{
+                "initial-prompt-length",
+                Onnx::IODirection::INPUT,
+                true,
+                {Onnx::ValueType::TENSOR},
+                {Onnx::ValueDataType::INT32},
+                {{-1}, {1}}},
+        Onnx::IOSpecification{
+                "encoder-states",
+                Onnx::IODirection::INPUT,
+                false,
+                {Onnx::ValueType::TENSOR},
+                {Onnx::ValueDataType::FLOAT},
+                {{-1, -1, -2}, {1, -1, -2}}},
+        Onnx::IOSpecification{
+                "encoder-states-size",
+                Onnx::IODirection::INPUT,
+                true,
+                {Onnx::ValueType::TENSOR},
+                {Onnx::ValueDataType::INT32},
+                {{-1}, {1}}},
+        Onnx::IOSpecification{
+                "suffix-prompt",
+                Onnx::IODirection::INPUT,
+                true,
+                {Onnx::ValueType::TENSOR},
+                {Onnx::ValueDataType::INT32},
+                {{-1, -1}, {1, -1}}},
+        Onnx::IOSpecification{
+                "suffix-prompt-length",
+                Onnx::IODirection::INPUT,
+                true,
+                {Onnx::ValueType::TENSOR},
+                {Onnx::ValueDataType::INT32},
+                {{-1}, {1}}},
+        Onnx::IOSpecification{
+                "scores",
+                Onnx::IODirection::OUTPUT,
+                false,
+                {Onnx::ValueType::TENSOR},
+                {Onnx::ValueDataType::FLOAT},
+                {{-1, -2}, {1, -2}}}};
+
+static const std::vector<Onnx::IOSpecification> stepIoSpec = {
+        Onnx::IOSpecification{
+                "token",
+                Onnx::IODirection::INPUT,
+                false,
+                {Onnx::ValueType::TENSOR},
+                {Onnx::ValueDataType::INT32},
+                {{-1, -1}, {-1, 1}}},
+        Onnx::IOSpecification{
+                "token-length",
+                Onnx::IODirection::INPUT,
+                true,
+                {Onnx::ValueType::TENSOR},
+                {Onnx::ValueDataType::INT32},
+                {{-1}}},
+        Onnx::IOSpecification{
+                "prefix-length",
+                Onnx::IODirection::INPUT,
+                true,
+                {Onnx::ValueType::TENSOR},
+                {Onnx::ValueDataType::INT32},
+                {{-1}}},
+        Onnx::IOSpecification{
+                "scores",
+                Onnx::IODirection::OUTPUT,
+                false,
+                {Onnx::ValueType::TENSOR},
+                {Onnx::ValueDataType::FLOAT},
+                {{-1, -1, -2}, {-1, 1, -2}}}};
+
+const Core::ParameterString PrefixSpeechLmOnnxLabelScorer::paramInitialPrompt(
+        "initial-prompt",
+        "Text of the prompt fed into the LM before the input features. Tokenized with the tokenizer configured in the "
+        "`tokenizer` sub-component. Supports the escape sequences \\n, \\t, \\r, \\\\ and \\xHH. "
+        "Alternative to `initial-prompt-labels`.",
+        "");
+
+const Core::ParameterString PrefixSpeechLmOnnxLabelScorer::paramSuffixPrompt(
+        "suffix-prompt",
+        "Text of the prompt fed into the LM after the input features. Tokenized with the tokenizer configured in the "
+        "`tokenizer` sub-component. Supports the escape sequences \\n, \\t, \\r, \\\\ and \\xHH. "
+        "Alternative to `suffix-prompt-labels`.",
+        "");
+
+const Core::ParameterIntVector PrefixSpeechLmOnnxLabelScorer::paramInitialPromptLabels(
+        "initial-prompt-labels",
+        "Token ids for the prompt fed into the LM before the input features. Alternative to `initial-prompt`.",
+        "",
+        0,
+        Core::Type<s32>::max,
+        0);
+
+const Core::ParameterIntVector PrefixSpeechLmOnnxLabelScorer::paramSuffixPromptLabels(
+        "suffix-prompt-labels",
+        "Token ids for the prompt fed into the LM after the input features. Alternative to `suffix-prompt`.",
+        "",
+        0,
+        Core::Type<s32>::max,
+        0);
+
+const Core::ParameterBool PrefixSpeechLmOnnxLabelScorer::paramBlankUpdatesHistory(
+        "blank-updates-history",
+        "Whether previously emitted blank labels should be used to update the recurrent state.",
+        false);
+
+const Core::ParameterBool PrefixSpeechLmOnnxLabelScorer::paramSilenceUpdatesHistory(
+        "silence-updates-history",
+        "Whether previously emitted silence labels should be used to update the history.",
+        false);
+
+const Core::ParameterBool PrefixSpeechLmOnnxLabelScorer::paramLoopUpdatesHistory(
+        "loop-updates-history",
+        "Whether loop transitions should update the recurrent state.",
+        false);
+
+const Core::ParameterInt PrefixSpeechLmOnnxLabelScorer::paramMaxBatchSize(
+        "max-batch-size",
+        "Max number of scoring contexts that can be fed into the step ONNX model at once.",
+        Core::Type<int>::max);
+
+const Core::ParameterInt PrefixSpeechLmOnnxLabelScorer::paramMaxCachedScores(
+        "max-cached-score-vectors",
+        "Maximum size of cache that maps scoring contexts to scores and state slices.",
+        10000);
+
+PrefixSpeechLmOnnxLabelScorer::PrefixSpeechLmOnnxLabelScorer(Core::Configuration const& config, ModelCache& modelCache)
+        : Core::Component(config),
+          Precursor(config, TransitionPresetType::LM),
+          blankUpdatesHistory_(paramBlankUpdatesHistory(config)),
+          silenceUpdatesHistory_(paramSilenceUpdatesHistory(config)),
+          loopUpdatesHistory_(paramLoopUpdatesHistory(config)),
+          maxBatchSize_(paramMaxBatchSize(config)),
+          stateManager_(Module::instance().createStateManager(select("state-manager"))),
+          stateVectorFactory_(Module::instance().createCompressedVectorFactory(select("state-compression"))),
+          initialContext_(),
+          initialScores_(),
+          scoreCache_(paramMaxCachedScores(config)),
+          stateCache_(scoreCache_.maxSize()) {
+    Core::Configuration initializerModelConfig(config, "initializer-model");
+    Core::Configuration stepModelConfig(config, "step-model");
+
+    auto initializerKey = initializerModelConfig.getSelection();
+    auto stepKey        = stepModelConfig.getSelection();
+
+    initializerOnnxModel_ = modelCache.getOrCreate<Onnx::Model>(initializerKey, initializerModelConfig, initializerIoSpec);
+    stepOnnxModel_        = modelCache.getOrCreate<Onnx::Model>(stepKey, stepModelConfig, stepIoSpec);
+
+    stateVariables_ = stepOnnxModel_->session.getStateVariablesMetadata();
+
+    initializerInitialPromptName_       = initializerOnnxModel_->mapping.getOnnxName("initial-prompt");
+    initializerInitialPromptLengthName_ = initializerOnnxModel_->mapping.getOnnxName("initial-prompt-length");
+    initializerEncoderStatesName_       = initializerOnnxModel_->mapping.getOnnxName("encoder-states");
+    initializerEncoderStatesSizeName_   = initializerOnnxModel_->mapping.getOnnxName("encoder-states-size");
+    initializerSuffixPromptName_        = initializerOnnxModel_->mapping.getOnnxName("suffix-prompt");
+    initializerSuffixPromptLengthName_  = initializerOnnxModel_->mapping.getOnnxName("suffix-prompt-length");
+    initializerScoresName_              = initializerOnnxModel_->mapping.getOnnxName("scores");
+    stepTokenName_                      = stepOnnxModel_->mapping.getOnnxName("token");
+    stepTokenLengthName_                = stepOnnxModel_->mapping.getOnnxName("token-length");
+    stepPrefixLengthName_               = stepOnnxModel_->mapping.getOnnxName("prefix-length");
+    stepScoresName_                     = stepOnnxModel_->mapping.getOnnxName("scores");
+
+    // Only needed to tokenize the prompts, hence not kept beyond the constructor
+    Tokenizer::TokenizerRef tokenizer;
+    if (not paramInitialPrompt(config).empty() or not paramSuffixPrompt(config).empty()) {
+        tokenizer = Tokenizer::Module::instance().tokenizerFactory().createTokenizer(select("tokenizer"));
+    }
+    initialPromptLabels_ = getPromptLabels(paramInitialPrompt, paramInitialPromptLabels, tokenizer.get());
+    suffixPromptLabels_  = getPromptLabels(paramSuffixPrompt, paramSuffixPromptLabels, tokenizer.get());
+
+    if (not initialPromptLabels_.empty() and initializerInitialPromptName_.empty()) {
+        criticalError("Initial prompt is set but the initializer model has no `initial-prompt` input");
+    }
+    if (not suffixPromptLabels_.empty() and initializerSuffixPromptName_.empty()) {
+        criticalError("Suffix prompt is set but the initializer model has no `suffix-prompt` input");
+    }
+}
+
+void PrefixSpeechLmOnnxLabelScorer::addInput(DataView const& input) {
+    Precursor::addInput(input);
+    scoreCache_.clear();
+    stateCache_.clear();
+}
+
+ScoringContextRef PrefixSpeechLmOnnxLabelScorer::getInitialScoringContext() {
+    if (not initialContext_) {
+        initialContext_ = Core::ref(new PrefixSpeechLmScoringContext());
+    }
+    return initialContext_;
+}
+
+ScoringContextRef PrefixSpeechLmOnnxLabelScorer::extendedScoringContext(ScoringContextRef scoringContext, LabelIndex nextToken, TransitionType transitionType) {
+    bool updateState = false;
+    switch (transitionType) {
+        case TransitionType::BLANK_LOOP:
+            updateState = blankUpdatesHistory_ and loopUpdatesHistory_;
+            break;
+        case TransitionType::SILENCE_LOOP:
+            updateState = silenceUpdatesHistory_ and loopUpdatesHistory_;
+            break;
+        case TransitionType::LABEL_TO_BLANK:
+        case TransitionType::INITIAL_BLANK:
+            updateState = blankUpdatesHistory_;
+            break;
+        case TransitionType::LABEL_TO_SILENCE:
+        case TransitionType::INITIAL_SILENCE:
+            updateState = silenceUpdatesHistory_;
+            break;
+        case TransitionType::LABEL_LOOP:
+            updateState = loopUpdatesHistory_;
+            break;
+        case TransitionType::BLANK_TO_LABEL:
+        case TransitionType::SILENCE_TO_LABEL:
+        case TransitionType::LABEL_TO_LABEL:
+        case TransitionType::INITIAL_LABEL:
+        case TransitionType::SENTENCE_END:
+            updateState = true;
+            break;
+        default:
+            error() << "Unknown transition type " << transitionType;
+    }
+    if (not updateState) {
+        return scoringContext;
+    }
+
+    PrefixSpeechLmScoringContextRef context(dynamic_cast<PrefixSpeechLmScoringContext const*>(scoringContext.get()));
+    verify(context);
+
+    std::vector<LabelIndex> labelSeq(context->labelSeq);
+    labelSeq.push_back(nextToken);
+    return Core::ref(new PrefixSpeechLmScoringContext(std::move(labelSeq), context));
+}
+
+void PrefixSpeechLmOnnxLabelScorer::resetInternal() {
+    Precursor::resetInternal();
+    initializerSessionTime_.reset();
+    stepSessionTime_.reset();
+    stateMarshallingTime_.reset();
+    contextPreparationTime_.reset();
+    initialContext_ = PrefixSpeechLmScoringContextRef();
+    initialScores_.reset();
+    scoreCache_.clear();
+    stateCache_.clear();
+}
+
+std::optional<ScoreAccessorRef> PrefixSpeechLmOnnxLabelScorer::computeScoreAccessor(ScoringContextRef scoringContext) {
+    return computeScoreAccessors({scoringContext})[0];
+}
+
+std::vector<std::optional<ScoreAccessorRef>> PrefixSpeechLmOnnxLabelScorer::computeScoreAccessors(std::vector<ScoringContextRef> const& scoringContexts) {
+    if (scoringContexts.empty()) {
+        return {};
+    }
+
+    std::vector<std::optional<ScoreAccessorRef>> scoreAccessors(scoringContexts.size(), std::nullopt);
+    if (not isPrefilled() and (expectMoreFeatures_ or bufferSize() == 0ul)) {
+        countUncomputedAccessors(scoringContexts.size());
+        return scoreAccessors;
+    }
+
+    setupInitialStates();
+
+    /*
+     * Identify unique scoring contexts that still need session runs
+     */
+    contextPreparationTime_.start();
+    std::unordered_set<PrefixSpeechLmScoringContextRef, ScoringContextHash, ScoringContextEq> uniqueUncachedScoringContexts;
+    for (auto const& scoringContext : scoringContexts) {
+        PrefixSpeechLmScoringContextRef context(dynamic_cast<PrefixSpeechLmScoringContext const*>(scoringContext.get()));
+        verify(context);
+
+        if (scoreCache_.contains(context)) {
+            continue;
+        }
+
+        verify(not context->labelSeq.empty());  // The empty emitted-label context is scored by setupInitialStates().
+        uniqueUncachedScoringContexts.emplace(context);
+    }
+    contextPreparationTime_.stop();
+
+    countUncomputedAccessors(scoringContexts.size() - uniqueUncachedScoringContexts.size());
+
+    /*
+     * Fill state and score caches for all uncached scoring contexts
+     */
+    std::vector<PrefixSpeechLmScoringContextRef> scoringContextBatch;
+    scoringContextBatch.reserve(std::min(uniqueUncachedScoringContexts.size(), maxBatchSize_));
+    for (auto const& scoringContext : uniqueUncachedScoringContexts) {
+        scoringContextBatch.push_back(scoringContext);
+        if (scoringContextBatch.size() == maxBatchSize_) {
+            cacheStatesAndScores(scoringContextBatch);
+            scoringContextBatch.clear();
+        }
+    }
+    cacheStatesAndScores(scoringContextBatch);
+
+    /*
+     * Assign scores from cache to result vector and states to contexts that are equal to a computed one
+     */
+    contextPreparationTime_.start();
+    for (size_t i = 0ul; i < scoringContexts.size(); ++i) {
+        PrefixSpeechLmScoringContextRef context(dynamic_cast<PrefixSpeechLmScoringContext const*>(scoringContexts[i].get()));
+        if (not context->state) {
+            auto cachedState = stateCache_.get(context);  // Score and state caches evict in sync
+            verify(cachedState);
+            verify(context->parent);
+            context->state         = cachedState->get();
+            context->historyLength = context->parent->historyLength + 1ul;
+        }
+        auto scores = scoreCache_.get(context);
+        verify(scores);
+        scoreAccessors[i] = Core::ref(new VectorScoreAccessor(scores->get(), context->labelSeq.size()));
+    }
+    contextPreparationTime_.stop();
+
+    return scoreAccessors;
+}
+
+size_t PrefixSpeechLmOnnxLabelScorer::getMinActiveInputIndex(Core::CollapsedVector<ScoringContextRef> const& activeContexts) const {
+    // All inputs are needed for the prefill and none afterwards
+    return isPrefilled() ? Core::Type<size_t>::max : 0ul;
+}
+
+std::vector<s32> PrefixSpeechLmOnnxLabelScorer::getPromptLabels(Core::ParameterString const&        textParam,
+                                                                Core::ParameterIntVector const&     labelsParam,
+                                                                Tokenizer::AbstractTokenizer const* tokenizer) const {
+    std::string text   = textParam(config);
+    auto        labels = labelsParam(config);
+
+    if (text.empty()) {
+        return std::vector<s32>(labels.begin(), labels.end());
+    }
+    if (not labels.empty()) {
+        criticalError("Only one of `%s` and `%s` can be set", textParam.name().c_str(), labelsParam.name().c_str());
+    }
+
+    verify(tokenizer);
+    auto ids = tokenizer->encode(unescapePrompt(text));
+
+    std::vector<s32> result;
+    result.reserve(ids.size());
+    auto logChannel = log("Tokenized %s into %zu tokens:", textParam.name().c_str(), ids.size());
+    for (auto id : ids) {
+        result.push_back(static_cast<s32>(id));
+        logChannel << " " << id << " (" << tokenizer->tokenIdToStr(id) << ")";
+    }
+    return result;
+}
+
+std::string PrefixSpeechLmOnnxLabelScorer::unescapePrompt(std::string const& text) const {
+    auto hexValue = [](char c) -> int {
+        if (c >= '0' and c <= '9') {
+            return c - '0';
+        }
+        if (c >= 'a' and c <= 'f') {
+            return c - 'a' + 10;
+        }
+        if (c >= 'A' and c <= 'F') {
+            return c - 'A' + 10;
+        }
+        return -1;
+    };
+
+    std::string result;
+    result.reserve(text.size());
+    for (size_t i = 0ul; i < text.size(); ++i) {
+        if (text[i] != '\\') {
+            result.push_back(text[i]);
+            continue;
+        }
+        if (i + 1ul == text.size()) {
+            criticalError("Prompt '%s' ends with an incomplete escape sequence", text.c_str());
+            break;
+        }
+        char c = text[++i];
+        switch (c) {
+            case 'n': result.push_back('\n'); break;
+            case 't': result.push_back('\t'); break;
+            case 'r': result.push_back('\r'); break;
+            case '\\': result.push_back('\\'); break;
+            case 'x': {
+                int high = i + 2ul < text.size() ? hexValue(text[i + 1ul]) : -1;
+                int low  = i + 2ul < text.size() ? hexValue(text[i + 2ul]) : -1;
+                if (high < 0 or low < 0) {
+                    criticalError("Invalid escape sequence '\\x' in prompt '%s', expected two hex digits", text.c_str());
+                    break;
+                }
+                result.push_back(static_cast<char>(high * 16 + low));
+                i += 2ul;
+                break;
+            }
+            default:
+                criticalError("Unknown escape sequence '\\%c' in prompt '%s'", c, text.c_str());
+        }
+    }
+    return result;
+}
+
+bool PrefixSpeechLmOnnxLabelScorer::isPrefilled() const {
+    return initialContext_ and initialContext_->state;
+}
+
+void PrefixSpeechLmOnnxLabelScorer::setupInitialStates() {
+    if (not initialContext_) {
+        getInitialScoringContext();
+    }
+    if (isPrefilled()) {
+        if (not scoreCache_.contains(initialContext_)) {
+            scoreCache_.put(initialContext_, initialScores_);
+        }
+        return;
+    }
+
+    std::vector<std::pair<std::string, Onnx::Value>> inputs;
+
+    if (initializerInitialPromptName_ != "") {
+        inputs.emplace_back(
+                initializerInitialPromptName_,
+                Onnx::Value::create(
+                        initialPromptLabels_.data(),
+                        std::vector<s64>{1l, static_cast<s64>(initialPromptLabels_.size())}));
+        if (initializerInitialPromptLengthName_ != "") {
+            inputs.emplace_back(
+                    initializerInitialPromptLengthName_,
+                    Onnx::Value::create(
+                            std::vector<s32>{static_cast<s32>(initialPromptLabels_.size())}));
+        }
+    }
+
+    inputs.emplace_back(initializerEncoderStatesName_, createEncoderStatesValue());
+    if (initializerEncoderStatesSizeName_ != "") {
+        inputs.emplace_back(initializerEncoderStatesSizeName_, Onnx::Value::create(std::vector<s32>{static_cast<s32>(bufferSize())}));
+    }
+
+    if (initializerSuffixPromptName_ != "") {
+        inputs.emplace_back(
+                initializerSuffixPromptName_,
+                Onnx::Value::create(
+                        suffixPromptLabels_.data(),
+                        std::vector<s64>{1l, static_cast<s64>(suffixPromptLabels_.size())}));
+        if (initializerSuffixPromptLengthName_ != "") {
+            inputs.emplace_back(
+                    initializerSuffixPromptLengthName_,
+                    Onnx::Value::create(
+                            std::vector<s32>{static_cast<s32>(suffixPromptLabels_.size())}));
+        }
+    }
+
+    std::vector<std::string> targets;
+    targets.reserve(stateVariables_.size() + 1ul);
+    targets.emplace_back(initializerScoresName_);
+    for (auto const& stateVariable : stateVariables_) {
+        targets.emplace_back(stateVariable.output_state_key);
+    }
+
+    std::vector<Onnx::Value> outputs;
+    initializerSessionTime_.start();
+    initializerOnnxModel_->session.run(std::move(inputs), targets, outputs);
+    initializerSessionTime_.stop();
+
+    verify(not stateVariables_.empty());
+    verify_ge(outputs.size(), 2ul);
+    size_t stateLength = 0ul;
+    // Find time dim and take its size as prompt length
+    for (size_t d = 1ul; d < stateVariables_.front().shape.size(); ++d) {
+        if (stateVariables_.front().shape[d] < 0l) {
+            stateLength = outputs[1].dimSize(d);
+            break;
+        }
+    }
+    verify_gt(stateLength, 0ul);
+
+    initialScores_ = std::make_shared<std::vector<Score>>();
+    outputs.front().get(0, *initialScores_);
+
+    std::vector<Onnx::Value> stateOutputs(std::make_move_iterator(outputs.begin() + 1), std::make_move_iterator(outputs.end()));
+    std::vector<size_t>      suffixLengths{stateLength};
+    stateMarshallingTime_.start();
+    auto promptStates = stateManager_->splitStates(stateVariables_, suffixLengths, stateOutputs, *stateVectorFactory_);
+    stateMarshallingTime_.stop();
+
+    PrefixSpeechLmScoringContextRef parent;
+    if (stateManager_->requiresAllParentStates()) {
+        verify_eq(promptStates.size(), stateLength);
+        for (size_t i = 0ul; i + 1ul < promptStates.size(); ++i) {
+            auto context           = Core::ref(new PrefixSpeechLmScoringContext(std::vector<LabelIndex>(), parent));
+            context->historyLength = i + 1ul;
+            context->state         = std::make_shared<HistoryState>(std::move(promptStates[i]));
+            parent                 = context;
+        }
+    }
+    else {
+        verify_eq(promptStates.size(), 1ul);
+    }
+
+    initialContext_->historyLength = stateLength;
+    initialContext_->parent        = parent;
+    initialContext_->state         = std::make_shared<HistoryState>(std::move(promptStates.back()));
+
+    scoreCache_.put(initialContext_, initialScores_);
+}
+
+Onnx::Value PrefixSpeechLmOnnxLabelScorer::createEncoderStatesValue() const {
+    u32  T                    = bufferSize();
+    auto inputFeatureDataView = getInput(0);
+    verify(inputFeatureDataView);
+
+    auto value = Onnx::Value::createEmpty<f32>({1l, static_cast<int64_t>(T), static_cast<int64_t>(inputFeatureDataView->size())});
+    for (size_t t = 0ul; t < T; ++t) {
+        inputFeatureDataView = getInput(t);
+        verify(inputFeatureDataView);
+        std::copy(inputFeatureDataView->data(), inputFeatureDataView->data() + inputFeatureDataView->size(), value.data<f32>(0, t));
+    }
+    return value;
+}
+
+void PrefixSpeechLmOnnxLabelScorer::cacheStatesAndScores(std::vector<PrefixSpeechLmScoringContextRef> const& scoringContextBatch) {
+    if (scoringContextBatch.empty()) {
+        return;
+    }
+
+    std::vector<size_t>              prefixLengths;
+    std::vector<HistoryState const*> prefixStates;
+    prefixLengths.reserve(scoringContextBatch.size());
+    prefixStates.reserve(scoringContextBatch.size());
+
+    for (auto const& context : scoringContextBatch) {
+        verify(not context->labelSeq.empty());
+
+        auto parent = context->parent;
+        verify(parent);
+
+        if (stateManager_->requiresAllParentStates()) {
+            size_t prefixLength = parent->historyLength;
+            prefixLengths.push_back(prefixLength);
+            prefixStates.resize(prefixStates.size() + prefixLength);
+
+            size_t offset = prefixStates.size() - prefixLength;
+            for (size_t i = 0ul; i < prefixLength; ++i) {
+                verify(parent);
+                verify(parent->state);
+                prefixStates[offset + prefixLength - i - 1] = parent->state.get();
+                parent                                      = parent->parent;
+            }
+        }
+        else {
+            prefixLengths.push_back(parent->historyLength);
+            verify(parent->state);
+            prefixStates.push_back(parent->state.get());
+        }
+    }
+
+    std::vector<std::pair<std::string, Onnx::Value>> inputs;
+    std::vector<std::string>                         targets;
+    stateMarshallingTime_.start();
+    stateManager_->mergeStates(stateVariables_, prefixLengths, prefixStates, inputs, targets);
+    stateMarshallingTime_.stop();
+
+    Onnx::Value tokens = Onnx::Value::createEmpty<s32>({static_cast<s64>(scoringContextBatch.size()), 1l});
+    for (size_t i = 0ul; i < scoringContextBatch.size(); ++i) {
+        verify(not scoringContextBatch[i]->labelSeq.empty());
+        tokens.data<s32>(i, 0)[0] = static_cast<s32>(scoringContextBatch[i]->labelSeq.back());
+    }
+    inputs.emplace_back(stepTokenName_, std::move(tokens));
+
+    if (stepTokenLengthName_ != "") {
+        inputs.emplace_back(stepTokenLengthName_, Onnx::Value::create(std::vector<s32>(scoringContextBatch.size(), 1)));
+    }
+    if (stepPrefixLengthName_ != "") {
+        std::vector<s32> stateLengths(prefixLengths.begin(), prefixLengths.end());
+        inputs.emplace_back(stepPrefixLengthName_, Onnx::Value::create(stateLengths));
+    }
+
+    targets.emplace(targets.begin(), stepScoresName_);
+
+    std::vector<Onnx::Value> outputs;
+    stepSessionTime_.start();
+    stepOnnxModel_->session.run(std::move(inputs), targets, outputs);
+    stepSessionTime_.stop();
+
+    for (size_t b = 0ul; b < scoringContextBatch.size(); ++b) {
+        auto scores = std::make_shared<std::vector<Score>>();
+        outputs.front().get(b, 0, *scores);
+        scoreCache_.put(scoringContextBatch[b], scores);
+    }
+
+    std::vector<Onnx::Value> stateOutputs(std::make_move_iterator(outputs.begin() + 1), std::make_move_iterator(outputs.end()));
+    std::vector<size_t>      suffixLengths(scoringContextBatch.size(), 1ul);
+    stateMarshallingTime_.start();
+    auto splitStates = stateManager_->splitStates(stateVariables_, suffixLengths, stateOutputs, *stateVectorFactory_);
+    stateMarshallingTime_.stop();
+    verify_eq(splitStates.size(), scoringContextBatch.size());
+    for (size_t i = 0ul; i < scoringContextBatch.size(); ++i) {
+        // Not taken from `prefixLengths`, which `mergeStates` may have truncated
+        scoringContextBatch[i]->historyLength = scoringContextBatch[i]->parent->historyLength + 1ul;
+        scoringContextBatch[i]->state         = std::make_shared<HistoryState>(std::move(splitStates[i]));
+        stateCache_.put(scoringContextBatch[i], scoringContextBatch[i]->state);
+        if (not stateManager_->requiresAllParentStates()) {
+            scoringContextBatch[i]->parent.reset();
+        }
+    }
+}
+
+void PrefixSpeechLmOnnxLabelScorer::logScoringBreakdown() const {
+    statisticsChannel_ << Core::XmlFull("initializer-session-time", initializerSessionTime_.elapsedMilliseconds());
+    statisticsChannel_ << Core::XmlFull("step-session-time", stepSessionTime_.elapsedMilliseconds());
+    statisticsChannel_ << Core::XmlFull("state-marshalling-time", stateMarshallingTime_.elapsedMilliseconds());
+    statisticsChannel_ << Core::XmlFull("context-preparation-time", contextPreparationTime_.elapsedMilliseconds());
+}
+
+}  // namespace Nn

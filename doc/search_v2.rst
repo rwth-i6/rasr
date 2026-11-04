@@ -219,9 +219,9 @@ an optional blank label (for CTC/transducer) and optional silence and sentence-e
   extension candidates need to be compared). Default ``on``.
 * ``cache-cleanup-interval`` (int): interval (in search steps) after which cached buffered inputs that are no
   longer needed get freed. Default ``10``.
-* ``maximum-stable-delay`` (int): if set, prune away hypotheses that disagree with the current best hypothesis
-  further back than this many frames. This makes the traceback "stabilize" after at most this many frames,
-  which is useful for low-latency streaming output. Default: disabled (unbounded).
+* ``maximum-stable-delay`` (int): if set, prune hypotheses so that the output older than this many frames can't
+  change any more, see :ref:`Maximum-stable-delay pruning`. Useful for low-latency streaming output.
+  Default: disabled (unbounded).
 * ``maximum-stable-delay-pruning-interval`` (int): how often (in search steps) the above pruning is applied. Default ``10``.
 
 Order of operations for one time-synchronous decoding step, assuming two label scorers ``L_1`` and ``L_2`` with
@@ -498,9 +498,8 @@ pronunciation) rather than being configurable as a separate parameter, so that i
 index used for the search tree itself.
 
 * ``max-beam-size``, ``max-word-end-beam-size``, ``word-end-score-threshold``, ``num-histogram-bins``,
-  ``sentence-end-fall-back``, ``recombination-mode``, ``cache-cleanup-interval``,
-  ``maximum-stable-delay``, ``maximum-stable-delay-pruning-interval``: same meaning and defaults as for
-  ``tree-timesync-beam-search`` above.
+  ``sentence-end-fall-back``, ``recombination-mode``, ``cache-cleanup-interval``: same meaning and defaults
+  as for ``tree-timesync-beam-search`` above.
 * ``score-threshold``: same meaning as for ``tree-timesync-beam-search`` above. Also interacts with
   ``length-norm-scale`` the same way as for ``lexiconfree-labelsync-beam-search`` above -- always expressed in
   un-normalized score units.
@@ -609,6 +608,82 @@ listed below. Note that ``minimized-hmm``/``previousBehavior`` is still the code
   model was trained on fluent speech. Warning: this tree builder is currently experimental and has not been fully
   tested; some edge cases or input configurations may not be handled correctly yet.
 
+Maximum-stable-delay pruning
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+In streaming, the stable prefix is the longest partial traceback that is shared by all ongoing hypotheses in search.
+This means that regardless of how the search process develops in the future, the stable prefix won't change anymore.
+
+``maximum-stable-delay`` pruning bounds how much the stable prefix can lag behind the current search step:
+The pruning runs every ``maximum-stable-delay-pruning-interval`` steps. After ``t`` decoded frames, the cutoff is
+``c = t + 1 - maximum-stable-delay`` and the goal is to make sure that the stable partial traceback ends at ``c``
+or later. It is implemented by ``lexiconfree-timesync-beam-search``, ``tree-timesync-beam-search``
+and the classic ``advanced-tree-search``.
+
+1. **Reference:** the best hypothesis which has a lemma ending at ``c`` or later in its traceback or is currently
+   in a pause (i.e. blank/silence segment). The earliest such lemma in the traceback is taken as the pruning root.
+2. **Pruning:** every hypothesis that does not also have this pruning root in its traceback is pruned. This guarantees
+   that the pruning root becomes stable.
+3. **Pause splitting:** for every hypothesis that has a pause starting before ``c`` which is ending after ``c`` or still
+   ongoing: this pause is split into two parts; before and after ``c``. Thus, if the reference contains such a pause,
+   the partial pause up to ``c`` becomes the pruning root and all hypotheses that share the same partial pause are kept.
+   The split is only cosmetic; it has no score contributions of its own. The score of the whole pause is attributed
+   to the remaining part. Only ``lexiconfree-timesync-beam-search`` and ``tree-timesync-beam-search`` split pauses.
+
+Consequences:
+
+* A hypothesis in a word that started before the cutoff and still hasn't ended yet doesn't contain a valid pruning root
+  after the cutoff. Thus, it can't be the reference and is pruned, even if it is the best one. So ``maximum-stable-delay``
+  effectively limits the length of words and should be larger than the longest expected word.
+* Pauses are not limited this way since a stable partial pause can be split off.
+* If no hypothesis exist that fulfills the conditions for being the reference, we take the last finished word of the
+  current best hypothesis as pruning root and a warning is logged. The delay is exceeded in that case.
+
+The following examples all use ``maximum-stable-delay = 5`` after 14 decoded frames, i.e. ``c = 10``. Hypotheses
+are listed from best to worst. Items are written as ``word[start, end)``, ``…`` marks an item that hasn't ended yet,
+``?`` a word that isn't finished yet and ``pause`` a blank or silence segment.
+
+**Example 1: regular words.** The pruning root is a word ending after the cutoff:
+
+.. code-block:: text
+
+    hyp  traceback                          decision
+    A    hello[0,6) world[6,12) ?[12,…)     reference: best hypothesis with a word ending at c or later
+    B    hello[0,6) world[6,12) pause[12,…) kept: shares the pruning root
+    C    hello[0,6) word[6,11) ?[11,…)      pruned: different word
+    D    hello[0,6) world[6,13) ?[13,…)     pruned: same word with a different end time is a different traceback item
+    E    yellow[0,6) world[6,12) ?[12,…)    pruned: different word earlier in the traceback
+
+* Pruning root: ``world[6,12)``
+* Common prefix after the pruning: ``hello[0,6) world[6,12)``
+
+**Example 2: pause splitting.** The reference is in a pause that started before the cutoff; the pause is split at ``c``:
+
+.. code-block:: text
+
+    hyp  traceback                                     decision
+    A    hello[0,5)  pause[5,10) pause[10, …)          reference: best hypothesis, in a pause
+    B    hello[0,5)  pause[5,10) pause[10,14)          kept: same partial pause up to c
+    C    hello[0,5)  pause[5,10) pause[10,12) ?[12,…)  kept: same partial pause up to c
+    D    hello[0,5)  pause[5,8)  ?[8,…)                pruned: pause ended before c
+    E    yellow[0,5) pause[5,…)                        pruned: different word earlier in the traceback
+    F    hello[0,5)  ?[5,…)                            pruned: no pause after hello
+
+* Pruning root: ``pause[5,10)``
+* Common prefix after the pruning: ``hello[0,5) pause[5,10)``
+
+**Example 3: no reference.** No hypothesis has a lemma ending at ``c`` or later or is in a pause:
+
+.. code-block:: text
+
+    hyp  traceback                          decision
+    A    hello[0,5) ?[5,…)                  best hypothesis, in a word since before c
+    B    hello[0,5) pause[5,7) ?[7,…)       kept: has the pruning root
+    C    yellow[0,4) ?[4,…)                 pruned: doesn't share the pruning root
+
+* Pruning root: ``hello[0,5)``, the last finished word of the best hypothesis, and a warning is logged
+* Common prefix after the pruning: ``hello[0,5)``, which ends before ``c``, so the delay is exceeded
+
 Multiple label scorers and per-stage parameters
 ------------------------------------------------
 
@@ -661,8 +736,11 @@ built-in way to do this.
 
 Built-in label scorer types include:
 
-* ``no-context-onnx``, ``fixed-context-onnx``, ``stateful-onnx``, ``state-managed-onnx``: forward
-  features (and, depending on type, label history/hidden state) through an ONNX model.
+* ``no-context-onnx``, ``fixed-context-onnx``, ``stateful-onnx``, ``stateful-transducer-onnx``,
+  ``state-managed-onnx``: forward features (and, depending on type, label history/hidden state) through an ONNX
+  model.
+* ``prefix-speech-lm-onnx``: speech LLM that is prompted with text prompts and the encoder states before
+  decoding.
 * ``encoder-decoder`` / ``encoder-only``: wrap a separate encoder (see :ref:`Encoders` below) that
   pre-processes features, combined with a decoder label scorer (or no decoder, for encoder-only models).
 * ``ctc-prefix``: wraps a time-synchronous CTC scorer and derives label-synchronous prefix scores from it
@@ -741,7 +819,7 @@ have no ``transition-preset`` of their own and always report whichever transitio
 ONNX model configuration
 ^^^^^^^^^^^^^^^^^^^^^^^^^
 
-The four ``*-onnx`` label scorers below (and the ``onnx``/``chunked-onnx`` :ref:`encoders <Encoders>` used by
+The ``*-onnx`` label scorers below (and the ``onnx``/``chunked-onnx`` :ref:`encoders <Encoders>` used by
 :ref:`encoder-decoder / encoder-only`) all wrap one or more ONNX Runtime sessions and share the same
 sub-configuration pattern for each wrapped model, under a model-specific selector (e.g. ``onnx-model`` for the
 single-model scorers):
@@ -835,7 +913,8 @@ stateful (recurrent) language model.
   the respective label types trigger a state update. Default ``false``.
 * ``max-batch-size`` (int): maximum number of hidden states forwarded through the scorer model at once. Default unbounded.
 * ``max-cached-score-vectors`` (int): size of an LRU cache mapping scoring contexts to already-computed score
-  vectors, to avoid recomputation and bound memory use on very long segments. Default ``1000``.
+  vectors, to avoid recomputation and bound memory use on very long segments. The same size is used for a second
+  cache that maps scoring contexts to their updated hidden states. Default ``10000``.
 * Default :ref:`transition-preset <Transition types and presets>`: ``lm``.
 
 .. code-block:: ini
@@ -845,6 +924,50 @@ stateful (recurrent) language model.
     state-initializer-model.session.file = /path/to/state_init.onnx
     state-updater-model.session.file     = /path/to/state_update.onnx
     scorer-model.session.file            = /path/to/scorer.onnx
+
+stateful-transducer-onnx
+^^^^^^^^^^^^^^^^^^^^^^^^^
+
+Transducer counterpart of ``stateful-onnx``: uses the same three ONNX models (state initializer, state updater,
+scorer) and the same hidden-state metadata convention, but each scoring context additionally tracks the current
+time step, and the scorer receives the input feature of that step alongside the hidden state(s). A typical use
+case is a neural transducer whose prediction network has unlimited (recurrent) context, i.e. the counterpart of
+``fixed-context-onnx`` without a fixed history window.
+
+Differences to ``stateful-onnx``:
+
+* the **state initializer** takes no inputs (in particular no encoder states), it is run once and its output is
+  reused across segments.
+* the **state updater** takes only the next ``token`` (plus the hidden state(s)), no encoder states.
+* the **scorer** takes the hidden state(s) and the ``input-feature`` of the context's current time step, with
+  shape ``[1, F]``. Since all contexts in a scorer batch share the same time step, this single feature row is
+  passed for the whole batch, so the model has to broadcast it against the ``[B, *]`` hidden states.
+
+The hidden state is updated lazily. Extending a context with a token only records the token and the state
+updater runs (batched) the next time that context is scored.
+
+* ``state-initializer-model.*`` / ``state-updater-model.*`` / ``scorer-model.*`` : as for ``stateful-onnx``.
+  Logical I/O names: ``token`` (state updater, required) and ``input-feature`` / ``scores`` (scorer, required).
+* ``blank-updates-history`` / ``silence-updates-history`` / ``loop-updates-history`` (bool): whether the
+  respective label types are fed to the state updater. Default ``false``.
+* ``vertical-label-transition`` (bool): as for ``fixed-context-onnx``, whether non-blank label transitions keep
+  the time step instead of advancing it. Default ``false``.
+* ``max-batch-size`` (int): maximum number of scoring contexts forwarded through the state updater and scorer
+  at once. Default unbounded.
+* ``max-cached-score-vectors`` (int): size of the score cache and of the hidden-state cache, as for
+  ``stateful-onnx``. Default ``10000``.
+* Default :ref:`transition-preset <Transition types and presets>`: ``transducer``.
+
+.. code-block:: ini
+
+    [*.search-algorithm.label-scorer]
+    type                                 = stateful-transducer-onnx
+    state-initializer-model.session.file = /path/to/state_init.onnx
+    state-updater-model.session.file     = /path/to/state_update.onnx
+    state-updater-model.io-map.token     = token
+    scorer-model.session.file            = /path/to/scorer.onnx
+    scorer-model.io-map.input-feature    = encoder_frame
+    scorer-model.io-map.scores           = log_probs
 
 state-managed-onnx
 ^^^^^^^^^^^^^^^^^^^^
@@ -876,6 +999,57 @@ caches (splitting/merging/rebasing state across beam search steps) without quadr
     type                    = state-managed-onnx
     onnx-model.session.file = /path/to/aed_decoder.onnx
     state-manager.type      = transformer
+
+prefix-speech-lm-onnx
+^^^^^^^^^^^^^^^^^^^^^
+
+Label scorer for speech LLMs (decoder-only LMs conditioned on speech). The LM is first prefilled with the sequence
+``[initial prompt tokens, encoder states in LM embedding space, suffix prompt tokens]``, after which the hypothesis
+tokens are scored one by one. The encoder states are usually provided by an ``encoder-decoder`` label scorer that
+wraps this one as its ``decoder``. Like ``state-managed-onnx``, the KV cache is handled by a ``StateManager``.
+
+Two ONNX models are required:
+
+* ``initializer-model.*`` : prefills the prompt. Logical I/O names: ``initial-prompt``, ``initial-prompt-length``,
+  ``encoder-states``, ``encoder-states-size``, ``suffix-prompt``, ``suffix-prompt-length`` (inputs) and
+  ``scores`` (output). Everything except ``encoder-states`` and ``scores`` is optional. The state outputs
+  are the ones declared as state variables in the step model.
+* ``step-model.*`` : extends the cached states by one token. Logical I/O names: ``token``, ``token-length``,
+  ``prefix-length`` and ``scores``, plus the state variables declared in its metadata (see
+  :ref:`ONNX model configuration`).
+
+The prompts are given either as text or directly as token ids:
+
+* ``initial-prompt`` / ``suffix-prompt`` (string): text of the prompt fed before/after the encoder states.
+  It is tokenized with the tokenizer configured in ``tokenizer.*`` (see :doc:`tokenizer`); the resulting tokens are
+  logged. Since RASR configuration values cannot contain newlines, lose leading and trailing whitespace and end at
+  ``#`` or ``"``, the escape sequences ``\n``, ``\t``, ``\r``, ``\\`` and ``\xHH`` (a byte in hex, e.g. ``\x20``
+  for a blank) are replaced before tokenization.
+* ``initial-prompt-labels`` / ``suffix-prompt-labels`` (int list): token ids of the prompt fed before/after the
+  encoder states. Can't be combined with the respective text parameter.
+* ``tokenizer.*`` : configuration of the tokenizer, only needed if a text prompt is set. Note that special tokens
+  added by the tokenizer itself (e.g. ``add-special-tokens-on-encode`` of the ``huggingface`` tokenizer) are
+  inserted into each prompt separately.
+* ``state-manager.type`` : as for ``state-managed-onnx``, typically one of the ``transformer*`` variants.
+* ``blank-updates-history`` / ``silence-updates-history`` / ``loop-updates-history`` (bool): as above. Default ``false``.
+* ``max-batch-size`` (int): maximum number of scoring contexts forwarded through the step model at once. Default unbounded.
+* ``max-cached-score-vectors`` (int): size of the score-vector cache, as for ``stateful-onnx``.
+* Default :ref:`transition-preset <Transition types and presets>`: ``lm``.
+
+.. code-block:: ini
+
+    [*.search-algorithm.label-scorer]
+    type                                    = encoder-decoder
+    encoder.type                            = onnx
+    encoder.onnx-model.session.file         = /path/to/speech_encoder.onnx
+    decoder.type                            = prefix-speech-lm-onnx
+    decoder.initializer-model.session.file  = /path/to/llm_prefill.onnx
+    decoder.step-model.session.file         = /path/to/llm_step.onnx
+    decoder.state-manager.type              = transformer
+    decoder.initial-prompt                  = <|im_start|>user\n
+    decoder.suffix-prompt                   = Transcribe the audio.<|im_end|>\n<|im_start|>assistant\n
+    decoder.tokenizer.type                  = huggingface
+    decoder.tokenizer.tokenizer-file        = /path/to/tokenizer.json
 
 encoder-decoder / encoder-only
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
@@ -1407,7 +1581,7 @@ Tuning tips
 * For ``tree-timesync-beam-search``, tune ``max-word-end-beam-size``/``word-end-score-threshold``
   independently from the within-word beam if word-end hypotheses are pruned too aggressively (or not enough)
   relative to within-word hypotheses.
-* For low-latency streaming use cases, set ``maximum-stable-delay`` to bound how many frames of output can
+* For low-latency streaming use cases, set ``maximum-stable-delay`` (see :ref:`Maximum-stable-delay pruning`) to bound how many frames of output can
   still change, at the cost of small accuracy loss versus fully offline decoding.
 * ``recombination-mode = off`` can be used to debug/compare against a search without hypothesis recombination,
   but is normally left at its default (``on``) since recombination is "free" (it never removes the best

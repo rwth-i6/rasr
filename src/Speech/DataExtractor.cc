@@ -24,7 +24,7 @@ DataExtractor::DataExtractor(const Core::Configuration& c, bool loadFromFile)
           statisticsChannel_(c, "statistics"),
           nRecordings_(0),
           nSegments_(0) {
-    setDataSource(Core::Ref<Speech::DataSource>(Speech::Module::instance().createDataSource(select("feature-extraction"), loadFromFile)));
+    setDataSource(std::shared_ptr<Speech::DataSource>(Speech::Module::instance().createDataSource(select("feature-extraction"), loadFromFile)));
     dataSource_->respondToDelayedErrors();
 }
 

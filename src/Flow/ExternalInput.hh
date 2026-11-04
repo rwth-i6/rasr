@@ -93,8 +93,8 @@ public:
     }
 
     virtual bool configure() {
-        bool                  isConfigured = network_->configure();
-        Core::Ref<Attributes> a(new Attributes());
+        bool isConfigured = network_->configure();
+        auto a            = std::make_shared<Attributes>();
         a->set("sample-rate", sampleRate_);
         a->set("sample-size", sizeof(T) * 8);
         a->set("datatype", Vector<T>::type()->name());

@@ -46,7 +46,8 @@ Class LM
 --------
 
 Class LMs are supported in two ways:
-- using a modified / mapped lexicon: set in the lexicon the syntactic token sequence to the desired class. See the description of the :ref:`Bliss Lexicon`_ format.
+
+- using a modified / mapped lexicon: set in the lexicon the syntactic token sequence to the desired class. See the description of the :ref:`Bliss Lexicon` format.
 - using a class language model, consisting of a word-to-class map (see ``classes.*``) and an ARPA format language model trained on the classes.
 
 **Configuration**
@@ -116,7 +117,7 @@ The mapping between strings (syntactic tokens as defined in the recognition lexi
 Self-normalized LM without full softmax
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
-The example above assumes that the TF graph has a layer called ``output`` and will evaluate its output every time the decoder polls for a new p(w|h). This can become costly, so a typical work-around is to train a *self-normalized* LM that can provide p(w|h) for an individual word w without evaluating the full softmax layer of size |V|. The corresponding config (a) enables network output compression and (b) defines a new output layer:
+The example above assumes that the TF graph has a layer called ``output`` and will evaluate its output every time the decoder polls for a new p(w|h). This can become costly, so a typical work-around is to train a *self-normalized* LM that can provide p(w|h) for an individual word w without evaluating the full softmax layer of size ``|V|``. The corresponding config (a) enables network output compression and (b) defines a new output layer:
 
 .. code-block :: ini
 
@@ -179,6 +180,7 @@ A typical config of the FLF node for lattice rescoring with a TF RNN LM looks e.
     verbose            = true
 
 When compiling the recognition.meta graph of a model trained with RETURNN, remember to:
+
 * sync the settings of the output layer (e.g. ``'class': 'linear', 'activation' : 'log_softmax'``) with the post-processing options (``transform-output-*``).
 * configure the recurrent layers as ``"unit": "nativelstm2", "initial_state" : "keep_over_epoch_no_init"`` .
 

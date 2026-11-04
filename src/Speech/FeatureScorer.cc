@@ -39,7 +39,7 @@ void FeatureScorer::signOn(CorpusVisitor& corpusVisitor) {
     Precursor::signOn(corpusVisitor);
 }
 
-void FeatureScorer::setDataSource(Core::Ref<DataSource> dataSource) {
+void FeatureScorer::setDataSource(std::shared_ptr<DataSource> dataSource) {
     if (!paramWeightPortName(config).empty()) {
         require(dataSource);
         weightSource_ = dataSource;

@@ -32,6 +32,18 @@ public:
         return base_->getScore(transitionType, labelIndex) * scale_;
     }
 
+    std::optional<DenseScoreSpan> getDenseScores() const override {
+        auto denseScores = base_->getDenseScores();
+        if (scale_ == 1.0 or not denseScores) {
+            return denseScores;
+        }
+
+        for (auto& term : denseScores->terms) {
+            term.scale *= scale_;
+        }
+        return denseScores;
+    }
+
     TimeframeIndex getTime() const override {
         return base_->getTime();
     }
@@ -58,8 +70,20 @@ ScaledLabelScorer::ScaledLabelScorer(Core::Configuration const& config, Core::Re
     enabledTransitions_ = scorer->enabledTransitions();
 }
 
-void ScaledLabelScorer::reset() {
-    scorer_->reset();
+Core::Ref<LabelScorer> ScaledLabelScorer::labelScorer() const {
+    return scorer_;
+}
+
+Score ScaledLabelScorer::scale() const {
+    return scale_;
+}
+
+void ScaledLabelScorer::setScale(Score scale) {
+    scale_ = scale;
+}
+
+void ScaledLabelScorer::logStatistics() const {
+    scorer_->logStatistics();
 }
 
 void ScaledLabelScorer::signalNoMoreFeatures() {
@@ -84,6 +108,10 @@ void ScaledLabelScorer::addInput(DataView const& input) {
 
 void ScaledLabelScorer::addInputs(DataView const& input, size_t nTimesteps) {
     scorer_->addInputs(input, nTimesteps);
+}
+
+void ScaledLabelScorer::reset() {
+    scorer_->reset();
 }
 
 std::optional<ScoreAccessorRef> ScaledLabelScorer::getScoreAccessor(ScoringContextRef scoringContext) {

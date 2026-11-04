@@ -49,7 +49,7 @@ bool AlignmentFromLatticeNode::setParameter(const std::string& name, const std::
 }
 
 bool AlignmentFromLatticeNode::configure() {
-    Core::Ref<Flow::Attributes> attributes(new Flow::Attributes());
+    auto attributes = std::make_shared<Flow::Attributes>();
 
     getInputAttributes(1, *attributes);
     if (!configureDatatype(attributes, Feature::FlowFeature::type())) {

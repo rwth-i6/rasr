@@ -15,9 +15,11 @@
 
 #include "PrefixSpeechLmOnnxLabelScorer.hh"
 
-#include <Nn/Module.hh>
 #include <algorithm>
 #include <unordered_set>
+
+#include <Core/XmlStream.hh>
+#include <Nn/Module.hh>
 
 #include "ScoreAccessor.hh"
 
@@ -223,15 +225,6 @@ PrefixSpeechLmOnnxLabelScorer::PrefixSpeechLmOnnxLabelScorer(Core::Configuration
     suffixPromptLabels_.insert(suffixPromptLabels_.begin(), suffixPromptLabels.begin(), suffixPromptLabels.end());
 }
 
-void PrefixSpeechLmOnnxLabelScorer::reset() {
-    Precursor::reset();
-    encoderStatesValue_     = Onnx::Value();
-    encoderStatesSizeValue_ = Onnx::Value();
-    initialContext_         = PrefixSpeechLmScoringContextRef();
-    scoreCache_.clear();
-    stateCache_.clear();
-}
-
 void PrefixSpeechLmOnnxLabelScorer::addInput(DataView const& input) {
     Precursor::addInput(input);
     encoderStatesValue_     = Onnx::Value();
@@ -281,18 +274,40 @@ ScoringContextRef PrefixSpeechLmOnnxLabelScorer::extendedScoringContext(ScoringC
     return Core::ref(new PrefixSpeechLmScoringContext(std::move(labelSeq), context->historyLength + 1ul, context));
 }
 
-std::vector<std::optional<ScoreAccessorRef>> PrefixSpeechLmOnnxLabelScorer::getScoreAccessors(std::vector<ScoringContextRef> const& scoringContexts) {
+void PrefixSpeechLmOnnxLabelScorer::resetInternal() {
+    Precursor::resetInternal();
+    initializerSessionTime_.reset();
+    stepSessionTime_.reset();
+    stateMarshallingTime_.reset();
+    contextPreparationTime_.reset();
+    encoderStatesValue_     = Onnx::Value();
+    encoderStatesSizeValue_ = Onnx::Value();
+    initialContext_         = PrefixSpeechLmScoringContextRef();
+    scoreCache_.clear();
+    stateCache_.clear();
+}
+
+std::optional<ScoreAccessorRef> PrefixSpeechLmOnnxLabelScorer::computeScoreAccessor(ScoringContextRef scoringContext) {
+    return computeScoreAccessors({scoringContext})[0];
+}
+
+std::vector<std::optional<ScoreAccessorRef>> PrefixSpeechLmOnnxLabelScorer::computeScoreAccessors(std::vector<ScoringContextRef> const& scoringContexts) {
     if (scoringContexts.empty()) {
         return {};
     }
 
     std::vector<std::optional<ScoreAccessorRef>> scoreAccessors(scoringContexts.size(), std::nullopt);
     if (expectMoreFeatures_ or bufferSize() == 0ul) {
+        countUncomputedAccessors(scoringContexts.size());
         return scoreAccessors;
     }
 
     setupInitialStates();
 
+    /*
+     * Identify unique scoring contexts that still need session runs
+     */
+    contextPreparationTime_.start();
     std::unordered_set<PrefixSpeechLmScoringContextRef, ScoringContextHash, ScoringContextEq> uniqueUncachedScoringContexts;
     for (auto const& scoringContext : scoringContexts) {
         PrefixSpeechLmScoringContextRef context(dynamic_cast<PrefixSpeechLmScoringContext const*>(scoringContext.get()));
@@ -309,7 +324,13 @@ std::vector<std::optional<ScoreAccessorRef>> PrefixSpeechLmOnnxLabelScorer::getS
         verify(not context->labelSeq.empty());  // The empty emitted-label context is scored by setupInitialStates().
         uniqueUncachedScoringContexts.emplace(context);
     }
+    contextPreparationTime_.stop();
 
+    countUncomputedAccessors(scoringContexts.size() - uniqueUncachedScoringContexts.size());
+
+    /*
+     * Fill state and score caches for all uncached scoring contexts
+     */
     std::vector<PrefixSpeechLmScoringContextRef> scoringContextBatch;
     scoringContextBatch.reserve(std::min(uniqueUncachedScoringContexts.size(), maxBatchSize_));
     for (auto const& scoringContext : uniqueUncachedScoringContexts) {
@@ -321,18 +342,19 @@ std::vector<std::optional<ScoreAccessorRef>> PrefixSpeechLmOnnxLabelScorer::getS
     }
     cacheStatesAndScores(scoringContextBatch);
 
+    /*
+     * Assign scores from cache to result vector
+     */
+    contextPreparationTime_.start();
     for (size_t i = 0ul; i < scoringContexts.size(); ++i) {
         PrefixSpeechLmScoringContextRef context(dynamic_cast<PrefixSpeechLmScoringContext const*>(scoringContexts[i].get()));
         auto                            scores = scoreCache_.get(context);
         verify(scores);
         scoreAccessors[i] = Core::ref(new VectorScoreAccessor(scores->get(), context->labelSeq.size()));
     }
+    contextPreparationTime_.stop();
 
     return scoreAccessors;
-}
-
-std::optional<ScoreAccessorRef> PrefixSpeechLmOnnxLabelScorer::getScoreAccessor(ScoringContextRef scoringContext) {
-    return getScoreAccessors({scoringContext})[0];
 }
 
 size_t PrefixSpeechLmOnnxLabelScorer::getMinActiveInputIndex(Core::CollapsedVector<ScoringContextRef> const& activeContexts) const {
@@ -421,7 +443,9 @@ void PrefixSpeechLmOnnxLabelScorer::setupInitialStates() {
     }
 
     std::vector<Onnx::Value> outputs;
+    initializerSessionTime_.start();
     initializerOnnxModel_->session.run(std::move(inputs), targets, outputs);
+    initializerSessionTime_.stop();
 
     verify(not stateVariables_.empty());
     verify_ge(outputs.size(), 2ul);
@@ -440,7 +464,9 @@ void PrefixSpeechLmOnnxLabelScorer::setupInitialStates() {
 
     std::vector<Onnx::Value> stateOutputs(std::make_move_iterator(outputs.begin() + 1), std::make_move_iterator(outputs.end()));
     std::vector<size_t>      suffixLengths{stateLength};
-    auto                     promptStates = stateManager_->splitStates(stateVariables_, suffixLengths, stateOutputs, *stateVectorFactory_);
+    stateMarshallingTime_.start();
+    auto promptStates = stateManager_->splitStates(stateVariables_, suffixLengths, stateOutputs, *stateVectorFactory_);
+    stateMarshallingTime_.stop();
 
     PrefixSpeechLmScoringContextRef parent;
     if (stateManager_->requiresAllParentStates()) {
@@ -500,7 +526,9 @@ void PrefixSpeechLmOnnxLabelScorer::cacheStatesAndScores(std::vector<PrefixSpeec
 
     std::vector<std::pair<std::string, Onnx::Value>> inputs;
     std::vector<std::string>                         targets;
+    stateMarshallingTime_.start();
     stateManager_->mergeStates(stateVariables_, prefixLengths, prefixStates, inputs, targets);
+    stateMarshallingTime_.stop();
 
     Onnx::Value tokens = Onnx::Value::createEmpty<s32>({static_cast<s64>(scoringContextBatch.size()), 1l});
     for (size_t i = 0ul; i < scoringContextBatch.size(); ++i) {
@@ -520,7 +548,9 @@ void PrefixSpeechLmOnnxLabelScorer::cacheStatesAndScores(std::vector<PrefixSpeec
     targets.emplace(targets.begin(), stepScoresName_);
 
     std::vector<Onnx::Value> outputs;
+    stepSessionTime_.start();
     stepOnnxModel_->session.run(std::move(inputs), targets, outputs);
+    stepSessionTime_.stop();
 
     for (size_t b = 0ul; b < scoringContextBatch.size(); ++b) {
         auto scores = std::make_shared<std::vector<Score>>();
@@ -530,7 +560,9 @@ void PrefixSpeechLmOnnxLabelScorer::cacheStatesAndScores(std::vector<PrefixSpeec
 
     std::vector<Onnx::Value> stateOutputs(std::make_move_iterator(outputs.begin() + 1), std::make_move_iterator(outputs.end()));
     std::vector<size_t>      suffixLengths(scoringContextBatch.size(), 1ul);
-    auto                     splitStates = stateManager_->splitStates(stateVariables_, suffixLengths, stateOutputs, *stateVectorFactory_);
+    stateMarshallingTime_.start();
+    auto splitStates = stateManager_->splitStates(stateVariables_, suffixLengths, stateOutputs, *stateVectorFactory_);
+    stateMarshallingTime_.stop();
     verify_eq(splitStates.size(), scoringContextBatch.size());
     for (size_t i = 0ul; i < scoringContextBatch.size(); ++i) {
         scoringContextBatch[i]->state = std::make_shared<HistoryState>(std::move(splitStates[i]));
@@ -539,6 +571,13 @@ void PrefixSpeechLmOnnxLabelScorer::cacheStatesAndScores(std::vector<PrefixSpeec
             scoringContextBatch[i]->parent.reset();
         }
     }
+}
+
+void PrefixSpeechLmOnnxLabelScorer::logScoringBreakdown() const {
+    statisticsChannel_ << Core::XmlFull("initializer-session-time", initializerSessionTime_.elapsedMilliseconds());
+    statisticsChannel_ << Core::XmlFull("step-session-time", stepSessionTime_.elapsedMilliseconds());
+    statisticsChannel_ << Core::XmlFull("state-marshalling-time", stateMarshallingTime_.elapsedMilliseconds());
+    statisticsChannel_ << Core::XmlFull("context-preparation-time", contextPreparationTime_.elapsedMilliseconds());
 }
 
 }  // namespace Nn

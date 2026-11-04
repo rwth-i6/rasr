@@ -392,7 +392,7 @@ public:
     }
 
     /** Put attribute set on input node of network */
-    bool putAttributes(PortId, Core::Ref<const Attributes>);
+    bool putAttributes(PortId, std::shared_ptr<const Attributes>);
     /** Inquire an attribute on an output port of the network. */
     const std::string getAttribute(PortId out, const std::string& name);
 

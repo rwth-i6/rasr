@@ -17,7 +17,20 @@
 
 #include <sstream>
 
+#include <Lm/ScaledLanguageModel.hh>
+#include <Nn/LabelScorer/ScaledLabelScorer.hh>
 #include <Python/Search.hh>
+#include <Speech/ModelCombination.hh>
+
+// Return the lanuage model
+Lm::ScaledLanguageModel* getLanguageModel(Speech::ModelCombination& modelCombination) {
+    return modelCombination.languageModel().get();
+}
+
+// Return the label scorer
+Nn::ScaledLabelScorer* getLabelScorer(Speech::ModelCombination& modelCombination, size_t index = 0) {
+    return dynamic_cast<Nn::ScaledLabelScorer*>(modelCombination.labelScorer(index).get());
+}
 
 void bindSearchAlgorithm(py::module_& module) {
     /*
@@ -56,6 +69,48 @@ void bindSearchAlgorithm(py::module_& module) {
             });
 
     /*
+     * =========================
+     * === Model Combination ===
+     * =========================
+     */
+
+    py::class_<Speech::ModelCombination> pyModelCombination(
+            module,
+            "ModelCombination",
+            "Combination of lexicon, acoustic model, label scorer and language model.");
+
+    pyModelCombination.def(
+            "label_scorer",
+            &getLabelScorer,
+            py::arg("index") = 0ul,
+            py::return_value_policy::reference_internal,
+            "Return the label scorer.");
+
+    pyModelCombination.def(
+            "language_model",
+            &getLanguageModel,
+            py::return_value_policy::reference_internal,
+            "Return the language model.");
+
+    py::class_<Lm::ScaledLanguageModel> pyScaledLanguageModel(
+            module,
+            "ScaledLanguageModel",
+            "Language model with configurable scale.");
+
+    pyScaledLanguageModel.def(
+            "set_scale",
+            [](Lm::ScaledLanguageModel& lm, Mc::Scale scale) {
+                lm.setOwnScale(scale / lm.parentScale());
+            },
+            py::arg("scale"),
+            "Set the effective LM scale, overriding the value from the config.");
+
+    pyScaledLanguageModel.def(
+            "scale",
+            &Lm::ScaledLanguageModel::scale,
+            "Return the current effective LM scale.");
+
+    /*
      * ========================
      * === Search Algorithm ===
      * ========================
@@ -79,7 +134,11 @@ void bindSearchAlgorithm(py::module_& module) {
     pySearchAlgorithm.def(
             "enter_segment",
             &SearchAlgorithm::enterSegment,
-            "Call at the beginning of a new segment.");
+            py::arg("name") = "",
+            "Call at the beginning of a new segment.\n\n"
+            "Opens a `segment` element in the log so that all messages until\n"
+            "`finish_segment()` are grouped under it. The optional `name` is only\n"
+            "used to identify the segment in the log.");
 
     pySearchAlgorithm.def(
             "finish_segment",
@@ -118,12 +177,24 @@ void bindSearchAlgorithm(py::module_& module) {
             "recognize_segment",
             &SearchAlgorithm::recognizeSegment,
             py::arg("features"),
-            "Convenience function to start a segment, pass all the features as a numpy array of shape [T, F] or [1, T, F], finish the segment, and return the recognition result.");
+            py::arg("name") = "",
+            "Convenience function to start a segment, pass all the features as a numpy array of shape [T, F] or [1, T, F], finish the segment, and return the recognition result.\n\n"
+            "The optional `name` is only used to identify the segment in the log, as in\n"
+            "`enter_segment()`.");
 
     pySearchAlgorithm.def(
             "recognize_segment_n_best",
             &SearchAlgorithm::recognizeSegmentNBest,
             py::arg("features"),
             py::arg("n"),
-            "Convenience function to start a segment, pass all the features as a numpy array of shape [T, F] or [1, T, F], finish the segment, and return a n-best list of results.");
+            py::arg("name") = "",
+            "Convenience function to start a segment, pass all the features as a numpy array of shape [T, F] or [1, T, F], finish the segment, and return a n-best list of results.\n\n"
+            "The optional `name` is only used to identify the segment in the log, as in\n"
+            "`enter_segment()`.");
+
+    pySearchAlgorithm.def(
+            "model_combination",
+            &SearchAlgorithm::modelCombination,
+            py::return_value_policy::reference_internal,
+            "Return the model combination used by the search.");
 }

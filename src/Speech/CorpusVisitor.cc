@@ -27,20 +27,20 @@ namespace Speech {
  *  DatasSource objects,
  */
 class DataSourceParameterAdaptor {
-    std::vector<Core::Ref<DataSource>>& dataSources_;
+    std::vector<std::shared_ptr<DataSource>>& dataSources_;
 
 public:
-    DataSourceParameterAdaptor(std::vector<Core::Ref<DataSource>>& dataSources)
+    DataSourceParameterAdaptor(std::vector<std::shared_ptr<DataSource>>& dataSources)
             : dataSources_(dataSources) {}
 
     void set(const std::string& name, const std::string& value) {
-        std::vector<Core::Ref<DataSource>>::iterator dataSource;
+        std::vector<std::shared_ptr<DataSource>>::iterator dataSource;
         for (dataSource = dataSources_.begin(); dataSource != dataSources_.end(); ++dataSource)
             (*dataSource)->setParameter(name, value);
     }
 
     void clear(const std::string& name) {
-        std::vector<Core::Ref<DataSource>>::iterator dataSource;
+        std::vector<std::shared_ptr<DataSource>>::iterator dataSource;
         for (dataSource = dataSources_.begin(); dataSource != dataSources_.end(); ++dataSource)
             (*dataSource)->setParameter(name, "");
     }
@@ -230,7 +230,7 @@ public:
     }
 };
 
-void setSegmentParametersOnDataSource(Core::Ref<DataSource> dataSource, Bliss::Segment* segment) {
+void setSegmentParametersOnDataSource(std::shared_ptr<DataSource> dataSource, Bliss::Segment* segment) {
     verify(segment);
     verify(dataSource.get());
     Bliss::Recording* recording = segment->recording();
@@ -244,7 +244,7 @@ void setSegmentParametersOnDataSource(Core::Ref<DataSource> dataSource, Bliss::S
         setParameter(/*segment idx*/ 0, segment, SingleDataSourceParameterAdaptor(dataSource.get()));
 }
 
-void clearSegmentParametersOnDataSource(Core::Ref<DataSource> dataSource, Bliss::Segment* segment) {
+void clearSegmentParametersOnDataSource(std::shared_ptr<DataSource> dataSource, Bliss::Segment* segment) {
     verify(segment);
     verify(dataSource.get());
 

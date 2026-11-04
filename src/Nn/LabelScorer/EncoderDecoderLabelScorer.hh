@@ -20,6 +20,7 @@
 
 #include "Encoder.hh"
 #include "LabelScorer.hh"
+#include "ScaledLabelScorer.hh"
 
 namespace Nn {
 
@@ -33,11 +34,14 @@ namespace Nn {
  */
 class EncoderDecoderLabelScorer : public LabelScorer {
 public:
-    EncoderDecoderLabelScorer(Core::Configuration const& config, Core::Ref<Encoder> const& encoder, Core::Ref<LabelScorer> const& decoder);
+    EncoderDecoderLabelScorer(Core::Configuration const& config, Core::Ref<Encoder> const& encoder, Core::Ref<ScaledLabelScorer> const& decoder);
     virtual ~EncoderDecoderLabelScorer() = default;
 
-    // Resets both encoder and decoder component
-    void reset() override;
+    // Return the decoder label scorer
+    Core::Ref<ScaledLabelScorer> getDecoderLabelScorer() const;
+
+    // Forwarded to the encoder and the decoder scorer
+    void logStatistics() const override;
 
     // Signal end of feature stream to encoder, then encode features, pass them to the decoder and
     // finally signal end of feature stream to decoder.
@@ -60,6 +64,9 @@ public:
     // Same as `addInput` but adds features for multiple timesteps at once
     void addInputs(DataView const& input, size_t nTimesteps) override;
 
+    // Resets both encoder and decoder component
+    void reset() override;
+
     // Return accessor from decoder component
     std::optional<ScoreAccessorRef> getScoreAccessor(ScoringContextRef scoringContext) override;
 
@@ -67,8 +74,8 @@ public:
     std::vector<std::optional<ScoreAccessorRef>> getScoreAccessors(std::vector<ScoringContextRef> const& scoringContexts) override;
 
 private:
-    Core::Ref<Encoder>     encoder_;
-    Core::Ref<LabelScorer> decoder_;
+    Core::Ref<Encoder>           encoder_;
+    Core::Ref<ScaledLabelScorer> decoder_;
 
     // Fetch as many outputs as possible from the encoder given its available features and pass
     // these outputs over to the decoder

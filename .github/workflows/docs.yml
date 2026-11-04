@@ -1,0 +1,57 @@
+name: docs
+on:
+  push:
+    branches:
+      - master
+  pull_request:
+    branches:
+      - master
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  pages: write
+  id-token: write
+
+concurrency:
+  group: github-pages
+  cancel-in-progress: false
+
+jobs:
+  build:
+    runs-on: ubuntu-24.04
+    steps:
+    - uses: actions/checkout@v4
+    - name: Install system dependencies
+      run: |
+        sudo apt-get update -qy
+        sudo apt-get install -y doxygen graphviz make
+    - name: Set up Python
+      uses: actions/setup-python@v5
+      with:
+        python-version: "3.x"
+        cache: pip
+        cache-dependency-path: doc/requirements.txt
+    - name: Install Python dependencies
+      run: python -m pip install -r doc/requirements.txt
+    - name: Configure GitHub Pages
+      id: pages
+      uses: actions/configure-pages@v5
+    - name: Build documentation
+      run: make -C doc html SPHINXOPTS="-D html_baseurl=${{ steps.pages.outputs.base_url }}/"
+    - name: Upload GitHub Pages artifact
+      uses: actions/upload-pages-artifact@v4
+      with:
+        path: doc/_build/html
+
+  deploy:
+    if: github.event_name != 'pull_request' && github.ref == 'refs/heads/master'
+    needs: build
+    runs-on: ubuntu-24.04
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+    - name: Deploy to GitHub Pages
+      id: deployment
+      uses: actions/deploy-pages@v4

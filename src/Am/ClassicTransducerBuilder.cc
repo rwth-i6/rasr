@@ -1129,7 +1129,7 @@ Fsa::ConstAutomatonRef ClassicTransducerBuilder::createMinimizedContextDependenc
                                              phonemes_->disambiguator(d));
 
                 // special treatment for coart (within-word) silence
-                if ((!(*ai)->boundary & Allophone::isInitialPhone) && (*ai)->central() == silenceAllophone->central() && ((*ai)->history().size() == 0)) {
+                if (!((*ai)->boundary & Allophone::isInitialPhone) && (*ai)->central() == silenceAllophone->central() && ((*ai)->history().size() == 0)) {
                     for (std::vector<Bliss::Phoneme::Id>::const_iterator p = initialCoartPhones.begin(); p != initialCoartPhones.end(); ++p) {
                         PhoneContext pc(maxHistory + maxFuture, false);
                         pc[maxHistory] = Fsa::LabelId(*p);

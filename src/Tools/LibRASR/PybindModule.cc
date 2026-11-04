@@ -15,6 +15,13 @@ PYBIND11_MODULE(librasr, m) {
     static DummyApplication app;
 
     m.doc() = "RASR python module";
+    m.def(
+            "init_logging",
+            [](Core::Configuration const& config) {
+                app.initLogging(config);
+            },
+            py::arg("config"),
+            "Initialize RASR logging from config. Call directly after importing librasr, before creating other RASR objects.");
 
     py::class_<Core::Configuration> baseConfigClass(m, "_BaseConfig");
     baseConfigClass.def("enable_logging", &Core::Configuration::enableLogging)

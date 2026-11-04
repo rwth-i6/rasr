@@ -19,6 +19,7 @@ Valid actions are:
      | ``score-file``  : output path for word scores
      | ``batch-size``  : number of sequences to process in one batch
      | ``renormalize`` : wether to renormalize the word probabiliies
+
   * Sub-components:
      | ``lexicon``     : lexicon for the languagemodel
      | ``lm``          : configuration for the :doc:`../language_model`

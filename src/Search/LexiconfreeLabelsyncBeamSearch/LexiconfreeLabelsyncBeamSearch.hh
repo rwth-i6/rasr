@@ -16,6 +16,8 @@
 #ifndef LEXICONFREE_LABELSYNC_BEAM_SEARCH_HH
 #define LEXICONFREE_LABELSYNC_BEAM_SEARCH_HH
 
+#include <optional>
+
 #include <Bliss/Lexicon.hh>
 #include <Core/Channel.hh>
 #include <Core/Parameter.hh>
@@ -34,22 +36,25 @@ namespace Search {
  * Uses a sentence-end symbol to terminate hypotheses.
  * Main purpose is open vocabulary search with AED (or similar) models.
  * Supports global pruning by max beam-size and by score difference to the best hypothesis.
- * Uses a LabelScorer to context initialization/extension and scoring.
+ * Uses one or more LabelScorers for context initialization/extension and scoring.
+ * The LabelScorers are applied one after another with intermediate pruning in-between.
  *
  * The search requires a lexicon that represents the vocabulary. Each lemma is viewed as a token with its index
  * in the lexicon corresponding to the associated output index of the label scorer.
  */
 class LexiconfreeLabelsyncBeamSearch : public SearchAlgorithmV2 {
 public:
-    static const Core::ParameterInt   paramMaxBeamSize;
-    static const Core::ParameterFloat paramScoreThreshold;
-    static const Core::ParameterInt   paramNumHistogramBins;
-
-    static const Core::ParameterInt   paramSentenceEndLabelIndex;
-    static const Core::ParameterInt   paramCacheCleanupInterval;
-    static const Core::ParameterFloat paramLengthNormScale;
-    static const Core::ParameterFloat paramMaxLabelsPerTimestep;
-    static const Core::ParameterBool  paramLogStepwiseStatistics;
+    static const Core::ParameterIntVector   paramMaxBeamSizes;
+    static const Core::ParameterFloatVector paramScoreThresholds;
+    static const Core::ParameterInt         paramNumHistogramBins;
+    static const Core::ParameterInt         paramSentenceEndLabelIndex;
+    static const Core::ParameterInt         paramCacheCleanupInterval;
+    static const Core::ParameterFloat       paramLengthNormScale;
+    static const Core::ParameterFloat       paramMaxLabelsPerTimestep;
+    static const Core::Choice               choicePruningStrategyType;
+    static const Core::ParameterChoice      paramPruningStrategyType;
+    static const Core::Choice               choiceRecombinationMode;
+    static const Core::ParameterChoice      paramRecombinationMode;
 
     LexiconfreeLabelsyncBeamSearch(Core::Configuration const&);
 
@@ -78,6 +83,7 @@ protected:
         Search::TimeframeIndex           timeframe;       // Timestamp of `nextToken` for traceback
         Nn::TransitionType               transitionType;  // Type of transition toward `nextToken`
         size_t                           baseHypIndex;    // Index of base hypothesis in global beam
+        bool                             isActive;        // Indicates whether the extension has not produced a sentence-end label yet
 
         inline Score pruningScore() const {
             return score;
@@ -92,16 +98,16 @@ protected:
      * Struct containing all information about a single hypothesis in the beam
      */
     struct LabelHypothesis {
-        Nn::ScoringContextRef   scoringContext;  // Context to compute scores based on this hypothesis
-        Nn::LabelIndex          currentToken;    // Most recent token in associated label sequence (useful to infer transition type)
-        size_t                  length;          // Number of tokens in hypothesis for length normalization
-        Score                   score;           // Full score of hypothesis
-        Score                   scaledScore;     // Length-normalized score of hypothesis
-        Core::Ref<LatticeTrace> trace;           // Associated trace for traceback or lattice building off of hypothesis
-        bool                    isActive;        // Indicates whether the hypothesis has not produced a sentence-end label yet
+        std::vector<Nn::ScoringContextRef> scoringContexts;  // Contexts to compute scores based on this hypothesis
+        Nn::LabelIndex                     currentToken;     // Most recent token in associated label sequence (useful to infer transition type)
+        size_t                             length;           // Number of tokens in hypothesis for length normalization
+        Score                              score;            // Full score of hypothesis
+        Score                              scaledScore;      // Length-normalized score of hypothesis
+        Core::Ref<LatticeTrace>            trace;            // Associated trace for traceback or lattice building off of hypothesis
+        bool                               isActive;         // Indicates whether the hypothesis has not produced a sentence-end label yet
 
         LabelHypothesis();
-        LabelHypothesis(LabelHypothesis const& base, ExtensionCandidate const& extension, Nn::ScoringContextRef const& newScoringContext, float lengthNormScale);
+        LabelHypothesis(LabelHypothesis const& base, ExtensionCandidate const& extension, std::vector<Nn::ScoringContextRef> const& newScoringContexts, float lengthNormScale);
 
         inline Score pruningScore() const {
             return scaledScore;
@@ -122,61 +128,186 @@ protected:
     };
 
 private:
-    size_t         maxBeamSize_;
-    bool           useScorePruning_;
-    Score          scoreThreshold_;
-    Histogram      scoreHistogram_;
-    float          lengthNormScale_;
-    float          maxLabelsPerTimestep_;
-    Nn::LabelIndex sentenceEndLabelIndex_;
-    bool           logStepwiseStatistics_;
-    size_t         cacheCleanupInterval_;
+    enum class HypothesisFilter {
+        Active,
+        Terminated,
+        Any,
+    };
+
+    /*
+     * `referenceScore` is the score that `relativeThreshold` is applied relative to.
+     * If unset, the best score within the pruned set is used. In `separateScorePruning`
+     * this is the best score within the respective pool.
+     */
+    struct PruningParams {
+        Score                relativeThreshold;
+        size_t               maxBeamSize;
+        std::optional<Score> referenceScore = std::nullopt;
+    };
+
+    std::vector<size_t> maxBeamSizes_;
+    std::vector<bool>   useScorePruning_;
+    std::vector<Score>  scoreThresholds_;
+    Histogram           scoreHistogram_;
+    Histogram           activeScoreHistogram_;
+    Histogram           terminatedScoreHistogram_;
+    float               lengthNormScale_;
+    float               maxLabelsPerTimestep_;
+    Nn::LabelIndex      sentenceEndLabelIndex_;
+    Core::Choice::Value pruningStrategyType_;
+    bool                recombinationEnabled_;
+    // Timing and beam statistics, per segment and per search step. Both are disabled unless a
+    // target is configured.
+    mutable Core::XmlChannel statisticsChannel_;
+    Core::XmlChannel         stepwiseStatisticsChannel_;
+    bool                     stepStatisticsOpen_ = false;
+    size_t                   cacheCleanupInterval_;
 
     Core::Channel debugChannel_;
 
-    Core::Ref<Nn::LabelScorer>   labelScorer_;
-    Bliss::LexiconRef            lexicon_;
-    std::vector<LabelHypothesis> beam_;
+    std::vector<Core::Ref<Nn::LabelScorer>> labelScorers_;
+    Bliss::LexiconRef                       lexicon_;
+    std::vector<LabelHypothesis>            beam_;
 
     // Pre-allocated intermediate vectors
+    std::vector<int>                   hypIndexToContextIndexMap_;
     std::vector<ExtensionCandidate>    extensions_;
     std::vector<LabelHypothesis>       newBeam_;
     std::vector<Nn::ScoringContextRef> scoringContexts_;
-    std::vector<LabelHypothesis>       recombinedHypotheses_;
+    std::vector<LabelHypothesis>       tempHypotheses_;
 
     Core::StopWatch initializationTime_;
     Core::StopWatch featureProcessingTime_;
-    Core::StopWatch scoringTime_;
-    Core::StopWatch contextExtensionTime_;
+    Core::StopWatch recognitionTime_;
+    /*
+     * Phases of `scoreAndPruneExtensions` per label scorer, adding up to the matching
+     * `scoreAndPruneExtensionsTimes_` entry. Scorers that compute scores lazily do that work
+     * during the score readout; the pruning phase also prepares the next scorer's contexts.
+     */
+    std::vector<Core::StopWatch> scoreAndPruneExtensionsTimes_;
+    std::vector<Core::StopWatch> scoringTimes_;
+    std::vector<Core::StopWatch> scoreReadoutTimes_;
+    std::vector<Core::StopWatch> intermediatePruningTimes_;
+    Core::StopWatch              buildNewBeamTime_;
+    Core::StopWatch              recombinationTime_;
+    Core::StopWatch              beamPruningTime_;
 
-    Core::Statistics<u32> numTerminatedHypsAfterScorePruning_;
-    Core::Statistics<u32> numTerminatedHypsAfterRecombination_;
-    Core::Statistics<u32> numTerminatedHypsAfterBeamPruning_;
-    Core::Statistics<u32> numActiveHypsAfterScorePruning_;
-    Core::Statistics<u32> numActiveHypsAfterRecombination_;
-    Core::Statistics<u32> numActiveHypsAfterBeamPruning_;
+    Core::Statistics<u32>              numInputHyps_;
+    Core::Statistics<u32>              numExtensionsAfterPrePruning_;
+    std::vector<Core::Statistics<u32>> numHypsAfterIntermediatePruning_;
+    Core::Statistics<u32>              numTerminatedHypsAfterScorePruning_;
+    Core::Statistics<u32>              numTerminatedHypsAfterRecombination_;
+    Core::Statistics<u32>              numTerminatedHypsAfterBeamPruning_;
+    Core::Statistics<u32>              numActiveHypsAfterScorePruning_;
+    Core::Statistics<u32>              numActiveHypsAfterRecombination_;
+    Core::Statistics<u32>              numActiveHypsAfterBeamPruning_;
 
     size_t currentSearchStep_;
     size_t totalTimesteps_;
     bool   finishedSegment_;
 
-    LabelHypothesis const* getBestTerminatedHypothesis() const;
-    LabelHypothesis const* getWorstTerminatedHypothesis() const;
+    template<typename Element>
+    bool matchesHypothesisFilter(Element const& element, HypothesisFilter filter) const;
 
-    LabelHypothesis const* getBestActiveHypothesis() const;
-    LabelHypothesis const* getWorstActiveHypothesis() const;
+    template<typename Element>
+    Element const* getBestHypothesis(std::vector<Element> const& elements, HypothesisFilter filter) const;
 
-    LabelHypothesis const& getBestHypothesis() const;
-    LabelHypothesis const& getWorstHypothesis() const;
+    LabelHypothesis const* getWorstHypothesis(std::vector<LabelHypothesis> const& hypotheses, HypothesisFilter filter) const;
+
+    // Overall best while preferring terminated over active hypotheses if any terminated ones exist
+    LabelHypothesis const& getOutputHypothesis(std::vector<LabelHypothesis> const& hypotheses) const;
 
     void logStatistics() const;
 
     /*
+     * Log the timing and statistics of the search itself, without the label scorers.
+     */
+    void logOwnStatistics() const;
+
+    /*
+     * Run the multi-scorer loop: create extensions from the first scorer, update scores with
+     * subsequent scorers, apply intermediate pruning after each scorer.
+     * Populates `extensions_`. Returns false if no extensions survive (decode step should abort).
+     */
+    bool scoreAndPruneExtensions();
+
+    /*
+     * Read the scores and timeframes of the current label scorer into `denseScoreSpans` and
+     * `scoreTimes`. Lazily computing scorers do their work here.
+     */
+    void readOutScoreAccessors(std::vector<std::optional<Nn::ScoreAccessorRef>> const& scoreAccessors, std::vector<std::optional<Nn::DenseScoreSpan>>& denseScoreSpans, std::vector<Nn::TimeframeIndex>& scoreTimes) const;
+
+    /*
+     * Create the extension candidates in `extensions_` from the scores of the first label scorer,
+     * pre-pruning by score while they are created.
+     */
+    void createExtensions(std::vector<std::optional<Nn::ScoreAccessorRef>> const& scoreAccessors, std::vector<std::optional<Nn::DenseScoreSpan>> const& denseScoreSpans, std::vector<Nn::TimeframeIndex> const& scoreTimes);
+
+    /*
+     * Add the scores of label scorer `scorerIdx` to the existing extension candidates.
+     */
+    void updateExtensionScores(size_t scorerIdx, std::vector<std::optional<Nn::ScoreAccessorRef>> const& scoreAccessors, std::vector<std::optional<Nn::DenseScoreSpan>> const& denseScoreSpans, std::vector<Nn::TimeframeIndex> const& scoreTimes);
+
+    /*
+     * Prune `extensions_` according to the configured pruning strategy.
+     */
+    void pruneExtensions(size_t scorerIdx, size_t maxBeamSize);
+
+    /*
+     * Collect the scoring contexts for the next label scorer into `scoringContexts_`, dropping the
+     * hypotheses whose extensions did not survive pruning.
+     */
+    void prepareNextScoringContexts(size_t scorerIdx);
+
+    /*
+     * Create new beam hypotheses from the surviving extensions in `extensions_`.
+     * Carries over terminated hypotheses from the current beam and adds new ones from extensions.
+     * Populates `newBeam_`.
+     */
+    void buildNewBeamFromExtensions();
+
+    /*
+     * Open the per-step statistics element before the first statistic of a step is written, and
+     * close it again when the step ends. A step that can't be scored yet writes nothing, so it
+     * neither opens an element nor consumes a step number.
+     */
+    void openStepStatistics();
+    void closeStepStatistics();
+
+    /*
+     * Log the per-step statistics and debug output for the current beam.
+     */
+    void logStepStatistics();
+
+    /*
+     * Apply the final score-pruning stage to `newBeam_` according to the configured pruning strategy.
+     * In `joint` mode active and terminated hypotheses are pruned against the overall best hypothesis;
+     * in `separate` mode terminated ones are pruned against the best terminated hypothesis.
+     */
+    void pruneNewBeamByScore();
+
+    /*
+     * Apply the final max-beam-size pruning stage to `newBeam_` according to the configured pruning
+     * strategy. In `separate` mode active and terminated hypotheses each get their own beam size.
+     */
+    void pruneNewBeamBySize();
+
+    /*
      * Helper function for acoustic pruning of hypotheses. Calculates an absolute threshold based on best score + relative threshold and
-     * score histogram. Removes all extensions worse than the absolute threshold.
+     * score histogram. If given, referenceScore is used instead of the best score in hypotheses for relative pruning.
+     * Removes all elements worse than the absolute threshold.
      */
     template<typename Element>
-    void scorePruning(std::vector<Element>& hypotheses, Score relativeThreshold, size_t maxBeamSize);
+    void scorePruning(std::vector<Element>& hypotheses, PruningParams const& pruningParams);
+
+    /*
+     * Score pruning applied separately for active/terminated hypotheses.
+     */
+    template<typename Element>
+    void separateScorePruning(
+            std::vector<Element>& elements,
+            PruningParams const&  activePruningParams,
+            PruningParams const&  terminatedPruningParams);
 
     /*
      * Helper function for recombination of hypotheses with the same scoring context

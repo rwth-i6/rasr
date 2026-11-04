@@ -32,8 +32,17 @@ public:
 
     ScaledLabelScorer(Core::Configuration const& config, Core::Ref<LabelScorer> const& scorer);
 
-    // Reset sub-scorer
-    void reset() override;
+    // Return the wrapped label scorer
+    Core::Ref<LabelScorer> labelScorer() const;
+
+    // Return the current scale
+    Score scale() const;
+
+    // Set the scale, overriding the value from the config
+    void setScale(Score scale);
+
+    // Forwarded to the wrapped scorer; scaling itself accumulates no statistics
+    void logStatistics() const override;
 
     // Forward signal to sub-scorer
     void signalNoMoreFeatures() override;
@@ -52,6 +61,9 @@ public:
 
     // Add inputs to sub-scorer
     virtual void addInputs(DataView const& input, size_t nTimesteps) override;
+
+    // Reset sub-scorer
+    void reset() override;
 
     // Score accessor wrapper that scales the scores
     std::optional<ScoreAccessorRef> getScoreAccessor(ScoringContextRef scoringContext) override;

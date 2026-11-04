@@ -124,7 +124,7 @@ bool TemporalPatternNode::setParameter(const std::string& name, const std::strin
 }
 
 bool TemporalPatternNode::configure() {
-    Core::Ref<Flow::Attributes> attributes(new Flow::Attributes());
+    auto attributes = std::make_shared<Flow::Attributes>();
     getInputAttributes(0, *attributes);
 
     if (!configureDatatype(attributes, Flow::Vector<Value>::type()))

@@ -7,7 +7,7 @@ find_path(
     onnxruntime_INCLUDE_DIR
     NAMES onnxruntime_cxx_api.h
     HINTS ${ONNXRUNTIME_ROOT}
-    PATH_SUFFIXES include
+    PATH_SUFFIXES include include/onnxruntime
 )
 
 find_library(

@@ -11,6 +11,8 @@ public:
     DummyApplication();
     virtual ~DummyApplication();
 
+    void initLogging(Core::Configuration const& loggingConfig);
+
     int main(std::vector<std::string> const& arguments);
 };
 

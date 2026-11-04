@@ -74,22 +74,22 @@ public:
 
 class CacheWriter : public Cached {
 private:
-    Core::ArchiveWriter   writer;
-    const Datatype*       datatype_;
-    Core::Ref<Attributes> attributes_;
+    Core::ArchiveWriter         writer;
+    const Datatype*             datatype_;
+    std::shared_ptr<Attributes> attributes_;
 
 public:
     CacheWriter(Cache* cache, const std::string& name);
     ~CacheWriter();
     void putData(Data* data);
-    void putAttributes(Core::Ref<const Attributes> a) {
+    void putAttributes(std::shared_ptr<const Attributes> a) {
         if (!attributes_)
-            attributes_ = Core::ref(new Attributes());
+            attributes_ = std::make_shared<Attributes>();
         if (a)
             attributes_->merge(*a);
     }
-    Core::Ref<Attributes> getAttributes() {
-        Core::Ref<Attributes> a = attributes_;
+    std::shared_ptr<Attributes> getAttributes() {
+        std::shared_ptr<Attributes> a = attributes_;
         attributes_.reset();
         return a;
     }

@@ -15,10 +15,12 @@
 
 #include "EncoderFactory.hh"
 
+#include <Core/Application.hh>
+
 namespace Nn {
 
 EncoderFactory::EncoderFactory()
-        : choices_(), paramEncoderType("type", &choices_, "Choice from a set of encoder types."), registry_() {}
+        : choices_(), paramEncoderType("type", &choices_, "Choice from a set of encoder types.", Core::Choice::IllegalValue), registry_() {}
 
 void EncoderFactory::registerEncoder(const char* name, CreationFunction creationFunction) {
     choices_.addChoice(name, registry_.size());
@@ -27,11 +29,21 @@ void EncoderFactory::registerEncoder(const char* name, CreationFunction creation
 
 Core::Ref<Encoder> EncoderFactory::createEncoder(Core::Configuration const& config) const {
     ModelCache tempCache;
-    return registry_.at(paramEncoderType(config))(config, tempCache);
+    return createEncoder(config, tempCache);
 }
 
 Core::Ref<Encoder> EncoderFactory::createEncoder(Core::Configuration const& config, ModelCache& modelCache) const {
-    return registry_.at(paramEncoderType(config))(config, modelCache);
+    auto type = paramEncoderType(config);
+    if (type == Core::Choice::IllegalValue) {
+        std::stringstream ss;
+        ss << "No valid encoder type defined in `" << config.getSelection() << "." << paramEncoderType.name() << "`.";
+        ss << "Possible values are: ";
+        choices_.printIdentifiers(ss);
+        Core::Application::us()->criticalError("%s", ss.str().c_str());
+        return {};
+    }
+
+    return registry_.at(type)(config, modelCache);
 }
 
 }  // namespace Nn

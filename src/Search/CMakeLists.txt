@@ -33,6 +33,7 @@ if(${MODULE_ADVANCED_TREE_SEARCH})
 endif()
 add_subdirectory(LexiconfreeLabelsyncBeamSearch)
 add_subdirectory(LexiconfreeTimesyncBeamSearch)
+add_subdirectory(TreeLabelsyncBeamSearch)
 add_subdirectory(TreeTimesyncBeamSearch)
 
 target_link_libraries(

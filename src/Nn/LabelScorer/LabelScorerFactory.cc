@@ -15,10 +15,12 @@
 
 #include "LabelScorerFactory.hh"
 
+#include <Core/Application.hh>
+
 namespace Nn {
 
 LabelScorerFactory::LabelScorerFactory()
-        : choices_(), paramLabelScorerType("type", &choices_, "Choice from a set of label scorer types."), registry_() {}
+        : choices_(), paramLabelScorerType("type", &choices_, "Choice from a set of label scorer types.", Core::Choice::IllegalValue), registry_() {}
 
 void LabelScorerFactory::registerLabelScorer(const char* name, CreationFunction creationFunction) {
     choices_.addChoice(name, registry_.size());
@@ -31,7 +33,17 @@ Core::Ref<ScaledLabelScorer> LabelScorerFactory::createLabelScorer(Core::Configu
 }
 
 Core::Ref<ScaledLabelScorer> LabelScorerFactory::createLabelScorer(Core::Configuration const& config, ModelCache& modelCache) const {
-    auto subScorer = registry_.at(paramLabelScorerType(config))(config, modelCache);
+    auto type = paramLabelScorerType(config);
+    if (type == Core::Choice::IllegalValue) {
+        std::stringstream ss;
+        ss << "No valid label scorer type defined in `" << config.getSelection() << "." << paramLabelScorerType.name() << "`.";
+        ss << "Possible values are: ";
+        choices_.printIdentifiers(ss);
+        Core::Application::us()->criticalError("%s", ss.str().c_str());
+        return {};
+    }
+
+    auto subScorer = registry_.at(type)(config, modelCache);
     return Core::ref(new ScaledLabelScorer(config, subScorer));
 }
 

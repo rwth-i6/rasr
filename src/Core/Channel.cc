@@ -21,6 +21,7 @@
 #include <iostream>
 #include <unistd.h>
 
+#include <Core/Application.hh>
 #include <Core/CompressedStream.hh>
 #include <Core/Parameter.hh>
 #include <Core/TextStream.hh>
@@ -416,6 +417,10 @@ Core::Channel::Channel(const Configuration& c, const std::string& name, Default 
         : std::ostream(0),
           isOpen_(false) {
     Configuration config(c, name);  // <- Do NOT take this as an example!
+
+    if (!Manager::us() && Application::us()) {
+        Application::us()->openLogging();
+    }
 
     if (!Manager::us()) {  // fallback when Channel::Manager is not present
         /*! \todo should prevent deletion in destructor. */

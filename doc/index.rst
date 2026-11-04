@@ -11,6 +11,7 @@ Welcome to the RASR documentation!
    common_config
    flf_nodes
    language_model
+   search_v2
    training/index
    tools/index
    file_formats/index

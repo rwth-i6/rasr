@@ -17,7 +17,7 @@
 
 namespace Nn {
 
-EncoderDecoderLabelScorer::EncoderDecoderLabelScorer(Core::Configuration const& config, Core::Ref<Encoder> const& encoder, Core::Ref<LabelScorer> const& decoder)
+EncoderDecoderLabelScorer::EncoderDecoderLabelScorer(Core::Configuration const& config, Core::Ref<Encoder> const& encoder, Core::Ref<ScaledLabelScorer> const& decoder)
         : Core::Component(config),
           LabelScorer(config),
           encoder_(encoder),
@@ -25,9 +25,21 @@ EncoderDecoderLabelScorer::EncoderDecoderLabelScorer(Core::Configuration const& 
     enabledTransitions_ = decoder_->enabledTransitions();
 }
 
-void EncoderDecoderLabelScorer ::reset() {
-    encoder_->reset();
-    decoder_->reset();
+Core::Ref<ScaledLabelScorer> EncoderDecoderLabelScorer::getDecoderLabelScorer() const {
+    return decoder_;
+}
+
+void EncoderDecoderLabelScorer::logStatistics() const {
+    encoder_->logStatistics();
+    decoder_->logStatistics();
+}
+
+void EncoderDecoderLabelScorer::signalNoMoreFeatures() {
+    encoder_->signalNoMoreFeatures();
+    // Call `passEncoderOutputsToDecoder()` before signaling segment end to the decoder since the decoder
+    // is supposed to receive all available encoder outputs before this signal
+    passEncoderOutputsToDecoder();
+    decoder_->signalNoMoreFeatures();
 }
 
 ScoringContextRef EncoderDecoderLabelScorer::getInitialScoringContext() {
@@ -52,12 +64,9 @@ void EncoderDecoderLabelScorer::addInputs(DataView const& input, size_t nTimeste
     passEncoderOutputsToDecoder();
 }
 
-void EncoderDecoderLabelScorer::signalNoMoreFeatures() {
-    encoder_->signalNoMoreFeatures();
-    // Call `passEncoderOutputsToDecoder()` before signaling segment end to the decoder since the decoder
-    // is supposed to receive all available encoder outputs before this signal
-    passEncoderOutputsToDecoder();
-    decoder_->signalNoMoreFeatures();
+void EncoderDecoderLabelScorer::reset() {
+    encoder_->reset();
+    decoder_->reset();
 }
 
 std::optional<ScoreAccessorRef> EncoderDecoderLabelScorer::getScoreAccessor(ScoringContextRef scoringContext) {

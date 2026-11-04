@@ -28,14 +28,6 @@ const Core::ParameterInt Session::paramInterOpNumThreads("inter-op-num-threads",
                                                          "number of threads to use between ops",
                                                          1);
 
-const Core::Choice Session::executionProviderChoice(
-        "cpu", ExecutionProviderType::cpu,
-        "cuda", ExecutionProviderType::cuda,
-        Core::Choice::endMark());
-
-const Core::ParameterChoice Session::paramExecutionProviderType(
-        "execution-provider-type", &Session::executionProviderChoice, "type of execution provider", ExecutionProviderType::cpu);
-
 const Core::ParameterString Session::paramStatePrefix("state-prefix",
                                                       "Prefix for the state keys in the metadata to distinguish from other metadata",
                                                       "STATE_");
@@ -49,6 +41,18 @@ const Core::ParameterBool Session::paramCudaUseTf32("cuda-use-tf32",
                                                     " (onnxruntime default: yes). Faster, but results depend slightly on e.g. the batch size."
                                                     " Disabling it requires an onnxruntime version that knows the CUDA provider option `use_tf32`",
                                                     true);
+
+const Core::Choice Session::executionProviderChoice(
+        "cpu", ExecutionProviderType::cpu,
+        "cuda", ExecutionProviderType::cuda,
+        Core::Choice::endMark());
+
+const Core::ParameterChoice Session::paramExecutionProviderType(
+        "execution-provider-type", &Session::executionProviderChoice, "type of execution provider", ExecutionProviderType::cpu);
+
+ExecutionProviderType Session::executionProviderType(Core::Configuration const& config) {
+    return static_cast<ExecutionProviderType>(paramExecutionProviderType(config));
+}
 
 Session::Session(Core::Configuration const& config)
         : Precursor(config),

@@ -23,6 +23,7 @@
 #include <cuda_runtime.h>
 
 #include <Core/Application.hh>
+#include <Nn/DummyCompressedVectorFactory.hh>
 
 namespace Onnx {
 
@@ -117,6 +118,7 @@ TransformerGpuStateManager::TransformerGpuStateManager(Core::Configuration const
         : Precursor(config),
           maxHistory_(paramMaxHistoryLength(config)),
           alwaysIncludeFirstTokenState_(paramAlwaysIncludeFirstTokenState(config)),
+          compressionWarningLogged_(false),
           pools_(paramSlotsPerChunk(config)) {
 }
 
@@ -126,7 +128,15 @@ bool TransformerGpuStateManager::requiresAllParentStates() const {
     return true;
 }
 
-TransformerGpuStateManager::HistoryState TransformerGpuStateManager::initialState(StateVariables const& vars, Nn::CompressedVectorFactory<float> const&) {
+void TransformerGpuStateManager::warnIfCompressed(Nn::CompressedVectorFactory<float> const& vectorFactory) {
+    if (not compressionWarningLogged_ and dynamic_cast<Nn::DummyCompressedVectorFactory<float> const*>(&vectorFactory) == nullptr) {
+        warning("The transformer-cuda state manager ignores the configured state-compression, its states are uncompressed floats on the device");
+        compressionWarningLogged_ = true;
+    }
+}
+
+TransformerGpuStateManager::HistoryState TransformerGpuStateManager::initialState(StateVariables const& vars, Nn::CompressedVectorFactory<float> const& vectorFactory) {
+    warnIfCompressed(vectorFactory);
     HistoryState result;
     result.reserve(vars.size());
     for (size_t v = 0ul; v < vars.size(); ++v) {
@@ -202,10 +212,10 @@ void TransformerGpuStateManager::mergeStates(StateVariables const&              
         mergeLayouts[v]    = {merged + tensorOffsets[v], layout.batchStride, layout.timeStride, layout.stepSize, layout.runLength, runOffsets.size()};
         runOffsets.insert(runOffsets.end(), layout.runOffsets.begin(), layout.runOffsets.end());
     }
-    size_t const pointerBytes = numVars * numStates * sizeof(float const*);
-    size_t const batchBytes   = numBatch * sizeof(size_t);
-    size_t const layoutBytes  = numVars * sizeof(CudaKernels::MergeLayout);
-    size_t const offsetBytes  = runOffsets.size() * sizeof(size_t);
+    size_t const      pointerBytes = numVars * numStates * sizeof(float const*);
+    size_t const      batchBytes   = numBatch * sizeof(size_t);
+    size_t const      layoutBytes  = numVars * sizeof(CudaKernels::MergeLayout);
+    size_t const      offsetBytes  = runOffsets.size() * sizeof(size_t);
     std::vector<char> hostInput(pointerBytes + 2ul * batchBytes + layoutBytes + offsetBytes);
 
     auto* statePointers = reinterpret_cast<float const**>(hostInput.data());
@@ -253,10 +263,11 @@ void TransformerGpuStateManager::mergeStates(StateVariables const&              
 }
 
 std::vector<TransformerGpuStateManager::HistoryState> TransformerGpuStateManager::splitStates(
-        StateVariables const&     vars,
-        std::vector<size_t>&      suffixLengths,
-        std::vector<Value> const& stateTensors,
-        Nn::CompressedVectorFactory<float> const&) {
+        StateVariables const&                     vars,
+        std::vector<size_t>&                      suffixLengths,
+        std::vector<Value> const&                 stateTensors,
+        Nn::CompressedVectorFactory<float> const& vectorFactory) {
+    warnIfCompressed(vectorFactory);
     require_eq(vars.size(), stateTensors.size());
 
     size_t maxSuffix = *std::max_element(suffixLengths.begin(), suffixLengths.end());

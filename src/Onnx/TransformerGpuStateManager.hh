@@ -60,6 +60,10 @@ public:
 private:
     const size_t maxHistory_;
     const bool   alwaysIncludeFirstTokenState_;
+    bool         compressionWarningLogged_;
+
+    // Warn (once) if a state compression is configured: the states stay uncompressed floats on the device
+    void warnIfCompressed(Nn::CompressedVectorFactory<float> const& vectorFactory);
 
     DeviceSlotPools pools_;             // by slot size (floats per state)
     DeviceBuffer    mergedBuffer_;      // merged state inputs of the model

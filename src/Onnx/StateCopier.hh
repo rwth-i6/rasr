@@ -18,6 +18,7 @@
 #include <vector>
 
 #include "DeviceVector.hh"
+#include "Value.hh"
 #include "StateCopyKernels.hh"
 
 namespace Onnx {
@@ -40,8 +41,14 @@ public:
     // Upload the tasks of all batches at once and launch the copies, one launch per batch
     void copy(std::vector<Batch> const& batches, CudaKernels::StateCopyDirection direction);
 
+    // Device pointers to the data of the float `tensors`. Tensors in host memory (e.g. the state outputs of an
+    // initializer model, which has no state inputs on the device) are uploaded into a staging buffer, valid until
+    // the next call
+    std::vector<float const*> deviceData(std::vector<Value> const& tensors);
+
 private:
     DeviceBuffer taskBuffer_;
+    DeviceBuffer stagingBuffer_;
 };
 
 }  // namespace Onnx

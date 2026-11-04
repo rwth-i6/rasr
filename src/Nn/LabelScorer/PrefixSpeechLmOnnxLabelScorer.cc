@@ -291,8 +291,9 @@ void PrefixSpeechLmOnnxLabelScorer::setSuffixPrompt(std::vector<s32> const& prom
 ScoringContextRef PrefixSpeechLmOnnxLabelScorer::getInitialSegmentScoringContext(SegmentId segment) {
     auto& data = segmentData(segment);
     if (not data.initialContext) {
-        data.initialContext          = Core::ref(new PrefixSpeechLmScoringContext());
-        data.initialContext->segment = segment;
+        auto context        = Core::ref(new PrefixSpeechLmScoringContext());
+        context->segment    = segment;
+        data.initialContext = context;
     }
     return data.initialContext;
 }
@@ -544,9 +545,10 @@ void PrefixSpeechLmOnnxLabelScorer::setupInitialStates(SegmentId segment) {
     if (stateManager_->requiresAllParentStates()) {
         verify_eq(promptStates.size(), stateLength);
         for (size_t i = 0ul; i + 1ul < promptStates.size(); ++i) {
-            auto state = std::make_shared<HistoryState>(std::move(promptStates[i]));
-            parent          = Core::ref(new PrefixSpeechLmScoringContext(std::vector<LabelIndex>(), i + 1ul, parent, state));
-            parent->segment = segment;
+            auto state       = std::make_shared<HistoryState>(std::move(promptStates[i]));
+            auto context     = Core::ref(new PrefixSpeechLmScoringContext(std::vector<LabelIndex>(), i + 1ul, parent, state));
+            context->segment = segment;
+            parent           = context;
         }
     }
     else {

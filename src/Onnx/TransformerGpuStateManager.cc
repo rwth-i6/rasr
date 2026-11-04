@@ -228,8 +228,6 @@ std::vector<TransformerGpuStateManager::HistoryState> TransformerGpuStateManager
         if (tensor.dataType() != ValueDataType::FLOAT) {
             criticalError("transformer-gpu state manager: state %s is not float", vars[v].output_state_key.c_str());
         }
-        // The merged state inputs are on the device, so the session puts the state outputs there as well
-        require(tensor.isOnDevice());
         size_t const         timeAxis = timeAxisOf(vars[v]);
         std::vector<int64_t> dims(tensor.numDims());
         for (int d = 0; d < tensor.numDims(); ++d) {
@@ -244,6 +242,9 @@ std::vector<TransformerGpuStateManager::HistoryState> TransformerGpuStateManager
         layouts.push_back(computeStepLayout(dims, timeAxis));
     }
 
+    // Step model outputs are on the device (their merged state inputs are), initializer outputs may be in host memory
+    std::vector<float const*> bases = copier_.deviceData(stateTensors);
+
     std::vector<HistoryState> result(sumSuffix);
     for (auto& state : result) {
         state.reserve(vars.size());
@@ -255,7 +256,7 @@ std::vector<TransformerGpuStateManager::HistoryState> TransformerGpuStateManager
         auto const& layout = layouts[v];
         batches.push_back(makeBatch(layout));
         auto&        tasks = batches.back().tasks;
-        float const* base  = stateTensors[v].rawData<float>();
+        float const* base  = bases[v];
 
         size_t const maxPrefix = static_cast<size_t>(layout.dims[layout.timeAxis]) - maxSuffix;
         size_t       outputIdx = 0ul;

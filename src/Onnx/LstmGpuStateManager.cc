@@ -22,31 +22,27 @@ namespace Onnx {
 
 namespace {
 
-cudaStream_t sharedStream() {
-    return static_cast<cudaStream_t>(Session::sharedCudaStream());
-}
-
 // Copy batch of one state variable (a state is one contiguous row of the tensor)
 StateCopier::Batch makeBatch(size_t stateSize, size_t batchSize) {
     StateCopier::Batch batch;
-    batch.blockOffsets = {0ul};
-    batch.blockSize    = stateSize;
-    batch.stepSize     = stateSize;
+    batch.runOffsets = {0ul};
+    batch.runLength  = stateSize;
+    batch.stepSize   = stateSize;
     batch.tasks.reserve(batchSize);
     return batch;
 }
 
 }  // namespace
 
-const Core::ParameterInt LstmGpuStateManager::paramBlocksPerChunk(
-        "blocks-per-chunk",
+const Core::ParameterInt LstmGpuStateManager::paramSlotsPerChunk(
+        "slots-per-chunk",
         "number of states (of one state variable each) per device memory allocation of the state pool",
         4096,
         1);
 
 LstmGpuStateManager::LstmGpuStateManager(Core::Configuration const& config)
         : Precursor(config),
-          pools_(paramBlocksPerChunk(config)) {
+          pools_(paramSlotsPerChunk(config)) {
 }
 
 LstmGpuStateManager::HistoryState LstmGpuStateManager::initialState(StateVariables const& vars, Nn::CompressedVectorFactory<float> const&) {
@@ -97,7 +93,7 @@ void LstmGpuStateManager::mergeStates(StateVariables const&                   va
             batches.back().tasks.push_back({state->deviceData(), merged + tensorOffsets[v] + b * stateSizes[v]});
         }
     }
-    copier_.copy(batches, CudaKernels::BlockCopyDirection::BlockToTensor);
+    copier_.copy(batches, CudaKernels::StateCopyDirection::StateToTensor);
 
     feed_dict.reserve(feed_dict.size() + vars.size());
     targets.reserve(targets.size() + vars.size());
@@ -142,7 +138,7 @@ std::vector<LstmGpuStateManager::HistoryState> LstmGpuStateManager::splitStates(
             batches.back().tasks.push_back({bases[v] + b * stateSizes[v], state->deviceData()});
         }
     }
-    copier_.copy(batches, CudaKernels::BlockCopyDirection::TensorToBlock);
+    copier_.copy(batches, CudaKernels::StateCopyDirection::TensorToState);
 
     // One state per batch entry, like the `lstm` state manager
     for (auto& suffixLength : suffix_lengths) {

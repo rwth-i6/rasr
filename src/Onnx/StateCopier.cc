@@ -15,6 +15,7 @@
 #include "StateCopier.hh"
 
 #include <cstring>
+#include <limits>
 
 #include <cuda_runtime.h>
 
@@ -55,6 +56,34 @@ void StateCopier::copy(std::vector<Batch> const& batches, CudaKernels::StateCopy
         deviceTaskArray += batch.tasks.size();
         deviceOffsetArray += batch.runOffsets.size();
     }
+}
+
+std::vector<float const*> StateCopier::deviceData(std::vector<Value> const& tensors) {
+    std::vector<size_t> numElements(tensors.size());
+    std::vector<size_t> stagingOffsets(tensors.size(), std::numeric_limits<size_t>::max());
+    size_t              stagingFloats = 0ul;
+    for (size_t i = 0ul; i < tensors.size(); ++i) {
+        numElements[i] = 1ul;
+        for (int d = 0; d < tensors[i].numDims(); ++d) {
+            numElements[i] *= tensors[i].dimSize(d);
+        }
+        if (not tensors[i].isOnDevice()) {
+            stagingOffsets[i] = stagingFloats;
+            stagingFloats += alignDeviceFloats(numElements[i]);
+        }
+    }
+
+    std::vector<float const*> result(tensors.size());
+    float*                    staging = stagingFloats > 0ul ? static_cast<float*>(stagingBuffer_.allocate(stagingFloats * sizeof(float))) : nullptr;
+    for (size_t i = 0ul; i < tensors.size(); ++i) {
+        result[i] = tensors[i].rawData<float>();
+        if (stagingOffsets[i] != std::numeric_limits<size_t>::max()) {
+            checkCudaStatus(cudaMemcpyAsync(staging + stagingOffsets[i], result[i], numElements[i] * sizeof(float), cudaMemcpyHostToDevice, sharedStream()),
+                            "Uploading states");
+            result[i] = staging + stagingOffsets[i];
+        }
+    }
+    return result;
 }
 
 }  // namespace Onnx

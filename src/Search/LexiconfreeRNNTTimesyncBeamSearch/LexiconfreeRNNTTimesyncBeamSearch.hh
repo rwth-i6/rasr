@@ -16,6 +16,9 @@
 #ifndef LEXICONFREE_RNNT_TIMESYNC_BEAM_SEARCH_HH
 #define LEXICONFREE_RNNT_TIMESYNC_BEAM_SEARCH_HH
 
+#include <optional>
+#include <vector>
+
 #include <Bliss/Lexicon.hh>
 #include <Core/Channel.hh>
 #include <Core/Parameter.hh>
@@ -51,7 +54,6 @@ public:
     static const Core::ParameterInt         paramBlankLabelIndex;
     static const Core::ParameterInt         paramSentenceEndLabelIndex;
     static const Core::ParameterBool        paramSentenceEndFallBack;
-    static const Core::ParameterBool        paramCollapseRepeatedLabels;
     static const Core::ParameterInt         paramCacheCleanupInterval;
     static const Core::ParameterInt         paramMaximumStableDelay;
     static const Core::ParameterInt         paramMaximumStableDelayPruningInterval;
@@ -102,7 +104,7 @@ protected:
         size_t                             length;              // Number of tokens in hypothesis for length normalization
         Score                              score;               // Full score of hypothesis
         Score                              scaledScore;         // Length-normalized score of hypothesis
-        std::vector<int>                   outputTokens;        // Previously predicted non-blank output tokens of hypothesis
+        std::vector<Nn::LabelIndex>        outputTokens;        // Previously predicted non-blank output tokens of hypothesis
         size_t                             outputTokensHash;    // Hash of `outputTokens`, updated incrementally on extension to avoid rehashing the full vector for recombination
         Core::Ref<LatticeTrace>            trace;               // Associated trace for traceback or lattice building off of hypothesis
         bool                               reachedSentenceEnd;  // Flag whether hypothesis trace contains a sentence end emission
@@ -133,7 +135,6 @@ private:
     Bliss::Lemma const* sentenceEndLemma_;
     Nn::LabelIndex      sentenceEndLabelIndex_;
     bool                sentenceEndFallback_;
-    bool                collapseRepeatedLabels_;
     size_t              cacheCleanupInterval_;
     size_t              maximumStableDelay_;
     size_t              maximumStableDelayPruningInterval_;

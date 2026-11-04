@@ -76,7 +76,7 @@ model and vocabulary you use:
   use case: attention encoder-decoder (AED) models and Speech LLMs.
 * ``lexiconfree-rnnt-timesync-beam-search``: time-synchronous decoding, no pronunciation lexicon required, for
   standard (non-monotonic) RNN-T/Transducer models where more than one non-blank label may be emitted per input
-  timestep. Typical use case: neural transducer models with an unrestricted (non-monotonic) alignment.
+  timestep.
 * ``tree-timesync-beam-search``: time-synchronous decoding over a pronunciation lexicon search tree, with a
   word-level language model. The topology of the tree itself (HMM, CTC, RNA, ...) is a separate choice,
   see :ref:`Search tree types` below.
@@ -344,8 +344,8 @@ it for that timestep) or the per-timestep label limit is reached.
   state get recombined into one instead of surviving the beam separately, and how their scores are combined if
   so. ``sum`` also requires the same output token history and merges scores via log-sum-exp. ``viterbi`` ignores
   history and just keeps the better-scoring path. ``off`` disables recombination entirely. Default ``sum``.
-* ``collapse-repeated-labels``, ``cache-cleanup-interval``, ``maximum-stable-delay``,
-  ``maximum-stable-delay-pruning-interval``: same meaning and defaults as for
+* ``cache-cleanup-interval``, ``maximum-stable-delay``, ``maximum-stable-delay-pruning-interval``: same meaning
+  and defaults as for
   ``lexiconfree-timesync-beam-search`` above.
 
 In the ``stepwise-statistics`` channel (see :ref:`Logging channels`), each ``search-step-stats`` record contains
@@ -353,11 +353,8 @@ one ``symbol-step-stats`` record per iteration of the inner loop.
 
 Like the other ``SearchV2`` algorithms, this one supports more than one label scorer at once (see
 :ref:`Multiple label scorers and per-stage parameters`), applied one after another within each symbol step with
-intermediate ``score-threshold``/``max-beam-size`` pruning in between. One exception is that the blank extension
-candidates (one per active hypothesis, not one per vocabulary token like the non-blank ones) are never pruned
-after the *first* label scorer -- with only one candidate per hypothesis there is nothing to gain from an
-intermediate cut there. They are still scored by every configured label scorer, and pruned like the non-blank
-extensions from the second scorer onward.
+intermediate ``score-threshold``/``max-beam-size`` pruning in between. The blank extensions (one per active
+hypothesis) are the exception: they are not pruned after the first label scorer, only from the second onward.
 
 Every configured label scorer should have ``vertical-label-transition = true`` set (where that parameter is
 available, e.g. :ref:`fixed-context-onnx`), so that its internal notion of time only advances on blank.

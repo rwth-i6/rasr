@@ -16,16 +16,16 @@
 #include "LexiconfreeRNNTTimesyncBeamSearch.hh"
 
 #include <algorithm>
-#include <strings.h>
+#include <cmath>
+#include <sstream>
+#include <unordered_map>
 
 #include <Core/CollapsedVector.hh>
 #include <Core/XmlStream.hh>
 #include <Lattice/LatticeAdaptor.hh>
 #include <Math/Utilities.hh>
-#include <Nn/LabelScorer/LabelScorer.hh>
-#include <Nn/LabelScorer/ScoringContext.hh>
+#include <Search/Helpers.hh>
 #include <Search/StableDelayPruning.hh>
-#include <Search/Traceback.hh>
 #include <Search/TracebackHelper.hh>
 
 namespace Search {
@@ -66,37 +66,28 @@ LexiconfreeRNNTTimesyncBeamSearch::LabelHypothesis::LabelHypothesis(
           currentToken(extension.nextToken),
           length(base.length),
           score(extension.score),
-          scaledScore(score / std::pow(length, lengthNormScale)),
+          scaledScore(),
           outputTokens(base.outputTokens),
           outputTokensHash(base.outputTokensHash),
           trace(),
           reachedSentenceEnd(base.reachedSentenceEnd or extension.transitionType == Nn::SENTENCE_END) {
-    // In an inner hyp (a non-blank label was predicted):
-    // increment length, update the scaled score,
-    // append new label to the vector of predicted labels and fold it into the running hash of that vector
+    // If a non-blank label was predicted, increment length, append the label to the predicted labels
+    // and fold it into the running hash of them
     switch (extension.transitionType) {
         case Nn::INITIAL_LABEL:
         case Nn::LABEL_TO_LABEL:
         case Nn::BLANK_TO_LABEL:
             length += 1;
-            scaledScore = score / std::pow(length, lengthNormScale);
             outputTokens.push_back(currentToken);
-            outputTokensHash = Core::combineHashes(outputTokensHash, std::hash<uint32_t>()(outputTokens.back()));
+            outputTokensHash = Core::combineHashes(outputTokensHash, std::hash<Nn::LabelIndex>()(currentToken));
             break;
         default:
             break;
     }
+    scaledScore = score / std::pow(length, lengthNormScale);
 
-    Core::Ref<LatticeTrace> predecessor;
-    switch (extension.transitionType) {
-        case Nn::TransitionType::LABEL_LOOP:
-        case Nn::TransitionType::BLANK_LOOP:
-            predecessor = base.trace->predecessor;
-            break;
-        default:
-            predecessor = base.trace;
-            break;
-    }
+    // A blank loop extends the current blank item instead of appending a new one
+    auto predecessor = extension.transitionType == Nn::TransitionType::BLANK_LOOP ? base.trace->predecessor : base.trace;
 
     // Only blank consumes the frame, labels are emitted within it
     auto timeframe = extension.timeframe;
@@ -132,9 +123,9 @@ std::string LexiconfreeRNNTTimesyncBeamSearch::LabelHypothesis::toString() const
 }
 
 /*
- * =====================================
+ * =========================================
  * === LexiconfreeRNNTTimesyncBeamSearch ===
- * =====================================
+ * =========================================
  */
 
 const Core::ParameterIntVector LexiconfreeRNNTTimesyncBeamSearch::paramMaxBeamSizes(
@@ -178,13 +169,8 @@ const Core::ParameterInt LexiconfreeRNNTTimesyncBeamSearch::paramSentenceEndLabe
 
 const Core::ParameterBool LexiconfreeRNNTTimesyncBeamSearch::paramSentenceEndFallBack(
         "sentence-end-fall-back",
-        "Allow for fallback solution if no active word-end hypothesis exists at the end of a segment.",
+        "Keep the beam as-is instead of producing an empty hypothesis if no hypothesis has reached sentence-end by the end of a segment.",
         true);
-
-const Core::ParameterBool LexiconfreeRNNTTimesyncBeamSearch::paramCollapseRepeatedLabels(
-        "collapse-repeated-labels",
-        "Collapse repeated emission of the same label into one output. If false, every emission is treated like a new output.",
-        false);
 
 const Core::ParameterInt LexiconfreeRNNTTimesyncBeamSearch::paramCacheCleanupInterval(
         "cache-cleanup-interval",
@@ -229,7 +215,6 @@ LexiconfreeRNNTTimesyncBeamSearch::LexiconfreeRNNTTimesyncBeamSearch(Core::Confi
           sentenceEndLemma_(),
           sentenceEndLabelIndex_(paramSentenceEndLabelIndex(config)),
           sentenceEndFallback_(paramSentenceEndFallBack(config)),
-          collapseRepeatedLabels_(paramCollapseRepeatedLabels(config)),
           cacheCleanupInterval_(paramCacheCleanupInterval(config)),
           maximumStableDelay_(paramMaximumStableDelay(config)),
           maximumStableDelayPruningInterval_(paramMaximumStableDelayPruningInterval(config)),
@@ -653,16 +638,13 @@ bool LexiconfreeRNNTTimesyncBeamSearch::decodeStep() {
 
     // Prune all hyps of this timestep at the end of this timestep based on the length-normalized score
     beamPruningTime_.start();
-    if (useScorePruning_[labelScorers_.size() - 1]) {
-        // convert score-threshold to an equivalent length-normalized-score gap using the current best hypothesis's length
-        Score relativeThreshold = scoreThresholds_[labelScorers_.size() - 1];
-        if (lengthNormScale_ != 0.0f and not outerHyps_.empty()) {
-            auto const& bestHyp = *std::min_element(outerHyps_.begin(), outerHyps_.end());
-            relativeThreshold /= std::pow(bestHyp.length, lengthNormScale_);
-        }
-        scorePruning(outerHyps_, relativeThreshold, outerHyps_.size(), [](auto const& hyp) { return hyp.scaledScore; });
+    Score relativeThreshold = scoreThresholds_[labelScorers_.size() - 1];
+    if (useScorePruning_[labelScorers_.size() - 1] and lengthNormScale_ != 0.0f and not outerHyps_.empty()) {
+        // Convert score-threshold to an equivalent length-normalized-score gap using the current best hypothesis's length
+        auto const& bestHyp = *std::min_element(outerHyps_.begin(), outerHyps_.end());
+        relativeThreshold /= std::pow(bestHyp.length, lengthNormScale_);
     }
-    scorePruning(outerHyps_, Core::Type<Score>::max, maxBeamSizes_[labelScorers_.size() - 1], [](auto const& hyp) { return hyp.scaledScore; });
+    scorePruning(outerHyps_, relativeThreshold, maxBeamSizes_[labelScorers_.size() - 1], [](auto const& hyp) { return hyp.scaledScore; });
     beamPruningTime_.stop();
     numHypsAfterPruning_ += outerHyps_.size();
     if (stepwiseStatisticsChannel_.isOpen()) {
@@ -789,9 +771,6 @@ Nn::TransitionType LexiconfreeRNNTTimesyncBeamSearch::inferTransitionType(Nn::La
         if (nextIsBlank) {
             return Nn::TransitionType::LABEL_TO_BLANK;
         }
-        else if (collapseRepeatedLabels_ and prevLabel == nextLabel) {
-            return Nn::TransitionType::LABEL_LOOP;
-        }
         else if (nextIsSentenceEnd) {
             return Nn::TransitionType::SENTENCE_END;
         }
@@ -818,18 +797,19 @@ void LexiconfreeRNNTTimesyncBeamSearch::createBlankExtensions(std::vector<std::o
         }
 
         extensions_.push_back(
-                {blankLabelIndex_,
-                 blankLemma_ ? static_cast<Bliss::LemmaPronunciation const*>(blankLemma_->pronunciations().first) : nullptr,
-                 extScore,
-                 (*scoreAccessor)->getTime(),
-                 transitionType,
-                 hypIndex});
+                {.nextToken      = blankLabelIndex_,
+                 .pron           = blankLemma_ ? static_cast<Bliss::LemmaPronunciation const*>(blankLemma_->pronunciations().first) : nullptr,
+                 .score          = extScore,
+                 .timeframe      = (*scoreAccessor)->getTime(),
+                 .transitionType = transitionType,
+                 .baseHypIndex   = hypIndex});
     }
 }
 
 void LexiconfreeRNNTTimesyncBeamSearch::createExtensions(std::vector<std::optional<Nn::ScoreAccessorRef>> const& scoreAccessors) {
     // Assume the output labels are stored as lexicon lemma orth and ordered consistently with NN output index
-    auto lemmas = lexicon_->lemmas();
+    auto  lemmas           = lexicon_->lemmas();
+    Score currentBestScore = Core::Type<Score>::max;
 
     extensions_.clear();
     for (size_t hypIndex = 0ul; hypIndex < innerHyps_.size(); ++hypIndex) {
@@ -862,13 +842,19 @@ void LexiconfreeRNNTTimesyncBeamSearch::createExtensions(std::vector<std::option
                                     : (*scoreAccessor)->getScore(transitionType, tokenIdx);
             }
 
+            // Pre-prune based on score before creating extension instance and appending to list
+            if (useScorePruning_.front() and extScore > currentBestScore + scoreThresholds_.front()) {
+                continue;
+            }
+            currentBestScore = std::min(currentBestScore, extScore);
+
             extensions_.push_back(
-                    {tokenIdx,
-                     lemma->pronunciations().first,
-                     extScore,
-                     scoreTime,
-                     transitionType,
-                     hypIndex});
+                    {.nextToken      = tokenIdx,
+                     .pron           = lemma->pronunciations().first,
+                     .score          = extScore,
+                     .timeframe      = scoreTime,
+                     .transitionType = transitionType,
+                     .baseHypIndex   = hypIndex});
         }
     }
 }
@@ -1038,10 +1024,8 @@ void LexiconfreeRNNTTimesyncBeamSearch::recombination(std::vector<LexiconfreeRNN
         return;
     }
 
-    // Unique combination of currentToken, scoringContexts and, in sum mode only, outputTokens (sum mode merges
-    // by summing probabilities, which is only valid for hyps with the same output label sequence, while Viterbi
-    // mode just keeps the better hyp, so it stays exact without that check and gets more merges by skipping it).
-    // Points at a LabelHypothesis instead of copying it, to avoid copying/rehashing the growing outputTokens.
+    // Unique combination of currentToken, scoringContexts and, in sum mode only, outputTokens, since summing
+    // probabilities is only valid for the same output label sequence. Points at a hyp to avoid copying outputTokens.
     struct RecombinationContext {
         LabelHypothesis const* hyp;
         bool                   ignoreOutputTokens;
@@ -1102,10 +1086,9 @@ void LexiconfreeRNNTTimesyncBeamSearch::recombination(std::vector<LexiconfreeRNN
             auto* existingHyp = it->second;
 
             // In sum mode, merge scores in probability space (log-sum-exp of the two path scores)
-            // Numerically stable form: min(a, b) - log1p(exp(-|a - b|)), which is <= min(a, b)
             // In viterbi mode, no merging happens, the better hyp's own score is kept as-is
             bool  mergeScores = recombinationMode_ == RecombinationModeSum;
-            Score mergedScore = mergeScores ? std::min(existingHyp->score, hyp.score) - std::log1p(std::exp(-std::fabs(existingHyp->score - hyp.score))) : 0.0f;
+            Score mergedScore = mergeScores ? scaledLogAdd(existingHyp->score, hyp.score, 1.0f, 1.0f) : 0.0f;
 
             if (hyp.score < existingHyp->score) {
                 // New hyp is better -> keep it as representative and add existing one as sibling
@@ -1121,47 +1104,12 @@ void LexiconfreeRNNTTimesyncBeamSearch::recombination(std::vector<LexiconfreeRNN
             if (mergeScores) {
                 // Recompute scaled score from the merged score
                 existingHyp->score       = mergedScore;
-                const auto len           = std::max<std::size_t>(1, existingHyp->length);
-                existingHyp->scaledScore = existingHyp->score / std::pow(static_cast<double>(len), static_cast<double>(lengthNormScale_));
+                existingHyp->scaledScore = mergedScore / std::pow(existingHyp->length, lengthNormScale_);
             }
         }
     }
 
     hypotheses.swap(tempHypotheses_);
-}
-
-void LexiconfreeRNNTTimesyncBeamSearch::maximumStableDelayPruning() {
-    if (currentSearchStep_ + 1 <= maximumStableDelay_) {
-        return;
-    }
-
-    auto cutoff  = currentSearchStep_ + 1 - maximumStableDelay_;
-    auto isPause = [this](Bliss::Lemma const* lemma) {
-        return lemma and lemma == blankLemma_;
-    };
-
-    std::vector<StableDelayPruning::Hypothesis> hyps;
-    hyps.reserve(beam_.size());
-    for (auto& hyp : beam_) {
-        // A blank head trace is replaced by a copy with a later end time on the next blank loop
-        bool                traceIsOpen = hyp.currentToken == blankLabelIndex_;
-        Bliss::Lemma const* lemma       = (traceIsOpen and hyp.trace->pronunciation) ? hyp.trace->pronunciation->lemma() : nullptr;
-        hyps.push_back({&hyp.trace, traceIsOpen, isPause(lemma) ? lemma : nullptr, hyp.score});
-    }
-
-    StableDelayPruning pruning(cutoff, isPause);
-    std::vector<bool>  keep;
-    if (not pruning.apply(hyps, keep)) {
-        warning() << "Most recent label in best hypothesis is before cutoff point for maximum-stable-delay-pruning so the limit will be surpassed";
-    }
-
-    tempHypotheses_.clear();
-    for (size_t hypIndex = 0ul; hypIndex < beam_.size(); ++hypIndex) {
-        if (keep[hypIndex]) {
-            tempHypotheses_.push_back(beam_[hypIndex]);
-        }
-    }
-    beam_.swap(tempHypotheses_);
 }
 
 void LexiconfreeRNNTTimesyncBeamSearch::openStepStatistics() {
@@ -1251,6 +1199,40 @@ void LexiconfreeRNNTTimesyncBeamSearch::finalizeHypotheses() {
         stepwiseStatisticsChannel_ << Core::XmlFull("worst-hyp-score", getWorstHypothesis().score);
         stepwiseStatisticsChannel_ << Core::XmlClose("final-beam-stats");
     }
+}
+
+void LexiconfreeRNNTTimesyncBeamSearch::maximumStableDelayPruning() {
+    if (currentSearchStep_ + 1 <= maximumStableDelay_) {
+        return;
+    }
+
+    auto cutoff  = currentSearchStep_ + 1 - maximumStableDelay_;
+    auto isPause = [this](Bliss::Lemma const* lemma) {
+        return lemma and lemma == blankLemma_;
+    };
+
+    std::vector<StableDelayPruning::Hypothesis> hyps;
+    hyps.reserve(beam_.size());
+    for (auto& hyp : beam_) {
+        // A blank head trace is replaced by a copy with a later end time on the next blank loop
+        bool                traceIsOpen = hyp.currentToken == blankLabelIndex_;
+        Bliss::Lemma const* lemma       = (traceIsOpen and hyp.trace->pronunciation) ? hyp.trace->pronunciation->lemma() : nullptr;
+        hyps.push_back({&hyp.trace, traceIsOpen, isPause(lemma) ? lemma : nullptr, hyp.score});
+    }
+
+    StableDelayPruning pruning(cutoff, isPause);
+    std::vector<bool>  keep;
+    if (not pruning.apply(hyps, keep)) {
+        warning() << "Most recent label in best hypothesis is before cutoff point for maximum-stable-delay-pruning so the limit will be surpassed";
+    }
+
+    tempHypotheses_.clear();
+    for (size_t hypIndex = 0ul; hypIndex < beam_.size(); ++hypIndex) {
+        if (keep[hypIndex]) {
+            tempHypotheses_.push_back(beam_[hypIndex]);
+        }
+    }
+    beam_.swap(tempHypotheses_);
 }
 
 }  // namespace Search

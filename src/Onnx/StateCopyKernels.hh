@@ -48,6 +48,38 @@ cudaError_t launchStateCopy(StateCopyTask const* tasks,
                             StateCopyDirection   direction,
                             cudaStream_t         stream);
 
+/*
+ * Layout of the merged tensor of one state variable in `launchStateMerge`: the time step `t` of batch entry `b`
+ * starts at `tensor + b * batchStride + t * timeStride` and consists of `stepSize / runLength` contiguous runs of
+ * `runLength` floats at `runOffsets[runOffsetsStart + i]` (relative to the start of the time step).
+ */
+struct MergeLayout {
+    float* tensor;
+    size_t batchStride;
+    size_t timeStride;
+    size_t stepSize;
+    size_t runLength;
+    size_t runOffsetsStart;
+};
+
+/*
+ * Merge the states of all state variables into their left-padded tensors in one launch, without a separate memset.
+ * Batch entry `b` has `prefixLengths[b]` states, right-aligned to `maxPrefix`; the time steps before them are zeroed.
+ * The state of variable `v`, batch entry `b`, prefix position `p` is `states[v * numStates + batchStarts[b] + p]`
+ * (`numStates` = sum of the prefix lengths). All arrays are device pointers.
+ * Requires `numBatch` and `numVars` <= 65535 (grid dimensions).
+ */
+cudaError_t launchStateMerge(float const* const* states,
+                             size_t const*       prefixLengths,
+                             size_t const*       batchStarts,
+                             MergeLayout const*  layouts,
+                             size_t const*       runOffsets,
+                             size_t              numStates,
+                             size_t              maxPrefix,
+                             size_t              numBatch,
+                             size_t              numVars,
+                             cudaStream_t        stream);
+
 }  // namespace CudaKernels
 }  // namespace Onnx
 

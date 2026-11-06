@@ -31,6 +31,7 @@
 
 #ifdef MODULE_ONNX
 #include <Onnx/OnnxStateVariable.hh>
+#include <Onnx/Session.hh>
 #include <Onnx/Value.hh>
 #endif
 
@@ -90,8 +91,11 @@ public:
     /*
      * Create an ONNX recurrent state manager for LSTM and transformer-style
      * autoregressive models.
+     * `sessionExecutionProvider` is the execution provider of the session whose states are managed (see
+     * `Onnx::Session::executionProviderType`). The type `transformer` uses it to choose between the CPU and the CUDA version.
      */
-    std::unique_ptr<AbstractStateManager<Onnx::Value, Onnx::OnnxStateVariable>> createStateManager(Core::Configuration const& config);
+    std::unique_ptr<AbstractStateManager<Onnx::Value, Onnx::OnnxStateVariable>> createStateManager(Core::Configuration const&   config,
+                                                                                                   Onnx::ExecutionProviderType sessionExecutionProvider);
 #endif
 
 private:

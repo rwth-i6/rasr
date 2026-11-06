@@ -54,6 +54,10 @@ private:
     DeviceSlotPools pools_;         // by state size (floats per state)
     DeviceBuffer    mergedBuffer_;  // merged state inputs of the model
     StateCopier     copier_;
+    bool            compressionWarningLogged_;
+
+    // Warn (once) if a state compression is configured: the states stay uncompressed floats on the device
+    void warnIfCompressed(Nn::CompressedVectorFactory<float> const& vectorFactory);
 };
 
 }  // namespace Onnx

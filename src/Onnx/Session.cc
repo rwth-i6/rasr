@@ -36,6 +36,10 @@ const Core::Choice Session::executionProviderChoice(
 const Core::ParameterChoice Session::paramExecutionProviderType(
         "execution-provider-type", &Session::executionProviderChoice, "type of execution provider", ExecutionProviderType::cpu);
 
+ExecutionProviderType Session::executionProviderType(Core::Configuration const& config) {
+    return static_cast<ExecutionProviderType>(paramExecutionProviderType(config));
+}
+
 const Core::ParameterString Session::paramStatePrefix("state-prefix",
                                                       "Prefix for the state keys in the metadata to distinguish from other metadata",
                                                       "STATE_");

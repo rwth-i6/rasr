@@ -164,7 +164,9 @@ StateManagedOnnxLabelScorer::StateManagedOnnxLabelScorer(Core::Configuration con
           maxBatchSize_(paramMaxBatchSize(config)),
           maxCachedScores_(paramMaxCachedScores(config)),
           stackEncoderStates_(paramStackEncoderStates(config)),
-          stateManager_(Module::instance().createStateManager(select("state-manager"))),
+          stateManager_(Module::instance().createStateManager(
+                  select("state-manager"),
+                  Onnx::Session::executionProviderType(Core::Configuration(Core::Configuration(config, "onnx-model"), "session")))),
           stateVectorFactory_(Module::instance().createCompressedVectorFactory(select("state-compression"))),
           segmentData_() {
     Core::Configuration modelConfig(config, "onnx-model");

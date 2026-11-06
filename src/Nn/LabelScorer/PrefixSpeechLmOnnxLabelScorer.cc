@@ -196,7 +196,9 @@ PrefixSpeechLmOnnxLabelScorer::PrefixSpeechLmOnnxLabelScorer(Core::Configuration
           loopUpdatesHistory_(paramLoopUpdatesHistory(config)),
           maxBatchSize_(paramMaxBatchSize(config)),
           maxCachedScores_(paramMaxCachedScores(config)),
-          stateManager_(Module::instance().createStateManager(select("state-manager"))),
+          stateManager_(Module::instance().createStateManager(
+                  select("state-manager"),
+                  Onnx::Session::executionProviderType(Core::Configuration(Core::Configuration(config, "step-model"), "session")))),
           stateVectorFactory_(Module::instance().createCompressedVectorFactory(select("state-compression"))),
           segmentData_() {
     Core::Configuration initializerModelConfig(config, "initializer-model");

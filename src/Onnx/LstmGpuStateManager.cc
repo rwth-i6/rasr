@@ -16,6 +16,8 @@
 
 #include <cuda_runtime.h>
 
+#include <Nn/DummyCompressedVectorFactory.hh>
+
 #include "Session.hh"
 
 namespace Onnx {
@@ -42,10 +44,19 @@ const Core::ParameterInt LstmGpuStateManager::paramSlotsPerChunk(
 
 LstmGpuStateManager::LstmGpuStateManager(Core::Configuration const& config)
         : Precursor(config),
-          pools_(paramSlotsPerChunk(config)) {
+          pools_(paramSlotsPerChunk(config)),
+          compressionWarningLogged_(false) {
 }
 
-LstmGpuStateManager::HistoryState LstmGpuStateManager::initialState(StateVariables const& vars, Nn::CompressedVectorFactory<float> const&) {
+void LstmGpuStateManager::warnIfCompressed(Nn::CompressedVectorFactory<float> const& vectorFactory) {
+    if (not compressionWarningLogged_ and dynamic_cast<Nn::DummyCompressedVectorFactory<float> const*>(&vectorFactory) == nullptr) {
+        warning("The lstm-cuda state manager ignores the configured state-compression, its states are uncompressed floats on the device");
+        compressionWarningLogged_ = true;
+    }
+}
+
+LstmGpuStateManager::HistoryState LstmGpuStateManager::initialState(StateVariables const& vars, Nn::CompressedVectorFactory<float> const& vector_factory) {
+    warnIfCompressed(vector_factory);
     HistoryState result;
     result.reserve(vars.size());
     for (auto const& var : vars) {
@@ -109,6 +120,7 @@ std::vector<LstmGpuStateManager::HistoryState> LstmGpuStateManager::splitStates(
         std::vector<size_t>&                      suffix_lengths,
         std::vector<Value> const&                 state_tensors,
         Nn::CompressedVectorFactory<float> const& vector_factory) {
+    warnIfCompressed(vector_factory);
     require_eq(vars.size(), state_tensors.size());
     size_t const batchSize = suffix_lengths.size();
 

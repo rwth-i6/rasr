@@ -178,13 +178,17 @@ const Core::ParameterBool ChunkedOnnxEncoder::paramZeroPadding(
         "If set, add zero-padding features at beginning and end of segment so that these chunks have the same total size as the others.",
         false);
 
-const Core::ParameterBool ChunkedOnnxEncoder::paramKeepTrailingOutputs(
-        "keep-trailing-outputs",
-        "If set, the last chunk of a segment also emits the outputs whose associated input start lies at or beyond the last input feature. "
-        "An encoder that pads its input internally (e.g. a causal subsampling stack with offline padding) computes these from that padding, "
-        "and offline decoding of the same model sees them; without this they are dropped because no input range can be associated with them. "
-        "Their input range is clamped to the last input feature.",
-        false);
+const Core::Choice ChunkedOnnxEncoder::chunkAlignmentChoice(
+        "left-aligned", ChunkAlignment::LeftAligned,
+        "right-aligned", ChunkAlignment::RightAligned,
+        Core::Choice::endMark());
+
+const Core::ParameterChoice ChunkedOnnxEncoder::paramChunkAlignment(
+        "chunk-alignment",
+        &chunkAlignmentChoice,
+        "Center of chunk i starts at input feature i * step-size (left-aligned) or ends with it (right-aligned, for causal encoders; "
+        "also keeps the outputs past the segment end).",
+        ChunkAlignment::LeftAligned);
 
 const Core::Choice ChunkedOnnxEncoder::windowTypeChoice(
         "none", WindowType::None,
@@ -219,20 +223,35 @@ ChunkedOnnxEncoder::ChunkedOnnxEncoder(Core::Configuration const& config, Nn::Mo
           leftPadding_(paramLeftPadding(config)),
           rightPadding_(paramRightPadding(config)),
           zeroPadding_(paramZeroPadding(config)),
-          keepTrailingOutputs_(paramKeepTrailingOutputs(config)),
+          chunkAlignment_(static_cast<ChunkAlignment>(paramChunkAlignment(config))),
+          outputGridStep_(inputStepSize_ != 0ul ? inputStepSize_ : inputsPerOutput_),
           interpolationMode_(static_cast<InterpolationMode>(paramInterpolationMode(config))),
-          chunkCenterStart_(0ul),
+          chunkCenterEnd_(firstChunkCenterEnd()),
           numDiscardedFeatures_(0ul),
           pendingOutputs_() {
     if (inputsPerOutput_ > chunkSize_) {
         error("Chunk size must be large enough to produce at least one output");
+    }
+    if (chunkAlignment_ == ChunkAlignment::RightAligned) {
+        if (outputGridStep_ == 0ul) {
+            error("Right-aligned chunks require input-step-size or inputs-per-output to be set");
+        }
+        else if (stepSize_ % outputGridStep_ != 0ul) {
+            error("Right-aligned chunks require step-size to be a multiple of input-step-size (or inputs-per-output)");
+        }
+        if (zeroPadding_) {
+            error("Right-aligned chunks do not support zero-padding as prepended zeros would shift the output grid");
+        }
+        if (not stateVariables_.empty()) {
+            error("Right-aligned chunks do not support models with state variables since sessions overlap");
+        }
     }
     initWindow(static_cast<WindowType>(paramWindowType(config)));
 }
 
 void ChunkedOnnxEncoder::reset() {
     Precursor::reset();
-    chunkCenterStart_     = 0ul;
+    chunkCenterEnd_       = firstChunkCenterEnd();
     numDiscardedFeatures_ = 0ul;
     pendingOutputs_.clear();
 }
@@ -241,10 +260,10 @@ bool ChunkedOnnxEncoder::canEncode() const {
     size_t availableEnd = numDiscardedFeatures_ + inputBuffer_.size();
 
     if (not expectMoreFeatures_) {
-        return availableEnd > chunkCenterStart_;
+        return availableEnd > chunkCenterStart();
     }
 
-    return availableEnd >= chunkCenterStart_ + chunkSize_ + rightPadding_;
+    return availableEnd >= chunkCenterEnd_ + rightPadding_;
 }
 
 void ChunkedOnnxEncoder::encode() {
@@ -252,17 +271,18 @@ void ChunkedOnnxEncoder::encode() {
 
     // Figure out which inputs need to be supplied to the session and which parts belong to the chunk center
     // If zero-padding is enabled, also count how many zero-features need to be prepended or appended to the session input
-    size_t chunkStart     = chunkCenterStart_ > leftPadding_ ? chunkCenterStart_ - leftPadding_ : 0ul;
-    size_t chunkCenterEnd = std::min(chunkCenterStart_ + chunkSize_, availableEnd);
-    size_t chunkEnd       = std::min(chunkCenterEnd + rightPadding_, availableEnd);
+    size_t centerStart      = chunkCenterStart();
+    size_t chunkStart       = sessionStart(centerStart);
+    size_t clippedCenterEnd = std::min(chunkCenterEnd_, availableEnd);
+    size_t chunkEnd         = std::min(clippedCenterEnd + rightPadding_, availableEnd);
 
     size_t prependZeroCount = 0ul;
-    if (zeroPadding_ and leftPadding_ > chunkCenterStart_ - chunkStart) {
-        prependZeroCount = leftPadding_ - (chunkCenterStart_ - chunkStart);
+    if (zeroPadding_ and leftPadding_ > centerStart - chunkStart) {
+        prependZeroCount = leftPadding_ - (centerStart - chunkStart);
     }
     size_t appendZeroCount = 0ul;
-    if (zeroPadding_ and rightPadding_ > chunkEnd - chunkCenterEnd) {
-        appendZeroCount = rightPadding_ - (chunkEnd - chunkCenterEnd);
+    if (zeroPadding_ and rightPadding_ > chunkEnd - clippedCenterEnd) {
+        appendZeroCount = rightPadding_ - (chunkEnd - clippedCenterEnd);
     }
 
     // If we need to access e.g. feature 17 and so far 10 features have been discarded,
@@ -276,56 +296,57 @@ void ChunkedOnnxEncoder::encode() {
     size_t inputsPerOutput    = (inputsPerOutput_ != 0ul) ? inputsPerOutput_ : (totalSessionInputs / nOutputs + (totalSessionInputs % nOutputs != 0ul));
     size_t inputStep          = (inputStepSize_ != 0ul) ? inputStepSize_ : inputsPerOutput;
 
-    bool isLastChunk = not expectMoreFeatures_ and chunkCenterEnd == availableEnd;
-
-    // Buffer all outputs for which the start input lies inside the interval [chunkCenterStart_, chunkCenterEnd)
-    // The rest corresponds to the padding frames and gets skipped.
-    // Exception: on the last chunk of a segment with `keep-trailing-outputs`, the outputs past the chunk center are kept as well.
-    // These are the outputs the encoder computes from its own internal end-padding; their input range is clamped to the last feature.
-    bool   keepTrailing   = keepTrailingOutputs_ and isLastChunk;
-    size_t startInput     = chunkStart;
-    auto   weightIterator = window_.begin();
+    // Buffer all outputs for which the start input lies inside the chunk center. The rest corresponds to the padding frames and gets skipped.
+    // For right-aligned chunks, the center is not clipped to the segment end, so that the last chunk also keeps the outputs which the
+    // encoder computes from its internal padding.
+    size_t keepEnd    = chunkAlignment_ == ChunkAlignment::RightAligned ? chunkCenterEnd_ : clippedCenterEnd;
+    size_t startInput = chunkStart;
     for (size_t t = 0ul; t < nOutputs; ++t) {
         size_t endInput = std::min(startInput + inputsPerOutput, availableEnd);
-        if (startInput >= chunkCenterStart_) {
-            Nn::EncodedSpan output{
-                    .encoding    = {outputView, outputSize, t * outputSize},
-                    .input_start = std::min(startInput, availableEnd - 1ul),
-                    .input_end   = endInput};
+        if (startInput >= centerStart) {
             if (interpolationMode_ == InterpolationMode::NoInterpolation) {
-                outputBuffer_.push_back(output);
+                // Outputs past the segment end are associated with its last feature
+                outputBuffer_.push_back(Nn::EncodedSpan{
+                        .encoding    = {outputView, outputSize, t * outputSize},
+                        .input_start = std::min(startInput, endInput - 1ul),
+                        .input_end   = endInput});
             }
             else {
-                // A trailing output lies outside the window and is the only contribution to its frame, so any weight
-                // is neutral after `PendingOutput::finalize`; 1 is neutral for the linear and the log-linear modes.
-                f32 weight = weightIterator != window_.end() ? *weightIterator : 1.0f;
-                accumulatePendingOutput(output, weight);
-            }
-            if (weightIterator != window_.end()) {
-                ++weightIterator;
+                // The window weight is selected by the output's position inside the unclipped chunk center
+                size_t windowIndex = (startInput + chunkSize_ - chunkCenterEnd_) / inputStep;
+                verify(windowIndex < window_.size());
+                accumulatePendingOutput(
+                        Nn::EncodedSpan{
+                                .encoding    = {outputView, outputSize, t * outputSize},
+                                .input_start = startInput,
+                                .input_end   = endInput},
+                        window_[windowIndex]);
             }
         }
         startInput += inputStep;
 
-        if (startInput >= chunkCenterEnd and not keepTrailing) {
+        if (startInput >= keepEnd) {
             break;
         }
     }
 
-    chunkCenterStart_ = isLastChunk ? availableEnd : chunkCenterStart_ + stepSize_;
+    bool isLastChunk = not expectMoreFeatures_ and clippedCenterEnd == availableEnd;
+
+    // After the last chunk, the center starts at the segment end so that no further chunk is encoded
+    chunkCenterEnd_ = isLastChunk ? availableEnd + chunkSize_ : chunkCenterEnd_ + stepSize_;
 
     if (interpolationMode_ != InterpolationMode::NoInterpolation) {
         if (isLastChunk) {
             flushPendingOutputsUpTo(Core::Type<size_t>::max);
         }
         else {
-            flushPendingOutputsUpTo(chunkCenterStart_);
+            flushPendingOutputsUpTo(chunkCenterStart());
         }
     }
 }
 
 void ChunkedOnnxEncoder::postEncodeCleanup() {
-    size_t firstNeededIndex = chunkCenterStart_ > leftPadding_ ? chunkCenterStart_ - leftPadding_ : 0ul;
+    size_t firstNeededIndex = sessionStart(chunkCenterStart());
     size_t numToDiscard     = std::min(firstNeededIndex - numDiscardedFeatures_, inputBuffer_.size());
 
     inputBuffer_.erase(inputBuffer_.begin(), inputBuffer_.begin() + numToDiscard);
@@ -352,6 +373,24 @@ void ChunkedOnnxEncoder::PendingOutput::finalize(ChunkedOnnxEncoder::Interpolati
         default:
             break;
     }
+}
+
+size_t ChunkedOnnxEncoder::firstChunkCenterEnd() const {
+    return chunkAlignment_ == ChunkAlignment::LeftAligned ? chunkSize_ : 1ul;
+}
+
+size_t ChunkedOnnxEncoder::chunkCenterStart() const {
+    return chunkCenterEnd_ > chunkSize_ ? chunkCenterEnd_ - chunkSize_ : 0ul;
+}
+
+size_t ChunkedOnnxEncoder::sessionStart(size_t centerStart) const {
+    size_t start = centerStart > leftPadding_ ? centerStart - leftPadding_ : 0ul;
+    if (chunkAlignment_ == ChunkAlignment::RightAligned) {
+        // Right-aligned centers generally don't start on a grid point, so the session start is aligned explicitly
+        // so that the session outputs lie on the same grid as offline encoding
+        start -= start % outputGridStep_;
+    }
+    return start;
 }
 
 void ChunkedOnnxEncoder::initWindow(WindowType windowType) {
@@ -428,7 +467,7 @@ void ChunkedOnnxEncoder::flushPendingOutputsUpTo(size_t inputStart) {
         outputBuffer_.push_back(
                 Nn::EncodedSpan{
                         .encoding    = {pendingOutput.accumulator, pendingOutput.accumulatorSize},
-                        .input_start = it->first,
+                        .input_start = std::min(it->first, pendingOutput.inputEnd - 1ul),
                         .input_end   = pendingOutput.inputEnd,
                 });
         it = pendingOutputs_.erase(it);

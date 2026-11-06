@@ -1,7 +1,6 @@
 add_library(
     RasrPython STATIC
     AllophoneStateFsaBuilder.cc
-    Configuration.cc
     Init.cc
     LabelScorer.cc
     Numpy.cc

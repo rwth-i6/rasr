@@ -20,21 +20,26 @@
 #include <Nn/FixedQuantizationCompressedVectorFactory.hh>
 #include <Nn/QuantizedCompressedVectorFactory.hh>
 #include <Nn/ReducedPrecisionCompressedVectorFactory.hh>
-#include <Onnx/OnnxLstmStateManager.hh>
-#include <Onnx/OnnxTransformerStateManager.hh>
 
 #include "LabelScorer/CombineLabelScorer.hh"
 #include "LabelScorer/CtcPrefixLabelScorer.hh"
 #include "LabelScorer/EncoderDecoderLabelScorer.hh"
 #include "LabelScorer/EncoderFactory.hh"
-#include "LabelScorer/FixedContextOnnxLabelScorer.hh"
-#include "LabelScorer/NoContextOnnxLabelScorer.hh"
 #include "LabelScorer/NoOpLabelScorer.hh"
 #include "LabelScorer/PriorLabelScorer.hh"
-#include "LabelScorer/StateManagedOnnxLabelScorer.hh"
-#include "LabelScorer/StatefulOnnxLabelScorer.hh"
 #include "LabelScorer/TransitionLabelScorer.hh"
 #include "Statistics.hh"
+
+#ifdef MODULE_ONNX
+#include <Onnx/OnnxLstmStateManager.hh>
+#include <Onnx/OnnxTransformerStateManager.hh>
+
+#include "LabelScorer/FixedContextOnnxLabelScorer.hh"
+#include "LabelScorer/NoContextOnnxLabelScorer.hh"
+#include "LabelScorer/StateManagedOnnxLabelScorer.hh"
+#include "LabelScorer/StatefulOnnxLabelScorer.hh"
+#include "LabelScorer/StatefulTransducerOnnxLabelScorer.hh"
+#endif
 
 #ifdef MODULE_NN
 #include <Mm/FeatureScorerFactory.hh>
@@ -62,12 +67,14 @@ enum CompressedVectorFactoryType {
     ReducedPrecisionCompressedVectorFactoryType
 };
 
+#ifdef MODULE_ONNX
 enum StateManagerType {
     LstmStateManagerType,
     TransformerStateManagerType,
     TransformerStateManager16BitType,
     TransformerStateManager8BitType,
 };
+#endif
 
 }  // namespace
 
@@ -84,6 +91,7 @@ const Core::ParameterChoice Module_::compressedVectorFactoryTypeParam(
         "type of compressed vector factory",
         DummyCompressedVectorFactoryType);
 
+#ifdef MODULE_ONNX
 const Core::Choice Module_::stateManagerTypeChoice(
         "lstm", LstmStateManagerType,
         "transformer", TransformerStateManagerType,
@@ -96,6 +104,7 @@ const Core::ParameterChoice Module_::stateManagerTypeParam(
         &Module_::stateManagerTypeChoice,
         "type of the state manager",
         LstmStateManagerType);
+#endif
 
 Module_::Module_()
         : formats_(nullptr),
@@ -180,6 +189,7 @@ Module_::Module_()
                         scaledDecoder));
             });
 
+#ifdef MODULE_ONNX
     // Compute scores by forwarding a single input feature vector without history through an ONNX model
     labelScorerFactory_.registerLabelScorer(
             "no-context-onnx",
@@ -201,12 +211,20 @@ Module_::Module_()
                 return Core::ref(new StatefulOnnxLabelScorer(config, modelCache));
             });
 
+    // Compute scores based on input-feature and hidden-state where the hidden-state only depends on the token history
+    labelScorerFactory_.registerLabelScorer(
+            "stateful-transducer-onnx",
+            [](Core::Configuration const& config, ModelCache& modelCache) {
+                return Core::ref(new StatefulTransducerOnnxLabelScorer(config, modelCache));
+            });
+
     // Compute scores with recurrent ONNX state packing delegated to a StateManager.
     labelScorerFactory_.registerLabelScorer(
             "state-managed-onnx",
             [](Core::Configuration const& config, ModelCache& modelCache) {
                 return Core::ref(new StateManagedOnnxLabelScorer(config, modelCache));
             });
+#endif
 
     // Returns predefined scores based on the transition type of each score request
     labelScorerFactory_.registerLabelScorer(
@@ -254,6 +272,7 @@ CompressedVectorFactoryPtr<float> Module_::createCompressedVectorFactory(Core::C
     }
 }
 
+#ifdef MODULE_ONNX
 std::unique_ptr<AbstractStateManager<Onnx::Value, Onnx::OnnxStateVariable>> Module_::createStateManager(Core::Configuration const& config) {
     switch (stateManagerTypeParam(config)) {
         case LstmStateManagerType:
@@ -272,3 +291,4 @@ std::unique_ptr<AbstractStateManager<Onnx::Value, Onnx::OnnxStateVariable>> Modu
             defect();
     }
 }
+#endif

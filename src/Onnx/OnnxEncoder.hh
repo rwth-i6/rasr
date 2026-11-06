@@ -37,22 +37,12 @@ public:
     OnnxEncoder(Core::Configuration const& config, Nn::ModelCache& modelCache);
     virtual ~OnnxEncoder() = default;
 
-    // Clear buffers and reset segment end flag.
-    virtual void reset() override;
-
 protected:
     struct SessionRunResult {
         Nn::DataView outputView;
         size_t       nOutputs;
         size_t       outputSize;
     };
-
-    // Encode features inside the input buffer and put the results into the output buffer
-    virtual void encode() override;
-
-    // Runs onnxModel_ on features from inputBuffer_[inputStartIndex : inputStartIndex + nInputs]
-    // Potentially add zero-padding features to inputs before running session
-    SessionRunResult runSession(size_t inputStartIndex, size_t nInputs, size_t leftZeroPadding = 0ul, size_t rightZeroPadding = 0ul);
 
     const size_t inputsPerOutput_;
     const size_t inputStepSize_;
@@ -64,6 +54,23 @@ protected:
 
     std::unique_ptr<StateManager>  stateManager_;
     std::vector<OnnxStateVariable> stateVariables_;
+
+    Core::StopWatch onnxSessionTime_;
+    // One per `encode()` for this encoder, one per chunk for `ChunkedOnnxEncoder`
+    size_t numSessionRuns_ = 0ul;
+
+    // Clear buffers, segment end flag and ONNX state variables
+    void resetInternal() override;
+
+    // Encode features inside the input buffer and put the results into the output buffer
+    virtual void encode() override;
+
+    // Runs onnxModel_ on features from inputBuffer_[inputStartIndex : inputStartIndex + nInputs]
+    // Potentially add zero-padding features to inputs before running session
+    SessionRunResult runSession(size_t inputStartIndex, size_t nInputs, size_t leftZeroPadding = 0ul, size_t rightZeroPadding = 0ul);
+
+    void logEncodeBreakdown() const override;
+    void logAdditionalStatistics() const override;
 };
 
 /*
@@ -102,9 +109,9 @@ public:
 
     ChunkedOnnxEncoder(Core::Configuration const& config, Nn::ModelCache& modelCache);
 
-    virtual void reset() override;
-
 protected:
+    void resetInternal() override;
+
     // Check if enough features are buffered to fill the chunk or segment end has been signaled
     virtual bool canEncode() const override;
 
@@ -143,6 +150,20 @@ private:
         void finalize(InterpolationMode mode);
     };
 
+    size_t            chunkSize_;
+    size_t            stepSize_;
+    size_t            leftPadding_;
+    size_t            rightPadding_;
+    bool              zeroPadding_;
+    ChunkAlignment    chunkAlignment_;
+    size_t            outputGridStep_;  // Input features between the starts of consecutive outputs, used to align right-aligned sessions
+    std::vector<f32>  window_;
+    InterpolationMode interpolationMode_;
+
+    size_t                          chunkCenterEnd_;  // Current absolute chunk end position disregarding discarded features and the segment end
+    size_t                          numDiscardedFeatures_;
+    std::map<size_t, PendingOutput> pendingOutputs_;  // Associate outputs with their input start time to interpolate outputs from different chunks. Ordered for flushing
+
     // Chunk 0's center ends with feature chunk-size - 1 when left-aligned and with feature 0 when right-aligned
     size_t firstChunkCenterEnd() const;
 
@@ -160,20 +181,6 @@ private:
 
     // Add data from outputView to associated pending output or create a new one if none exists
     void accumulatePendingOutput(Nn::EncodedSpan data, f32 weight);
-
-    size_t            chunkSize_;
-    size_t            stepSize_;
-    size_t            leftPadding_;
-    size_t            rightPadding_;
-    bool              zeroPadding_;
-    ChunkAlignment    chunkAlignment_;
-    size_t            outputGridStep_;  // Input features between the starts of consecutive outputs, used to align right-aligned sessions
-    std::vector<f32>  window_;
-    InterpolationMode interpolationMode_;
-
-    size_t                          chunkCenterEnd_;  // Current absolute chunk end position disregarding discarded features and the segment end
-    size_t                          numDiscardedFeatures_;
-    std::map<size_t, PendingOutput> pendingOutputs_;  // Associate outputs with their input start time to interpolate outputs from different chunks. Ordered for flushing
 };
 
 }  // namespace Onnx

@@ -69,12 +69,12 @@ public:
 
     Value();
     Value(Value const& other);
-    Value(Value&& value);
+    Value(Value&& value) noexcept;
     ~Value() = default;
 
     bool empty() const;
 
-    Value& operator=(Value&& other);
+    Value& operator=(Value&& other) noexcept;
 
     /* -------------------- Getters -------------------- */
 
@@ -203,7 +203,7 @@ inline Value::Value()
         : value_(nullptr) {
 }
 
-inline Value::Value(Value&& value)
+inline Value::Value(Value&& value) noexcept
         : value_(std::move(value.value_)) {
 }
 
@@ -211,7 +211,7 @@ inline bool Value::empty() const {
     return value_ == nullptr or not value_.HasValue();
 }
 
-inline Value& Value::operator=(Value&& other) {
+inline Value& Value::operator=(Value&& other) noexcept {
     value_ = std::move(other.value_);
     return *this;
 }

@@ -18,6 +18,7 @@
 #define _CORE_STATISTICS_HH
 
 #include <iostream>
+#include <vector>
 #include <sys/times.h>
 
 #include <Core/Assertions.hh>
@@ -34,13 +35,11 @@ public:
     typedef T             Value;
     typedef Statistics<T> Self;
 
-private:
-    std::string        name_;
-    u32                nObs_;
-    Value              min_, max_, sum_;
-    static const Value minInit, maxInit;
+    Statistics(const std::string& n)
+            : name_(n) {
+        clear();
+    }
 
-public:
     void clear() {
         nObs_ = 0;
         max_  = maxInit;
@@ -78,10 +77,16 @@ public:
 
     void write(XmlWriter&) const;
 
-    Statistics(const std::string& n)
-            : name_(n) {
-        clear();
-    }
+    /*
+     * Write the statistic with additional attributes on the `<statistic>` element.
+     */
+    void write(XmlWriter&, std::vector<XmlAttribute> const& extraAttributes) const;
+
+private:
+    static const Value minInit, maxInit;
+    std::string        name_;
+    u32                nObs_;
+    Value              min_, max_, sum_;
 };
 
 /**

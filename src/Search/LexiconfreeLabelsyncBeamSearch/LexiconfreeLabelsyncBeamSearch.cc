@@ -182,6 +182,14 @@ const Core::ParameterChoice LexiconfreeLabelsyncBeamSearch::paramRecombinationMo
         "Whether hypotheses with identical recombination state should be recombined.",
         RecombinationModeOn);
 
+const Core::ParameterInt LexiconfreeLabelsyncBeamSearch::paramMaxExtensionsPerHyp(
+        "max-extensions-per-hyp",
+        "Maximum number of extensions per active hypothesis, taking the best labels according to the first label scorer."
+        " If not set, this defaults to the first max-beam-size unless the first score-threshold is set, in which case it is not limited."
+        " The default does not change the best hypotheses but can make lattices sparser. Values below the first max-beam-size make the search inexact.",
+        Core::Type<s32>::max,
+        1);
+
 const Core::ParameterInt LexiconfreeLabelsyncBeamSearch::paramCacheCleanupInterval(
         "cache-cleanup-interval",
         "Interval of search steps after which buffered inputs that are not needed anymore get cleaned up.",
@@ -199,6 +207,7 @@ LexiconfreeLabelsyncBeamSearch::LexiconfreeLabelsyncBeamSearch(Core::Configurati
           sentenceEndLabelIndex_(paramSentenceEndLabelIndex(config)),
           pruningStrategyType_(paramPruningStrategyType(config)),
           recombinationEnabled_(paramRecombinationMode(config) == RecombinationModeOn),
+          maxExtensionsPerHyp_(Core::Type<size_t>::max),
           statisticsChannel_(config, "statistics"),
           stepwiseStatisticsChannel_(config, "stepwise-statistics"),
           cacheCleanupInterval_(paramCacheCleanupInterval(config)),
@@ -237,6 +246,14 @@ LexiconfreeLabelsyncBeamSearch::LexiconfreeLabelsyncBeamSearch(Core::Configurati
         useScorePruning_.push_back(scoreThresholds_[i] != Core::Type<Score>::max);
     }
 
+    // Extensions are created by the first scorer, so only its settings matter
+    if (paramMaxExtensionsPerHyp(config) != Core::Type<s32>::max) {
+        maxExtensionsPerHyp_ = paramMaxExtensionsPerHyp(config);
+    }
+    else if (not maxBeamSizes_.empty() and not useScorePruning_.empty() and not useScorePruning_.front()) {
+        maxExtensionsPerHyp_ = maxBeamSizes_.front();
+    }
+
     if (sentenceEndLabelIndex_ != Core::Type<s32>::max) {
         log() << "Use sentence-end label with index " << sentenceEndLabelIndex_;
     }
@@ -260,6 +277,12 @@ bool LexiconfreeLabelsyncBeamSearch::setModelCombination(Speech::ModelCombinatio
     lexicon_      = modelCombination.lexicon();
     labelScorers_ = modelCombination.labelScorers();
     verify(not labelScorers_.empty());
+
+    allTokens_.clear();
+    auto const lemmaRange = lexicon_->lemmas();
+    for (auto lemmaIt = lemmaRange.first; lemmaIt != lemmaRange.second; ++lemmaIt) {
+        allTokens_.push_back((*lemmaIt)->id());
+    }
 
     if (labelScorers_.size() > maxBeamSizes_.size()) {
         error() << "Number of label scorers (" << labelScorers_.size() << ") exceeds number of configured max beam sizes (" << maxBeamSizes_.size() << ")";
@@ -745,6 +768,67 @@ void LexiconfreeLabelsyncBeamSearch::readOutScoreAccessors(std::vector<std::opti
     }
 }
 
+std::span<Nn::LabelIndex const> LexiconfreeLabelsyncBeamSearch::selectTokens(std::optional<Nn::DenseScoreSpan> const& denseScores, Nn::LabelIndex currentToken) {
+    if (maxExtensionsPerHyp_ == Core::Type<size_t>::max or not denseScores) {
+        return allTokens_;
+    }
+
+    auto numTokens         = allTokens_.size();
+    auto numScorableTokens = std::min(denseScores->size(), numTokens);
+    if (maxExtensionsPerHyp_ >= numScorableTokens) {
+        return allTokens_;
+    }
+
+    // The dense score is only part of the extension score if the transition is scored. Otherwise, the tokens can't
+    // be ranked, so we don't limit them. All tokens except sentence-end have the same transition type.
+    auto const& labelScorer    = labelScorers_.front();
+    auto        transitionType = currentToken == Nn::invalidLabelIndex ? Nn::TransitionType::INITIAL_LABEL : Nn::TransitionType::LABEL_TO_LABEL;
+    if (not labelScorer->scoresTransition(transitionType)) {
+        return allTokens_;
+    }
+
+    // Max-heap of the best tokens so far
+    auto& heap = tokenSelectionHeap_;
+    heap.clear();
+    heap.reserve(maxExtensionsPerHyp_);
+    selectedTokens_.clear();
+
+    for (Nn::LabelIndex tokenIdx = 0ul; tokenIdx < numScorableTokens; ++tokenIdx) {
+        // Sentence-end is always kept if it has its own pruning pool (separate pruning) or if its transition is not
+        // scored, so it can't be ranked
+        if (tokenIdx == sentenceEndLabelIndex_ and (pruningStrategyType_ == PruningStrategySeparate or not labelScorer->scoresTransition(Nn::TransitionType::SENTENCE_END))) {
+            selectedTokens_.push_back(tokenIdx);
+            continue;
+        }
+
+        auto score = (*denseScores)[tokenIdx];
+        if (heap.size() < maxExtensionsPerHyp_) {
+            heap.emplace_back(score, tokenIdx);
+            std::push_heap(heap.begin(), heap.end());
+        }
+        else if (score < heap.front().first) {
+            // Tokens are scanned in ascending order, so an equal score never beats the worst selected token
+            std::pop_heap(heap.begin(), heap.end());
+            heap.back() = {score, tokenIdx};
+            std::push_heap(heap.begin(), heap.end());
+        }
+    }
+
+    for (auto const& entry : heap) {
+        selectedTokens_.push_back(entry.second);
+    }
+
+    // Tokens without dense score are always kept because dropping them would change the results
+    for (Nn::LabelIndex tokenIdx = numScorableTokens; tokenIdx < numTokens; ++tokenIdx) {
+        selectedTokens_.push_back(tokenIdx);
+    }
+
+    // Keep lexicon order
+    std::sort(selectedTokens_.begin(), selectedTokens_.end());
+
+    return selectedTokens_;
+}
+
 void LexiconfreeLabelsyncBeamSearch::createExtensions(std::vector<std::optional<Nn::ScoreAccessorRef>> const& scoreAccessors, std::vector<std::optional<Nn::DenseScoreSpan>> const& denseScoreSpans, std::vector<Nn::TimeframeIndex> const& scoreTimes) {
     // Assume the output labels are stored as lexicon lemma orth and ordered consistently with NN output index
     auto        lemmas                     = lexicon_->lemmas();
@@ -767,11 +851,12 @@ void LexiconfreeLabelsyncBeamSearch::createExtensions(std::vector<std::optional<
         auto const& denseScores = denseScoreSpans[contextIndex];
         auto        scoreTime   = scoreTimes[contextIndex];
 
-        // Iterate over possible successors (all lemmas)
-        for (auto lemmaIt = lemmas.first; lemmaIt != lemmas.second; ++lemmaIt) {
-            auto const*    lemma(*lemmaIt);
-            Nn::LabelIndex tokenIdx   = lemma->id();
-            bool           terminated = false;
+        auto selectedTokens = selectTokens(denseScores, hyp.currentToken);
+
+        // Iterate over possible successors
+        for (auto tokenIdx : selectedTokens) {
+            auto const* lemma      = lemmas.first[tokenIdx];
+            bool        terminated = false;
 
             auto transitionType = Nn::TransitionType::LABEL_TO_LABEL;
             if (hyp.currentToken == Nn::invalidLabelIndex) {

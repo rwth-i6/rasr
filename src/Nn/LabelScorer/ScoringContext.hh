@@ -16,6 +16,7 @@
 #ifndef SCORING_CONTEXT_HH
 #define SCORING_CONTEXT_HH
 
+#include <Core/Hash.hh>
 #include <Core/ReferenceCounting.hh>
 #include <Mm/Types.hh>
 #include <Nn/AbstractStateManager.hh>
@@ -29,8 +30,15 @@ bool   labelSeqEqual(std::vector<LabelIndex> const& lhs, std::vector<LabelIndex>
 
 /*
  * Empty scoring context base class
+ *
+ * Each scoring context belongs to a segment. Label scorers that support several segments at the same time set the segment
+ * when they create a context and propagate it to extended contexts. Single-segment usage always uses the default segment.
+ * `isEqual` and `hash` of the concrete contexts only describe the context itself, the segment is taken into account
+ * by `ScoringContextHash` and `ScoringContextEq` so that contexts of different segments are never treated as equal.
  */
 struct ScoringContext : public Core::ReferenceCounted {
+    SegmentId segment = defaultSegmentId;
+
     virtual ~ScoringContext() = default;
 
     virtual bool   isEqual(Core::Ref<ScoringContext const> const& other) const;
@@ -41,13 +49,16 @@ typedef Core::Ref<ScoringContext const> ScoringContextRef;
 
 struct ScoringContextHash {
     size_t operator()(ScoringContextRef const& scoringContext) const {
-        return scoringContext->hash();
+        if (scoringContext->segment == defaultSegmentId) {
+            return scoringContext->hash();
+        }
+        return Core::combineHashes(scoringContext->hash(), scoringContext->segment);
     }
 };
 
 struct ScoringContextEq {
     bool operator()(ScoringContextRef const& lhs, ScoringContextRef const& rhs) const {
-        return lhs->isEqual(rhs);
+        return lhs->segment == rhs->segment and lhs->isEqual(rhs);
     }
 };
 

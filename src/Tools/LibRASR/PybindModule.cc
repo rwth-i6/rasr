@@ -4,6 +4,9 @@
 #include <Python/AllophoneStateFsaBuilder.hh>
 #include <Python/Configuration.hh>
 
+#include "Corpus.hh"
+#include "FeatureExtractor.hh"
+#include "Flow.hh"
 #include "LabelScorer.hh"
 #include "Lexicon.hh"
 #include "LibRASR.hh"
@@ -55,4 +58,7 @@ PYBIND11_MODULE(librasr, m) {
     bindLabelScorer(m);
     bindLexicon(m);
     bindSearchAlgorithm(m);
+    bindCorpus(m);
+    bindFlow(m);
+    bindFeatureExtractor(m);
 }

@@ -980,13 +980,14 @@ caches (splitting/merging/rebasing state across beam search steps) without quadr
   Relevant logical I/O names include ``token``, ``token-length``, ``prefix-length``, ``scores``,
   ``encoder-states`` and ``encoder-states-size`` (the latter two only if the model attends over encoder output
   directly).
-* ``state-manager.type`` (``lstm``/``transformer``/``transformer-cpu``/``transformer-cuda``/``transformer-16bit``/
-  ``transformer-8bit``): which state representation/caching strategy is used. Use ``lstm`` for simple recurrent
-  states; the ``transformer*`` variants implement KV-cache tree management. ``transformer`` keeps the cache in GPU
-  memory (``transformer-cuda``) if the ONNX session runs with the CUDA execution provider (and RASR is compiled with
-  CUDA support), and in host memory (``transformer-cpu``) otherwise; ``transformer-cpu`` and
-  ``transformer-cuda``/``transformer-gpu`` force one of them. The ``-16bit``/``-8bit`` variants store the cache in
-  reduced precision in host memory to save memory; ``state-compression`` is ignored by ``transformer-cuda``. Default ``lstm``.
+* ``state-manager.type`` (``lstm``/``lstm-cpu``/``lstm-cuda``/``transformer``/``transformer-cpu``/``transformer-cuda``/
+  ``transformer-16bit``/``transformer-8bit``): which state representation/caching strategy is used. Use ``lstm*`` for
+  simple recurrent states; the ``transformer*`` variants implement KV-cache tree management. ``lstm`` and
+  ``transformer`` keep the states in GPU memory (``lstm-cuda``/``transformer-cuda``) if the ONNX session runs with the
+  CUDA execution provider (and RASR is compiled with CUDA support), and in host memory (``lstm-cpu``/``transformer-cpu``)
+  otherwise; the ``-cpu`` and ``-cuda``/``-gpu`` variants force one of them. The ``-16bit``/``-8bit`` variants store the
+  cache in reduced precision in host memory to save memory; ``state-compression`` is ignored by the ``-cuda`` variants.
+  Default ``lstm``.
 * ``start-labels`` (int list): initial context/history tokens fed for the very first step. Default: unset,
   i.e. no initial context tokens.
 * ``blank-updates-history`` / ``silence-updates-history`` / ``loop-updates-history`` (bool): as above. Default ``false``.

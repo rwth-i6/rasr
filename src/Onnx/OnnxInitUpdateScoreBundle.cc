@@ -15,6 +15,7 @@
 
 #include "OnnxInitUpdateScoreBundle.hh"
 
+#include <stdexcept>
 #include <unordered_set>
 
 #include <Core/Assertions.hh>
@@ -106,8 +107,11 @@ OnnxNamedValuesRef OnnxInitUpdateScoreBundle::initialState(SessionInputs extraIn
 
     std::vector<Value> sessionOutputs;
     initializerSessionTime_.start();
-    stateInitializerOnnxModel_->session.run(std::move(extraInputs), sessionOutputNames, sessionOutputs);
+    auto status = stateInitializerOnnxModel_->session.run(std::move(extraInputs), sessionOutputNames, sessionOutputs);
     initializerSessionTime_.stop();
+    if (not status.ok()) {
+        throw std::runtime_error(status.message());
+    }
 
     Core::StopWatch::Scope marshallingTimer(marshallingTime_);
     return Core::ref(new OnnxNamedValues(std::move(stateNames), std::move(sessionOutputs)));
@@ -135,8 +139,11 @@ std::vector<OnnxNamedValuesRef> OnnxInitUpdateScoreBundle::updatedStates(std::ve
      */
     std::vector<Value> sessionOutputs;
     updaterSessionTime_.start();
-    stateUpdaterOnnxModel_->session.run(std::move(extraInputs), sessionOutputNames, sessionOutputs);
+    auto status = stateUpdaterOnnxModel_->session.run(std::move(extraInputs), sessionOutputNames, sessionOutputs);
     updaterSessionTime_.stop();
+    if (not status.ok()) {
+        throw std::runtime_error(status.message());
+    }
 
     /*
      * Return resulting hidden states
@@ -175,8 +182,11 @@ std::vector<std::shared_ptr<std::vector<Nn::Score>>> OnnxInitUpdateScoreBundle::
      */
     std::vector<Value> sessionOutputs;
     scorerSessionTime_.start();
-    scorerOnnxModel_->session.run(std::move(extraInputs), {scorerScoresName_}, sessionOutputs);
+    auto status = scorerOnnxModel_->session.run(std::move(extraInputs), {scorerScoresName_}, sessionOutputs);
     scorerSessionTime_.stop();
+    if (not status.ok()) {
+        throw std::runtime_error(status.message());
+    }
 
     /*
      * Return resulting score vectors

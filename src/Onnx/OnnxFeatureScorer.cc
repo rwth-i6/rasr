@@ -217,7 +217,7 @@ void OnnxFeatureScorer::computeScoresInternal() {
         auto t_start = std::chrono::steady_clock::now();
 
         std::vector<Value> output;
-        auto status = session_.run(std::move(inputs), output_names, output);
+        auto               status = session_.run(std::move(inputs), output_names, output);
         if (not status.ok()) {
             criticalError() << status.message();
         }

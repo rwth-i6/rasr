@@ -113,7 +113,7 @@ bool OnnxForwardNode::work(Flow::PortId p) {
         auto t_start = std::chrono::steady_clock::now();
 
         std::vector<Value> session_outputs;
-        auto status = session_.run(std::move(inputs), output_onnx_names_, session_outputs);
+        auto               status = session_.run(std::move(inputs), output_onnx_names_, session_outputs);
         if (not status.ok()) {
             criticalError() << status.message();
         }

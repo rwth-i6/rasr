@@ -162,7 +162,7 @@ void TransformerGpuStateManager::mergeStates(StateVariables const&              
     // Grid dimensions y and z of the merge kernel
     constexpr size_t maxGridDim = 65535ul;
     if (numBatch > maxGridDim or numVars > maxGridDim) {
-        criticalError("transformer-gpu state manager: at most %zu batch entries and state variables are supported", maxGridDim);
+        criticalError("transformer-cuda state manager: at most %zu batch entries and state variables are supported", maxGridDim);
     }
 
     // Layouts and positions of the merged tensors in the merged buffer
@@ -212,17 +212,17 @@ void TransformerGpuStateManager::mergeStates(StateVariables const&              
         mergeLayouts[v]    = {merged + tensorOffsets[v], layout.batchStride, layout.timeStride, layout.stepSize, layout.runLength, runOffsets.size()};
         runOffsets.insert(runOffsets.end(), layout.runOffsets.begin(), layout.runOffsets.end());
     }
-    size_t const pointerBytes = numVars * numStates * sizeof(float const*);
-    size_t const batchBytes   = numBatch * sizeof(size_t);
-    size_t const layoutBytes  = numVars * sizeof(CudaKernels::MergeLayout);
-    size_t const offsetBytes  = runOffsets.size() * sizeof(size_t);
+    size_t const      pointerBytes = numVars * numStates * sizeof(float const*);
+    size_t const      batchBytes   = numBatch * sizeof(size_t);
+    size_t const      layoutBytes  = numVars * sizeof(CudaKernels::MergeLayout);
+    size_t const      offsetBytes  = runOffsets.size() * sizeof(size_t);
     std::vector<char> hostInput(pointerBytes + 2ul * batchBytes + layoutBytes + offsetBytes);
 
     auto* statePointers = reinterpret_cast<float const**>(hostInput.data());
     for (size_t v = 0ul; v < numVars; ++v) {
         // All states come from the same state manager, so checking the type of the first one is enough
         if (numStates > 0ul and dynamic_cast<DeviceVector const*>(prefixStates[stateIndices.front()]->at(v).get()) == nullptr) {
-            criticalError("State of %s was not created by the transformer-gpu state manager", vars[v].input_state_key.c_str());
+            criticalError("State of %s was not created by the transformer-cuda state manager", vars[v].input_state_key.c_str());
         }
         size_t const  stepSize = layouts[v].stepSize;
         float const** pointers = statePointers + v * numStates;
@@ -263,9 +263,9 @@ void TransformerGpuStateManager::mergeStates(StateVariables const&              
 }
 
 std::vector<TransformerGpuStateManager::HistoryState> TransformerGpuStateManager::splitStates(
-        StateVariables const&     vars,
-        std::vector<size_t>&      suffixLengths,
-        std::vector<Value> const& stateTensors,
+        StateVariables const&                     vars,
+        std::vector<size_t>&                      suffixLengths,
+        std::vector<Value> const&                 stateTensors,
         Nn::CompressedVectorFactory<float> const& vectorFactory) {
     warnIfCompressed(vectorFactory);
     require_eq(vars.size(), stateTensors.size());
@@ -279,7 +279,7 @@ std::vector<TransformerGpuStateManager::HistoryState> TransformerGpuStateManager
     for (size_t v = 0ul; v < vars.size(); ++v) {
         auto const& tensor = stateTensors[v];
         if (tensor.dataType() != ValueDataType::FLOAT) {
-            criticalError("transformer-gpu state manager: state %s is not float", vars[v].output_state_key.c_str());
+            criticalError("transformer-cuda state manager: state %s is not float", vars[v].output_state_key.c_str());
         }
         size_t const         timeAxis = timeAxisOf(vars[v]);
         std::vector<int64_t> dims(tensor.numDims());

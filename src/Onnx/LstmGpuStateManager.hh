@@ -25,7 +25,7 @@
 namespace Onnx {
 
 /*
- * Like the `lstm` state manager, but keeps the states (`DeviceVector`s) in CUDA device memory and merges and splits them
+ * Like the `lstm-cpu` state manager, but keeps the states (`DeviceVector`s) in CUDA device memory and merges and splits them
  * on the GPU. States must be float tensors of shape [batch, size]. Requires MODULE_CUDA and the CUDA execution provider.
  */
 class LstmGpuStateManager : public Nn::AbstractStateManager<Value, OnnxStateVariable> {
@@ -37,18 +37,18 @@ public:
     LstmGpuStateManager(Core::Configuration const& config);
     ~LstmGpuStateManager() override = default;
 
-    HistoryState initialState(StateVariables const& vars, Nn::CompressedVectorFactory<float> const& vector_factory) override;
+    HistoryState initialState(StateVariables const& vars, Nn::CompressedVectorFactory<float> const& vectorFactory) override;
 
     void mergeStates(StateVariables const&                   vars,
-                     std::vector<size_t>&                    prefix_lengths,
-                     std::vector<HistoryState const*> const& prefix_states,
-                     FeedDict&                               feed_dict,
+                     std::vector<size_t>&                    prefixLengths,
+                     std::vector<HistoryState const*> const& prefixStates,
+                     FeedDict&                               feedDict,
                      TargetList&                             targets) override;
 
     std::vector<HistoryState> splitStates(StateVariables const&                     vars,
-                                          std::vector<size_t>&                      suffix_lengths,
-                                          std::vector<Value> const&                 state_tensors,
-                                          Nn::CompressedVectorFactory<float> const& vector_factory) override;
+                                          std::vector<size_t>&                      suffixLengths,
+                                          std::vector<Value> const&                 stateTensors,
+                                          Nn::CompressedVectorFactory<float> const& vectorFactory) override;
 
 private:
     DeviceSlotPools pools_;         // by state size (floats per state)

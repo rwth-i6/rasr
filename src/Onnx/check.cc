@@ -59,7 +59,10 @@ public:
         double total = 0.0;
         for (size_t i = 0ul; i < 20; i++) {
             auto start = std::chrono::steady_clock::now();
-            session.run(std::move(inputs), output_names, outputs);
+            auto status = session.run(std::move(inputs), output_names, outputs);
+            if (not status.ok()) {
+                criticalError() << status.message();
+            }
             auto                                      end      = std::chrono::steady_clock::now();
             std::chrono::duration<double, std::milli> duration = end - start;
             total += duration.count();

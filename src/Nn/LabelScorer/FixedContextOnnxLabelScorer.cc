@@ -15,6 +15,8 @@
 
 #include "FixedContextOnnxLabelScorer.hh"
 
+#include <stdexcept>
+
 #include <Core/XmlStream.hh>
 
 #include "ScoreAccessor.hh"
@@ -347,8 +349,11 @@ void FixedContextOnnxLabelScorer::forwardBatch(std::vector<SeqStepScoringContext
      */
     std::vector<Onnx::Value> sessionOutputs;
     onnxSessionTime_.start();
-    onnxModel_->session.run(std::move(sessionInputs), {scoresName_}, sessionOutputs);
+    auto status = onnxModel_->session.run(std::move(sessionInputs), {scoresName_}, sessionOutputs);
     onnxSessionTime_.stop();
+    if (not status.ok()) {
+        throw std::runtime_error(status.message());
+    }
 
     /*
      * Put resulting scores into cache map

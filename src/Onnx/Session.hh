@@ -9,6 +9,7 @@
 #include <onnxruntime_cxx_api.h>
 
 #include <Core/Component.hh>
+#include <Core/Status.hh>
 
 #include "OnnxStateVariable.hh"
 #include "Value.hh"
@@ -45,9 +46,9 @@ public:
     std::vector<int64_t> getInputShape(std::string const& name) const;
     std::vector<int64_t> getOutputShape(std::string const& name) const;
 
-    bool run(std::vector<std::pair<std::string, Value>>&& inputs,
-             std::vector<std::string> const&              output_names,
-             std::vector<Value>&                          outputs);
+    Core::Status run(std::vector<std::pair<std::string, Value>>&& inputs,
+                     std::vector<std::string> const&              output_names,
+                     std::vector<Value>&                          outputs);
 
     std::string                     getCustomMetadata(std::string const& key) const;
     std::vector<std::string> const& getCustomMetadataKeys() const;

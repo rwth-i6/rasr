@@ -19,7 +19,6 @@
 
 #include "DeviceVector.hh"
 #include "StateCopyKernels.hh"
-#include "Value.hh"
 
 namespace Onnx {
 
@@ -32,22 +31,17 @@ public:
     // Copies of one state variable
     // All states have the same layout within the tensor
     struct Batch {
-        std::vector<CudaKernels::BlockCopyTask> tasks;
-        std::vector<size_t>                     blockOffsets;     // contiguous runs of one state in the tensor, relative to its start
-        size_t                                  blockSize = 0ul;  // elements per run
+        std::vector<CudaKernels::StateCopyTask> tasks;
+        std::vector<size_t>                     runOffsets;       // contiguous runs of one state in the tensor, relative to its start
+        size_t                                  runLength = 0ul;  // elements per run
         size_t                                  stepSize  = 0ul;  // elements per state
     };
 
     // Upload the tasks of all batches at once and launch the copies, one launch per batch
-    void copy(std::vector<Batch> const& batches, CudaKernels::BlockCopyDirection direction);
-
-    // Device pointers to the data of the float `tensors`, tensors in host memory are uploaded into a staging buffer,
-    // valid until the next call
-    std::vector<float const*> deviceData(std::vector<Value> const& tensors);
+    void copy(std::vector<Batch> const& batches, CudaKernels::StateCopyDirection direction);
 
 private:
     DeviceBuffer taskBuffer_;
-    DeviceBuffer stagingBuffer_;
 };
 
 }  // namespace Onnx

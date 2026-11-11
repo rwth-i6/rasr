@@ -21,6 +21,17 @@
 #include <Nn/FixedQuantizationCompressedVectorFactory.hh>
 #include <Nn/QuantizedCompressedVectorFactory.hh>
 #include <Nn/ReducedPrecisionCompressedVectorFactory.hh>
+
+#include "LabelScorer/CombineLabelScorer.hh"
+#include "LabelScorer/CtcPrefixLabelScorer.hh"
+#include "LabelScorer/EncoderDecoderLabelScorer.hh"
+#include "LabelScorer/EncoderFactory.hh"
+#include "LabelScorer/NoOpLabelScorer.hh"
+#include "LabelScorer/PriorLabelScorer.hh"
+#include "LabelScorer/TransitionLabelScorer.hh"
+#include "Statistics.hh"
+
+#ifdef MODULE_ONNX
 #include <Onnx/OnnxLstmStateManager.hh>
 #include <Onnx/OnnxTransformerStateManager.hh>
 #ifdef MODULE_CUDA
@@ -28,18 +39,12 @@
 #include <Onnx/TransformerGpuStateManager.hh>
 #endif
 
-#include "LabelScorer/CombineLabelScorer.hh"
-#include "LabelScorer/CtcPrefixLabelScorer.hh"
-#include "LabelScorer/EncoderDecoderLabelScorer.hh"
-#include "LabelScorer/EncoderFactory.hh"
 #include "LabelScorer/FixedContextOnnxLabelScorer.hh"
 #include "LabelScorer/NoContextOnnxLabelScorer.hh"
-#include "LabelScorer/NoOpLabelScorer.hh"
-#include "LabelScorer/PriorLabelScorer.hh"
 #include "LabelScorer/StateManagedOnnxLabelScorer.hh"
 #include "LabelScorer/StatefulOnnxLabelScorer.hh"
-#include "LabelScorer/TransitionLabelScorer.hh"
-#include "Statistics.hh"
+#include "LabelScorer/StatefulTransducerOnnxLabelScorer.hh"
+#endif
 
 #ifdef MODULE_NN
 #include <Mm/FeatureScorerFactory.hh>
@@ -67,14 +72,17 @@ enum CompressedVectorFactoryType {
     ReducedPrecisionCompressedVectorFactoryType
 };
 
+#ifdef MODULE_ONNX
 enum StateManagerType {
     LstmStateManagerType,
     LstmGpuStateManagerType,
-    TransformerStateManagerType,
+    TransformerStateManagerType,  // CPU or CUDA, depending on the execution provider of the session
+    TransformerCpuStateManagerType,
+    TransformerCudaStateManagerType,
     TransformerStateManager16BitType,
     TransformerStateManager8BitType,
-    TransformerGpuStateManagerType,
 };
+#endif
 
 }  // namespace
 
@@ -91,13 +99,16 @@ const Core::ParameterChoice Module_::compressedVectorFactoryTypeParam(
         "type of compressed vector factory",
         DummyCompressedVectorFactoryType);
 
+#ifdef MODULE_ONNX
 const Core::Choice Module_::stateManagerTypeChoice(
         "lstm", LstmStateManagerType,
         "lstm-gpu", LstmGpuStateManagerType,
         "transformer", TransformerStateManagerType,
+        "transformer-cpu", TransformerCpuStateManagerType,
+        "transformer-cuda", TransformerCudaStateManagerType,
+        "transformer-gpu", TransformerCudaStateManagerType,
         "transformer-16bit", TransformerStateManager16BitType,
         "transformer-8bit", TransformerStateManager8BitType,
-        "transformer-gpu", TransformerGpuStateManagerType,
         Core::Choice::endMark());
 
 const Core::ParameterChoice Module_::stateManagerTypeParam(
@@ -105,6 +116,7 @@ const Core::ParameterChoice Module_::stateManagerTypeParam(
         &Module_::stateManagerTypeChoice,
         "type of the state manager",
         LstmStateManagerType);
+#endif
 
 Module_::Module_()
         : formats_(nullptr),
@@ -189,6 +201,7 @@ Module_::Module_()
                         scaledDecoder));
             });
 
+#ifdef MODULE_ONNX
     // Compute scores by forwarding a single input feature vector without history through an ONNX model
     labelScorerFactory_.registerLabelScorer(
             "no-context-onnx",
@@ -210,12 +223,20 @@ Module_::Module_()
                 return Core::ref(new StatefulOnnxLabelScorer(config, modelCache));
             });
 
+    // Compute scores based on input-feature and hidden-state where the hidden-state only depends on the token history
+    labelScorerFactory_.registerLabelScorer(
+            "stateful-transducer-onnx",
+            [](Core::Configuration const& config, ModelCache& modelCache) {
+                return Core::ref(new StatefulTransducerOnnxLabelScorer(config, modelCache));
+            });
+
     // Compute scores with recurrent ONNX state packing delegated to a StateManager.
     labelScorerFactory_.registerLabelScorer(
             "state-managed-onnx",
             [](Core::Configuration const& config, ModelCache& modelCache) {
                 return Core::ref(new StateManagedOnnxLabelScorer(config, modelCache));
             });
+#endif
 
     // Returns predefined scores based on the transition type of each score request
     labelScorerFactory_.registerLabelScorer(
@@ -263,8 +284,25 @@ CompressedVectorFactoryPtr<float> Module_::createCompressedVectorFactory(Core::C
     }
 }
 
-std::unique_ptr<AbstractStateManager<Onnx::Value, Onnx::OnnxStateVariable>> Module_::createStateManager(Core::Configuration const& config) {
-    switch (stateManagerTypeParam(config)) {
+#ifdef MODULE_ONNX
+std::unique_ptr<AbstractStateManager<Onnx::Value, Onnx::OnnxStateVariable>> Module_::createStateManager(Core::Configuration const&  config,
+                                                                                                        Onnx::ExecutionProviderType sessionExecutionProvider) {
+    auto type = stateManagerTypeParam(config);
+    if (type == TransformerStateManagerType) {
+        // States on the device if the session runs on CUDA (and RASR supports device memory), otherwise on the host.
+        // The quantized variants (-16bit, -8bit) have no device version and are not switched.
+#ifdef MODULE_CUDA
+        bool onDevice = sessionExecutionProvider == Onnx::ExecutionProviderType::cuda;
+#else
+        bool onDevice = false;
+#endif
+        type = onDevice ? TransformerCudaStateManagerType : TransformerCpuStateManagerType;
+        Core::Application::us()->log("State manager %s: using %s for a session on the %s execution provider",
+                                     config.getSelection().c_str(),
+                                     onDevice ? "transformer-cuda" : "transformer-cpu",
+                                     sessionExecutionProvider == Onnx::ExecutionProviderType::cuda ? "CUDA" : "CPU");
+    }
+    switch (type) {
         case LstmStateManagerType:
             return std::unique_ptr<AbstractStateManager<Onnx::Value, Onnx::OnnxStateVariable>>(
                     new Onnx::OnnxLstmStateManager(config));
@@ -276,7 +314,7 @@ std::unique_ptr<AbstractStateManager<Onnx::Value, Onnx::OnnxStateVariable>> Modu
             Core::Application::us()->criticalError("State manager type lstm-gpu requires RASR compiled with MODULE_CUDA");
             return nullptr;
 #endif
-        case TransformerStateManagerType:
+        case TransformerCpuStateManagerType:
             return std::unique_ptr<AbstractStateManager<Onnx::Value, Onnx::OnnxStateVariable>>(
                     new Onnx::OnnxTransformerStateManager<float>(config));
         case TransformerStateManager16BitType:
@@ -285,15 +323,16 @@ std::unique_ptr<AbstractStateManager<Onnx::Value, Onnx::OnnxStateVariable>> Modu
         case TransformerStateManager8BitType:
             return std::unique_ptr<AbstractStateManager<Onnx::Value, Onnx::OnnxStateVariable>>(
                     new Onnx::OnnxTransformerStateManager<int8_t>(config));
-        case TransformerGpuStateManagerType:
+        case TransformerCudaStateManagerType:
 #ifdef MODULE_CUDA
             return std::unique_ptr<AbstractStateManager<Onnx::Value, Onnx::OnnxStateVariable>>(
                     new Onnx::TransformerGpuStateManager(config));
 #else
-            Core::Application::us()->criticalError("State manager type transformer-gpu requires RASR compiled with MODULE_CUDA");
+            Core::Application::us()->criticalError("State manager type transformer-cuda requires RASR compiled with MODULE_CUDA");
             return nullptr;
 #endif
         default:
             defect();
     }
 }
+#endif

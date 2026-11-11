@@ -37,33 +37,38 @@ public:
 
     static const Core::ParameterInt  paramMaxHistoryLength;
     static const Core::ParameterBool paramAlwaysIncludeFirstTokenState;
-    static const Core::ParameterInt  paramBlocksPerChunk;
+    static const Core::ParameterInt  paramSlotsPerChunk;
 
     TransformerGpuStateManager(Core::Configuration const& config);
     ~TransformerGpuStateManager() override;
 
     bool requiresAllParentStates() const override;
 
-    HistoryState initialState(StateVariables const& vars, Nn::CompressedVectorFactory<float> const& vector_factory) override;
+    HistoryState initialState(StateVariables const& vars, Nn::CompressedVectorFactory<float> const& vectorFactory) override;
 
     void mergeStates(StateVariables const&                   vars,
-                     std::vector<size_t>&                    prefix_lengths,
-                     std::vector<HistoryState const*> const& prefix_states,
-                     FeedDict&                               feed_dict,
+                     std::vector<size_t>&                    prefixLengths,
+                     std::vector<HistoryState const*> const& prefixStates,
+                     FeedDict&                               feedDict,
                      TargetList&                             targets) override;
 
     std::vector<HistoryState> splitStates(StateVariables const&                     vars,
-                                          std::vector<size_t>&                      suffix_lengths,
-                                          std::vector<Value> const&                 state_tensors,
-                                          Nn::CompressedVectorFactory<float> const& vector_factory) override;
+                                          std::vector<size_t>&                      suffixLengths,
+                                          std::vector<Value> const&                 stateTensors,
+                                          Nn::CompressedVectorFactory<float> const& vectorFactory) override;
 
 private:
     const size_t maxHistory_;
     const bool   alwaysIncludeFirstTokenState_;
+    bool         compressionWarningLogged_;
 
-    DeviceBlockPools pools_;         // by block size (floats per state)
-    DeviceBuffer     mergedBuffer_;  // merged state inputs of the model
-    StateCopier      copier_;
+    // Warn (once) if a state compression is configured: the states stay uncompressed floats on the device
+    void warnIfCompressed(Nn::CompressedVectorFactory<float> const& vectorFactory);
+
+    DeviceSlotPools pools_;             // by slot size (floats per state)
+    DeviceBuffer    mergedBuffer_;      // merged state inputs of the model
+    DeviceBuffer    mergeInputBuffer_;  // state pointers, batch and layout data of `mergeStates`
+    StateCopier     copier_;            // copies of `splitStates`
 };
 
 }  // namespace Onnx

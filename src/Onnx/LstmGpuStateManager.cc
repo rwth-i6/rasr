@@ -14,39 +14,31 @@
  */
 #include "LstmGpuStateManager.hh"
 
-#include <cuda_runtime.h>
-
-#include "Session.hh"
-
 namespace Onnx {
 
 namespace {
 
-cudaStream_t sharedStream() {
-    return static_cast<cudaStream_t>(Session::sharedCudaStream());
-}
-
 // Copy batch of one state variable (a state is one contiguous row of the tensor)
 StateCopier::Batch makeBatch(size_t stateSize, size_t batchSize) {
     StateCopier::Batch batch;
-    batch.blockOffsets = {0ul};
-    batch.blockSize    = stateSize;
-    batch.stepSize     = stateSize;
+    batch.runOffsets = {0ul};
+    batch.runLength  = stateSize;
+    batch.stepSize   = stateSize;
     batch.tasks.reserve(batchSize);
     return batch;
 }
 
 }  // namespace
 
-const Core::ParameterInt LstmGpuStateManager::paramBlocksPerChunk(
-        "blocks-per-chunk",
+const Core::ParameterInt LstmGpuStateManager::paramSlotsPerChunk(
+        "slots-per-chunk",
         "number of states (of one state variable each) per device memory allocation of the state pool",
         4096,
         1);
 
 LstmGpuStateManager::LstmGpuStateManager(Core::Configuration const& config)
         : Precursor(config),
-          pools_(paramBlocksPerChunk(config)) {
+          pools_(paramSlotsPerChunk(config)) {
 }
 
 LstmGpuStateManager::HistoryState LstmGpuStateManager::initialState(StateVariables const& vars, Nn::CompressedVectorFactory<float> const&) {
@@ -97,7 +89,7 @@ void LstmGpuStateManager::mergeStates(StateVariables const&                   va
             batches.back().tasks.push_back({state->deviceData(), merged + tensorOffsets[v] + b * stateSizes[v]});
         }
     }
-    copier_.copy(batches, CudaKernels::BlockCopyDirection::BlockToTensor);
+    copier_.copy(batches, CudaKernels::StateCopyDirection::StateToTensor);
 
     feed_dict.reserve(feed_dict.size() + vars.size());
     targets.reserve(targets.size() + vars.size());
@@ -122,11 +114,11 @@ std::vector<LstmGpuStateManager::HistoryState> LstmGpuStateManager::splitStates(
         if (tensor.dataType() != ValueDataType::FLOAT or tensor.numDims() != 2) {
             criticalError("lstm-gpu state manager: state %s must be a float tensor of shape [batch, size]", vars[v].output_state_key.c_str());
         }
+        // The merged state inputs are on the device, so the session puts the state outputs there as well
+        require(tensor.isOnDevice());
         require_eq(static_cast<size_t>(tensor.dimSize(0)), batchSize);
         stateSizes[v] = tensor.dimSize(1);
     }
-    // Outputs in host memory are uploaded into a staging buffer
-    std::vector<float const*> bases = copier_.deviceData(state_tensors);
 
     std::vector<HistoryState> result(batchSize);
     for (auto& state : result) {
@@ -136,13 +128,14 @@ std::vector<LstmGpuStateManager::HistoryState> LstmGpuStateManager::splitStates(
     batches.reserve(vars.size());
     for (size_t v = 0ul; v < vars.size(); ++v) {
         batches.push_back(makeBatch(stateSizes[v], batchSize));
+        float const* base = state_tensors[v].rawData<float>();
         for (size_t b = 0ul; b < batchSize; ++b) {
             auto* state = new DeviceVector(pools_.get(stateSizes[v]), stateSizes[v]);
             result[b].emplace_back(state);
-            batches.back().tasks.push_back({bases[v] + b * stateSizes[v], state->deviceData()});
+            batches.back().tasks.push_back({base + b * stateSizes[v], state->deviceData()});
         }
     }
-    copier_.copy(batches, CudaKernels::BlockCopyDirection::TensorToBlock);
+    copier_.copy(batches, CudaKernels::StateCopyDirection::TensorToState);
 
     // One state per batch entry, like the `lstm` state manager
     for (auto& suffixLength : suffix_lengths) {

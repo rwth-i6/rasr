@@ -32,7 +32,7 @@ class LstmGpuStateManager : public Nn::AbstractStateManager<Value, OnnxStateVari
 public:
     using Precursor = Nn::AbstractStateManager<Value, OnnxStateVariable>;
 
-    static const Core::ParameterInt paramBlocksPerChunk;
+    static const Core::ParameterInt paramSlotsPerChunk;
 
     LstmGpuStateManager(Core::Configuration const& config);
     ~LstmGpuStateManager() override = default;
@@ -51,7 +51,7 @@ public:
                                           Nn::CompressedVectorFactory<float> const& vector_factory) override;
 
 private:
-    DeviceBlockPools pools_;         // by state size (floats per state)
+    DeviceSlotPools pools_;          // by state size (floats per state)
     DeviceBuffer     mergedBuffer_;  // merged state inputs of the model
     StateCopier      copier_;
 };

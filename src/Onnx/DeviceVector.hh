@@ -20,50 +20,54 @@
 #include <unordered_map>
 #include <vector>
 
+#include <cuda_runtime.h>
+
 #include <Nn/CompressedVector.hh>
+
+#include "Session.hh"
 
 namespace Onnx {
 
 /*
- * Pool of equally sized float blocks in CUDA device memory, allocated in chunks and freed only with the pool.
- * Use the blocks only on `Session::sharedCudaStream()`, so released blocks can be reused right away.
+ * Pool of equally sized float slots in CUDA device memory, allocated in chunks and freed only with the pool.
+ * Use the slots only on `Session::sharedCudaStream()`, so released slots can be reused right away.
  */
-class DeviceBlockPool {
+class DeviceSlotPool {
 public:
-    DeviceBlockPool(size_t blockSize, size_t blocksPerChunk);
-    ~DeviceBlockPool();
+    DeviceSlotPool(size_t slotSize, size_t slotsPerChunk);
+    ~DeviceSlotPool();
 
-    DeviceBlockPool(DeviceBlockPool const&)            = delete;
-    DeviceBlockPool& operator=(DeviceBlockPool const&) = delete;
+    DeviceSlotPool(DeviceSlotPool const&)            = delete;
+    DeviceSlotPool& operator=(DeviceSlotPool const&) = delete;
 
-    // Number of floats per block
-    size_t blockSize() const;
+    // Number of floats per slot
+    size_t slotSize() const;
 
     float* acquire();
-    void   release(float* block);
+    void   release(float* slot);
 
 private:
-    size_t const blockSize_;
-    size_t const blocksPerChunk_;
+    size_t const slotSize_;
+    size_t const slotsPerChunk_;
 
     std::mutex          mutex_;
     std::vector<void*>  chunks_;
-    std::vector<float*> freeBlocks_;
+    std::vector<float*> freeSlots_;
 };
 
 /*
- * The `DeviceBlockPool`s of all block sizes that are needed, created on first use.
+ * The `DeviceSlotPool`s of all slot sizes that are needed, created on first use.
  */
-class DeviceBlockPools {
+class DeviceSlotPools {
 public:
-    explicit DeviceBlockPools(size_t blocksPerChunk);
+    explicit DeviceSlotPools(size_t slotsPerChunk);
 
-    std::shared_ptr<DeviceBlockPool> const& get(size_t blockSize);
+    std::shared_ptr<DeviceSlotPool> const& get(size_t slotSize);
 
 private:
-    size_t const blocksPerChunk_;
+    size_t const slotsPerChunk_;
 
-    std::unordered_map<size_t, std::shared_ptr<DeviceBlockPool>> pools_;  // by block size
+    std::unordered_map<size_t, std::shared_ptr<DeviceSlotPool>> pools_;  // by slot size
 };
 
 /*
@@ -92,23 +96,28 @@ inline size_t alignDeviceFloats(size_t numFloats) {
     return (numFloats + alignment - 1ul) / alignment * alignment;
 }
 
-// Abort with a message if `status` (a cudaError_t) is an error
-void checkCudaStatus(int status, char const* what);
+// Abort with a message if `status` is an error
+void checkCudaStatus(cudaError_t status, char const* what);
+
+// `Session::sharedCudaStream()` as cudaStream_t
+inline cudaStream_t sharedStream() {
+    return static_cast<cudaStream_t>(Session::sharedCudaStream());
+}
 
 /*
- * Uncompressed vector in a `DeviceBlockPool` block, used by the GPU state managers.
+ * Uncompressed vector in a `DeviceSlotPool` slot, used by the GPU state managers.
  * The host accessors copy from the device (slow, only a fallback).
  */
 class DeviceVector : public Nn::CompressedVector<float> {
 public:
-    // `size` must be 0 (empty vector, `pool` may be null) or the block size of `pool`
-    DeviceVector(std::shared_ptr<DeviceBlockPool> pool, size_t size);
+    // `size` must be 0 (empty vector, `pool` may be null) or the slot size of `pool`
+    DeviceVector(std::shared_ptr<DeviceSlotPool> pool, size_t size);
     ~DeviceVector() override;
 
     size_t size() const override;
     float  get(size_t pos) const override;
     void   uncompress(float* data, size_t size) const override;
-    void   uncompress(float* data, Nn::ContiguousBlockInfo const& block_info) const override;
+    void   uncompress(float* data, Nn::ContiguousBlockInfo const& blockInfo) const override;
     void   clear() override;
     // Device memory used by this vector
     size_t usedMemory() const override;
@@ -117,9 +126,9 @@ public:
     float* deviceData() const;
 
 private:
-    std::shared_ptr<DeviceBlockPool> pool_;
-    float*                           data_;
-    size_t                           size_;
+    std::shared_ptr<DeviceSlotPool> pool_;
+    float*                          data_;
+    size_t                          size_;
 
     // Copy of the data in host memory
     std::vector<float> toHost() const;

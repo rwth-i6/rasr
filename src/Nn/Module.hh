@@ -29,8 +29,11 @@
 #include "LabelScorer/EncoderFactory.hh"
 #include "LabelScorer/LabelScorerFactory.hh"
 
+#ifdef MODULE_ONNX
 #include <Onnx/OnnxStateVariable.hh>
+#include <Onnx/Session.hh>
 #include <Onnx/Value.hh>
+#endif
 
 namespace Core {
 class FormatSet;
@@ -43,8 +46,10 @@ private:
     static const Core::Choice          compressedVectorFactoryTypeChoice;
     static const Core::ParameterChoice compressedVectorFactoryTypeParam;
 
+#ifdef MODULE_ONNX
     static const Core::Choice          stateManagerTypeChoice;
     static const Core::ParameterChoice stateManagerTypeParam;
+#endif
 
 public:
     Module_();
@@ -82,11 +87,16 @@ public:
      */
     CompressedVectorFactoryPtr<float> createCompressedVectorFactory(Core::Configuration const& config);
 
+#ifdef MODULE_ONNX
     /*
      * Create an ONNX recurrent state manager for LSTM and transformer-style
      * autoregressive models.
+     * `sessionExecutionProvider` is the execution provider of the session whose states are managed (see
+     * `Onnx::Session::executionProviderType`). The type `transformer` uses it to choose between the CPU and the CUDA version.
      */
-    std::unique_ptr<AbstractStateManager<Onnx::Value, Onnx::OnnxStateVariable>> createStateManager(Core::Configuration const& config);
+    std::unique_ptr<AbstractStateManager<Onnx::Value, Onnx::OnnxStateVariable>> createStateManager(Core::Configuration const&  config,
+                                                                                                   Onnx::ExecutionProviderType sessionExecutionProvider);
+#endif
 
 private:
     Core::FormatSet*   formats_;

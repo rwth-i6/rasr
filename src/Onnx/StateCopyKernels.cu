@@ -12,8 +12,6 @@
  *  See the License for the specific language governing permissions and
  *  limitations under the License.
  */
-#include <algorithm>
-
 #include <cuda_runtime.h>
 
 #include "StateCopyKernels.hh"
@@ -24,14 +22,14 @@ namespace CudaKernels {
 namespace {
 
 // One CUDA block per task, its threads copy the elements of the time step
-__global__ void blockCopyKernel(BlockCopyTask const* tasks,
-                                size_t const*        blockOffsets,
-                                size_t               blockSize,
+__global__ void stateCopyKernel(StateCopyTask const* tasks,
+                                size_t const*        runOffsets,
+                                size_t               runLength,
                                 size_t               stepSize,
                                 bool                 toTensor) {
-    BlockCopyTask const task = tasks[blockIdx.x];
+    StateCopyTask const task = tasks[blockIdx.x];
     for (size_t i = threadIdx.x; i < stepSize; i += blockDim.x) {
-        size_t const tensorIdx = blockOffsets[i / blockSize] + i % blockSize;
+        size_t const tensorIdx = runOffsets[i / runLength] + i % runLength;
         if (toTensor) {
             task.dst[tensorIdx] = task.src[i];
         }
@@ -41,27 +39,70 @@ __global__ void blockCopyKernel(BlockCopyTask const* tasks,
     }
 }
 
-constexpr unsigned kThreadsPerBlock = 256u;
-constexpr size_t   kMaxGridSize     = 1ul << 30;
+constexpr unsigned threadsPerBlock = 256u;
+
+// Grid (maxPrefix, numBatch, numVars): each block writes one time step of one batch entry of one state variable,
+// either the state of that position or zeros (left padding of shorter prefixes)
+__global__ void stateMergeKernel(float const* const* states,
+                                 size_t const*       prefixLengths,
+                                 size_t const*       batchStarts,
+                                 MergeLayout const*  layouts,
+                                 size_t const*       runOffsets,
+                                 size_t              numStates,
+                                 size_t              maxPrefix) {
+    size_t const t = blockIdx.x;
+    size_t const b = blockIdx.y;
+    size_t const v = blockIdx.z;
+
+    MergeLayout const layout  = layouts[v];
+    size_t const*     offsets = runOffsets + layout.runOffsetsStart;
+    float*            dst     = layout.tensor + b * layout.batchStride + t * layout.timeStride;
+
+    size_t const padding = maxPrefix - prefixLengths[b];
+    if (t < padding) {
+        for (size_t i = threadIdx.x; i < layout.stepSize; i += blockDim.x) {
+            dst[offsets[i / layout.runLength] + i % layout.runLength] = 0.0f;
+        }
+        return;
+    }
+    float const* src = states[v * numStates + batchStarts[b] + (t - padding)];
+    for (size_t i = threadIdx.x; i < layout.stepSize; i += blockDim.x) {
+        dst[offsets[i / layout.runLength] + i % layout.runLength] = src[i];
+    }
+}
 
 }  // namespace
 
-int launchBlockCopy(BlockCopyTask const* tasks,
-                    size_t               numTasks,
-                    size_t const*        blockOffsets,
-                    size_t               blockSize,
-                    size_t               stepSize,
-                    BlockCopyDirection   direction,
-                    void*                stream) {
+cudaError_t launchStateCopy(StateCopyTask const* tasks,
+                            size_t               numTasks,
+                            size_t const*        runOffsets,
+                            size_t               runLength,
+                            size_t               stepSize,
+                            StateCopyDirection   direction,
+                            cudaStream_t         stream) {
     if (numTasks == 0ul or stepSize == 0ul) {
         return cudaSuccess;
     }
-    bool const toTensor = direction == BlockCopyDirection::BlockToTensor;
-    for (size_t start = 0ul; start < numTasks; start += kMaxGridSize) {
-        unsigned const gridSize = static_cast<unsigned>(std::min(kMaxGridSize, numTasks - start));
-        blockCopyKernel<<<gridSize, kThreadsPerBlock, 0, static_cast<cudaStream_t>(stream)>>>(
-                tasks + start, blockOffsets, blockSize, stepSize, toTensor);
+    bool const toTensor = direction == StateCopyDirection::StateToTensor;
+    stateCopyKernel<<<static_cast<unsigned>(numTasks), threadsPerBlock, 0, stream>>>(tasks, runOffsets, runLength, stepSize, toTensor);
+    return cudaGetLastError();
+}
+
+cudaError_t launchStateMerge(float const* const* states,
+                             size_t const*       prefixLengths,
+                             size_t const*       batchStarts,
+                             MergeLayout const*  layouts,
+                             size_t const*       runOffsets,
+                             size_t              numStates,
+                             size_t              maxPrefix,
+                             size_t              numBatch,
+                             size_t              numVars,
+                             cudaStream_t        stream) {
+    if (maxPrefix == 0ul or numBatch == 0ul or numVars == 0ul) {
+        return cudaSuccess;
     }
+    dim3 const grid(static_cast<unsigned>(maxPrefix), static_cast<unsigned>(numBatch), static_cast<unsigned>(numVars));
+    stateMergeKernel<<<grid, threadsPerBlock, 0, stream>>>(states, prefixLengths, batchStarts, layouts, runOffsets, numStates, maxPrefix);
     return cudaGetLastError();
 }
 

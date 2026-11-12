@@ -98,9 +98,46 @@ void dynamic_rank_slice(tf::Tensor& left, tf::Tensor const& right, std::vector<t
 namespace Tensorflow {
 
 template<typename T>
-Tensor Tensor::zeros(std::initializer_list<int64> dim) {
+Tensor Tensor::createEmpty(std::initializer_list<int64> dim) {
     Tensor res;
     res.tensor_.reset(new tf::Tensor(ToDataType<T>::tf_type, dim));
+    return res;
+}
+
+template Tensor Tensor::createEmpty<f32>(std::initializer_list<int64> dim);
+template Tensor Tensor::createEmpty<f64>(std::initializer_list<int64> dim);
+template Tensor Tensor::createEmpty<s64>(std::initializer_list<int64> dim);
+template Tensor Tensor::createEmpty<u64>(std::initializer_list<int64> dim);
+template Tensor Tensor::createEmpty<s32>(std::initializer_list<int64> dim);
+template Tensor Tensor::createEmpty<u32>(std::initializer_list<int64> dim);
+template Tensor Tensor::createEmpty<s16>(std::initializer_list<int64> dim);
+template Tensor Tensor::createEmpty<u16>(std::initializer_list<int64> dim);
+template Tensor Tensor::createEmpty<s8>(std::initializer_list<int64> dim);
+template Tensor Tensor::createEmpty<u8>(std::initializer_list<int64> dim);
+
+template<typename T>
+Tensor Tensor::createEmpty(std::vector<int64> const& dim) {
+    Tensor          res;
+    tf::TensorShape shape(dim);
+    res.tensor_.reset(new tf::Tensor(ToDataType<T>::tf_type, shape));
+    return res;
+}
+
+template Tensor Tensor::createEmpty<f32>(std::vector<int64> const& dim);
+template Tensor Tensor::createEmpty<f64>(std::vector<int64> const& dim);
+template Tensor Tensor::createEmpty<s64>(std::vector<int64> const& dim);
+template Tensor Tensor::createEmpty<u64>(std::vector<int64> const& dim);
+template Tensor Tensor::createEmpty<s32>(std::vector<int64> const& dim);
+template Tensor Tensor::createEmpty<u32>(std::vector<int64> const& dim);
+template Tensor Tensor::createEmpty<s16>(std::vector<int64> const& dim);
+template Tensor Tensor::createEmpty<u16>(std::vector<int64> const& dim);
+template Tensor Tensor::createEmpty<s8>(std::vector<int64> const& dim);
+template Tensor Tensor::createEmpty<u8>(std::vector<int64> const& dim);
+
+template<typename T>
+Tensor Tensor::zeros(std::initializer_list<int64> dim) {
+    Tensor res = createEmpty<T>(dim);
+
     tf::int64 total_size = std::accumulate(dim.begin(), dim.end(), 1l, [](tf::int64 a, tf::int64 b) { return a * b; });
     T*        data       = res.data<T>();
     for (tf::int64 i = 0ul; i < total_size; i++) {
@@ -122,9 +159,8 @@ template Tensor Tensor::zeros<u8>(std::initializer_list<int64> dim);
 
 template<typename T>
 Tensor Tensor::zeros(std::vector<int64> const& dim) {
-    Tensor          res;
-    tf::TensorShape shape(dim);
-    res.tensor_.reset(new tf::Tensor(ToDataType<T>::tf_type, shape));
+    Tensor res = createEmpty<T>(dim);
+
     tf::int64 total_size = std::accumulate(dim.begin(), dim.end(), 1l, [](tf::int64 a, tf::int64 b) { return a * b; });
     T*        data       = res.data<T>();
     for (tf::int64 i = 0ul; i < total_size; i++) {

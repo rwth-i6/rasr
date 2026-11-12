@@ -44,6 +44,10 @@ LstmGpuStateManager::LstmGpuStateManager(Core::Configuration const& config)
           compressionWarningLogged_(false) {
 }
 
+bool LstmGpuStateManager::keepsStatesOnDevice() const {
+    return true;
+}
+
 void LstmGpuStateManager::warnIfCompressed(Nn::CompressedVectorFactory<float> const& vectorFactory) {
     if (not compressionWarningLogged_ and dynamic_cast<Nn::DummyCompressedVectorFactory<float> const*>(&vectorFactory) == nullptr) {
         warning("The lstm-cuda state manager ignores the configured state-compression, its states are uncompressed floats on the device");

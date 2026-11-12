@@ -43,6 +43,7 @@ public:
     ~TransformerGpuStateManager() override;
 
     bool requiresAllParentStates() const override;
+    bool keepsStatesOnDevice() const override;
 
     HistoryState initialState(StateVariables const& vars, Nn::CompressedVectorFactory<float> const& vectorFactory) override;
 

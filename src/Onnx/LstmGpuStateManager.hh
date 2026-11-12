@@ -37,6 +37,8 @@ public:
     LstmGpuStateManager(Core::Configuration const& config);
     ~LstmGpuStateManager() override = default;
 
+    bool keepsStatesOnDevice() const override;
+
     HistoryState initialState(StateVariables const& vars, Nn::CompressedVectorFactory<float> const& vectorFactory) override;
 
     void mergeStates(StateVariables const&                   vars,

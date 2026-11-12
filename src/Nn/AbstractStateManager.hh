@@ -25,6 +25,10 @@ public:
 
     virtual bool requiresAllParentStates() const;
 
+    // Whether the states are kept in device (CUDA) memory, i.e. whether `splitStates` saves copies if the state tensors
+    // are already on the device
+    virtual bool keepsStatesOnDevice() const;
+
     virtual HistoryState initialState(StateVariables const& vars, CompressedVectorFactory<float> const& vector_factory) = 0;
 
     virtual void mergeStates(StateVariables const&                   vars,
@@ -41,6 +45,11 @@ public:
 
 template<typename value_t, typename state_variable_t>
 inline bool AbstractStateManager<value_t, state_variable_t>::requiresAllParentStates() const {
+    return false;
+}
+
+template<typename value_t, typename state_variable_t>
+inline bool AbstractStateManager<value_t, state_variable_t>::keepsStatesOnDevice() const {
     return false;
 }
 

@@ -62,6 +62,8 @@ typedef Core::Ref<PrefixSpeechLmScoringContext const> PrefixSpeechLmScoringConte
  * to produce the initial states and score distribution and one which takes a new token and
  * existing states to output updated states and scores after incorporating the token.
  * The states are managed with a StateManager.
+ * With `prefill-with-step-model`, a single combined model is used for both (one ONNX session, the LM weights only once):
+ * it takes several new positions at once (tokens and/or vectors), and the prefill runs it twice per segment.
  *
  * Multiple segments: encoder states, the initial context and caches are kept per segment. The initializer runs
  * once per segment, step contexts of all segments are batched together.
@@ -76,6 +78,7 @@ class PrefixSpeechLmOnnxLabelScorer : public BufferedLabelScorer {
     static const Core::ParameterBool      paramBlankUpdatesHistory;
     static const Core::ParameterBool      paramSilenceUpdatesHistory;
     static const Core::ParameterBool      paramLoopUpdatesHistory;
+    static const Core::ParameterBool      paramPrefillWithStepModel;
     static const Core::ParameterInt       paramMaxBatchSize;
     static const Core::ParameterInt       paramMaxCachedScores;
 
@@ -122,8 +125,22 @@ private:
     // Data of the segment, created if it doesn't exist yet
     SegmentData& segmentData(SegmentId segment);
 
-    void setupInitialStates(SegmentId segment);
-    void cacheStatesAndScores(std::vector<PrefixSpeechLmScoringContextRef> const& scoringContextBatch);
+    // Result of the prefill: scores of the first output token, the states of the prefix positions (one per position if
+    // the state manager requires all parent states, else only the last) and the number of prefix positions
+    struct PrefillResult {
+        std::shared_ptr<std::vector<Score>> scores;
+        std::vector<HistoryState>           states;
+        size_t                              length = 0ul;
+    };
+
+    void          setupInitialStates(SegmentId segment);
+    PrefillResult prefillWithInitializerModel(SegmentId segment, std::vector<s32> const& initialPrompt, std::vector<s32> const& suffixPrompt);
+    // Prefill with the (combined) step model: initial prompt + encoder states with an empty cache, then the suffix prompt
+    PrefillResult prefillWithStepModel(SegmentId segment, std::vector<s32> const& initialPrompt, std::vector<s32> const& suffixPrompt);
+    // One call of the step model for one segment: the new positions `tokens` + `embeds` (may be nullptr) against the
+    // given prefix states of `prefixLength` positions (0: empty cache)
+    PrefillResult runStepModelChunk(std::vector<s32> const& tokens, Onnx::Value const* embeds, std::vector<HistoryState const*> const& prefixStates, size_t prefixLength);
+    void          cacheStatesAndScores(std::vector<PrefixSpeechLmScoringContextRef> const& scoringContextBatch);
 
     void setupEncoderStatesValue(SegmentId segment);
     void setupEncoderStatesSizeValue(SegmentId segment);
@@ -137,6 +154,8 @@ private:
     bool             loopUpdatesHistory_;
     size_t           maxBatchSize_;
     size_t           maxCachedScores_;
+    bool             prefillWithStepModel_;
+    int64_t          stepEmbedsDim_;  // feature dim of the "embeds" input of the step model, if it has one
 
     std::shared_ptr<Onnx::Model> initializerOnnxModel_;
     std::shared_ptr<Onnx::Model> stepOnnxModel_;
@@ -155,6 +174,8 @@ private:
 
     std::string stepTokenName_;
     std::string stepTokenLengthName_;
+    std::string stepEmbedsName_;
+    std::string stepEmbedsLengthName_;
     std::string stepPrefixLengthName_;
     std::string stepScoresName_;
 

@@ -128,6 +128,10 @@ bool TransformerGpuStateManager::requiresAllParentStates() const {
     return true;
 }
 
+bool TransformerGpuStateManager::keepsStatesOnDevice() const {
+    return true;
+}
+
 void TransformerGpuStateManager::warnIfCompressed(Nn::CompressedVectorFactory<float> const& vectorFactory) {
     if (not compressionWarningLogged_ and dynamic_cast<Nn::DummyCompressedVectorFactory<float> const*>(&vectorFactory) == nullptr) {
         warning("The transformer-cuda state manager ignores the configured state-compression, its states are uncompressed floats on the device");

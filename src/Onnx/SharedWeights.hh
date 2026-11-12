@@ -19,82 +19,59 @@
 #include <cstddef>
 #include <memory>
 #include <string>
-#include <vector>
 
 #include <onnxruntime_cxx_api.h>
 
+#include "Session.hh"
+
 namespace Onnx {
 
-class SharedWeightGroup;
-
-enum class SharedWeightDevice {
-    cpu,
-    cuda
-};
-
-struct SharedWeightSessionStats {
-    struct InitializerInfo {
-        std::string name;
-        size_t      bytes = 0;
-    };
-
-    size_t                       parsedInitializers     = 0;
-    size_t                       skippedInitializers    = 0;
-    size_t                       registeredInitializers = 0;
-    size_t                       newInitializers        = 0;
-    size_t                       reusedInitializers     = 0;
-    size_t                       registeredBytes        = 0;
-    size_t                       newBytes               = 0;
-    size_t                       reusedBytes            = 0;
-    size_t                       groupInitializers      = 0;
-    size_t                       groupBytes             = 0;
-    std::vector<InitializerInfo> largestNewInitializers;
-};
-
 /*
- * Process-wide registry for ONNX initializer tensors shared by multiple
- * Ort::Sessions. Sessions opt in by using the same non-empty weight-group name.
+ * Process-wide group of ONNX initializer tensors shared by multiple Ort::Sessions.
+ * Sessions opt in by using the same non-empty weight-group name.
  *
  * Initializers are matched by dtype, shape and content, so equal weights are shared
  * even if they have different names in the different models. The shared tensors are
  * handed to ONNX Runtime via `AddInitializer`. ONNX Runtime only uses them if they
  * already reside on the device where it plans to place the initializer, therefore
- * the tensors of a group are created on the device of the sessions using it
+ * the tensors of a group are created on the device of its execution provider
  * (CPU: memory-mapped from the model files, CUDA: device memory).
  * A group is released once the last session holding it is destroyed.
+ *
+ * Errors are reported by exceptions, like the ONNX Runtime C++ API used here does.
  */
-class SharedWeightRegistry {
-public:
-    static SharedWeightRegistry& instance();
-
-    std::shared_ptr<SharedWeightGroup> prepareSessionOptions(std::string const&        groupName,
-                                                             std::string const&        modelFile,
-                                                             SharedWeightDevice        device,
-                                                             Ort::SessionOptions&      sessionOptions,
-                                                             SharedWeightSessionStats* stats = nullptr);
-
-private:
-    SharedWeightRegistry() = default;
-};
-
 class SharedWeightGroup {
 public:
+    struct Statistics {
+        size_t newInitializers    = 0ul;
+        size_t newBytes           = 0ul;
+        size_t sharedInitializers = 0ul;
+        size_t sharedBytes        = 0ul;
+        size_t groupBytes         = 0ul;
+    };
+
+    // Returns the existing group of this name or creates it. All sessions of a group must use the same execution provider.
+    static std::shared_ptr<SharedWeightGroup> get(std::string const& name, ExecutionProviderType provider);
+
+    ~SharedWeightGroup();
+
+    // Registers the initializers of the model in the session options, adding those not yet in the group
+    Statistics addInitializers(std::string const& modelFile, Ort::SessionOptions& sessionOptions);
+
     OrtPrepackedWeightsContainer* prepackedWeightsContainer();
 
     /*
-     * Drop the resident pages of memory-mapped CPU initializers. Call this after creating a session:
+     * Drop the resident pages of memory-mapped initializers. Call this after creating a session:
      * ONNX Runtime copies most weights into pre-packed buffers, so the original pages are mostly not
      * needed anymore. Pages which are still used are read again from the page cache on access.
      */
     void releaseHostPages();
 
 private:
-    friend class SharedWeightRegistry;
-
     struct Impl;
-    std::shared_ptr<Impl> impl_;
+    std::unique_ptr<Impl> impl_;
 
-    explicit SharedWeightGroup(std::shared_ptr<Impl> impl);
+    explicit SharedWeightGroup(ExecutionProviderType provider);
 };
 
 }  // namespace Onnx

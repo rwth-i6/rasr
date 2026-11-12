@@ -65,9 +65,9 @@ Session::Session(Core::Configuration const& config)
     session_opts.SetIntraOpNumThreads(intraOpNumThreads_);
     session_opts.SetInterOpNumThreads(interOpNumThreads_);
 
-    auto providers          = Ort::GetAvailableProviders();
-    auto sharedWeightDevice = SharedWeightDevice::cpu;
-    switch (paramExecutionProviderType(config)) {
+    auto providers = Ort::GetAvailableProviders();
+    auto provider  = static_cast<ExecutionProviderType>(paramExecutionProviderType(config));
+    switch (provider) {
         case ExecutionProviderType::cpu: {
             if (std::find(providers.begin(), providers.end(), "CPUExecutionProvider") == providers.end()) {
                 error() << "Requested CPU execution provider for ONNX session but it is not available.";
@@ -87,7 +87,6 @@ Session::Session(Core::Configuration const& config)
             Ort::ThrowOnError(Ort::GetApi().CreateCUDAProviderOptions(&cuda_opts));
             session_opts.AppendExecutionProvider_CUDA_V2(*cuda_opts);
             Ort::GetApi().ReleaseCUDAProviderOptions(cuda_opts);
-            sharedWeightDevice = SharedWeightDevice::cuda;
             break;
 #else
             error() << "Requested CUDA execution provider but RASR was not compiled with MODULE_CUDA which is required for it.";
@@ -98,33 +97,22 @@ Session::Session(Core::Configuration const& config)
     }
 
     if (not weightGroup_.empty()) {
-        SharedWeightSessionStats sharedWeightStats;
+        constexpr double gib = 1024.0 * 1024.0 * 1024.0;
+        // SharedWeightGroup reports errors by exceptions, like the ONNX Runtime C++ API it uses
         try {
-            sharedWeightGroup_ = SharedWeightRegistry::instance().prepareSessionOptions(weightGroup_, file_, sharedWeightDevice, session_opts, &sharedWeightStats);
+            sharedWeightGroup_ = SharedWeightGroup::get(weightGroup_, provider);
+            auto statistics    = sharedWeightGroup_->addInitializers(file_, session_opts);
+            log("ONNX weight group '%s' for %s: %zu initializers (%.3f GiB) newly loaded, %zu initializers (%.3f GiB) shared, group total %.3f GiB",
+                weightGroup_.c_str(),
+                file_.c_str(),
+                statistics.newInitializers,
+                statistics.newBytes / gib,
+                statistics.sharedInitializers,
+                statistics.sharedBytes / gib,
+                statistics.groupBytes / gib);
         }
         catch (std::exception const& e) {
-            criticalError() << "Failed to prepare ONNX shared weight group '" << weightGroup_ << "' for " << file_ << ": " << e.what();
-        }
-        log("ONNX shared weight group '%s' for %s: parsed %zu initializers, skipped %zu small ones, registered %zu (new %zu, reused %zu), registered %.3f GiB (new %.3f GiB, reused %.3f GiB), group total %.3f GiB in %zu initializers",
-            weightGroup_.c_str(),
-            file_.c_str(),
-            sharedWeightStats.parsedInitializers,
-            sharedWeightStats.skippedInitializers,
-            sharedWeightStats.registeredInitializers,
-            sharedWeightStats.newInitializers,
-            sharedWeightStats.reusedInitializers,
-            static_cast<double>(sharedWeightStats.registeredBytes) / 1073741824.0,
-            static_cast<double>(sharedWeightStats.newBytes) / 1073741824.0,
-            static_cast<double>(sharedWeightStats.reusedBytes) / 1073741824.0,
-            static_cast<double>(sharedWeightStats.groupBytes) / 1073741824.0,
-            sharedWeightStats.groupInitializers);
-        if (sharedWeightStats.reusedInitializers > 0ul and not sharedWeightStats.largestNewInitializers.empty()) {
-            for (auto const& initializer : sharedWeightStats.largestNewInitializers) {
-                log("ONNX shared weight group '%s' new initializer: %.3f GiB %s",
-                    weightGroup_.c_str(),
-                    static_cast<double>(initializer.bytes) / 1073741824.0,
-                    initializer.name.c_str());
-            }
+            criticalError() << "Failed to prepare ONNX weight group '" << weightGroup_ << "' for " << file_ << ": " << e.what();
         }
         session_ = Ort::Session(env_, file_.c_str(), session_opts, sharedWeightGroup_->prepackedWeightsContainer());
         sharedWeightGroup_->releaseHostPages();

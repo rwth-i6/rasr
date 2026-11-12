@@ -17,6 +17,7 @@
 
 #include <algorithm>
 #include <cstdint>
+#include <cstdlib>
 #include <cstring>
 #include <filesystem>
 #include <mutex>
@@ -37,8 +38,6 @@
 #endif
 
 namespace {
-
-constexpr size_t maxReportedInitializers = 10ul;
 
 using ByteView = std::pair<uint8_t const*, size_t>;
 
@@ -417,6 +416,33 @@ std::vector<ParsedInitializer> parseModelInitializers(std::string const& modelFi
     return initializers;
 }
 
+/*
+ * ONNX Runtime allocates initializers with this alignment and its CPU kernels may rely on it. Data in external data
+ * files usually starts at a page boundary, but tensor data embedded in the model file (raw_data) has arbitrary offsets.
+ */
+constexpr size_t initializerAlignment = 64ul;
+
+// Aligned copy of tensor data, used on CPU for data which cannot be used in place
+struct AlignedCopyData : MappedData {
+    explicit AlignedCopyData(MappedData const& source) {
+        size_t allocationSize = (source.size + initializerAlignment - 1ul) / initializerAlignment * initializerAlignment;
+        void*  buffer         = std::aligned_alloc(initializerAlignment, allocationSize);
+        if (buffer == nullptr) {
+            throw std::runtime_error("failed to allocate " + std::to_string(allocationSize) + " bytes for shared initializer");
+        }
+        std::memcpy(buffer, source.data, source.size);
+        data = static_cast<uint8_t const*>(buffer);
+        size = source.size;
+    }
+
+    AlignedCopyData(AlignedCopyData const&)            = delete;
+    AlignedCopyData& operator=(AlignedCopyData const&) = delete;
+
+    ~AlignedCopyData() override {
+        std::free(const_cast<uint8_t*>(data));
+    }
+};
+
 #ifdef MODULE_CUDA
 struct CudaBuffer {
     void* ptr = nullptr;
@@ -445,8 +471,8 @@ struct CudaBuffer {
 #endif
 
 /*
- * One deduplicated initializer tensor. On CPU the tensor points directly into the memory-mapped
- * model data, on CUDA it owns a device copy and the host mapping is released after the upload.
+ * One deduplicated initializer tensor. On CPU the tensor points directly into the memory-mapped model data, on CUDA
+ * it owns a device copy. The host data is kept in both cases to compare it with the initializers of further models.
  */
 struct SharedInitializer {
     ONNXTensorElementDataType   dataType;
@@ -466,15 +492,20 @@ struct SharedInitializer {
               hash(hash),
               hostData(std::move(initializer.data)),
               value(nullptr) {
-        void* buffer = const_cast<uint8_t*>(hostData->data);
+        void* buffer = nullptr;
         if (onCuda) {
 #ifdef MODULE_CUDA
             deviceData = std::make_unique<CudaBuffer>(hostData->data, bytes);
             buffer     = deviceData->ptr;
-            hostData.reset();
 #else
             throw std::runtime_error("CUDA shared initializers require RASR to be compiled with MODULE_CUDA");
 #endif
+        }
+        else {
+            if (reinterpret_cast<uintptr_t>(hostData->data) % initializerAlignment != 0ul) {
+                hostData = std::make_shared<AlignedCopyData>(*hostData);
+            }
+            buffer = const_cast<uint8_t*>(hostData->data);
         }
         value = Ort::Value::CreateTensor(memoryInfo, buffer, bytes, shape.data(), shape.size(), dataType);
     }
@@ -504,6 +535,7 @@ bool isShareable(ParsedInitializer const& initializer, bool onCuda) {
     return true;
 }
 
+// Only used to find candidates, equality is always confirmed by comparing the data
 uint64_t hashData(MappedData const& data) {
     // FNV-1a over 64 bit words with a final mixing step, much faster than byte-wise hashing of multi-GB models
     constexpr uint64_t prime = 1099511628211ull;
@@ -524,32 +556,20 @@ uint64_t hashData(MappedData const& data) {
 }
 
 bool isEqual(SharedInitializer const& shared, ParsedInitializer const& parsed, uint64_t hash) {
-    if (shared.hash != hash or shared.dataType != parsed.dataType or shared.shape != parsed.shape or shared.bytes != parsed.data->size) {
-        return false;
-    }
-    // On CUDA the host copy is gone, there we rely on the hash
-    return not shared.hostData or std::memcmp(shared.hostData->data, parsed.data->data, shared.bytes) == 0;
+    return shared.hash == hash and shared.dataType == parsed.dataType and shared.shape == parsed.shape and
+           shared.bytes == parsed.data->size and std::memcmp(shared.hostData->data, parsed.data->data, shared.bytes) == 0;
 }
 
-void addLargestNewInitializer(Onnx::SharedWeightSessionStats& stats, std::string const& name, size_t bytes) {
-    stats.largestNewInitializers.push_back(Onnx::SharedWeightSessionStats::InitializerInfo{name, bytes});
-    std::sort(stats.largestNewInitializers.begin(),
-              stats.largestNewInitializers.end(),
-              [](auto const& a, auto const& b) { return a.bytes > b.bytes; });
-    if (stats.largestNewInitializers.size() > maxReportedInitializers) {
-        stats.largestNewInitializers.resize(maxReportedInitializers);
-    }
+bool isCuda(Onnx::ExecutionProviderType provider) {
+    return provider == Onnx::ExecutionProviderType::cuda;
 }
 
-Ort::MemoryInfo createMemoryInfo(Onnx::SharedWeightDevice device) {
-    switch (device) {
-        case Onnx::SharedWeightDevice::cpu:
-            return Ort::MemoryInfo::CreateCpu(OrtDeviceAllocator, OrtMemTypeDefault);
-        case Onnx::SharedWeightDevice::cuda:
-            // Must match the device of the CUDA execution provider, which uses its default device 0
-            return Ort::MemoryInfo("Cuda", OrtDeviceAllocator, 0, OrtMemTypeDefault);
+Ort::MemoryInfo createMemoryInfo(Onnx::ExecutionProviderType provider) {
+    if (isCuda(provider)) {
+        // Must match the device of the CUDA execution provider, which uses its default device 0
+        return Ort::MemoryInfo("Cuda", OrtDeviceAllocator, 0, OrtMemTypeDefault);
     }
-    throw std::runtime_error("unknown shared weight device");
+    return Ort::MemoryInfo::CreateCpu(OrtDeviceAllocator, OrtMemTypeDefault);
 }
 
 }  // namespace
@@ -557,93 +577,62 @@ Ort::MemoryInfo createMemoryInfo(Onnx::SharedWeightDevice device) {
 namespace Onnx {
 
 struct SharedWeightGroup::Impl {
-    std::mutex                                                                    mutex;
-    SharedWeightDevice                                                            device;
+    ExecutionProviderType                                                         provider;
     Ort::MemoryInfo                                                               memoryInfo;
     Ort::PrepackedWeightsContainer                                                prepackedWeightsContainer;
+    std::mutex                                                                    mutex;
     std::unordered_map<uint64_t, std::vector<std::shared_ptr<SharedInitializer>>> initializersByHash;
-    size_t                                                                        totalInitializers;
     size_t                                                                        totalBytes;
 
-    Impl(SharedWeightDevice device)
-            : mutex(),
-              device(device),
-              memoryInfo(createMemoryInfo(device)),
+    Impl(ExecutionProviderType provider)
+            : provider(provider),
+              memoryInfo(createMemoryInfo(provider)),
               prepackedWeightsContainer(),
+              mutex(),
               initializersByHash(),
-              totalInitializers(0ul),
               totalBytes(0ul) {}
 };
 
-SharedWeightGroup::SharedWeightGroup(std::shared_ptr<Impl> impl)
-        : impl_(std::move(impl)) {}
+std::shared_ptr<SharedWeightGroup> SharedWeightGroup::get(std::string const& name, ExecutionProviderType provider) {
+    static std::mutex                                                        mutex;
+    static std::unordered_map<std::string, std::weak_ptr<SharedWeightGroup>> groups;
+
+    std::lock_guard<std::mutex> lock(mutex);
+    auto                        group = groups[name].lock();
+    if (not group) {
+        group        = std::shared_ptr<SharedWeightGroup>(new SharedWeightGroup(provider));
+        groups[name] = group;
+    }
+    else if (group->impl_->provider != provider) {
+        throw std::runtime_error("weight group '" + name + "' is already used by sessions with a different execution provider");
+    }
+    return group;
+}
+
+SharedWeightGroup::SharedWeightGroup(ExecutionProviderType provider)
+        : impl_(std::make_unique<Impl>(provider)) {}
+
+SharedWeightGroup::~SharedWeightGroup() = default;
 
 OrtPrepackedWeightsContainer* SharedWeightGroup::prepackedWeightsContainer() {
     return impl_->prepackedWeightsContainer;
 }
 
-void SharedWeightGroup::releaseHostPages() {
-    std::lock_guard<std::mutex> lock(impl_->mutex);
-    for (auto const& [hash, initializers] : impl_->initializersByHash) {
-        for (auto const& initializer : initializers) {
-            if (initializer->hostData) {
-                initializer->hostData->dontNeed();
-            }
-        }
-    }
-}
-
-SharedWeightRegistry& SharedWeightRegistry::instance() {
-    static SharedWeightRegistry registry;
-    return registry;
-}
-
-std::shared_ptr<SharedWeightGroup> SharedWeightRegistry::prepareSessionOptions(std::string const&        groupName,
-                                                                               std::string const&        modelFile,
-                                                                               SharedWeightDevice        device,
-                                                                               Ort::SessionOptions&      sessionOptions,
-                                                                               SharedWeightSessionStats* stats) {
-    struct RegistryState {
-        std::mutex                                                              mutex;
-        std::unordered_map<std::string, std::weak_ptr<SharedWeightGroup::Impl>> groups;
-    };
-    static RegistryState state;
-
+SharedWeightGroup::Statistics SharedWeightGroup::addInitializers(std::string const& modelFile, Ort::SessionOptions& sessionOptions) {
     auto parsedInitializers = parseModelInitializers(modelFile);
-    if (stats) {
-        *stats                    = SharedWeightSessionStats();
-        stats->parsedInitializers = parsedInitializers.size();
-    }
+    bool onCuda             = isCuda(impl_->provider);
 
-    std::lock_guard<std::mutex> lock(state.mutex);
-    auto                        impl = state.groups[groupName].lock();
-    if (!impl) {
-        impl                    = std::make_shared<SharedWeightGroup::Impl>(device);
-        state.groups[groupName] = impl;
-    }
-    else if (impl->device != device) {
-        throw std::runtime_error("weight group '" + groupName + "' is already used by sessions with a different execution provider");
-    }
-    std::lock_guard<std::mutex> groupLock(impl->mutex);
-    bool                        onCuda = device == SharedWeightDevice::cuda;
-
-    std::unordered_set<std::string> addedToSessionOptions;
+    std::lock_guard<std::mutex>     lock(impl_->mutex);
+    Statistics                      statistics;
+    std::unordered_set<std::string> addedNames;
     for (auto& parsed : parsedInitializers) {
-        if (not isShareable(parsed, onCuda)) {
-            if (stats) {
-                stats->skippedInitializers += 1ul;
-            }
-            continue;
-        }
-
-        std::string modelInitializerName = parsed.name;
-        if (not addedToSessionOptions.insert(modelInitializerName).second) {
+        if (not isShareable(parsed, onCuda) or not addedNames.insert(parsed.name).second) {
             continue;
         }
 
         parsed.data->willNeed();
         uint64_t                           hash       = hashData(*parsed.data);
-        auto&                              candidates = impl->initializersByHash[hash];
+        auto&                              candidates = impl_->initializersByHash[hash];
         std::shared_ptr<SharedInitializer> initializer;
         for (auto const& candidate : candidates) {
             if (isEqual(*candidate, parsed, hash)) {
@@ -652,44 +641,36 @@ std::shared_ptr<SharedWeightGroup> SharedWeightRegistry::prepareSessionOptions(s
             }
         }
 
-        bool isNewInitializer = initializer == nullptr;
-        if (isNewInitializer) {
-            initializer = std::make_shared<SharedInitializer>(std::move(parsed), hash, impl->memoryInfo, onCuda);
-            candidates.push_back(initializer);
-            impl->totalInitializers += 1ul;
-            impl->totalBytes += initializer->bytes;
-            if (initializer->hostData) {
-                // ONNX Runtime reads the data again when it needs it, don't keep it resident in between
-                initializer->hostData->dontNeed();
-            }
-        }
-        else {
+        std::string name = parsed.name;
+        if (initializer) {
+            statistics.sharedInitializers += 1ul;
+            statistics.sharedBytes += initializer->bytes;
             // Release the duplicate right away instead of keeping all mappings of this model until the end
             parsed.data.reset();
         }
-        sessionOptions.AddInitializer(modelInitializerName.c_str(), initializer->value);
+        else {
+            initializer = std::make_shared<SharedInitializer>(std::move(parsed), hash, impl_->memoryInfo, onCuda);
+            candidates.push_back(initializer);
+            impl_->totalBytes += initializer->bytes;
+            statistics.newInitializers += 1ul;
+            statistics.newBytes += initializer->bytes;
+            // ONNX Runtime reads the data again when it needs it, don't keep it resident in between
+            initializer->hostData->dontNeed();
+        }
+        sessionOptions.AddInitializer(name.c_str(), initializer->value);
+    }
+    statistics.groupBytes = impl_->totalBytes;
 
-        if (stats) {
-            stats->registeredInitializers += 1ul;
-            stats->registeredBytes += initializer->bytes;
-            if (isNewInitializer) {
-                stats->newInitializers += 1ul;
-                stats->newBytes += initializer->bytes;
-                addLargestNewInitializer(*stats, modelInitializerName, initializer->bytes);
-            }
-            else {
-                stats->reusedInitializers += 1ul;
-                stats->reusedBytes += initializer->bytes;
-            }
+    return statistics;
+}
+
+void SharedWeightGroup::releaseHostPages() {
+    std::lock_guard<std::mutex> lock(impl_->mutex);
+    for (auto const& [hash, initializers] : impl_->initializersByHash) {
+        for (auto const& initializer : initializers) {
+            initializer->hostData->dontNeed();
         }
     }
-
-    if (stats) {
-        stats->groupInitializers = impl->totalInitializers;
-        stats->groupBytes        = impl->totalBytes;
-    }
-
-    return std::shared_ptr<SharedWeightGroup>(new SharedWeightGroup(impl));
 }
 
 }  // namespace Onnx

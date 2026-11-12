@@ -931,7 +931,7 @@ single-model scorers):
 .. _Sharing weights between ONNX sessions:
 
 Sharing weights between ONNX sessions
-"
+"""""""""""""""""""""""""""""""""""""
 
 Label scorers wrapping several models, e.g. separate exports of the same network for state initialization and for
 the per-step update, would normally hold one copy of the weights per session. Sessions that set the same

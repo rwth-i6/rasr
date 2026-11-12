@@ -912,6 +912,8 @@ single-model scorers):
 * ``<model>.session.file`` (string): path to the exported ``.onnx`` file. No default -- required.
 * ``<model>.session.intra-op-num-threads`` / ``inter-op-num-threads`` (int): ONNX Runtime threading options. Default ``1`` each.
 * ``<model>.session.execution-provider-type`` (``cpu``/``cuda``): which execution provider runs the model. Default ``cpu``.
+* ``<model>.session.weight-group`` (string): name of a process-wide weight group, see :ref:`Sharing weights between
+  ONNX sessions`. Default empty, i.e. no sharing.
 * ``<model>.io-map.<logical-name>`` (string): maps a logical input/output role used internally by the label
   scorer (e.g. ``input-feature``, ``scores``, ``history``, see each scorer below) to the actual tensor name in
   the exported ONNX graph, since exporters rarely produce the same names RASR expects. No default -- required
@@ -925,6 +927,35 @@ single-model scorers):
     session.execution-provider-type = cpu
     io-map.input-feature            = source
     io-map.scores                   = log_softmax
+
+.. _Sharing weights between ONNX sessions:
+
+Sharing weights between ONNX sessions
+"""""""""""""""""""""""""""""""""""""
+
+Label scorers wrapping several models, e.g. separate exports of the same network for state initialization and for
+the per-step update, would normally hold one copy of the weights per session. Sessions that set the same
+``session.weight-group`` share equal weight tensors instead, so these are kept in memory only once. Tensors are
+matched by data type, shape and content, so their names may differ between the exported models. Tensors smaller
+than 64 KiB are not shared.
+
+The shared tensors reside on the device of the execution provider. On ``cpu`` they are memory-mapped from external
+data files and the pre-packed weights ONNX Runtime derives from them are shared as well. Tensors stored inside the
+``.onnx`` file itself are copied into memory instead and stay resident, so large models should be exported with
+external data. On ``cuda`` a single copy is kept in device memory. All sessions of a group must use the same execution
+provider.
+
+.. code-block:: ini
+
+    [*.search-algorithm.label-scorer]
+    state-initializer-model.session.file         = /path/to/state_init.onnx
+    state-initializer-model.session.weight-group = decoder
+    state-updater-model.session.file             = /path/to/state_update.onnx
+    state-updater-model.session.weight-group     = decoder
+
+When a session is created, the number of tensors newly added to the group and of those already in it is logged.
+These are the tensors handed to ONNX Runtime; a graph optimization that transforms a weight, e.g. by fusing it with
+others, makes the session use its own transformed copy instead.
 
 no-context-onnx
 ^^^^^^^^^^^^^^^^

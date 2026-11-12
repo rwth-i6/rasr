@@ -38,6 +38,9 @@ struct StateManagedOnnxScoringContext : public ScoringContext {
 
     mutable std::shared_ptr<HistoryState> state;
 
+    // Only set once the parent is cut, since the scores can't be recomputed afterwards
+    mutable std::shared_ptr<std::vector<Score>> scores;
+
     StateManagedOnnxScoringContext(HistoryState&& initialState);
     StateManagedOnnxScoringContext(std::vector<LabelIndex>&&                       labelSeq,
                                    Core::Ref<StateManagedOnnxScoringContext const> parent);

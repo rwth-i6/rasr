@@ -13,9 +13,8 @@
  *  limitations under the License.
  */
 
-#include "SharedWeights.hh"
+#include "SharedWeightGroup.hh"
 
-#include <algorithm>
 #include <cstdint>
 #include <cstdlib>
 #include <cstring>
@@ -86,11 +85,9 @@ struct ProtoReader {
                 requireBytes(8);
                 cur += 8;
                 break;
-            case 2: {
-                auto bytes = readBytes();
-                (void)bytes;
+            case 2:
+                readBytes();
                 break;
-            }
             case 5:
                 requireBytes(4);
                 cur += 4;
@@ -284,7 +281,7 @@ std::unordered_map<std::string, std::string> parseExternalData(ByteView view) {
     std::string                                  key;
     std::string                                  value;
 
-    while (!reader.eof()) {
+    while (not reader.eof()) {
         uint64_t tag      = reader.readVarint();
         uint32_t field    = static_cast<uint32_t>(tag >> 3);
         uint32_t wireType = static_cast<uint32_t>(tag & 0x7);
@@ -299,7 +296,7 @@ std::unordered_map<std::string, std::string> parseExternalData(ByteView view) {
         }
     }
 
-    if (!key.empty()) {
+    if (not key.empty()) {
         result.emplace(std::move(key), std::move(value));
     }
     return result;
@@ -311,7 +308,7 @@ std::optional<ParsedInitializer> parseTensor(ByteView view, std::filesystem::pat
     ByteView                                     rawData(nullptr, 0);
     std::unordered_map<std::string, std::string> externalData;
 
-    while (!reader.eof()) {
+    while (not reader.eof()) {
         uint64_t tag      = reader.readVarint();
         uint32_t field    = static_cast<uint32_t>(tag >> 3);
         uint32_t wireType = static_cast<uint32_t>(tag & 0x7);
@@ -321,7 +318,7 @@ std::optional<ParsedInitializer> parseTensor(ByteView view, std::filesystem::pat
         }
         else if (field == 1 and wireType == 2) {
             ProtoReader packed(reader.readBytes());
-            while (!packed.eof()) {
+            while (not packed.eof()) {
                 initializer.shape.push_back(static_cast<int64_t>(packed.readVarint()));
             }
         }
@@ -380,7 +377,7 @@ std::optional<ParsedInitializer> parseTensor(ByteView view, std::filesystem::pat
 
 void parseGraph(ByteView view, std::filesystem::path const& modelDir, std::shared_ptr<MappedData> const& modelData, std::vector<ParsedInitializer>& initializers) {
     ProtoReader reader(view);
-    while (!reader.eof()) {
+    while (not reader.eof()) {
         uint64_t tag      = reader.readVarint();
         uint32_t field    = static_cast<uint32_t>(tag >> 3);
         uint32_t wireType = static_cast<uint32_t>(tag & 0x7);
@@ -402,7 +399,7 @@ std::vector<ParsedInitializer> parseModelInitializers(std::string const& modelFi
 
     std::vector<ParsedInitializer> initializers;
     ProtoReader                    reader(ByteView(modelData->data, modelData->size));
-    while (!reader.eof()) {
+    while (not reader.eof()) {
         uint64_t tag      = reader.readVarint();
         uint32_t field    = static_cast<uint32_t>(tag >> 3);
         uint32_t wireType = static_cast<uint32_t>(tag & 0x7);
@@ -471,8 +468,9 @@ struct CudaBuffer {
 #endif
 
 /*
- * One deduplicated initializer tensor. On CPU the tensor points directly into the memory-mapped model data, on CUDA
- * it owns a device copy. The host data is kept in both cases to compare it with the initializers of further models.
+ * One deduplicated initializer tensor. On CPU the tensor points directly into the memory-mapped external data file
+ * (data stored inside the model file is usually not aligned and therefore copied), on CUDA it owns a device copy.
+ * The host data is kept in both cases to compare it with the initializers of further models.
  */
 struct SharedInitializer {
     ONNXTensorElementDataType   dataType;

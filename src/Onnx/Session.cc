@@ -10,7 +10,7 @@
 #include <cuda_runtime.h>
 #endif
 
-#include "SharedWeights.hh"
+#include "SharedWeightGroup.hh"
 #include "Util.hh"
 
 namespace Onnx {
@@ -102,7 +102,7 @@ Session::Session(Core::Configuration const& config)
         try {
             sharedWeightGroup_ = SharedWeightGroup::get(weightGroup_, provider);
             auto statistics    = sharedWeightGroup_->addInitializers(file_, session_opts);
-            log("ONNX weight group '%s' for %s: %zu initializers (%.3f GiB) newly loaded, %zu initializers (%.3f GiB) shared, group total %.3f GiB",
+            log("ONNX weight group '%s' for %s: registered %zu new initializers (%.3f GiB) and %zu initializers already in the group (%.3f GiB), group total %.3f GiB",
                 weightGroup_.c_str(),
                 file_.c_str(),
                 statistics.newInitializers,

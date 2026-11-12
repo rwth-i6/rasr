@@ -939,10 +939,11 @@ the per-step update, would normally hold one copy of the weights per session. Se
 matched by data type, shape and content, so their names may differ between the exported models. Tensors smaller
 than 64 KiB are not shared.
 
-The shared tensors reside on the device of the execution provider: on ``cpu`` they are memory-mapped directly from
-the model files (including the external data files) and the pre-packed weights ONNX Runtime derives from them are
-shared as well, on ``cuda`` a single copy is kept in device memory. All sessions of a group must use the same
-execution provider.
+The shared tensors reside on the device of the execution provider. On ``cpu`` they are memory-mapped from external
+data files and the pre-packed weights ONNX Runtime derives from them are shared as well. Tensors stored inside the
+``.onnx`` file itself are copied into memory instead and stay resident, so large models should be exported with
+external data. On ``cuda`` a single copy is kept in device memory. All sessions of a group must use the same execution
+provider.
 
 .. code-block:: ini
 
@@ -952,7 +953,9 @@ execution provider.
     state-updater-model.session.file             = /path/to/state_update.onnx
     state-updater-model.session.weight-group     = decoder
 
-The number of shared and newly loaded tensors is logged when a session is created.
+When a session is created, the number of tensors newly added to the group and of those already in it is logged.
+These are the tensors handed to ONNX Runtime; a graph optimization that transforms a weight, e.g. by fusing it with
+others, makes the session use its own transformed copy instead.
 
 no-context-onnx
 ^^^^^^^^^^^^^^^^

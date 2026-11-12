@@ -13,8 +13,8 @@
  *  limitations under the License.
  */
 
-#ifndef ONNX_SHARED_WEIGHTS_HH
-#define ONNX_SHARED_WEIGHTS_HH
+#ifndef ONNX_SHARED_WEIGHT_GROUP_HH
+#define ONNX_SHARED_WEIGHT_GROUP_HH
 
 #include <cstddef>
 #include <memory>
@@ -35,7 +35,9 @@ namespace Onnx {
  * handed to ONNX Runtime via `AddInitializer`. ONNX Runtime only uses them if they
  * already reside on the device where it plans to place the initializer, therefore
  * the tensors of a group are created on the device of its execution provider
- * (CPU: memory-mapped from the model files, CUDA: device memory).
+ * (CPU: memory-mapped from external data files, CUDA: device memory). On CPU, tensors
+ * stored inside the .onnx file itself are copied into memory and stay resident, so
+ * large models should be exported with external data.
  * A group is released once the last session holding it is destroyed.
  *
  * Errors are reported by exceptions, like the ONNX Runtime C++ API used here does.
@@ -55,7 +57,11 @@ public:
 
     ~SharedWeightGroup();
 
-    // Registers the initializers of the model in the session options, adding those not yet in the group
+    /*
+     * Registers the initializers of the model in the session options, adding those not yet in the group.
+     * The statistics count the registered initializers. ONNX Runtime may still not use some of them,
+     * e.g. if a graph optimization replaces an initializer by a transformed one.
+     */
     Statistics addInitializers(std::string const& modelFile, Ort::SessionOptions& sessionOptions);
 
     OrtPrepackedWeightsContainer* prepackedWeightsContainer();
@@ -76,4 +82,4 @@ private:
 
 }  // namespace Onnx
 
-#endif  // ONNX_SHARED_WEIGHTS_HH
+#endif  // ONNX_SHARED_WEIGHT_GROUP_HH

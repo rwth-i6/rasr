@@ -11,6 +11,7 @@ add_library(
     OnnxForwardNode.cc
     OnnxInitUpdateScoreBundle.cc
     OnnxLstmStateManager.cc
+    PersistentInput.cc
     Session.cc
     SharedWeightGroup.cc
     StateManager.cc

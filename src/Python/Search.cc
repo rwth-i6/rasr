@@ -24,6 +24,7 @@
 #include <Flf/TimeframeConfusionNetwork.hh>
 #include <Flf/TimeframeConfusionNetworkBuilder.hh>
 #include <Search/Module.hh>
+#include <Speech/ModelCombination.hh>
 
 namespace py = pybind11;
 

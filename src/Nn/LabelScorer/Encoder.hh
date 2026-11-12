@@ -69,6 +69,19 @@ public:
     std::optional<EncodedSpan> getNextOutput();
 
 protected:
+    std::deque<DataView>    inputBuffer_;
+    std::deque<EncodedSpan> outputBuffer_;
+
+    bool expectMoreFeatures_;
+
+    Core::StopWatch encodeTime_;
+
+    // Total number of input features (T) handed to this encoder in the current segment
+    size_t numInputFeatures_ = 0ul;
+
+    // Channel that `logStatistics` writes to. Disabled unless a target is configured.
+    mutable Core::XmlChannel statisticsChannel_;
+
     // Clear the state that belongs to the concrete Encoder, e.g. input buffers and segment-end
     // flags. `reset` handles the statistics, so implementations must not touch them.
     virtual void resetInternal();
@@ -90,19 +103,6 @@ protected:
 
     // Hook for subclasses to add statistics that are not part of `encode-time`.
     virtual void logAdditionalStatistics() const {}
-
-    std::deque<DataView>    inputBuffer_;
-    std::deque<EncodedSpan> outputBuffer_;
-
-    bool expectMoreFeatures_;
-
-    Core::StopWatch encodeTime_;
-
-    // Total number of input features (T) handed to this encoder in the current segment
-    size_t numInputFeatures_ = 0ul;
-
-    // Channel that `logStatistics` writes to. Disabled unless a target is configured.
-    mutable Core::XmlChannel statisticsChannel_;
 };
 
 }  // namespace Nn

@@ -35,13 +35,11 @@ public:
     typedef T             Value;
     typedef Statistics<T> Self;
 
-private:
-    std::string        name_;
-    u32                nObs_;
-    Value              min_, max_, sum_;
-    static const Value minInit, maxInit;
+    Statistics(const std::string& n)
+            : name_(n) {
+        clear();
+    }
 
-public:
     void clear() {
         nObs_ = 0;
         max_  = maxInit;
@@ -84,10 +82,11 @@ public:
      */
     void write(XmlWriter&, std::vector<XmlAttribute> const& extraAttributes) const;
 
-    Statistics(const std::string& n)
-            : name_(n) {
-        clear();
-    }
+private:
+    static const Value minInit, maxInit;
+    std::string        name_;
+    u32                nObs_;
+    Value              min_, max_, sum_;
 };
 
 /**

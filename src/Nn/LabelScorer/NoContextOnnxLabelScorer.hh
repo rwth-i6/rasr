@@ -33,8 +33,6 @@ namespace Nn {
  * from the encoder. The NoContextOnnxLabelScorer can be used for this purpose.
  */
 class NoContextOnnxLabelScorer : public BufferedLabelScorer {
-    using Precursor = BufferedLabelScorer;
-
 public:
     NoContextOnnxLabelScorer(Core::Configuration const& config, ModelCache& modelCache);
     virtual ~NoContextOnnxLabelScorer() = default;
@@ -61,16 +59,18 @@ protected:
     size_t                          getMinActiveInputIndex(Core::CollapsedVector<ScoringContextRef> const& activeContexts) const override;
 
 private:
+    using Precursor = BufferedLabelScorer;
+
     std::shared_ptr<Onnx::Model> onnxModel_;
 
     std::string inputFeatureName_;
     std::string scoresName_;
 
-    void logScoringBreakdown() const override;
-
     Core::StopWatch onnxSessionTime_;
 
     std::unordered_map<StepScoringContextRef, std::shared_ptr<std::vector<Score>>, ScoringContextHash, ScoringContextEq> scoreCache_;
+
+    void logScoringBreakdown() const override;
 
     void forwardContext(StepScoringContextRef const& scoringContext);
 };

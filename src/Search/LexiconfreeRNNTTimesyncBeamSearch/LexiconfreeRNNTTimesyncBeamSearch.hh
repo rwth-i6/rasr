@@ -16,6 +16,9 @@
 #ifndef LEXICONFREE_RNNT_TIMESYNC_BEAM_SEARCH_HH
 #define LEXICONFREE_RNNT_TIMESYNC_BEAM_SEARCH_HH
 
+#include <optional>
+#include <vector>
+
 #include <Bliss/Lexicon.hh>
 #include <Core/Channel.hh>
 #include <Core/Parameter.hh>
@@ -51,7 +54,6 @@ public:
     static const Core::ParameterInt         paramBlankLabelIndex;
     static const Core::ParameterInt         paramSentenceEndLabelIndex;
     static const Core::ParameterBool        paramSentenceEndFallBack;
-    static const Core::ParameterBool        paramCollapseRepeatedLabels;
     static const Core::ParameterInt         paramCacheCleanupInterval;
     static const Core::ParameterInt         paramMaximumStableDelay;
     static const Core::ParameterInt         paramMaximumStableDelayPruningInterval;
@@ -102,7 +104,7 @@ protected:
         size_t                             length;              // Number of tokens in hypothesis for length normalization
         Score                              score;               // Full score of hypothesis
         Score                              scaledScore;         // Length-normalized score of hypothesis
-        std::vector<int>                   outputTokens;        // Previously predicted non-blank output tokens of hypothesis
+        std::vector<Nn::LabelIndex>        outputTokens;        // Previously predicted non-blank output tokens of hypothesis
         size_t                             outputTokensHash;    // Hash of `outputTokens`, updated incrementally on extension to avoid rehashing the full vector for recombination
         Core::Ref<LatticeTrace>            trace;               // Associated trace for traceback or lattice building off of hypothesis
         bool                               reachedSentenceEnd;  // Flag whether hypothesis trace contains a sentence end emission
@@ -128,20 +130,20 @@ private:
     float               lengthNormScale_;
     size_t              maxLabelsPerFrame_;
     Nn::LabelIndex      blankLabelIndex_;
+    Bliss::Lemma const* blankLemma_;
     bool                useSentenceEnd_;
     Bliss::Lemma const* sentenceEndLemma_;
     Nn::LabelIndex      sentenceEndLabelIndex_;
     bool                sentenceEndFallback_;
-    bool                collapseRepeatedLabels_;
     size_t              cacheCleanupInterval_;
     size_t              maximumStableDelay_;
     size_t              maximumStableDelayPruningInterval_;
     Core::Choice::Value recombinationMode_;
-
-    // Per-segment timing and statistics. Defaults to the standard log target.
+    // Timing and beam statistics, per segment and per search step. Both are disabled unless a
+    // target is configured.
     mutable Core::XmlChannel statisticsChannel_;
-    // Statistics for every search step. Disabled unless a target is configured.
-    Core::XmlChannel stepwiseStatisticsChannel_;
+    Core::XmlChannel         stepwiseStatisticsChannel_;
+    bool                     stepStatisticsOpen_ = false;
 
     Core::Channel debugChannel_;
 
@@ -161,13 +163,28 @@ private:
 
     Core::StopWatch initializationTime_;
     Core::StopWatch featureProcessingTime_;
-    Core::StopWatch scoringTime_;
-    Core::StopWatch contextExtensionTime_;
+    Core::StopWatch recognitionTime_;
+    /*
+     * Phases of scoring and pruning the blank and non-blank extensions per label scorer, adding up to
+     * the matching `scoreAndPruneExtensionsTimes_` entry. Scorers that compute scores lazily do that
+     * work during the score readout.
+     */
+    std::vector<Core::StopWatch> scoreAndPruneExtensionsTimes_;
+    std::vector<Core::StopWatch> scoringTimes_;
+    std::vector<Core::StopWatch> scoreReadoutTimes_;
+    std::vector<Core::StopWatch> intermediatePruningTimes_;
+    Core::StopWatch              buildNewBeamTime_;
+    Core::StopWatch              recombinationTime_;
+    Core::StopWatch              beamPruningTime_;
+    Core::StopWatch              finalizeTime_;
 
-    Core::Statistics<u32> numActiveHyps_;
-    Core::Statistics<u32> numOuterHyps_;
-    Core::Statistics<u32> numInnerHyps_;
-    Core::Statistics<u32> numInnerAndOuterHyps_;
+    Core::Statistics<u32>              numInputHyps_;
+    std::vector<Core::Statistics<u32>> numHypsAfterIntermediatePruning_;  // Non-blank extensions only
+    Core::Statistics<u32>              numOuterHyps_;
+    Core::Statistics<u32>              numInnerHyps_;
+    Core::Statistics<u32>              numInnerAndOuterHyps_;
+    Core::Statistics<u32>              numHypsAfterPruning_;
+    Core::Statistics<u32>              numActiveHyps_;
 
     size_t currentSearchStep_;
     bool   finishedSegment_;
@@ -175,8 +192,12 @@ private:
     LabelHypothesis const& getBestHypothesis() const;
     LabelHypothesis const& getWorstHypothesis() const;
 
-    void resetStatistics();
     void logStatistics() const;
+
+    /*
+     * Log the timing and statistics of the search itself, without the label scorers.
+     */
+    void logOwnStatistics() const;
 
     /*
      * Infer type of transition between two tokens based on whether each of them is blank
@@ -185,15 +206,28 @@ private:
     Nn::TransitionType inferTransitionType(Nn::LabelIndex prevLabel, Nn::LabelIndex nextLabel) const;
 
     /*
-     * Score `extensions` (raw score) with labelScorers_[1..], applying intermediate score-threshold
-     * and max-beam-size pruning after each of them except the last
+     * Create the blank extension candidates in `extensions_` for all inner hyps from the scores of the first label scorer
      */
-    void scoreAndPruneWithRemainingLabelScorers(std::vector<ExtensionCandidate>& extensions, std::vector<LabelHypothesis> const& baseHyps);
+    void createBlankExtensions(std::vector<std::optional<Nn::ScoreAccessorRef>> const& scoreAccessors);
 
     /*
-     * Extend `baseHyp`'s scoring context of every label scorer according to `extension`
+     * Create the non-blank extension candidates in `extensions_` for all inner hyps from the scores of the first label scorer
      */
-    std::vector<Nn::ScoringContextRef> extendedScoringContexts(LabelHypothesis const& baseHyp, ExtensionCandidate const& extension);
+    void createExtensions(std::vector<std::optional<Nn::ScoreAccessorRef>> const& scoreAccessors);
+
+    /*
+     * Score `extensions` (raw score) with labelScorers_[1..], applying intermediate score-threshold
+     * and max-beam-size pruning after each of them except the last.
+     * `countStatistics` enables the intermediate pruning statistics.
+     * Returns false if one of these label scorers can't score any of the needed contexts yet, e.g. because it
+     * hasn't received enough input. Then the timestep has to be redone later.
+     */
+    bool scoreAndPruneWithRemainingLabelScorers(std::vector<ExtensionCandidate>& extensions, std::vector<LabelHypothesis> const& baseHyps, bool countStatistics);
+
+    /*
+     * Append a new hypothesis to `hyps` for every extension in `extensions_` on top of its base hyp in `innerHyps_`
+     */
+    void buildHypsFromExtensions(std::vector<LabelHypothesis>& hyps);
 
     /*
      * Helper function for pruning to a given score-threshold/max-beam-size, approximated via
@@ -207,6 +241,19 @@ private:
      * Helper function for recombination of hypotheses with the same scoring context
      */
     void recombination(std::vector<LabelHypothesis>& hypotheses);
+
+    /*
+     * Open the per-step statistics element before the first statistic of a step is written, and
+     * close it again when the step ends. A step that can't be scored yet writes nothing, so it
+     * neither opens an element nor consumes a step number.
+     */
+    void openStepStatistics();
+    void closeStepStatistics();
+
+    /*
+     * Log the per-step statistics and debug output for the current beam.
+     */
+    void logStepStatistics();
 
     /*
      * Prune away all hypotheses that have not reached sentence end.

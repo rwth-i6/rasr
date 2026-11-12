@@ -76,7 +76,7 @@ model and vocabulary you use:
   use case: attention encoder-decoder (AED) models and Speech LLMs.
 * ``lexiconfree-rnnt-timesync-beam-search``: time-synchronous decoding, no pronunciation lexicon required, for
   standard (non-monotonic) RNN-T/Transducer models where more than one non-blank label may be emitted per input
-  timestep. Typical use case: neural transducer models with an unrestricted (non-monotonic) alignment.
+  timestep.
 * ``tree-timesync-beam-search``: time-synchronous decoding over a pronunciation lexicon search tree, with a
   word-level language model. The topology of the tree itself (HMM, CTC, RNA, ...) is a separate choice,
   see :ref:`Search tree types` below.
@@ -345,22 +345,24 @@ it for that timestep) or the per-timestep label limit is reached.
   state get recombined into one instead of surviving the beam separately, and how their scores are combined if
   so. ``sum`` also requires the same output token history and merges scores via log-sum-exp. ``viterbi`` ignores
   history and just keeps the better-scoring path. ``off`` disables recombination entirely. Default ``sum``.
-* ``collapse-repeated-labels``, ``cache-cleanup-interval``, ``maximum-stable-delay``,
-  ``maximum-stable-delay-pruning-interval``, ``log-stepwise-statistics``: same meaning and defaults as for
+* ``cache-cleanup-interval``, ``maximum-stable-delay``, ``maximum-stable-delay-pruning-interval``: same meaning
+  and defaults as for
   ``lexiconfree-timesync-beam-search`` above.
+
+In the ``stepwise-statistics`` channel (see :ref:`Logging channels`), each ``search-step-stats`` record contains
+one ``symbol-step-stats`` record per iteration of the inner loop.
 
 Like the other ``SearchV2`` algorithms, this one supports more than one label scorer at once (see
 :ref:`Multiple label scorers and per-stage parameters`), applied one after another within each symbol step with
-intermediate ``score-threshold``/``max-beam-size`` pruning in between. One exception is that the blank extension
-candidates (one per active hypothesis, not one per vocabulary token like the non-blank ones) are never pruned
-after the *first* label scorer -- with only one candidate per hypothesis there is nothing to gain from an
-intermediate cut there. They are still scored by every configured label scorer, and pruned like the non-blank
-extensions from the second scorer onward.
+intermediate ``score-threshold``/``max-beam-size`` pruning in between. The blank extensions (one per active
+hypothesis) are the exception: they are not pruned after the first label scorer, only from the second onward.
 
 Every configured label scorer should have ``vertical-label-transition = true`` set (where that parameter is
 available, e.g. :ref:`fixed-context-onnx`), so that its internal notion of time only advances on blank.
 The search itself has no way to enforce or check this, it just takes each label scorer's reported time as-is
-for a hypothesis's traceback timestamp.
+for a hypothesis's traceback timestamp. A label item ends at the frame it was emitted in, a blank item ends one
+frame later since blank consumes that frame. Blank is treated as pause in maximum-stable-delay pruning, which
+requires a lemma for it in the lexicon.
 
 Order of operations for one time-synchronous decoding step, assuming two label scorers ``L_1`` and ``L_2`` with
 ``max-beam-size = b_1 b_2`` and ``score-threshold = s_1 s_2``:
@@ -583,9 +585,8 @@ pronunciation) rather than being configurable as a separate parameter, so that i
 index used for the search tree itself.
 
 * ``max-beam-size``, ``max-word-end-beam-size``, ``word-end-score-threshold``, ``num-histogram-bins``,
-  ``sentence-end-fall-back``, ``recombination-mode``, ``cache-cleanup-interval``,
-  ``maximum-stable-delay``, ``maximum-stable-delay-pruning-interval``: same meaning and defaults as for
-  ``tree-timesync-beam-search`` above.
+  ``sentence-end-fall-back``, ``recombination-mode``, ``cache-cleanup-interval``: same meaning and defaults
+  as for ``tree-timesync-beam-search`` above.
 * ``score-threshold``: same meaning as for ``tree-timesync-beam-search`` above. Also interacts with
   ``length-norm-scale`` the same way as for ``lexiconfree-labelsync-beam-search`` above -- always expressed in
   un-normalized score units.
@@ -890,8 +891,8 @@ This means that regardless of how the search process develops in the future, the
 ``maximum-stable-delay`` pruning bounds how much the stable prefix can lag behind the current search step:
 The pruning runs every ``maximum-stable-delay-pruning-interval`` steps. After ``t`` decoded frames, the cutoff is
 ``c = t + 1 - maximum-stable-delay`` and the goal is to make sure that the stable partial traceback ends at ``c``
-or later. It is implemented by ``lexiconfree-timesync-beam-search``, ``tree-timesync-beam-search``
-and the classic ``advanced-tree-search``.
+or later. It is implemented by ``lexiconfree-timesync-beam-search``, ``lexiconfree-rnnt-timesync-beam-search``,
+``tree-timesync-beam-search`` and the classic ``advanced-tree-search``.
 
 1. **Reference:** the best hypothesis which has a lemma ending at ``c`` or later in its traceback or is currently
    in a pause (i.e. blank/silence segment). The earliest such lemma in the traceback is taken as the pruning root.
@@ -901,7 +902,8 @@ and the classic ``advanced-tree-search``.
    ongoing: this pause is split into two parts; before and after ``c``. Thus, if the reference contains such a pause,
    the partial pause up to ``c`` becomes the pruning root and all hypotheses that share the same partial pause are kept.
    The split is only cosmetic; it has no score contributions of its own. The score of the whole pause is attributed
-   to the remaining part. Only ``lexiconfree-timesync-beam-search`` and ``tree-timesync-beam-search`` split pauses.
+   to the remaining part. Only ``lexiconfree-timesync-beam-search``, ``lexiconfree-rnnt-timesync-beam-search`` and
+   ``tree-timesync-beam-search`` split pauses.
 
 Consequences:
 
@@ -1009,8 +1011,9 @@ built-in way to do this.
 
 Built-in label scorer types include:
 
-* ``no-context-onnx``, ``fixed-context-onnx``, ``full-context-onnx``, ``stateful-onnx``, ``state-managed-onnx``:
-  forward features (and, depending on type, label history/hidden state) through an ONNX model.
+* ``no-context-onnx``, ``fixed-context-onnx``, ``full-context-onnx``, ``stateful-onnx``,
+  ``stateful-transducer-onnx``, ``state-managed-onnx``: forward features (and, depending on type, label history/hidden state) through an ONNX
+  model.
 * ``encoder-decoder`` / ``encoder-only``: wrap a separate encoder (see :ref:`Encoders` below) that
   pre-processes features, combined with a decoder label scorer (or no decoder, for encoder-only models).
 * ``ctc-prefix``: wraps a time-synchronous CTC scorer and derives label-synchronous prefix scores from it
@@ -1089,7 +1092,7 @@ have no ``transition-preset`` of their own and always report whichever transitio
 ONNX model configuration
 ^^^^^^^^^^^^^^^^^^^^^^^^^
 
-The four ``*-onnx`` label scorers below (and the ``onnx``/``chunked-onnx`` :ref:`encoders <Encoders>` used by
+The ``*-onnx`` label scorers below (and the ``onnx``/``chunked-onnx`` :ref:`encoders <Encoders>` used by
 :ref:`encoder-decoder / encoder-only`) all wrap one or more ONNX Runtime sessions and share the same
 sub-configuration pattern for each wrapped model, under a model-specific selector (e.g. ``onnx-model`` for the
 single-model scorers):
@@ -1097,6 +1100,8 @@ single-model scorers):
 * ``<model>.session.file`` (string): path to the exported ``.onnx`` file. No default -- required.
 * ``<model>.session.intra-op-num-threads`` / ``inter-op-num-threads`` (int): ONNX Runtime threading options. Default ``1`` each.
 * ``<model>.session.execution-provider-type`` (``cpu``/``cuda``): which execution provider runs the model. Default ``cpu``.
+* ``<model>.session.weight-group`` (string): name of a process-wide weight group, see :ref:`Sharing weights between
+  ONNX sessions`. Default empty, i.e. no sharing.
 * ``<model>.io-map.<logical-name>`` (string): maps a logical input/output role used internally by the label
   scorer (e.g. ``input-feature``, ``scores``, ``history``, see each scorer below) to the actual tensor name in
   the exported ONNX graph, since exporters rarely produce the same names RASR expects. No default -- required
@@ -1110,6 +1115,35 @@ single-model scorers):
     session.execution-provider-type = cpu
     io-map.input-feature            = source
     io-map.scores                   = log_softmax
+
+.. _Sharing weights between ONNX sessions:
+
+Sharing weights between ONNX sessions
+"""""""""""""""""""""""""""""""""""""
+
+Label scorers wrapping several models, e.g. separate exports of the same network for state initialization and for
+the per-step update, would normally hold one copy of the weights per session. Sessions that set the same
+``session.weight-group`` share equal weight tensors instead, so these are kept in memory only once. Tensors are
+matched by data type, shape and content, so their names may differ between the exported models. Tensors smaller
+than 64 KiB are not shared.
+
+The shared tensors reside on the device of the execution provider. On ``cpu`` they are memory-mapped from external
+data files and the pre-packed weights ONNX Runtime derives from them are shared as well. Tensors stored inside the
+``.onnx`` file itself are copied into memory instead and stay resident, so large models should be exported with
+external data. On ``cuda`` a single copy is kept in device memory. All sessions of a group must use the same execution
+provider.
+
+.. code-block:: ini
+
+    [*.search-algorithm.label-scorer]
+    state-initializer-model.session.file         = /path/to/state_init.onnx
+    state-initializer-model.session.weight-group = decoder
+    state-updater-model.session.file             = /path/to/state_update.onnx
+    state-updater-model.session.weight-group     = decoder
+
+When a session is created, the number of tensors newly added to the group and of those already in it is logged.
+These are the tensors handed to ONNX Runtime; a graph optimization that transforms a weight, e.g. by fusing it with
+others, makes the session use its own transformed copy instead.
 
 no-context-onnx
 ^^^^^^^^^^^^^^^^
@@ -1225,7 +1259,8 @@ stateful (recurrent) language model.
   the respective label types trigger a state update. Default ``false``.
 * ``max-batch-size`` (int): maximum number of hidden states forwarded through the scorer model at once. Default unbounded.
 * ``max-cached-score-vectors`` (int): size of an LRU cache mapping scoring contexts to already-computed score
-  vectors, to avoid recomputation and bound memory use on very long segments. Default ``1000``.
+  vectors, to avoid recomputation and bound memory use on very long segments. The same size is used for a second
+  cache that maps scoring contexts to their updated hidden states. Default ``10000``.
 * Default :ref:`transition-preset <Transition types and presets>`: ``lm``.
 
 .. code-block:: ini
@@ -1235,6 +1270,50 @@ stateful (recurrent) language model.
     state-initializer-model.session.file = /path/to/state_init.onnx
     state-updater-model.session.file     = /path/to/state_update.onnx
     scorer-model.session.file            = /path/to/scorer.onnx
+
+stateful-transducer-onnx
+^^^^^^^^^^^^^^^^^^^^^^^^^
+
+Transducer counterpart of ``stateful-onnx``: uses the same three ONNX models (state initializer, state updater,
+scorer) and the same hidden-state metadata convention, but each scoring context additionally tracks the current
+time step, and the scorer receives the input feature of that step alongside the hidden state(s). A typical use
+case is a neural transducer whose prediction network has unlimited (recurrent) context, i.e. the counterpart of
+``fixed-context-onnx`` without a fixed history window.
+
+Differences to ``stateful-onnx``:
+
+* the **state initializer** takes no inputs (in particular no encoder states), it is run once and its output is
+  reused across segments.
+* the **state updater** takes only the next ``token`` (plus the hidden state(s)), no encoder states.
+* the **scorer** takes the hidden state(s) and the ``input-feature`` of the context's current time step, with
+  shape ``[1, F]``. Since all contexts in a scorer batch share the same time step, this single feature row is
+  passed for the whole batch, so the model has to broadcast it against the ``[B, *]`` hidden states.
+
+The hidden state is updated lazily. Extending a context with a token only records the token and the state
+updater runs (batched) the next time that context is scored.
+
+* ``state-initializer-model.*`` / ``state-updater-model.*`` / ``scorer-model.*`` : as for ``stateful-onnx``.
+  Logical I/O names: ``token`` (state updater, required) and ``input-feature`` / ``scores`` (scorer, required).
+* ``blank-updates-history`` / ``silence-updates-history`` / ``loop-updates-history`` (bool): whether the
+  respective label types are fed to the state updater. Default ``false``.
+* ``vertical-label-transition`` (bool): as for ``fixed-context-onnx``, whether non-blank label transitions keep
+  the time step instead of advancing it. Default ``false``.
+* ``max-batch-size`` (int): maximum number of scoring contexts forwarded through the state updater and scorer
+  at once. Default unbounded.
+* ``max-cached-score-vectors`` (int): size of the score cache and of the hidden-state cache, as for
+  ``stateful-onnx``. Default ``10000``.
+* Default :ref:`transition-preset <Transition types and presets>`: ``transducer``.
+
+.. code-block:: ini
+
+    [*.search-algorithm.label-scorer]
+    type                                 = stateful-transducer-onnx
+    state-initializer-model.session.file = /path/to/state_init.onnx
+    state-updater-model.session.file     = /path/to/state_update.onnx
+    state-updater-model.io-map.token     = token
+    scorer-model.session.file            = /path/to/scorer.onnx
+    scorer-model.io-map.input-feature    = encoder_frame
+    scorer-model.io-map.scores           = log_probs
 
 state-managed-onnx
 ^^^^^^^^^^^^^^^^^^^^

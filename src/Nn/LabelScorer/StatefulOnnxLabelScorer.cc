@@ -37,7 +37,7 @@ namespace Nn {
 OnnxHiddenStateScoringContext::OnnxHiddenStateScoringContext()
         : labelSeq(), hiddenState(), requiresFinalize(false) {}
 
-OnnxHiddenStateScoringContext::OnnxHiddenStateScoringContext(std::vector<LabelIndex> const& labelSeq, OnnxHiddenStateRef state, bool requiresFinalize)
+OnnxHiddenStateScoringContext::OnnxHiddenStateScoringContext(std::vector<LabelIndex> const& labelSeq, Onnx::OnnxNamedValuesRef state, bool requiresFinalize)
         : labelSeq(labelSeq), hiddenState(state), requiresFinalize(requiresFinalize) {}
 
 bool OnnxHiddenStateScoringContext::isEqual(ScoringContextRef const& other) const {
@@ -86,7 +86,7 @@ const Core::ParameterInt StatefulOnnxLabelScorer::paramMaxCachedScores(
         "Maximum size of cache that maps scoring contexts to scores. This prevents memory overflow in case of very long audio segments.",
         10000);
 
-// The hidden states and the scores output are not part of the IO specs; they are handled by `OnnxHiddenStateModel`.
+// The hidden states and the scores output are not part of the IO specs; they are handled by `Onnx::OnnxInitUpdateScoreBundle`.
 // The scorer takes nothing but hidden states, so it has no IO spec of its own.
 static const std::vector<Onnx::IOSpecification> stateInitializerModelIoSpec = {
         Onnx::IOSpecification{
@@ -134,17 +134,17 @@ StatefulOnnxLabelScorer::StatefulOnnxLabelScorer(Core::Configuration const& conf
           silenceUpdatesHistory_(paramSilenceUpdatesHistory(config)),
           loopUpdatesHistory_(paramLoopUpdatesHistory(config)),
           maxBatchSize_(paramMaxBatchSize(config)),
-          hiddenStateModel_(config, modelCache, stateInitializerModelIoSpec, stateUpdaterModelIoSpec, {}),
+          initUpdateScoreBundle_(config, modelCache, stateInitializerModelIoSpec, stateUpdaterModelIoSpec, {}),
           initialHiddenState_(),
           encoderStatesValue_(),
           encoderStatesSizeValue_(),
           scoreCache_(paramMaxCachedScores(config)),
           stateCache_(scoreCache_.maxSize()) {
-    initializerEncoderStatesName_     = hiddenStateModel_.stateInitializerOnnxName("encoder-states");
-    initializerEncoderStatesSizeName_ = hiddenStateModel_.stateInitializerOnnxName("encoder-states-size");
-    updaterEncoderStatesName_         = hiddenStateModel_.stateUpdaterOnnxName("encoder-states");
-    updaterEncoderStatesSizeName_     = hiddenStateModel_.stateUpdaterOnnxName("encoder-states-size");
-    updaterTokenName_                 = hiddenStateModel_.stateUpdaterOnnxName("token");
+    initializerEncoderStatesName_     = initUpdateScoreBundle_.stateInitializerOnnxName("encoder-states");
+    initializerEncoderStatesSizeName_ = initUpdateScoreBundle_.stateInitializerOnnxName("encoder-states-size");
+    updaterEncoderStatesName_         = initUpdateScoreBundle_.stateUpdaterOnnxName("encoder-states");
+    updaterEncoderStatesSizeName_     = initUpdateScoreBundle_.stateUpdaterOnnxName("encoder-states-size");
+    updaterTokenName_                 = initUpdateScoreBundle_.stateUpdaterOnnxName("token");
 }
 
 ScoringContextRef StatefulOnnxLabelScorer::getInitialScoringContext() {
@@ -206,7 +206,7 @@ ScoringContextRef StatefulOnnxLabelScorer::extendedScoringContext(ScoringContext
 void StatefulOnnxLabelScorer::addInput(DataView const& input) {
     Precursor::addInput(input);
 
-    initialHiddenState_ = OnnxHiddenStateRef();
+    initialHiddenState_ = Onnx::OnnxNamedValuesRef();
 
     if (not encoderStatesValue_.empty()) {  // Any previously computed hidden state values are outdated now so reset them
         encoderStatesValue_     = Onnx::Value();
@@ -216,7 +216,8 @@ void StatefulOnnxLabelScorer::addInput(DataView const& input) {
 
 void StatefulOnnxLabelScorer::resetInternal() {
     Precursor::resetInternal();
-    hiddenStateModel_.resetStatistics();
+    initUpdateScoreBundle_.resetTimers();
+    stateMarshallingTime_.reset();
     contextPreparationTime_.reset();
     stateCache_.clear();
     scoreCache_.clear();
@@ -309,35 +310,45 @@ void StatefulOnnxLabelScorer::cacheScores(std::vector<OnnxHiddenStateScoringCont
         return;
     }
 
+    // Fetched before the timed block below because it runs a session of its own
+    Onnx::OnnxNamedValuesRef initialHiddenState;
+    for (auto const& scoringContext : scoringContextBatch) {
+        if (scoringContext->labelSeq.empty()) {
+            initialHiddenState = computeInitialHiddenState();
+            break;
+        }
+    }
+
     /*
      * Collect the hidden state of each scoring context in the batch
      */
-    std::vector<OnnxHiddenStateRef> hiddenStates;
-    hiddenStates.reserve(scoringContextBatch.size());
-    for (auto const& scoringContext : scoringContextBatch) {
-        if (scoringContext->labelSeq.empty()) {
-            hiddenStates.push_back(computeInitialHiddenState());
-        }
-        else {
-            hiddenStates.push_back((*stateCache_.get(scoringContext)).get());
+    std::vector<Onnx::OnnxNamedValuesRef> hiddenStates;
+    {
+        Core::StopWatch::Scope marshallingTimer(stateMarshallingTime_);
+        hiddenStates.reserve(scoringContextBatch.size());
+        for (auto const& scoringContext : scoringContextBatch) {
+            hiddenStates.push_back(scoringContext->labelSeq.empty()
+                                           ? initialHiddenState
+                                           : (*stateCache_.get(scoringContext)).get());
         }
     }
 
     /*
      * Run scorer and put resulting scores into cache map
      */
-    auto scoreVecs = hiddenStateModel_.scores(hiddenStates);
+    auto scoreVecs = initUpdateScoreBundle_.scores(hiddenStates);
     verify(scoreVecs.size() == scoringContextBatch.size());
 
+    Core::StopWatch::Scope marshallingTimer(stateMarshallingTime_);
     for (size_t b = 0ul; b < scoringContextBatch.size(); ++b) {
         scoreCache_.put(scoringContextBatch[b], scoreVecs[b]);
     }
 }
 
-std::vector<OnnxHiddenStateRef> StatefulOnnxLabelScorer::updatedHiddenStates(std::vector<OnnxHiddenStateRef> const& hiddenStatesBatch, std::vector<s32> nextTokensBatch) {
-    OnnxHiddenStateModel::SessionInputs sessionInputs;
+std::vector<Onnx::OnnxNamedValuesRef> StatefulOnnxLabelScorer::updatedHiddenStates(std::vector<Onnx::OnnxNamedValuesRef> const& hiddenStatesBatch, std::vector<s32> nextTokensBatch) {
+    Onnx::OnnxInitUpdateScoreBundle::SessionInputs sessionInputs;
     {
-        Core::StopWatch::Scope marshallingTimer(hiddenStateModel_.stateMarshallingTime());
+        Core::StopWatch::Scope marshallingTimer(stateMarshallingTime_);
 
         if (updaterEncoderStatesName_ != "") {
             setupEncoderStatesValue();
@@ -352,12 +363,12 @@ std::vector<OnnxHiddenStateRef> StatefulOnnxLabelScorer::updatedHiddenStates(std
         }
     }
 
-    return hiddenStateModel_.updatedHiddenStates(hiddenStatesBatch, std::move(sessionInputs));
+    return initUpdateScoreBundle_.updatedStates(hiddenStatesBatch, std::move(sessionInputs));
 }
 
 void StatefulOnnxLabelScorer::cacheStates(std::vector<OnnxHiddenStateScoringContextRef> const& scoringContextBatch) {
     std::vector<OnnxHiddenStateScoringContextRef> nonFinalizedContexts;
-    std::vector<OnnxHiddenStateRef>               hiddenStates;
+    std::vector<Onnx::OnnxNamedValuesRef>         hiddenStates;
     std::vector<s32>                              nextTokens;
     for (auto const& scoringContext : scoringContextBatch) {
         if (not scoringContext->requiresFinalize) {
@@ -387,22 +398,25 @@ void StatefulOnnxLabelScorer::cacheStates(std::vector<OnnxHiddenStateScoringCont
     }
 }
 
-OnnxHiddenStateRef StatefulOnnxLabelScorer::computeInitialHiddenState() {
+Onnx::OnnxNamedValuesRef StatefulOnnxLabelScorer::computeInitialHiddenState() {
     verify(not expectMoreFeatures_ or (initializerEncoderStatesName_ == "" and initializerEncoderStatesSizeName_ == ""));
 
     if (not initialHiddenState_) {  // initialHiddenState_ is still sentinel value -> compute it
-        OnnxHiddenStateModel::SessionInputs sessionInputs;
+        Onnx::OnnxInitUpdateScoreBundle::SessionInputs sessionInputs;
+        {
+            Core::StopWatch::Scope marshallingTimer(stateMarshallingTime_);
 
-        if (initializerEncoderStatesName_ != "") {
-            setupEncoderStatesValue();
-            sessionInputs.emplace_back(initializerEncoderStatesName_, encoderStatesValue_);
-        }
-        if (initializerEncoderStatesSizeName_ != "") {
-            setupEncoderStatesSizeValue();
-            sessionInputs.emplace_back(initializerEncoderStatesSizeName_, encoderStatesSizeValue_);
+            if (initializerEncoderStatesName_ != "") {
+                setupEncoderStatesValue();
+                sessionInputs.emplace_back(initializerEncoderStatesName_, encoderStatesValue_);
+            }
+            if (initializerEncoderStatesSizeName_ != "") {
+                setupEncoderStatesSizeValue();
+                sessionInputs.emplace_back(initializerEncoderStatesSizeName_, encoderStatesSizeValue_);
+            }
         }
 
-        initialHiddenState_ = hiddenStateModel_.initialHiddenState(std::move(sessionInputs));
+        initialHiddenState_ = initUpdateScoreBundle_.initialState(std::move(sessionInputs));
     }
 
     return initialHiddenState_;
@@ -435,7 +449,12 @@ void StatefulOnnxLabelScorer::setupEncoderStatesSizeValue() {
 }
 
 void StatefulOnnxLabelScorer::logScoringBreakdown() const {
-    hiddenStateModel_.logStatistics(statisticsChannel_);
+    auto stateUpdateSessionTime = initUpdateScoreBundle_.initializerSessionTime().elapsedMilliseconds() + initUpdateScoreBundle_.updaterSessionTime().elapsedMilliseconds();
+    auto stateMarshallingTime   = stateMarshallingTime_.elapsedMilliseconds() + initUpdateScoreBundle_.marshallingTime().elapsedMilliseconds();
+
+    statisticsChannel_ << Core::XmlFull("state-update-session-time", stateUpdateSessionTime);
+    statisticsChannel_ << Core::XmlFull("scorer-session-time", initUpdateScoreBundle_.scorerSessionTime().elapsedMilliseconds());
+    statisticsChannel_ << Core::XmlFull("state-marshalling-time", stateMarshallingTime);
     statisticsChannel_ << Core::XmlFull("context-preparation-time", contextPreparationTime_.elapsedMilliseconds());
 }
 

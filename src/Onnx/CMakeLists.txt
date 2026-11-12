@@ -12,6 +12,7 @@ add_library(
     OnnxInitUpdateScoreBundle.cc
     OnnxLstmStateManager.cc
     Session.cc
+    SharedWeights.cc
     StateManager.cc
     Value.cc
 )

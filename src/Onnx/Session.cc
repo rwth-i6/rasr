@@ -4,11 +4,13 @@
 #include "Session.hh"
 
 #include <chrono>
+#include <exception>
 
 #ifdef MODULE_CUDA
 #include <cuda_runtime.h>
 #endif
 
+#include "SharedWeights.hh"
 #include "Util.hh"
 
 namespace Onnx {
@@ -41,6 +43,10 @@ const Core::ParameterBool Session::paramRemovePrefixFromKey("remove-prefix-from-
                                                             "Whether to remove the prefix from the state keys for the node name lookup",
                                                             true);
 
+const Core::ParameterString Session::paramWeightGroup("weight-group",
+                                                      "Name of a process-wide ONNX initializer weight group. Sessions with the same non-empty group share equal initializers.",
+                                                      "");
+
 Session::Session(Core::Configuration const& config)
         : Precursor(config),
           file_(paramFile(config)),
@@ -48,8 +54,10 @@ Session::Session(Core::Configuration const& config)
           interOpNumThreads_(paramInterOpNumThreads(config)),
           statePrefix_(paramStatePrefix(config)),
           removePrefixFromKey_(paramRemovePrefixFromKey(config)),
+          weightGroup_(paramWeightGroup(config)),
           allocator_(),
           env_(ORT_LOGGING_LEVEL_WARNING),
+          sharedWeightGroup_(nullptr),
           session_(nullptr),
           inputNameMap_(),
           outputNameMap_() {
@@ -57,7 +65,8 @@ Session::Session(Core::Configuration const& config)
     session_opts.SetIntraOpNumThreads(intraOpNumThreads_);
     session_opts.SetInterOpNumThreads(interOpNumThreads_);
 
-    auto providers = Ort::GetAvailableProviders();
+    auto providers          = Ort::GetAvailableProviders();
+    auto sharedWeightDevice = SharedWeightDevice::cpu;
     switch (paramExecutionProviderType(config)) {
         case ExecutionProviderType::cpu: {
             if (std::find(providers.begin(), providers.end(), "CPUExecutionProvider") == providers.end()) {
@@ -78,6 +87,7 @@ Session::Session(Core::Configuration const& config)
             Ort::ThrowOnError(Ort::GetApi().CreateCUDAProviderOptions(&cuda_opts));
             session_opts.AppendExecutionProvider_CUDA_V2(*cuda_opts);
             Ort::GetApi().ReleaseCUDAProviderOptions(cuda_opts);
+            sharedWeightDevice = SharedWeightDevice::cuda;
             break;
 #else
             error() << "Requested CUDA execution provider but RASR was not compiled with MODULE_CUDA which is required for it.";
@@ -87,7 +97,41 @@ Session::Session(Core::Configuration const& config)
             error() << "Execution provider for ONNX session not known.";
     }
 
-    session_ = Ort::Session(env_, file_.c_str(), session_opts);
+    if (not weightGroup_.empty()) {
+        SharedWeightSessionStats sharedWeightStats;
+        try {
+            sharedWeightGroup_ = SharedWeightRegistry::instance().prepareSessionOptions(weightGroup_, file_, sharedWeightDevice, session_opts, &sharedWeightStats);
+        }
+        catch (std::exception const& e) {
+            criticalError() << "Failed to prepare ONNX shared weight group '" << weightGroup_ << "' for " << file_ << ": " << e.what();
+        }
+        log("ONNX shared weight group '%s' for %s: parsed %zu initializers, skipped %zu small ones, registered %zu (new %zu, reused %zu), registered %.3f GiB (new %.3f GiB, reused %.3f GiB), group total %.3f GiB in %zu initializers",
+            weightGroup_.c_str(),
+            file_.c_str(),
+            sharedWeightStats.parsedInitializers,
+            sharedWeightStats.skippedInitializers,
+            sharedWeightStats.registeredInitializers,
+            sharedWeightStats.newInitializers,
+            sharedWeightStats.reusedInitializers,
+            static_cast<double>(sharedWeightStats.registeredBytes) / 1073741824.0,
+            static_cast<double>(sharedWeightStats.newBytes) / 1073741824.0,
+            static_cast<double>(sharedWeightStats.reusedBytes) / 1073741824.0,
+            static_cast<double>(sharedWeightStats.groupBytes) / 1073741824.0,
+            sharedWeightStats.groupInitializers);
+        if (sharedWeightStats.reusedInitializers > 0ul and not sharedWeightStats.largestNewInitializers.empty()) {
+            for (auto const& initializer : sharedWeightStats.largestNewInitializers) {
+                log("ONNX shared weight group '%s' new initializer: %.3f GiB %s",
+                    weightGroup_.c_str(),
+                    static_cast<double>(initializer.bytes) / 1073741824.0,
+                    initializer.name.c_str());
+            }
+        }
+        session_ = Ort::Session(env_, file_.c_str(), session_opts, sharedWeightGroup_->prepackedWeightsContainer());
+        sharedWeightGroup_->releaseHostPages();
+    }
+    else {
+        session_ = Ort::Session(env_, file_.c_str(), session_opts);
+    }
 
     size_t num_inputs  = session_.GetInputCount();
     size_t num_outputs = session_.GetOutputCount();

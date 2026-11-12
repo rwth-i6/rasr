@@ -186,7 +186,10 @@ PrefixSpeechLmOnnxLabelScorer::PrefixSpeechLmOnnxLabelScorer(Core::Configuration
           blankUpdatesHistory_(paramBlankUpdatesHistory(config)),
           loopUpdatesHistory_(paramLoopUpdatesHistory(config)),
           maxBatchSize_(paramMaxBatchSize(config)),
-          stateManager_(Module::instance().createStateManager(select("state-manager"))),
+          // The step model consumes and produces the managed states
+          stateManager_(Module::instance().createStateManager(
+                  select("state-manager"),
+                  Onnx::Session::executionProviderType(Core::Configuration(Core::Configuration(config, "step-model"), "session")))),
           stateVectorFactory_(Module::instance().createCompressedVectorFactory(select("state-compression"))),
           encoderStatesValue_(),
           encoderStatesSizeValue_(),

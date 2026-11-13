@@ -35,7 +35,7 @@
 #include <Onnx/OnnxLstmStateManager.hh>
 #include <Onnx/OnnxTransformerStateManager.hh>
 #ifdef MODULE_CUDA
-#include <Onnx/TransformerGpuStateManager.hh>
+#include <Onnx/TransformerCudaStateManager.hh>
 #endif
 
 #include "LabelScorer/FixedContextOnnxLabelScorer.hh"
@@ -103,7 +103,6 @@ const Core::Choice Module_::stateManagerTypeChoice(
         "transformer", TransformerStateManagerType,
         "transformer-cpu", TransformerCpuStateManagerType,
         "transformer-cuda", TransformerCudaStateManagerType,
-        "transformer-gpu", TransformerCudaStateManagerType,
         "transformer-16bit", TransformerStateManager16BitType,
         "transformer-8bit", TransformerStateManager8BitType,
         Core::Choice::endMark());
@@ -315,7 +314,7 @@ std::unique_ptr<AbstractStateManager<Onnx::Value, Onnx::OnnxStateVariable>> Modu
         case TransformerCudaStateManagerType:
 #ifdef MODULE_CUDA
             return std::unique_ptr<AbstractStateManager<Onnx::Value, Onnx::OnnxStateVariable>>(
-                    new Onnx::TransformerGpuStateManager(config));
+                    new Onnx::TransformerCudaStateManager(config));
 #else
             Core::Application::us()->criticalError("State manager type transformer-cuda requires RASR compiled with MODULE_CUDA");
             return nullptr;

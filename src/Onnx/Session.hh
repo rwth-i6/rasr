@@ -78,14 +78,14 @@ public:
     std::vector<OnnxStateVariable> const& getStateVariablesMetadata() const;
 
 private:
-    const std::string file_;
-    const size_t      intraOpNumThreads_;
-    const size_t      interOpNumThreads_;
-    const std::string statePrefix_;
-    const bool        removePrefixFromKey_;
-    const bool        cudaUseTf32_;
-    const int         executionProviderType_;
-    int               cudaDevice_;
+    const std::string           file_;
+    const size_t                intraOpNumThreads_;
+    const size_t                interOpNumThreads_;
+    const std::string           statePrefix_;
+    const bool                  removePrefixFromKey_;
+    const bool                  cudaUseTf32_;
+    const ExecutionProviderType executionProviderType_;
+    int                         cudaDevice_;
 
     Ort::AllocatorWithDefaultOptions allocator_;
     Ort::Env                         env_;

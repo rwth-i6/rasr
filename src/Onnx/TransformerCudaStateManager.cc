@@ -128,13 +128,6 @@ bool TransformerCudaStateManager::requiresAllParentStates() const {
     return true;
 }
 
-void TransformerCudaStateManager::warnIfCompressed(Nn::CompressedVectorFactory<float> const& vectorFactory) {
-    if (not compressionWarningLogged_ and dynamic_cast<Nn::DummyCompressedVectorFactory<float> const*>(&vectorFactory) == nullptr) {
-        warning("The transformer-cuda state manager ignores the configured state-compression, its states are uncompressed floats on the device");
-        compressionWarningLogged_ = true;
-    }
-}
-
 TransformerCudaStateManager::HistoryState TransformerCudaStateManager::initialState(StateVariables const& vars, Nn::CompressedVectorFactory<float> const& vectorFactory) {
     warnIfCompressed(vectorFactory);
     HistoryState result;
@@ -328,6 +321,13 @@ std::vector<TransformerCudaStateManager::HistoryState> TransformerCudaStateManag
     // The caller may release the output tensors right after this call, so the copies must be done
     checkCudaStatus(cudaStreamSynchronize(sharedStream()), "Synchronizing the shared CUDA stream after splitting states");
     return result;
+}
+
+void TransformerCudaStateManager::warnIfCompressed(Nn::CompressedVectorFactory<float> const& vectorFactory) {
+    if (not compressionWarningLogged_ and dynamic_cast<Nn::DummyCompressedVectorFactory<float> const*>(&vectorFactory) == nullptr) {
+        warning("The transformer-cuda state manager ignores the configured state-compression, its states are uncompressed floats on the device");
+        compressionWarningLogged_ = true;
+    }
 }
 
 }  // namespace Onnx

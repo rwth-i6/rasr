@@ -103,4 +103,12 @@ TEST_F(Tokenizer, SentencePieceTokenizerTest, WordBoundaryMarks) {
     EXPECT_EQ(formatWordBoundaryMarks(*tokenizer, {0u, 1u, 2u}), std::string("<unk>:BA <s>:BA </s>:BA"));
 }
 
+// Models trained with `treat_whitespace_as_suffix` have the blank at the end of pieces instead
+TEST_F(Tokenizer, SentencePieceTokenizerTest, WordBoundaryMarksSuffix) {
+    setTokenizerParameter("model-file", Test::dataFile("tokenizer/sentencepiece_suffix.model"));
+    auto tokenizer = createTokenizer();
+    EXPECT_EQ(formatWordBoundaryMarks(*tokenizer, tokenizer->encode("wider newest")), std::string("w:-- i:-- d:-- er▁:-A newest▁:-A"));
+    EXPECT_EQ(formatWordBoundaryMarks(*tokenizer, {0u, 1u}), std::string("<unk>:BA <s>:BA"));
+}
+
 }  // namespace Tokenizer

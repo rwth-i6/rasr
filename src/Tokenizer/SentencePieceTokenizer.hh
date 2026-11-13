@@ -41,8 +41,10 @@ public:
     TokenId     tokenStrToId(std::string const& token) const override;
     std::string tokenIdToStr(TokenId id) const override;
 
-    // Pieces that start a word begin with "▁", so only boundaries before tokens are marked.
-    // Control pieces such as "<s>" and the unknown piece are words of their own.
+    // SentencePiece represents blanks by "▁" at the start of pieces, or at their end for models trained with
+    // `treat_whitespace_as_suffix`, so only boundaries before or after tokens are marked. Control pieces such as "<s>"
+    // and the unknown piece are words of their own. Pieces spanning several words, which models trained without
+    // `split_by_whitespace` can contain, only mark their outer boundaries.
     WordBoundaryMarks wordBoundaryMarks(TokenId id) const override;
 
     std::vector<TokenId> encode(std::string const& text) const override;
@@ -50,6 +52,7 @@ public:
 
 private:
     sentencepiece::SentencePieceProcessor processor_;
+    bool                                  whitespaceAsSuffix_;  // Determined from the pieces, see constructor
 
     void checkStatus(sentencepiece::util::Status const& status) const;
 };

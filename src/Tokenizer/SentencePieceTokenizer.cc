@@ -17,6 +17,17 @@
 
 #include <Core/StringUtilities.hh>
 
+namespace {
+
+// SentencePiece represents blanks by this character
+std::string const whitespace = "\u2581";
+
+bool endsWith(std::string const& text, std::string const& suffix) {
+    return text.size() >= suffix.size() and text.compare(text.size() - suffix.size(), suffix.size(), suffix) == 0;
+}
+
+}  // namespace
+
 namespace Tokenizer {
 
 const Core::ParameterString SentencePieceTokenizer::paramModelFile(
@@ -26,13 +37,28 @@ const Core::ParameterString SentencePieceTokenizer::paramModelFile(
 
 SentencePieceTokenizer::SentencePieceTokenizer(Core::Configuration const& config)
         : Core::Component(config),
-          Precursor(config) {
+          Precursor(config),
+          whitespaceAsSuffix_(false) {
     std::string modelFile = paramModelFile(config);
     auto        status    = processor_.Load(modelFile);
     if (not status.ok()) {
         criticalError("Failed to load SentencePiece model '%s': %s", modelFile.c_str(), status.ToString().c_str());
         return;
     }
+
+    // The option `treat_whitespace_as_suffix` of the model is not accessible via the SentencePiece API, but its
+    // pieces end instead of start with the blank
+    u32 prefixes = 0u;
+    u32 suffixes = 0u;
+    for (int id = 0; id < processor_.GetPieceSize(); ++id) {
+        std::string const& piece = processor_.IdToPiece(id);
+        if (piece != whitespace) {
+            prefixes += Core::startsWith(piece, whitespace);
+            suffixes += endsWith(piece, whitespace);
+        }
+    }
+    whitespaceAsSuffix_ = suffixes > prefixes;
+
     log("Loaded SentencePiece model with vocabulary size %u from '%s'", vocabularySize(), modelFile.c_str());
 }
 
@@ -70,7 +96,11 @@ AbstractTokenizer::WordBoundaryMarks SentencePieceTokenizer::wordBoundaryMarks(T
     if (processor_.IsControl(id) or processor_.IsUnknown(id)) {
         return {true, true};
     }
-    return {Core::startsWith(processor_.IdToPiece(id), "\u2581"), false};
+    std::string const& piece = processor_.IdToPiece(id);
+    if (whitespaceAsSuffix_) {
+        return {false, endsWith(piece, whitespace)};
+    }
+    return {Core::startsWith(piece, whitespace), false};
 }
 
 std::vector<AbstractTokenizer::TokenId> SentencePieceTokenizer::encode(std::string const& text) const {

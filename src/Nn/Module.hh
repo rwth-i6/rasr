@@ -29,8 +29,10 @@
 #include "LabelScorer/EncoderFactory.hh"
 #include "LabelScorer/LabelScorerFactory.hh"
 
+#ifdef MODULE_ONNX
 #include <Onnx/OnnxStateVariable.hh>
 #include <Onnx/Value.hh>
+#endif
 
 namespace Core {
 class FormatSet;
@@ -43,8 +45,10 @@ private:
     static const Core::Choice          compressedVectorFactoryTypeChoice;
     static const Core::ParameterChoice compressedVectorFactoryTypeParam;
 
+#ifdef MODULE_ONNX
     static const Core::Choice          stateManagerTypeChoice;
     static const Core::ParameterChoice stateManagerTypeParam;
+#endif
 
 public:
     Module_();
@@ -82,11 +86,13 @@ public:
      */
     CompressedVectorFactoryPtr<float> createCompressedVectorFactory(Core::Configuration const& config);
 
+#ifdef MODULE_ONNX
     /*
      * Create an ONNX recurrent state manager for LSTM and transformer-style
      * autoregressive models.
      */
     std::unique_ptr<AbstractStateManager<Onnx::Value, Onnx::OnnxStateVariable>> createStateManager(Core::Configuration const& config);
+#endif
 
 private:
     Core::FormatSet*   formats_;

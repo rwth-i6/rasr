@@ -283,6 +283,14 @@ void* Session::sharedCudaStream() {
 #endif
 }
 
+bool Session::usesCuda() const {
+#ifdef MODULE_CUDA
+    return executionProviderType_ == ExecutionProviderType::cuda;
+#else
+    return false;
+#endif
+}
+
 std::string Session::getCustomMetadata(std::string const& key) const {
     std::string result = "";
 

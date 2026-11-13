@@ -4,12 +4,11 @@
 #include "Value.hh"
 
 #include <numeric>
-
-#include <Core/Application.hh>
-
 #ifdef MODULE_CUDA
 #include <cuda_runtime.h>
 #endif
+
+#include <Core/Application.hh>
 
 #include "Session.hh"
 #include "Util.hh"
@@ -863,13 +862,7 @@ template void Value::get<u8>(size_t, size_t, u8&) const;
 template<typename T>
 T* Value::data() {
     requireOnHost();
-    ONNXTensorElementDataType expected_dtype = ToDataType<T>::onnx_tensor_element_type;
-    require(not empty());
-    require(value_.IsTensor());
-    require_ge(numDims(), 0);
-    require_eq(value_.GetTensorTypeAndShapeInfo().GetElementType(), expected_dtype);
-
-    return value_.GetTensorMutableData<T>();
+    return rawData<T>();
 }
 
 template f32* Value::data<f32>();
@@ -886,13 +879,7 @@ template u8*  Value::data<u8>();
 template<typename T>
 T const* Value::data() const {
     requireOnHost();
-    ONNXTensorElementDataType expected_dtype = ToDataType<T>::onnx_tensor_element_type;
-    require(not empty());
-    require(value_.IsTensor());
-    require_ge(numDims(), 0);
-    require_eq(value_.GetTensorTypeAndShapeInfo().GetElementType(), expected_dtype);
-
-    return value_.GetTensorData<T>();
+    return rawData<T>();
 }
 
 template f32 const* Value::data<f32>() const;
@@ -1443,22 +1430,6 @@ template void Value::save<s8>(std::string const&) const;
 template void Value::save<u8>(std::string const&) const;
 template void Value::save<bool>(std::string const&) const;
 
-template<typename T>
-void Value::copyFrom(Ort::Value const& v) {
-    require(v.IsTensor());
-
-    Ort::TensorTypeAndShapeInfo info       = v.GetTensorTypeAndShapeInfo();
-    std::vector<int64_t>        dims       = info.GetShape();
-    int64_t                     total_size = std::accumulate(dims.begin(), dims.end(), 1l, [](int64_t a, int64_t b) { return a * b; });
-
-    Ort::AllocatorWithDefaultOptions allocator;
-    value_       = Ort::Value::CreateTensor<T>(allocator, &(*dims.begin()), dims.size());
-    T const* src = v.GetTensorData<T>();
-    T*       tgt = value_.GetTensorMutableData<T>();
-
-    std::copy(src, src + total_size, tgt);
-}
-
 /* -------------------- Memory location -------------------- */
 
 bool Value::isOnDevice() const {
@@ -1466,12 +1437,6 @@ bool Value::isOnDevice() const {
         return false;
     }
     return value_.GetTensorMemoryInfo().GetDeviceType() == OrtMemoryInfoDeviceType_GPU;
-}
-
-void Value::requireOnHost() const {
-    if (isOnDevice()) {
-        Core::Application::us()->criticalError("Onnx::Value: host access to a tensor in CUDA device memory, use toHost() first");
-    }
 }
 
 Value Value::toHost() const {
@@ -1542,11 +1507,36 @@ Value Value::wrapDeviceMemory(T* data, std::vector<int64_t> const& dim) {
 INSTANTIATE_MEMORY_LOCATION_FUNCTIONS(f32)
 INSTANTIATE_MEMORY_LOCATION_FUNCTIONS(f64)
 INSTANTIATE_MEMORY_LOCATION_FUNCTIONS(s64)
+INSTANTIATE_MEMORY_LOCATION_FUNCTIONS(u64)
 INSTANTIATE_MEMORY_LOCATION_FUNCTIONS(s32)
+INSTANTIATE_MEMORY_LOCATION_FUNCTIONS(u32)
 INSTANTIATE_MEMORY_LOCATION_FUNCTIONS(s16)
+INSTANTIATE_MEMORY_LOCATION_FUNCTIONS(u16)
 INSTANTIATE_MEMORY_LOCATION_FUNCTIONS(s8)
 INSTANTIATE_MEMORY_LOCATION_FUNCTIONS(u8)
 
 #undef INSTANTIATE_MEMORY_LOCATION_FUNCTIONS
+
+template<typename T>
+void Value::copyFrom(Ort::Value const& v) {
+    require(v.IsTensor());
+
+    Ort::TensorTypeAndShapeInfo info       = v.GetTensorTypeAndShapeInfo();
+    std::vector<int64_t>        dims       = info.GetShape();
+    int64_t                     total_size = std::accumulate(dims.begin(), dims.end(), 1l, [](int64_t a, int64_t b) { return a * b; });
+
+    Ort::AllocatorWithDefaultOptions allocator;
+    value_       = Ort::Value::CreateTensor<T>(allocator, &(*dims.begin()), dims.size());
+    T const* src = v.GetTensorData<T>();
+    T*       tgt = value_.GetTensorMutableData<T>();
+
+    std::copy(src, src + total_size, tgt);
+}
+
+void Value::requireOnHost() const {
+    if (isOnDevice()) {
+        Core::Application::us()->criticalError("Onnx::Value: host access to a tensor in CUDA device memory, use toHost() first");
+    }
+}
 
 }  // namespace Onnx

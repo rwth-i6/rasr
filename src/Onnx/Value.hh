@@ -76,15 +76,6 @@ public:
     static Value concat(Value const& a, Value const& b, int axis);
     static Value concat(std::vector<Value const*> const& values, int axis);
 
-    /*
-     * Wrap existing CUDA device memory of the current device as a tensor, without taking ownership.
-     * The memory must stay valid as long as the returned value is used (including session runs with it).
-     * The device is the current one (cudaGetDevice) at the time of the call, sessions use the device that was
-     * current when they were created (both must be the same, i.e. don't switch devices in between).
-     */
-    template<typename T>
-    static Value wrapDeviceMemory(T* data, std::vector<int64_t> const& dim);
-
     Value();
     Value(Value const& other);
     Value(Value&& value) noexcept;
@@ -93,25 +84,6 @@ public:
     bool empty() const;
 
     Value& operator=(Value&& other) noexcept;
-
-    /* -------------------- Memory location -------------------- */
-
-    // Whether the tensor data is in CUDA device memory
-    bool isOnDevice() const;
-
-    // Copy of the tensor in host memory (a plain copy for host tensors)
-    Value toHost() const;
-
-    // Tensor over the same data (host or device memory) without copying it and without taking ownership
-    // This value must stay alive and unchanged as long as the view is used
-    Value view() const;
-
-    // Raw data pointer regardless of the memory location, i.e. a device pointer for tensors on the device
-    template<typename T>
-    T* rawData();
-
-    template<typename T>
-    T const* rawData() const;
 
     /* -------------------- Getters -------------------- */
 
@@ -215,6 +187,34 @@ public:
 
     template<typename T>
     void save(std::string const& path) const;
+
+    /* -------------------- Memory location -------------------- */
+
+    // Whether the tensor data is in CUDA device memory
+    bool isOnDevice() const;
+
+    // Copy of the tensor in host memory (a plain copy for host tensors)
+    Value toHost() const;
+
+    // Tensor over the same data (host or device memory) without copying it and without taking ownership
+    // This value must stay alive and unchanged as long as the view is used
+    Value view() const;
+
+    // Raw data pointer regardless of the memory location, i.e. a device pointer for tensors on the device
+    template<typename T>
+    T* rawData();
+
+    template<typename T>
+    T const* rawData() const;
+
+    /*
+     * Wrap existing CUDA device memory of the current device as a tensor, without taking ownership.
+     * The memory must stay valid as long as the returned value is used (including session runs with it).
+     * The device is the current one (cudaGetDevice) at the time of the call, sessions use the device that was
+     * current when they were created (both must be the same, i.e. don't switch devices in between).
+     */
+    template<typename T>
+    static Value wrapDeviceMemory(T* data, std::vector<int64_t> const& dim);
 
 protected:
     Ort::Value value_;

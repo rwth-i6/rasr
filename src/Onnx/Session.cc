@@ -28,14 +28,6 @@ const Core::ParameterInt Session::paramInterOpNumThreads("inter-op-num-threads",
                                                          "number of threads to use between ops",
                                                          1);
 
-const Core::Choice Session::executionProviderChoice(
-        "cpu", ExecutionProviderType::cpu,
-        "cuda", ExecutionProviderType::cuda,
-        Core::Choice::endMark());
-
-const Core::ParameterChoice Session::paramExecutionProviderType(
-        "execution-provider-type", &Session::executionProviderChoice, "type of execution provider", ExecutionProviderType::cpu);
-
 const Core::ParameterString Session::paramStatePrefix("state-prefix",
                                                       "Prefix for the state keys in the metadata to distinguish from other metadata",
                                                       "STATE_");
@@ -50,6 +42,14 @@ const Core::ParameterBool Session::paramCudaUseTf32("cuda-use-tf32",
                                                     " Disabling it requires an onnxruntime version that knows the CUDA provider option `use_tf32`",
                                                     true);
 
+const Core::Choice Session::executionProviderChoice(
+        "cpu", ExecutionProviderType::cpu,
+        "cuda", ExecutionProviderType::cuda,
+        Core::Choice::endMark());
+
+const Core::ParameterChoice Session::paramExecutionProviderType(
+        "execution-provider-type", &Session::executionProviderChoice, "type of execution provider", ExecutionProviderType::cpu);
+
 Session::Session(Core::Configuration const& config)
         : Precursor(config),
           file_(paramFile(config)),
@@ -58,7 +58,7 @@ Session::Session(Core::Configuration const& config)
           statePrefix_(paramStatePrefix(config)),
           removePrefixFromKey_(paramRemovePrefixFromKey(config)),
           cudaUseTf32_(paramCudaUseTf32(config)),
-          executionProviderType_(paramExecutionProviderType(config)),
+          executionProviderType_(static_cast<ExecutionProviderType>(paramExecutionProviderType(config))),
           cudaDevice_(0),
           allocator_(),
           env_(ORT_LOGGING_LEVEL_WARNING),
@@ -230,27 +230,10 @@ std::vector<int64_t> Session::getOutputShape(std::string const& name) const {
     return res;
 }
 
-void* Session::sharedCudaStream() {
-#ifdef MODULE_CUDA
-    static cudaStream_t stream = []() {
-        cudaStream_t s = nullptr;
-        if (cudaStreamCreate(&s) != cudaSuccess) {
-            Core::Application::us()->criticalError("Could not create the shared CUDA stream for the ONNX sessions");
-        }
-        return s;
-    }();
-    return stream;
-#else
-    return nullptr;
-#endif
-}
-
-bool Session::usesCuda() const {
-#ifdef MODULE_CUDA
-    return executionProviderType_ == ExecutionProviderType::cuda;
-#else
-    return false;
-#endif
+bool Session::run(std::vector<std::pair<std::string, Value>>&& inputs,
+                  std::vector<std::string> const&              output_names,
+                  std::vector<Value>&                          outputs) {
+    return run(std::move(inputs), output_names, outputs, {});
 }
 
 bool Session::run(std::vector<std::pair<std::string, Value>>&& inputs,
@@ -285,10 +268,107 @@ bool Session::run(std::vector<std::pair<std::string, Value>>&& inputs,
     return runPlain(std::move(inputs), output_names, outputs);
 }
 
-bool Session::run(std::vector<std::pair<std::string, Value>>&& inputs,
-                  std::vector<std::string> const&              output_names,
-                  std::vector<Value>&                          outputs) {
-    return run(std::move(inputs), output_names, outputs, {});
+void* Session::sharedCudaStream() {
+#ifdef MODULE_CUDA
+    static cudaStream_t stream = []() {
+        cudaStream_t s = nullptr;
+        if (cudaStreamCreate(&s) != cudaSuccess) {
+            Core::Application::us()->criticalError("Could not create the shared CUDA stream for the ONNX sessions");
+        }
+        return s;
+    }();
+    return stream;
+#else
+    return nullptr;
+#endif
+}
+
+bool Session::usesCuda() const {
+#ifdef MODULE_CUDA
+    return executionProviderType_ == ExecutionProviderType::cuda;
+#else
+    return false;
+#endif
+}
+
+std::string Session::getCustomMetadata(std::string const& key) const {
+    std::string result = "";
+
+    auto iter = customMetadata_.find(key);
+    if (iter != customMetadata_.end()) {
+        result = iter->second;
+    }
+
+    return result;
+}
+
+std::vector<std::string> const& Session::getCustomMetadataKeys() const {
+    return customMetadataKeys_;
+}
+
+std::vector<OnnxStateVariable> const& Session::getStateVariablesMetadata() const {
+    return stateVariables_;
+}
+
+void Session::initializeStateVariablesMetadata() {
+    for (std::string const& key : customMetadataKeys_) {
+        auto state_pos = key.find(statePrefix_);
+
+        if (state_pos != 0) {
+            continue;
+        }
+
+        OnnxStateVariable state_variable;
+
+        if (removePrefixFromKey_) {
+            state_variable.input_state_key = key.substr(statePrefix_.size());
+        }
+        else {
+            state_variable.input_state_key = key;
+        }
+
+        state_variable.output_state_key = getCustomMetadata(key);
+        state_variable.shape            = getInputShape(state_variable.input_state_key);
+
+        log("State: input_state_key=%s output_state_key=%s", state_variable.input_state_key.c_str(), state_variable.output_state_key.c_str());
+
+        stateOutputToInput_[state_variable.output_state_key] = state_variable.input_state_key;
+        stateVariables_.push_back(state_variable);
+    }
+}
+
+bool Session::runPlain(std::vector<std::pair<std::string, Value>>&& inputs,
+                       std::vector<std::string> const&              output_names,
+                       std::vector<Value>&                          outputs) {
+    Ort::RunOptions run_options;
+
+    std::vector<char const*> input_names;
+    std::vector<Ort::Value>  input_vals;
+    for (auto&& input : inputs) {
+        input_names.emplace_back(input.first.c_str());
+        input_vals.emplace_back(std::move(input.second.value_));
+    }
+
+    std::vector<char const*> output_cnames;
+    for (auto const& n : output_names) {
+        output_cnames.emplace_back(n.c_str());
+    }
+
+    std::vector<Ort::Value> out_vals;
+    try {
+        out_vals = session_.Run(run_options, input_names.data(), input_vals.data(), inputs.size(), output_cnames.data(), output_cnames.size());
+    }
+    catch (Ort::Exception& e) {
+        warning() << "Exception during ONNX session run: " << e.what();
+        return false;
+    }
+
+    outputs.resize(out_vals.size());
+    for (size_t i = 0ul; i < outputs.size(); i++) {
+        outputs[i] = std::move(out_vals[i]);
+    }
+
+    return true;
 }
 
 bool Session::runWithBinding(std::vector<std::pair<std::string, Value>>& inputs,
@@ -338,86 +418,6 @@ bool Session::runWithBinding(std::vector<std::pair<std::string, Value>>& inputs,
     criticalError() << "ONNX session inputs/outputs in device memory require RASR compiled with MODULE_CUDA";
     return false;
 #endif
-}
-
-bool Session::runPlain(std::vector<std::pair<std::string, Value>>&& inputs,
-                       std::vector<std::string> const&              output_names,
-                       std::vector<Value>&                          outputs) {
-    Ort::RunOptions run_options;
-
-    std::vector<char const*> input_names;
-    std::vector<Ort::Value>  input_vals;
-    for (auto&& input : inputs) {
-        input_names.emplace_back(input.first.c_str());
-        input_vals.emplace_back(std::move(input.second.value_));
-    }
-
-    std::vector<char const*> output_cnames;
-    for (auto const& n : output_names) {
-        output_cnames.emplace_back(n.c_str());
-    }
-
-    std::vector<Ort::Value> out_vals;
-    try {
-        out_vals = session_.Run(run_options, input_names.data(), input_vals.data(), inputs.size(), output_cnames.data(), output_cnames.size());
-    }
-    catch (Ort::Exception& e) {
-        warning() << "Exception during ONNX session run: " << e.what();
-        return false;
-    }
-
-    outputs.resize(out_vals.size());
-    for (size_t i = 0ul; i < outputs.size(); i++) {
-        outputs[i] = std::move(out_vals[i]);
-    }
-
-    return true;
-}
-
-std::string Session::getCustomMetadata(std::string const& key) const {
-    std::string result = "";
-
-    auto iter = customMetadata_.find(key);
-    if (iter != customMetadata_.end()) {
-        result = iter->second;
-    }
-
-    return result;
-}
-
-std::vector<std::string> const& Session::getCustomMetadataKeys() const {
-    return customMetadataKeys_;
-}
-
-void Session::initializeStateVariablesMetadata() {
-    for (std::string const& key : customMetadataKeys_) {
-        auto state_pos = key.find(statePrefix_);
-
-        if (state_pos != 0) {
-            continue;
-        }
-
-        OnnxStateVariable state_variable;
-
-        if (removePrefixFromKey_) {
-            state_variable.input_state_key = key.substr(statePrefix_.size());
-        }
-        else {
-            state_variable.input_state_key = key;
-        }
-
-        state_variable.output_state_key = getCustomMetadata(key);
-        state_variable.shape            = getInputShape(state_variable.input_state_key);
-
-        log("State: input_state_key=%s output_state_key=%s", state_variable.input_state_key.c_str(), state_variable.output_state_key.c_str());
-
-        stateOutputToInput_[state_variable.output_state_key] = state_variable.input_state_key;
-        stateVariables_.push_back(state_variable);
-    }
-}
-
-std::vector<OnnxStateVariable> const& Session::getStateVariablesMetadata() const {
-    return stateVariables_;
 }
 
 }  // namespace Onnx

@@ -137,8 +137,9 @@ std::vector<LstmCudaStateManager::HistoryState> LstmCudaStateManager::splitState
     for (size_t v = 0ul; v < vars.size(); ++v) {
         batches.push_back(makeBatch(stateSizes[v], batchSize));
         float const* base = stateTensors[v].rawData<float>();
+        auto const&  pool = pools_.get(stateSizes[v]);
         for (size_t b = 0ul; b < batchSize; ++b) {
-            auto state = std::make_unique<DeviceVector>(pools_.get(stateSizes[v]), stateSizes[v]);
+            auto state = std::make_unique<DeviceVector>(pool, stateSizes[v]);
             batches.back().tasks.push_back({base + b * stateSizes[v], state->deviceData()});
             result[b].push_back(std::move(state));
         }

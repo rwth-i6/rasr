@@ -1390,7 +1390,10 @@ template void Value::set<bool>(bool const&);
 
 template<typename T>
 void Value::save(std::string const& path) const {
-    requireOnHost();
+    if (isOnDevice()) {
+        toHost().save<T>(path);
+        return;
+    }
     std::ofstream out(path, std::ios::out | std::ios::trunc);
     for (int i = 0; i < numDims(); i++) {
         if (i > 0) {

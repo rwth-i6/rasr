@@ -35,7 +35,7 @@
 #include <Onnx/OnnxLstmStateManager.hh>
 #include <Onnx/OnnxTransformerStateManager.hh>
 #ifdef MODULE_CUDA
-#include <Onnx/LstmGpuStateManager.hh>
+#include <Onnx/LstmCudaStateManager.hh>
 #include <Onnx/TransformerCudaStateManager.hh>
 #endif
 
@@ -105,7 +105,6 @@ const Core::Choice Module_::stateManagerTypeChoice(
         "lstm", LstmStateManagerType,
         "lstm-cpu", LstmCpuStateManagerType,
         "lstm-cuda", LstmCudaStateManagerType,
-        "lstm-gpu", LstmCudaStateManagerType,
         "transformer", TransformerStateManagerType,
         "transformer-cpu", TransformerCpuStateManagerType,
         "transformer-cuda", TransformerCudaStateManagerType,
@@ -318,7 +317,7 @@ std::unique_ptr<AbstractStateManager<Onnx::Value, Onnx::OnnxStateVariable>> Modu
         case LstmCudaStateManagerType:
 #ifdef MODULE_CUDA
             return std::unique_ptr<AbstractStateManager<Onnx::Value, Onnx::OnnxStateVariable>>(
-                    new Onnx::LstmGpuStateManager(config));
+                    new Onnx::LstmCudaStateManager(config));
 #else
             Core::Application::us()->criticalError("State manager type lstm-cuda requires RASR compiled with MODULE_CUDA");
             return nullptr;

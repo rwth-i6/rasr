@@ -96,14 +96,19 @@ const Core::ParameterInt NgramLinearSearch::paramNumHmmStates(
         "Number of left-to-right HMM states per phoneme, all emitting the phoneme's label. Each state loops (label-loop score) "
         "or moves on (label-to-label score). A phoneme is left, and the LM scores the next one, only from its last state. "
         "With more than one state a segment must end in a last state and a phoneme may directly follow itself. "
-        "Blank keeps a single state.",
+        "Silence (blank) uses num-silence-hmm-states instead.",
+        1, 1);
+
+const Core::ParameterInt NgramLinearSearch::paramNumSilenceHmmStates(
+        "num-silence-hmm-states",
+        "Number of left-to-right HMM states of silence (the blank label). Silence can only be left from its last state.",
         1, 1);
 
 const Core::ParameterBool NgramLinearSearch::paramTieHmmStates(
         "tie-hmm-states",
         "Whether all HMM states of a label share its score column (same emission score). If false, state j of label a reads column "
-        "a * num-hmm-states + j (phoneme-major), so the scores need num-labels * num-hmm-states columns. "
-        "Blank, which has a single state, reads the column of its last state.",
+        "a * num-hmm-states + j (phoneme-major). Silence gets a block of num-silence-hmm-states columns at its index, "
+        "shifting the columns of all later labels accordingly.",
         true);
 
 const Core::ParameterBool NgramLinearSearch::paramLogStatistics(
@@ -124,6 +129,7 @@ NgramLinearSearch::NgramLinearSearch(Core::Configuration const& config)
           scoreHistogram_(paramNumHistogramBins(config)),
           blankLabelIndex_(paramBlankLabelIndex(config)),
           numHmmStates_(paramNumHmmStates(config)),
+          numSilenceHmmStates_(paramNumSilenceHmmStates(config)),
           tieHmmStates_(paramTieHmmStates(config)),
           expectedScoreDimension_(0ul),
           logStatistics_(paramLogStatistics(config)),
@@ -136,7 +142,7 @@ NgramLinearSearch::NgramLinearSearch(Core::Configuration const& config)
           pronunciations_(),
           beam_(),
           newBeam_(),
-          seenHistories_(numHmmStates_),
+          seenHistories_(std::max(numHmmStates_, numSilenceHmmStates_)),
           scoringContexts_(),
           currentSearchStep_(0ul),
           finishedSegment_(false),
@@ -174,15 +180,19 @@ bool NgramLinearSearch::setModelCombination(Speech::ModelCombination const& mode
 
     initializePronunciations();
 
-    log() << "Use " << numHmmStates_ << " HMM state(s) per phoneme" << (tieHmmStates_ ? "" : " with untied emissions");
+    log() << "Use " << numHmmStates_ << " HMM state(s) per phoneme and " << numSilenceHmmStates_ << " for silence"
+          << (tieHmmStates_ ? "" : " with untied emissions");
 
     // The layout fixes the number of score columns once there is more than one state
-    if (numHmmStates_ > 1 or not tieHmmStates_) {
+    if (numHmmStates_ > 1 or numSilenceHmmStates_ > 1 or not tieHmmStates_) {
         size_t numLabels = blankLabelIndex_ != Nn::invalidLabelIndex ? blankLabelIndex_ + 1ul : 0ul;
         for (auto const& pron : pronunciations_) {
             numLabels = std::max(numLabels, static_cast<size_t>(pron.label) + 1ul);
         }
         expectedScoreDimension_ = tieHmmStates_ ? numLabels : numLabels * numHmmStates_;
+        if (not tieHmmStates_ and blankLabelIndex_ != Nn::invalidLabelIndex) {
+            expectedScoreDimension_ = expectedScoreDimension_ + numSilenceHmmStates_ - numHmmStates_;
+        }
         log() << "Expect " << expectedScoreDimension_ << " score columns per frame";
     }
 
@@ -227,9 +237,11 @@ void NgramLinearSearch::finishSegment() {
     featureProcessingTime_.stop();
     decodeManySteps();
 
-    // Only a hypothesis that has reached the last state of its phoneme (or is in blank) can end the segment
-    if (numHmmStates_ > 1) {
-        auto unfinished = [this](LabelHypothesis const& hyp) { return hyp.hmmState + 1 < numHmmStates_; };
+    // Only a hypothesis that has reached the last state of its label can end the segment
+    if (numHmmStates_ > 1 or numSilenceHmmStates_ > 1) {
+        auto unfinished = [this](LabelHypothesis const& hyp) {
+            return hyp.hmmState + 1 < (hyp.currentToken == blankLabelIndex_ ? numSilenceHmmStates_ : numHmmStates_);
+        };
         if (std::all_of(beam_.begin(), beam_.end(), unfinished)) {
             warning() << "No hypothesis ends in the last HMM state; keeping all " << beam_.size() << " hypotheses";
         }
@@ -318,8 +330,6 @@ bool NgramLinearSearch::decodeStep() {
         seen.clear();
     }
 
-    u32 const lastHmmState = numHmmStates_ - 1u;
-
     size_t numHypsBeforeRecombination = 0ul;
 
     Score bestNewScore = Core::Type<Score>::max;
@@ -334,7 +344,9 @@ bool NgramLinearSearch::decodeStep() {
             continue;
         }
 
-        bool const inLabel = hyp.currentToken != Nn::invalidLabelIndex and hyp.currentToken != blankLabelIndex_;
+        bool const started      = hyp.currentToken != Nn::invalidLabelIndex;
+        bool const inSilence    = started and hyp.currentToken == blankLabelIndex_;
+        u32 const  lastHmmState = (inSilence ? numSilenceHmmStates_ : numHmmStates_) - 1u;
 
         /*
          * Extend `hyp` by `pron` via `transitionType` into HMM state `nextState`. `entersLemma` is false for a loop
@@ -447,14 +459,14 @@ bool NgramLinearSearch::decodeStep() {
 
             Nn::LabelIndex nextToken = pron.label;
 
-            if (inLabel and nextToken == hyp.currentToken) {
+            if (started and nextToken == hyp.currentToken) {
                 // Looping in the current state
-                expand(pron, Nn::TransitionType::LABEL_LOOP, hyp.hmmState, false);
+                expand(pron, inSilence ? Nn::TransitionType::BLANK_LOOP : Nn::TransitionType::LABEL_LOOP, hyp.hmmState, false);
                 if (hyp.hmmState < lastHmmState) {
-                    // Continue to the next state of the same phoneme
-                    expand(pron, Nn::TransitionType::LABEL_TO_LABEL, hyp.hmmState + 1, false);
+                    // Continue to the next state of the same label
+                    expand(pron, inSilence ? Nn::TransitionType::BLANK_TO_BLANK : Nn::TransitionType::LABEL_TO_LABEL, hyp.hmmState + 1, false);
                 }
-                else if (numHmmStates_ > 1) {
+                else if (not inSilence and numHmmStates_ > 1) {
                     // Out of the last state into the first one of the same phoneme again. With one state this is
                     // indistinguishable from a loop, so a repeated phoneme only exists for more than one state.
                     expand(pron, Nn::TransitionType::LABEL_TO_LABEL, 0u, true);
@@ -462,17 +474,12 @@ bool NgramLinearSearch::decodeStep() {
                 continue;
             }
 
-            // A phoneme can only be left from its last state
-            if (inLabel and hyp.hmmState < lastHmmState) {
+            // A label can only be left from its last state
+            if (started and hyp.hmmState < lastHmmState) {
                 continue;
             }
 
-            Nn::TransitionType transitionType = inferTransitionType(hyp.currentToken, nextToken);
-
-            // Blank has a single state; it counts as the last one, so it can end the segment
-            u32 nextState = nextToken == blankLabelIndex_ ? lastHmmState : 0u;
-
-            expand(pron, transitionType, nextState, transitionType != Nn::TransitionType::BLANK_LOOP);
+            expand(pron, inferTransitionType(hyp.currentToken, nextToken), 0u, true);
         }
     }
 
@@ -677,13 +684,17 @@ Nn::LabelIndex NgramLinearSearch::emissionColumn(Nn::LabelIndex label, u32 hmmSt
     if (tieHmmStates_) {
         return label;
     }
-    return label * numHmmStates_ + hmmState;
+    if (label <= blankLabelIndex_) {
+        return label * numHmmStates_ + hmmState;
+    }
+    // Labels after silence are shifted by the size difference of its block
+    return label * numHmmStates_ + hmmState + numSilenceHmmStates_ - numHmmStates_;
 }
 
 void NgramLinearSearch::checkScoreDimension(size_t featureSize) const {
     if (expectedScoreDimension_ != 0ul and featureSize != expectedScoreDimension_) {
-        criticalError() << "Scores have " << featureSize << " columns per frame, but " << numHmmStates_
-                        << " HMM state(s) with " << (tieHmmStates_ ? "tied" : "untied") << " emissions need "
+        criticalError() << "Scores have " << featureSize << " columns per frame, but " << numHmmStates_ << " HMM state(s) per phoneme and "
+                        << numSilenceHmmStates_ << " for silence with " << (tieHmmStates_ ? "tied" : "untied") << " emissions need "
                         << expectedScoreDimension_;
     }
 }

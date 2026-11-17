@@ -62,8 +62,9 @@ namespace Search {
  *
  * With `num-hmm-states` S > 1 every phoneme is a left-to-right chain of S
  * states. Tied (default), all states read the phoneme's score column; untied
- * (`tie-hmm-states = false`), state j of label a reads column a * S + j. The
- * HMM state is part of the hypothesis and of the recombination key.
+ * (`tie-hmm-states = false`), state j of label a reads column a * S + j. Silence
+ * (the blank label) has `num-silence-hmm-states` states and a block of that many
+ * columns. The HMM state is part of the hypothesis and of the recombination key.
  */
 class NgramLinearSearch : public SearchAlgorithmV2 {
 public:
@@ -72,6 +73,7 @@ public:
     static const Core::ParameterInt         paramNumHistogramBins;
     static const Core::ParameterInt         paramBlankLabelIndex;
     static const Core::ParameterInt         paramNumHmmStates;
+    static const Core::ParameterInt         paramNumSilenceHmmStates;
     static const Core::ParameterBool        paramTieHmmStates;
     static const Core::ParameterBool        paramLogStatistics;
     static const Core::ParameterBool        paramLogStepwiseStatistics;
@@ -117,7 +119,7 @@ protected:
     struct LabelHypothesis {
         Nn::ScoringContextRef scoringContext;
         Nn::LabelIndex                     currentToken;
-        u32                                hmmState;  // state within the current phoneme, 0 .. num-hmm-states - 1
+        u32                                hmmState;  // state within the current label, 0 .. its number of states - 1
         Lm::History                        lmHistory;
         Speech::TimeframeIndex             timeframe;
         Score                              score;
@@ -141,6 +143,7 @@ private:
 
     Nn::LabelIndex      blankLabelIndex_;
     u32                 numHmmStates_;
+    u32                 numSilenceHmmStates_;
     bool                tieHmmStates_;
     size_t              expectedScoreDimension_;  // score columns the HMM layout needs; 0 = not checked
 

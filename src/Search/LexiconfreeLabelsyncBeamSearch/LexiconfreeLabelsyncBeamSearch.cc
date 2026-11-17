@@ -1036,13 +1036,15 @@ void LexiconfreeLabelsyncBeamSearch::scorePruning(std::vector<Element>& hypothes
     }
 
     // Find ranges for score histogram and setting absolute threshold
-    Score lowerScore = Core::Type<Score>::max;
-    Score upperScore = Core::Type<Score>::min;
+    Score  lowerScore         = Core::Type<Score>::max;
+    Score  upperScore         = Core::Type<Score>::min;
+    size_t numFiniteScoreHyps = 0ul;
 
     for (auto const& hyp : hypotheses) {
         if (Math::isinf(hyp.score) or hyp.score >= Core::Type<Score>::max) {
             continue;
         }
+        ++numFiniteScoreHyps;
         lowerScore = std::min(lowerScore, hyp.pruningScore());
         upperScore = std::max(upperScore, hyp.pruningScore());
     }
@@ -1065,9 +1067,15 @@ void LexiconfreeLabelsyncBeamSearch::scorePruning(std::vector<Element>& hypothes
     }
 
     if (lowerScore == upperScore) {
-        // All scores are the same (usually only happens when exactly 1 hyp is active)
+        // All finite scores are the same (usually only happens when exactly 1 hyp is active)
         if (hypotheses.size() > pruningParams.maxBeamSize) {
-            hypotheses.resize(pruningParams.maxBeamSize);
+            if (numFiniteScoreHyps < hypotheses.size()) {
+                // Move the hyps with finite score to the front so that only hyps with non-finite score are cut off
+                std::partition(hypotheses.begin(), hypotheses.end(), [](auto const& hyp) {
+                    return not(Math::isinf(hyp.score) or hyp.score >= Core::Type<Score>::max);
+                });
+            }
+            hypotheses.resize(std::min(pruningParams.maxBeamSize, numFiniteScoreHyps));
         }
         return;
     }

@@ -821,6 +821,14 @@ contributed to it. A model producing log-probabilities directly (e.g. a ``log_so
 its sign flipped before being used as a score -- see ``negate-input`` under :ref:`prior / no-op` below for a
 built-in way to do this.
 
+**Sparse scores:** a label scorer can state that only a few labels can follow in a step (e.g. a label scorer that only
+allows the next label of a given label sequence). If it is the first label scorer (``label-scorer`` /
+``label-scorer-1``), ``lexiconfree-labelsync-beam-search`` and ``lexiconfree-timesync-beam-search`` then only create
+the extensions with these labels plus the transitions without a new label (sentence end, blank, label loop and
+silence), instead of iterating over the whole vocabulary. The scores of these candidates are computed as usual, so the
+label scorers of later stages must be able to score any label. ``combine`` provides sparse scores if at least one of
+its sub-scorers does.
+
 Built-in label scorer types include:
 
 * ``no-context-onnx``, ``fixed-context-onnx``, ``stateful-onnx``, ``stateful-transducer-onnx``,

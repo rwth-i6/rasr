@@ -767,9 +767,8 @@ void LexiconfreeLabelsyncBeamSearch::createExtensions(std::vector<std::optional<
         auto const& denseScores = denseScoreSpans[contextIndex];
         auto        scoreTime   = scoreTimes[contextIndex];
 
-        // Iterate over possible successors (all lemmas)
-        for (auto lemmaIt = lemmas.first; lemmaIt != lemmas.second; ++lemmaIt) {
-            auto const*    lemma(*lemmaIt);
+        // Create the extension of `hyp` with `lemma` (pre-pruned by score)
+        auto addExtension = [&](Bliss::Lemma const* lemma, bool skipInfinite) {
             Nn::LabelIndex tokenIdx   = lemma->id();
             bool           terminated = false;
 
@@ -791,13 +790,17 @@ void LexiconfreeLabelsyncBeamSearch::createExtensions(std::vector<std::optional<
                 extTime = std::max(extTime, scoreTime);
             }
 
+            if (skipInfinite and extScore >= Core::Type<Score>::max) {
+                return;
+            }
+
             // Pre-prune based on score before creating extension instance and appending to list
             if (useScorePruning_.front()) {
                 Score referenceScore = (pruningStrategyType_ == PruningStrategySeparate and terminated)
                                                ? currentBestTerminatedScore
                                                : currentBestScore;
                 if (extScore > referenceScore + scoreThresholds_.front()) {
-                    continue;
+                    return;
                 }
             }
             currentBestScore = std::min(currentBestScore, extScore);
@@ -813,6 +816,28 @@ void LexiconfreeLabelsyncBeamSearch::createExtensions(std::vector<std::optional<
                      .transitionType = transitionType,
                      .baseHypIndex   = hypIndex,
                      .isActive       = not terminated});
+        };
+
+        auto sparseScores = (*scoreAccessor)->getSparseScores();
+        if (sparseScores) {
+            // Only the labels of the sparse scores can follow via label transitions, plus the sentence end
+            size_t numLemmas = lemmas.second - lemmas.first;
+            for (auto tokenIdx : sparseScores->labels) {
+                if (tokenIdx == sentenceEndLabelIndex_) {
+                    continue;  // added below
+                }
+                require_lt(tokenIdx, numLemmas);
+                addExtension(lemmas.first[tokenIdx], true);
+            }
+            if (sentenceEndLabelIndex_ != Nn::invalidLabelIndex and sentenceEndLabelIndex_ < numLemmas) {
+                addExtension(lemmas.first[sentenceEndLabelIndex_], true);
+            }
+        }
+        else {
+            // Iterate over possible successors (all lemmas)
+            for (auto lemmaIt = lemmas.first; lemmaIt != lemmas.second; ++lemmaIt) {
+                addExtension(*lemmaIt, false);
+            }
         }
     }
 }

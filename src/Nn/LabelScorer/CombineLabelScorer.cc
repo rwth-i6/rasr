@@ -14,6 +14,10 @@
  */
 
 #include "CombineLabelScorer.hh"
+
+#include <mutex>
+
+#include <Math/Utilities.hh>
 #include <Nn/Module.hh>
 #include "Types.hh"
 
@@ -102,6 +106,16 @@ public:
         return DenseScoreSpan(std::move(denseScoreTerms));
     }
 
+    // Sparse if at least one sub-accessor is sparse. The candidates are the labels of the shortest sparse list of the
+    // sub-accessors that have a finite total score.
+    std::optional<SparseScoreSpan> getSparseScores() const override {
+        std::call_once(sparseScoresComputed_, [this]() { computeSparseScores(); });
+        if (not hasSparseScores_) {
+            return std::nullopt;
+        }
+        return SparseScoreSpan{.labels = sparseLabels_, .scores = sparseScoreValues_};
+    }
+
     // Max of timeframes from sub-scorers
     TimeframeIndex getTime() const override {
         return std::accumulate(subAccessors_.begin(), subAccessors_.end(), 0, [](TimeframeIndex max, ScoreAccessorRef subAccessor) {
@@ -110,7 +124,36 @@ public:
     }
 
 private:
+    void computeSparseScores() const {
+        std::optional<SparseScoreSpan> shortest;
+        for (auto const& subAccessor : subAccessors_) {
+            auto sparseScores = subAccessor->getSparseScores();
+            if (sparseScores and (not shortest or sparseScores->size() < shortest->size())) {
+                shortest = sparseScores;
+            }
+        }
+        if (not shortest) {
+            return;
+        }
+        hasSparseScores_ = true;
+        sparseLabels_.reserve(shortest->size());
+        sparseScoreValues_.reserve(shortest->size());
+        for (auto label : shortest->labels) {
+            Score score = getScore(TransitionType::LABEL_TO_LABEL, label);
+            if (Math::isinf(score) or score >= Core::Type<Score>::max) {
+                continue;
+            }
+            sparseLabels_.push_back(label);
+            sparseScoreValues_.push_back(score);
+        }
+    }
+
     std::vector<ScoreAccessorRef> subAccessors_;
+
+    mutable std::once_flag          sparseScoresComputed_;
+    mutable bool                    hasSparseScores_ = false;
+    mutable std::vector<LabelIndex> sparseLabels_;
+    mutable std::vector<Score>      sparseScoreValues_;
 };
 
 }  // namespace

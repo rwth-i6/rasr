@@ -178,14 +178,21 @@ const Core::ParameterInt ForwardBackwardSearch::paramNumHmmStates(
         "Number of left-to-right HMM states per phoneme, all emitting the phoneme's label. Each state loops (label-loop score) "
         "or moves on (label-to-label score). A phoneme is left, and the LM scores the next one, only from its last state. "
         "With more than one state only final states in a last state carry the partition and a phoneme may directly follow "
-        "itself (collapse-repeated-labels then has no effect). Blank keeps a single state.",
+        "itself (collapse-repeated-labels then has no effect). Silence (blank) uses num-silence-hmm-states instead.",
+        1, 1);
+
+const Core::ParameterInt ForwardBackwardSearch::paramNumSilenceHmmStates(
+        "num-silence-hmm-states",
+        "Number of left-to-right HMM states of silence (the blank label). Each state loops (blank-loop score) or moves on "
+        "(blank-to-blank score). Silence can only be left from its last state.",
         1, 1);
 
 const Core::ParameterBool ForwardBackwardSearch::paramTieHmmStates(
         "tie-hmm-states",
         "Whether all HMM states of a label share its score column (same emission score). If false, state j of label a reads column "
         "a * num-hmm-states + j (phoneme-major), so the scores need num-labels * num-hmm-states columns, and the gammas "
-        "are reported per column as well. Blank, which has a single state, reads the column of its last state.",
+        "are reported per column as well. Silence gets a block of num-silence-hmm-states columns at its index, shifting the "
+        "columns of all later labels accordingly.",
         true);
 
 ForwardBackwardSearch::ForwardBackwardSearch(Core::Configuration const& config)
@@ -207,6 +214,7 @@ ForwardBackwardSearch::ForwardBackwardSearch(Core::Configuration const& config)
           scoreHistogram_(paramNumHistogramBins(config)),
           applySentenceEndScore_(paramApplySentenceEndScore(config)),
           numHmmStates_(static_cast<uint32_t>(paramNumHmmStates(config))),
+          numSilenceHmmStates_(static_cast<uint32_t>(paramNumSilenceHmmStates(config))),
           tieHmmStates_(paramTieHmmStates(config)),
           expectedScoreDimension_(0ul),
           numGammaColumns_(0ul),
@@ -283,19 +291,23 @@ bool ForwardBackwardSearch::setModelCombination(Speech::ModelCombination const& 
 
     log() << "ForwardBackwardSearch uses " << labels_.size() << " frame-synchronous labels.";
 
-    log() << "Use " << numHmmStates_ << " HMM state(s) per phoneme" << (tieHmmStates_ ? "" : " with untied emissions");
+    log() << "Use " << numHmmStates_ << " HMM state(s) per phoneme and " << numSilenceHmmStates_ << " for silence"
+          << (tieHmmStates_ ? "" : " with untied emissions");
     if (numHmmStates_ > 1 and not collapseRepeatedLabels_) {
         warning() << "collapse-repeated-labels is false, but has no effect with more than one HMM state";
     }
 
     numGammaColumns_ = labels_.size();
     // The layout fixes the number of score columns once there is more than one state
-    if (numHmmStates_ > 1 or not tieHmmStates_) {
+    if (numHmmStates_ > 1 or numSilenceHmmStates_ > 1 or not tieHmmStates_) {
         size_t numLabels = useBlank_ ? static_cast<size_t>(blankLabelIndex_) + 1ul : 0ul;
         for (Nn::LabelIndex label : labels_) {
             numLabels = std::max(numLabels, static_cast<size_t>(label) + 1ul);
         }
         expectedScoreDimension_ = tieHmmStates_ ? numLabels : numLabels * numHmmStates_;
+        if (not tieHmmStates_ and useBlank_) {
+            expectedScoreDimension_ = expectedScoreDimension_ + numSilenceHmmStates_ - numHmmStates_;
+        }
         numGammaColumns_        = expectedScoreDimension_;
         log() << "Expect " << expectedScoreDimension_ << " score columns per frame";
     }
@@ -552,8 +564,9 @@ bool ForwardBackwardSearch::buildForwardStep() {
         auto const& scoreAccessor = scoreAccessors[statePos];
         Nn::TimeframeIndex time = (*scoreAccessor)->getTime();
 
-        uint32_t const lastHmmState = numHmmStates_ - 1u;
-        bool const inLabel = src.currentToken != Nn::invalidLabelIndex and not (useBlank_ and src.currentToken == blankLabelIndex_);
+        bool const     inSilence    = useBlank_ and src.currentToken == blankLabelIndex_;
+        bool const     inLabel      = src.currentToken != Nn::invalidLabelIndex and not inSilence;
+        uint32_t const lastHmmState = (inSilence ? numSilenceHmmStates_ : numHmmStates_) - 1u;
 
         /*
          * Expand `src` by labels_[labelPos] via `transitionType` into HMM state `nextState`. `entersLemma` is false
@@ -633,17 +646,24 @@ bool ForwardBackwardSearch::buildForwardStep() {
                 continue;
             }
 
-            // A phoneme can only be left from its last state
-            if (inLabel and src.hmmState < lastHmmState) {
+            if (numSilenceHmmStates_ > 1 and inSilence and label == src.currentToken) {
+                // Looping in the current state
+                expand(labelPos, Nn::TransitionType::BLANK_LOOP, src.hmmState, false);
+                if (src.hmmState < lastHmmState) {
+                    // Continue to the next state of silence
+                    expand(labelPos, Nn::TransitionType::BLANK_TO_BLANK, src.hmmState + 1u, false);
+                }
+                continue;
+            }
+
+            // A phoneme or silence can only be left from its last state
+            if ((inLabel or inSilence) and src.hmmState < lastHmmState) {
                 continue;
             }
 
             Nn::TransitionType transitionType = inferTransitionType(src.currentToken, label);
 
-            // Blank has a single state; it counts as the last one
-            uint32_t nextState = (useBlank_ and label == blankLabelIndex_) ? lastHmmState : 0u;
-
-            expand(labelPos, transitionType, nextState,
+            expand(labelPos, transitionType, 0u,
                    not(transitionType == Nn::TransitionType::LABEL_LOOP or transitionType == Nn::TransitionType::BLANK_LOOP));
         }
     }
@@ -768,9 +788,12 @@ void ForwardBackwardSearch::computeBackwardAndGammas() {
     // activeStates_ still holds the final layer (one entry per final state), which is where the LM histories are.
     verify_eq(activeStates_.size(), states_.size() - layerStart_.back());
 
-    // Only a final state in the last HMM state of its phoneme (or in blank) ends the segment. With one state that
+    // Only a final state in the last HMM state of its phoneme or silence ends the segment. With one state that
     // is every final state.
-    auto inLastHmmState = [this](ActiveState const& state) { return state.hmmState + 1u == numHmmStates_; };
+    auto inLastHmmState = [this](ActiveState const& state) {
+        bool const inSilence = useBlank_ and state.currentToken == blankLabelIndex_;
+        return state.hmmState + 1u == (inSilence ? numSilenceHmmStates_ : numHmmStates_);
+    };
     bool const restrictToLastHmmState = std::any_of(activeStates_.begin(), activeStates_.end(), inLastHmmState);
     if (not restrictToLastHmmState) {
         warning() << "No final state is in the last HMM state; summing over all " << activeStates_.size() << " final states";
@@ -872,13 +895,17 @@ Nn::LabelIndex ForwardBackwardSearch::emissionColumn(Nn::LabelIndex label, uint3
     if (tieHmmStates_) {
         return label;
     }
-    return label * numHmmStates_ + hmmState;
+    if (label <= blankLabelIndex_) {
+        return label * numHmmStates_ + hmmState;
+    }
+    // Labels after silence are shifted by the size difference of its block
+    return label * numHmmStates_ + hmmState + numSilenceHmmStates_ - numHmmStates_;
 }
 
 void ForwardBackwardSearch::checkScoreDimension(size_t featureSize) const {
     if (expectedScoreDimension_ != 0ul and featureSize != expectedScoreDimension_) {
-        criticalError() << "Scores have " << featureSize << " columns per frame, but " << numHmmStates_
-                        << " HMM state(s) with " << (tieHmmStates_ ? "tied" : "untied") << " emissions need "
+        criticalError() << "Scores have " << featureSize << " columns per frame, but " << numHmmStates_ << " HMM state(s) per phoneme and "
+                        << numSilenceHmmStates_ << " for silence with " << (tieHmmStates_ ? "tied" : "untied") << " emissions need "
                         << expectedScoreDimension_;
     }
 }

@@ -65,15 +65,16 @@ namespace Search {
  * states. A state loops (LABEL_LOOP score) or moves on to the next state of the
  * same phoneme (LABEL_TO_LABEL score, no LM), only the last state leaves the
  * phoneme, into another one or into the same one again, and that is where the LM
- * scores. Blank keeps a single state, which counts as a last one. Only final
- * states in a last state carry the partition. The state is part of the
- * recombination key.
+ * scores. Silence (blank) has num-silence-hmm-states states, which loop (BLANK_LOOP)
+ * or move on (BLANK_TO_BLANK) and are left from the last one. Only final states in
+ * a last state carry the partition. The state is part of the recombination key.
  *
  * Emissions are tied by default: all states of label a read score column a.
  * With tie-hmm-states false, state j of label a reads column a * S + j
- * (phoneme-major; blank reads its last state's column), and the gammas are
- * per column, too. Either way labelGammas()[t][c] is the posterior of score
- * column c at frame t, so d(partitionCost)/d(scores[t][c]) = labelGammas()[t][c].
+ * (phoneme-major; silence has a block of num-silence-hmm-states columns, which
+ * shifts all later labels), and the gammas are per column, too.
+ * Either way labelGammas()[t][c] is the posterior of score column c at frame t,
+ * so d(partitionCost)/d(scores[t][c]) = labelGammas()[t][c].
  *
  *
  * Build a time-layered search graph in the forward direction, then run a
@@ -103,6 +104,7 @@ public:
     static const Core::ParameterInt   paramNumHistogramBins;
     static const Core::ParameterBool  paramApplySentenceEndScore;
     static const Core::ParameterInt   paramNumHmmStates;
+    static const Core::ParameterInt   paramNumSilenceHmmStates;
     static const Core::ParameterBool  paramTieHmmStates;
 
     explicit ForwardBackwardSearch(Core::Configuration const& config);
@@ -153,7 +155,7 @@ public:
      *   labelGammas()[t][label]
      *
      * Values are probabilities, not log-probabilities. With untied HMM states the
-     * second index is the score column label * num-hmm-states + state instead.
+     * second index is the score column of label and HMM state instead (see emissionColumn()).
      */
     std::vector<std::vector<double>> const& labelGammas() const {
         return labelGammas_;
@@ -263,6 +265,7 @@ private:
     bool            applySentenceEndScore_;
 
     uint32_t        numHmmStates_;
+    uint32_t        numSilenceHmmStates_;
     bool            tieHmmStates_;
     // number of score columns the topology reads; 0 = unchecked (one tied state, as before)
     size_t          expectedScoreDimension_;

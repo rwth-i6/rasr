@@ -56,6 +56,7 @@ void bindLabelScorer(py::module_& module) {
             .value("LABEL_TO_BLANK", Nn::TransitionType::LABEL_TO_BLANK)
             .value("BLANK_TO_LABEL", Nn::TransitionType::BLANK_TO_LABEL)
             .value("BLANK_LOOP", Nn::TransitionType::BLANK_LOOP)
+            .value("BLANK_TO_BLANK", Nn::TransitionType::BLANK_TO_BLANK)
             .value("INITIAL_LABEL", Nn::TransitionType::INITIAL_LABEL)
             .value("INITIAL_BLANK", Nn::TransitionType::INITIAL_BLANK)
             .value("WORD_EXIT", Nn::TransitionType::WORD_EXIT)

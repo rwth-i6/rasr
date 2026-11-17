@@ -78,6 +78,7 @@ void TransitionSet::enablePreset(TransitionPresetType preset) {
             enable(LABEL_TO_BLANK);
             enable(BLANK_TO_LABEL);
             enable(BLANK_LOOP);
+            enable(BLANK_TO_BLANK);
             enable(INITIAL_LABEL);
             enable(INITIAL_BLANK);
             break;

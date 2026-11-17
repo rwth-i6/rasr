@@ -44,6 +44,10 @@ enum PruningStrategyType {
     PruningStrategySeparate,
 };
 
+inline bool isInfinite(Score score) {
+    return Math::isinf(score) or score >= Core::Type<Score>::max;
+}
+
 }  // namespace
 
 /*
@@ -1393,7 +1397,7 @@ void TreeLabelsyncBeamSearch::scorePruning(std::vector<Element>& hypotheses, Pru
     size_t numFiniteScoreHyps = 0ul;
 
     for (auto const& hyp : hypotheses) {
-        if (Math::isinf(hyp.score) or hyp.score >= Core::Type<Score>::max) {
+        if (isInfinite(hyp.score)) {
             continue;
         }
         ++numFiniteScoreHyps;
@@ -1424,7 +1428,7 @@ void TreeLabelsyncBeamSearch::scorePruning(std::vector<Element>& hypotheses, Pru
             if (numFiniteScoreHyps < hypotheses.size()) {
                 // Move the hyps with finite score to the front so that only hyps with non-finite score are cut off
                 std::partition(hypotheses.begin(), hypotheses.end(), [](auto const& hyp) {
-                    return not(Math::isinf(hyp.score) or hyp.score >= Core::Type<Score>::max);
+                    return not isInfinite(hyp.score);
                 });
             }
             hypotheses.resize(std::min(pruningParams.maxBeamSize, numFiniteScoreHyps));
@@ -1445,7 +1449,7 @@ void TreeLabelsyncBeamSearch::scorePruning(std::vector<Element>& hypotheses, Pru
         scoreHistogram_.setLimits(lowerScore, upperScore);
 
         for (auto const& hyp : hypotheses) {
-            if (Math::isinf(hyp.score) or hyp.score >= Core::Type<Score>::max) {
+            if (isInfinite(hyp.score)) {
                 continue;
             }
             scoreHistogram_ += hyp.pruningScore();
@@ -1501,7 +1505,7 @@ void TreeLabelsyncBeamSearch::separateScorePruning(
         size_t const poolIdx = hyp.isActive ? activeIdx : terminatedIdx;
         ++numElements[poolIdx];
 
-        if (Math::isinf(hyp.score) or hyp.score >= Core::Type<Score>::max) {
+        if (isInfinite(hyp.score)) {
             continue;
         }
 
@@ -1554,9 +1558,7 @@ void TreeLabelsyncBeamSearch::separateScorePruning(
                 histograms[poolIdx]->setLimits(lowerScores[poolIdx], upperScores[poolIdx]);
 
                 for (auto const& hyp : hypotheses) {
-                    if (hyp.isActive == active and
-                        not Math::isinf(hyp.score) and
-                        hyp.score < Core::Type<Score>::max) {
+                    if (hyp.isActive == active and not isInfinite(hyp.score)) {
                         *histograms[poolIdx] += hyp.pruningScore();
                     }
                 }

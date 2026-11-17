@@ -40,6 +40,10 @@ enum PruningStrategyType {
     PruningStrategySeparate,
 };
 
+inline bool isInfinite(Score score) {
+    return Math::isinf(score) or score >= Core::Type<Score>::max;
+}
+
 }  // namespace
 
 /*
@@ -1041,7 +1045,7 @@ void LexiconfreeLabelsyncBeamSearch::scorePruning(std::vector<Element>& hypothes
     size_t numFiniteScoreHyps = 0ul;
 
     for (auto const& hyp : hypotheses) {
-        if (Math::isinf(hyp.score) or hyp.score >= Core::Type<Score>::max) {
+        if (isInfinite(hyp.score)) {
             continue;
         }
         ++numFiniteScoreHyps;
@@ -1072,7 +1076,7 @@ void LexiconfreeLabelsyncBeamSearch::scorePruning(std::vector<Element>& hypothes
             if (numFiniteScoreHyps < hypotheses.size()) {
                 // Move the hyps with finite score to the front so that only hyps with non-finite score are cut off
                 std::partition(hypotheses.begin(), hypotheses.end(), [](auto const& hyp) {
-                    return not(Math::isinf(hyp.score) or hyp.score >= Core::Type<Score>::max);
+                    return not isInfinite(hyp.score);
                 });
             }
             hypotheses.resize(std::min(pruningParams.maxBeamSize, numFiniteScoreHyps));
@@ -1093,7 +1097,7 @@ void LexiconfreeLabelsyncBeamSearch::scorePruning(std::vector<Element>& hypothes
         scoreHistogram_.setLimits(lowerScore, upperScore);
 
         for (auto const& hyp : hypotheses) {
-            if (Math::isinf(hyp.score) or hyp.score >= Core::Type<Score>::max) {
+            if (isInfinite(hyp.score)) {
                 continue;
             }
             scoreHistogram_ += hyp.pruningScore();
@@ -1145,7 +1149,7 @@ void LexiconfreeLabelsyncBeamSearch::separateScorePruning(
         size_t const poolIdx = element.isActive ? activeIdx : terminatedIdx;
         ++numElements[poolIdx];
 
-        if (Math::isinf(element.score) or element.score >= Core::Type<Score>::max) {
+        if (isInfinite(element.score)) {
             continue;
         }
 
@@ -1198,9 +1202,7 @@ void LexiconfreeLabelsyncBeamSearch::separateScorePruning(
                 histograms[poolIdx]->setLimits(lowerScores[poolIdx], upperScores[poolIdx]);
 
                 for (auto const& element : elements) {
-                    if (element.isActive == active and
-                        not Math::isinf(element.score) and
-                        element.score < Core::Type<Score>::max) {
+                    if (element.isActive == active and not isInfinite(element.score)) {
                         *histograms[poolIdx] += element.pruningScore();
                     }
                 }

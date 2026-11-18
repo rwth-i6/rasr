@@ -22,6 +22,7 @@
 #include <Nn/LabelScorer/CombineLabelScorer.hh>
 #include <Nn/LabelScorer/CtcPrefixLabelScorer.hh>
 #include <Nn/LabelScorer/EncoderDecoderLabelScorer.hh>
+#include <Nn/LabelScorer/ForcedSequenceLabelScorer.hh>
 #include <Nn/LabelScorer/ScaledLabelScorer.hh>
 #include <Nn/Module.hh>
 #include <Python/LabelScorer.hh>
@@ -192,6 +193,11 @@ void bindLabelScorer(py::module_& module) {
             "Label scorer with configurable scale.");
 
     pyScaledLabelScorer.def(
+            "label_scorer",
+            &Nn::ScaledLabelScorer::labelScorer,
+            "Return the label scorer that is scaled, e.g. to access functions of specific label scorer types.");
+
+    pyScaledLabelScorer.def(
             "set_scale",
             &Nn::ScaledLabelScorer::setScale,
             py::arg("scale"),
@@ -208,4 +214,17 @@ void bindLabelScorer(py::module_& module) {
             py::arg("index") = 0ul,
             py::return_value_policy::reference_internal,
             "Return the wrapped sub-scorer.");
+
+    py::class_<Nn::ForcedSequenceLabelScorer, Nn::LabelScorer, Core::Ref<Nn::ForcedSequenceLabelScorer>> pyForcedSequenceLabelScorer(
+            module,
+            "ForcedSequenceLabelScorer",
+            "Label scorer that only allows a given label sequence (score 0 for its labels, `infinity-score` otherwise),\n"
+            "for forced (re-)scoring of the sequence with the other label scorers of the search.");
+
+    pyForcedSequenceLabelScorer.def(
+            "set_target_sequence",
+            &Nn::ForcedSequenceLabelScorer::setTargetSequence,
+            py::arg("target_sequence"),
+            "Set the label indices (without sentence end) that the following segments are forced to.\n"
+            "Call before passing the features of the segment, e.g. before `recognize_segment`; the sequence is kept until it is replaced.");
 }

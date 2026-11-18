@@ -862,9 +862,10 @@ void LexiconfreeTimesyncBeamSearch::createExtensions(std::vector<std::optional<N
         auto const& denseScores = denseScoreSpans[contextIndex];
         auto        scoreTime   = scoreTimes[contextIndex];
 
-        // Create the extension of `hyp` with `lemma` (pre-pruned by score). `skipInfinite`: don't create it if its score
-        // is infinite (cheap for the few candidates of sparse scores; not done for all lemmas)
-        auto addExtension = [&](Bliss::Lemma const* lemma, bool skipInfinite) {
+        // Create the extension of `hyp` with `lemma` (pre-pruned by score).
+        // `sparseScore`: score of the label from the sparse scores, if it is listed there
+        // `skipInfinite`: don't create it if its score is infinite
+        auto addExtension = [&](Bliss::Lemma const* lemma, std::optional<Score> sparseScore, bool skipInfinite) {
             Nn::LabelIndex tokenIdx = lemma->id();
             // Don't score the sentence-end token
             if (tokenIdx == sentenceEndLabelIndex_) {
@@ -874,9 +875,14 @@ void LexiconfreeTimesyncBeamSearch::createExtensions(std::vector<std::optional<N
             auto extScore       = hyp.score;
             auto extTime        = hyp.trace->time;
             if (labelScorer->scoresTransition(transitionType)) {
-                extScore += (denseScores and tokenIdx < denseScores->size())
-                                    ? (*denseScores)[tokenIdx]
-                                    : (*scoreAccessor)->getScore(transitionType, tokenIdx);
+                if (sparseScore) {
+                    extScore += *sparseScore;
+                }
+                else {
+                    extScore += (denseScores and tokenIdx < denseScores->size())
+                                        ? (*denseScores)[tokenIdx]
+                                        : (*scoreAccessor)->getScore(transitionType, tokenIdx);
+                }
                 extTime = std::max(extTime, scoreTime);
             }
 
@@ -901,15 +907,16 @@ void LexiconfreeTimesyncBeamSearch::createExtensions(std::vector<std::optional<N
 
         auto sparseScores = (*scoreAccessor)->getSparseScores();
         if (sparseScores) {
-            // Only the labels of the sparse scores can follow via transitions that emit a new label, transitions
-            // without a new label (blank, label loop, silence) are always candidates
+            // Only the labels of the sparse scores can follow via transitions that emit a new label
+            // transitions without a new label (blank, label loop, silence) are always candidates
             size_t numLemmas = lemmas.second - lemmas.first;
             auto   isListed  = [&sparseScores](Nn::LabelIndex label) {
                 return std::find(sparseScores->labels.begin(), sparseScores->labels.end(), label) != sparseScores->labels.end();
             };
-            for (auto tokenIdx : sparseScores->labels) {
+            for (size_t i = 0ul; i < sparseScores->size(); ++i) {
+                auto tokenIdx = sparseScores->labels[i];
                 require_lt(tokenIdx, numLemmas);
-                addExtension(lemmas.first[tokenIdx], true);
+                addExtension(lemmas.first[tokenIdx], (*sparseScores)[i], true);
             }
             std::array<Nn::LabelIndex, 3> extraCandidates = {useBlank_ ? blankLabelIndex_ : Nn::invalidLabelIndex,
                                                              useSilence_ ? silenceLabelIndex_ : Nn::invalidLabelIndex,
@@ -918,14 +925,14 @@ void LexiconfreeTimesyncBeamSearch::createExtensions(std::vector<std::optional<N
                 auto tokenIdx    = extraCandidates[i];
                 bool isDuplicate = std::find(extraCandidates.begin(), extraCandidates.begin() + i, tokenIdx) != extraCandidates.begin() + i;
                 if (tokenIdx != Nn::invalidLabelIndex and tokenIdx < numLemmas and not isDuplicate and not isListed(tokenIdx)) {
-                    addExtension(lemmas.first[tokenIdx], true);
+                    addExtension(lemmas.first[tokenIdx], std::nullopt, true);
                 }
             }
         }
         else {
             // Iterate over possible successors (all lemmas)
             for (auto lemmaIt = lemmas.first; lemmaIt != lemmas.second; ++lemmaIt) {
-                addExtension(*lemmaIt, false);
+                addExtension(*lemmaIt, std::nullopt, false);
             }
         }
     }

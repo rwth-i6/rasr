@@ -72,9 +72,10 @@ struct DenseScoreSpan {
 
 /*
  * Sparse score view: only the listed labels can follow via a transition that emits a new label, all other labels are
- * impossible for such transitions (their score is infinite).
- * Transitions that don't emit a new label (blank, loops, silence, sentence end, word exits) are not covered by the list
- * and are scored via `ScoreAccessor::getScore` as usual.
+ * impossible for such transitions (their score is infinite). Like dense scores, sparse scores don't depend on
+ * the type of the transition, so they are used for every transition to a listed label.
+ * Transitions without a new label to labels that are not listed (blank, loops, silence, sentence end) are scored via
+ * `ScoreAccessor::getScore` as usual.
  */
 struct SparseScoreSpan {
     std::span<LabelIndex const> labels;
@@ -102,7 +103,8 @@ public:
     virtual std::optional<DenseScoreSpan> getDenseScores() const;
 
     // Optional sparse score view for accessors that only allow a few labels, see `SparseScoreSpan`.
-    // The searches that support it only iterate over these labels when creating the extensions with the first label scorer.
+    // The searches that support it only create the extensions with these labels (with these scores) and the
+    // transitions without a new label, instead of iterating over the whole vocabulary, for the first label scorer.
     virtual std::optional<SparseScoreSpan> getSparseScores() const;
 
     virtual TimeframeIndex getTime() const;

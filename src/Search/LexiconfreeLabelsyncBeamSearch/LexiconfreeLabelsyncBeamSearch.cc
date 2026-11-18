@@ -767,8 +767,10 @@ void LexiconfreeLabelsyncBeamSearch::createExtensions(std::vector<std::optional<
         auto const& denseScores = denseScoreSpans[contextIndex];
         auto        scoreTime   = scoreTimes[contextIndex];
 
-        // Create the extension of `hyp` with `lemma` (pre-pruned by score)
-        auto addExtension = [&](Bliss::Lemma const* lemma, bool skipInfinite) {
+        // Create the extension of `hyp` with `lemma` (pre-pruned by score).
+        // `sparseScore`: score of the label from the sparse scores, if it is listed there
+        // `skipInfinite`: don't create it if its score is infinite
+        auto addExtension = [&](Bliss::Lemma const* lemma, std::optional<Score> sparseScore, bool skipInfinite) {
             Nn::LabelIndex tokenIdx   = lemma->id();
             bool           terminated = false;
 
@@ -784,9 +786,14 @@ void LexiconfreeLabelsyncBeamSearch::createExtensions(std::vector<std::optional<
             auto extScore = hyp.score;
             auto extTime  = hyp.trace->time;
             if (labelScorer->scoresTransition(transitionType)) {
-                extScore += (denseScores and tokenIdx < denseScores->size())
-                                    ? (*denseScores)[tokenIdx]
-                                    : (*scoreAccessor)->getScore(transitionType, tokenIdx);
+                if (sparseScore) {
+                    extScore += *sparseScore;
+                }
+                else {
+                    extScore += (denseScores and tokenIdx < denseScores->size())
+                                        ? (*denseScores)[tokenIdx]
+                                        : (*scoreAccessor)->getScore(transitionType, tokenIdx);
+                }
                 extTime = std::max(extTime, scoreTime);
             }
 
@@ -822,21 +829,22 @@ void LexiconfreeLabelsyncBeamSearch::createExtensions(std::vector<std::optional<
         if (sparseScores) {
             // Only the labels of the sparse scores can follow via label transitions, plus the sentence end
             size_t numLemmas = lemmas.second - lemmas.first;
-            for (auto tokenIdx : sparseScores->labels) {
+            for (size_t i = 0ul; i < sparseScores->size(); ++i) {
+                auto tokenIdx = sparseScores->labels[i];
                 if (tokenIdx == sentenceEndLabelIndex_) {
                     continue;  // added below
                 }
                 require_lt(tokenIdx, numLemmas);
-                addExtension(lemmas.first[tokenIdx], true);
+                addExtension(lemmas.first[tokenIdx], (*sparseScores)[i], true);
             }
             if (sentenceEndLabelIndex_ != Nn::invalidLabelIndex and sentenceEndLabelIndex_ < numLemmas) {
-                addExtension(lemmas.first[sentenceEndLabelIndex_], true);
+                addExtension(lemmas.first[sentenceEndLabelIndex_], std::nullopt, true);
             }
         }
         else {
             // Iterate over possible successors (all lemmas)
             for (auto lemmaIt = lemmas.first; lemmaIt != lemmas.second; ++lemmaIt) {
-                addExtension(*lemmaIt, false);
+                addExtension(*lemmaIt, std::nullopt, false);
             }
         }
     }

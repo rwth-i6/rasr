@@ -825,9 +825,10 @@ built-in way to do this.
 allows the next label of a given label sequence). If it is the first label scorer (``label-scorer`` /
 ``label-scorer-1``), ``lexiconfree-labelsync-beam-search`` and ``lexiconfree-timesync-beam-search`` then only create
 the extensions with these labels plus the transitions without a new label (sentence end, blank, label loop and
-silence), instead of iterating over the whole vocabulary. The scores of these candidates are computed as usual, so the
-label scorers of later stages must be able to score any label. ``combine`` provides sparse scores if at least one of
-its sub-scorers does.
+silence), instead of iterating over the whole vocabulary. Like dense scores, sparse scores don't depend on the type of
+the transition. The label scorers of later stages are queried per extension as usual, so they must be able to score
+any label. ``combine`` provides sparse scores if at least one of its sub-scorers does and all others provide sparse or
+dense scores.
 
 Built-in label scorer types include:
 

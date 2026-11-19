@@ -1344,7 +1344,7 @@ caches (splitting/merging/rebasing state across beam search steps) without quadr
   simple recurrent states; the ``transformer*`` variants implement KV-cache tree management. ``lstm`` and
   ``transformer`` keep the states in GPU memory (``lstm-cuda``/``transformer-cuda``) if the ONNX session runs with the
   CUDA execution provider (and RASR is compiled with CUDA support), and in host memory (``lstm-cpu``/``transformer-cpu``)
-  otherwise; the ``-cpu`` and ``-cuda``/``-gpu`` variants force one of them. The ``-16bit``/``-8bit`` variants store the
+  otherwise; the ``-cpu`` and ``-cuda`` variants force one of them. The ``-16bit``/``-8bit`` variants store the
   cache in reduced precision in host memory to save memory; ``state-compression`` is ignored by the ``-cuda`` variants.
   Default ``lstm``.
 * ``start-labels`` (int list): initial context/history tokens fed for the very first step. Default: unset,

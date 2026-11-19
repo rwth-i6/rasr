@@ -12,7 +12,7 @@
  *  See the License for the specific language governing permissions and
  *  limitations under the License.
  */
-#include "LstmGpuStateManager.hh"
+#include "LstmCudaStateManager.hh"
 
 #include <Nn/DummyCompressedVectorFactory.hh>
 
@@ -32,26 +32,19 @@ StateCopier::Batch makeBatch(size_t stateSize, size_t batchSize) {
 
 }  // namespace
 
-const Core::ParameterInt LstmGpuStateManager::paramSlotsPerChunk(
+const Core::ParameterInt LstmCudaStateManager::paramSlotsPerChunk(
         "slots-per-chunk",
         "number of states (of one state variable each) per device memory allocation of the state pool",
         4096,
         1);
 
-LstmGpuStateManager::LstmGpuStateManager(Core::Configuration const& config)
+LstmCudaStateManager::LstmCudaStateManager(Core::Configuration const& config)
         : Precursor(config),
           compressionWarningLogged_(false),
           pools_(paramSlotsPerChunk(config)) {
 }
 
-void LstmGpuStateManager::warnIfCompressed(Nn::CompressedVectorFactory<float> const& vectorFactory) {
-    if (not compressionWarningLogged_ and dynamic_cast<Nn::DummyCompressedVectorFactory<float> const*>(&vectorFactory) == nullptr) {
-        warning("The lstm-cuda state manager ignores the configured state-compression, its states are uncompressed floats on the device");
-        compressionWarningLogged_ = true;
-    }
-}
-
-LstmGpuStateManager::HistoryState LstmGpuStateManager::initialState(StateVariables const& vars, Nn::CompressedVectorFactory<float> const& vectorFactory) {
+LstmCudaStateManager::HistoryState LstmCudaStateManager::initialState(StateVariables const& vars, Nn::CompressedVectorFactory<float> const& vectorFactory) {
     warnIfCompressed(vectorFactory);
     HistoryState result;
     result.reserve(vars.size());
@@ -68,11 +61,11 @@ LstmGpuStateManager::HistoryState LstmGpuStateManager::initialState(StateVariabl
     return result;
 }
 
-void LstmGpuStateManager::mergeStates(StateVariables const&                   vars,
-                                      std::vector<size_t>&                    prefixLengths,
-                                      std::vector<HistoryState const*> const& prefixStates,
-                                      FeedDict&                               feedDict,
-                                      TargetList&                             targets) {
+void LstmCudaStateManager::mergeStates(StateVariables const&                   vars,
+                                       std::vector<size_t>&                    prefixLengths,
+                                       std::vector<HistoryState const*> const& prefixStates,
+                                       FeedDict&                               feedDict,
+                                       TargetList&                             targets) {
     require_eq(prefixStates.size(), prefixLengths.size());
     size_t const batchSize = prefixStates.size();
 
@@ -114,7 +107,7 @@ void LstmGpuStateManager::mergeStates(StateVariables const&                   va
     }
 }
 
-std::vector<LstmGpuStateManager::HistoryState> LstmGpuStateManager::splitStates(
+std::vector<LstmCudaStateManager::HistoryState> LstmCudaStateManager::splitStates(
         StateVariables const&                     vars,
         std::vector<size_t>&                      suffixLengths,
         std::vector<Value> const&                 stateTensors,
@@ -144,8 +137,9 @@ std::vector<LstmGpuStateManager::HistoryState> LstmGpuStateManager::splitStates(
     for (size_t v = 0ul; v < vars.size(); ++v) {
         batches.push_back(makeBatch(stateSizes[v], batchSize));
         float const* base = stateTensors[v].rawData<float>();
+        auto const&  pool = pools_.get(stateSizes[v]);
         for (size_t b = 0ul; b < batchSize; ++b) {
-            auto state = std::make_unique<DeviceVector>(pools_.get(stateSizes[v]), stateSizes[v]);
+            auto state = std::make_unique<DeviceVector>(pool, stateSizes[v]);
             batches.back().tasks.push_back({base + b * stateSizes[v], state->deviceData()});
             result[b].push_back(std::move(state));
         }
@@ -160,6 +154,13 @@ std::vector<LstmGpuStateManager::HistoryState> LstmGpuStateManager::splitStates(
     // The caller may release the output tensors right after this call, so the copies must be done
     checkCudaStatus(cudaStreamSynchronize(sharedStream()), "Synchronizing the shared CUDA stream after splitting states");
     return result;
+}
+
+void LstmCudaStateManager::warnIfCompressed(Nn::CompressedVectorFactory<float> const& vectorFactory) {
+    if (not compressionWarningLogged_ and dynamic_cast<Nn::DummyCompressedVectorFactory<float> const*>(&vectorFactory) == nullptr) {
+        warning("The lstm-cuda state manager ignores the configured state-compression, its states are uncompressed floats on the device");
+        compressionWarningLogged_ = true;
+    }
 }
 
 }  // namespace Onnx

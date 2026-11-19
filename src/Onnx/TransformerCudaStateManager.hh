@@ -12,8 +12,8 @@
  *  See the License for the specific language governing permissions and
  *  limitations under the License.
  */
-#ifndef _ONNX_TRANSFORMER_GPU_STATE_MANAGER_HH
-#define _ONNX_TRANSFORMER_GPU_STATE_MANAGER_HH
+#ifndef _ONNX_TRANSFORMER_CUDA_STATE_MANAGER_HH
+#define _ONNX_TRANSFORMER_CUDA_STATE_MANAGER_HH
 
 #include <memory>
 #include <unordered_map>
@@ -28,10 +28,10 @@
 namespace Onnx {
 
 /*
- * Like the `transformer` state manager, but keeps the states (`DeviceVector`s) in CUDA device memory and merges and
+ * Like the `transformer-cpu` state manager, but keeps the states (`DeviceVector`s) in CUDA device memory and merges and
  * splits them on the GPU. Only float states. Requires MODULE_CUDA and the CUDA execution provider.
  */
-class TransformerGpuStateManager : public Nn::AbstractStateManager<Value, OnnxStateVariable> {
+class TransformerCudaStateManager : public Nn::AbstractStateManager<Value, OnnxStateVariable> {
 public:
     using Precursor = Nn::AbstractStateManager<Value, OnnxStateVariable>;
 
@@ -39,8 +39,8 @@ public:
     static const Core::ParameterBool paramAlwaysIncludeFirstTokenState;
     static const Core::ParameterInt  paramSlotsPerChunk;
 
-    TransformerGpuStateManager(Core::Configuration const& config);
-    ~TransformerGpuStateManager() override;
+    TransformerCudaStateManager(Core::Configuration const& config);
+    ~TransformerCudaStateManager() override;
 
     bool requiresAllParentStates() const override;
 
@@ -73,4 +73,4 @@ private:
 
 }  // namespace Onnx
 
-#endif  // _ONNX_TRANSFORMER_GPU_STATE_MANAGER_HH
+#endif  // _ONNX_TRANSFORMER_CUDA_STATE_MANAGER_HH

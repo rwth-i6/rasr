@@ -368,6 +368,13 @@ Like the other ``SearchV2`` algorithms, this one supports more than one label sc
 intermediate ``score-threshold``/``max-beam-size`` pruning in between. The blank extensions (one per active
 hypothesis) are the exception: they are not pruned after the first label scorer, only from the second onward.
 
+**Token-and-Duration Transducers.** Both transducer searches also work with a TDT model through
+``stateful-transducer-onnx`` with ``durations`` set. The label scorer then advances each hypothesis by the duration
+of its last emission, so the hypotheses of the beam are at different time steps and a search step is no longer one
+time step, but one blank emission per hypothesis. Hypotheses at a time step without input (yet), i.e. ahead of the
+received features or beyond the end of the segment, wait in the beam unchanged while the others are extended. The
+``maximum-stable-delay`` refers to the latest time step that has been scored.
+
 Every configured label scorer should have ``vertical-label-transition = true`` set (where that parameter is
 available, e.g. :ref:`fixed-context-onnx`), so that its internal notion of time only advances on blank.
 The search itself has no way to enforce or check this, it just takes each label scorer's reported time as-is
@@ -802,7 +809,8 @@ Order of operations for one timestep:
 
 Within a timestep, pruning compares raw scores. Only words finished by a non-blank label are scored, so all LLM
 requests of a symbol step are sent in one batch. The label scorers should only advance their time on blank, e.g.
-with ``vertical-label-transition = true`` where available.
+with ``vertical-label-transition = true`` where available, except for TDT models, whose durations also advance the
+time on labels (see ``lexiconfree-rnnt-timesync-beam-search``).
 
 Parameters:
 

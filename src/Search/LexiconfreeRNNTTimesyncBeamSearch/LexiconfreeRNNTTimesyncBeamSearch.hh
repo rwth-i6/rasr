@@ -187,6 +187,7 @@ private:
     Core::Statistics<u32>              numActiveHyps_;
 
     size_t currentSearchStep_;
+    size_t numTimeframesReached_;  // One past the latest time frame that has been scored, the reference of maximum-stable-delay pruning
     bool   finishedSegment_;
 
     LabelHypothesis const& getBestHypothesis() const;

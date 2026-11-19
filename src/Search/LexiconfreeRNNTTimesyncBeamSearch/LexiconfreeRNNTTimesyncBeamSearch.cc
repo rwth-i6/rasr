@@ -240,6 +240,7 @@ LexiconfreeRNNTTimesyncBeamSearch::LexiconfreeRNNTTimesyncBeamSearch(Core::Confi
           numHypsAfterPruning_("num-hyps-after-pruning"),
           numActiveHyps_("num-active-hyps"),
           currentSearchStep_(0ul),
+          numTimeframesReached_(0ul),
           finishedSegment_(false) {
     auto maxBeamSizes = paramMaxBeamSizes(config);
     maxBeamSizes_.insert(maxBeamSizes_.begin(), maxBeamSizes.begin(), maxBeamSizes.end());
@@ -369,8 +370,9 @@ void LexiconfreeRNNTTimesyncBeamSearch::enterSegment(Bliss::SpeechSegment const*
         beam_.front().scoringContexts.push_back(labelScorer->getInitialScoringContext());
     }
 
-    currentSearchStep_  = 0ul;
-    stepStatisticsOpen_ = false;
+    currentSearchStep_    = 0ul;
+    numTimeframesReached_ = 0ul;
+    stepStatisticsOpen_   = false;
     finishedSegment_    = false;
 
     initializationTime_.stop();
@@ -509,7 +511,29 @@ bool LexiconfreeRNNTTimesyncBeamSearch::decodeStep() {
         bool anyScored = std::any_of(scoreAccessors.begin(), scoreAccessors.end(),
                                      [](auto const& a) { return a.has_value(); });
         if (not anyScored) {
-            return postponeTimestep(false);
+            if (symbolStep == 0ul) {
+                return postponeTimestep(false);
+            }
+            // All remaining inner hyps moved to a time step without input (yet) by their last label, e.g. with a TDT
+            // duration. They wait in the beam instead of discarding the progress of this timestep.
+            for (auto& hyp : innerHyps_) {
+                outerHyps_.push_back(std::move(hyp));
+            }
+            innerHyps_.clear();
+            break;
+        }
+
+        /*
+         * Hyps that can't be scored are at a time step without input (yet), e.g. after a TDT duration moved them ahead
+         * of the other hyps or beyond the end of the segment. They wait in the beam unchanged, the other hyps are extended.
+         */
+        for (size_t hypIndex = 0ul; hypIndex < innerHyps_.size(); ++hypIndex) {
+            if (scoreAccessors[hypIndex]) {
+                numTimeframesReached_ = std::max(numTimeframesReached_, static_cast<size_t>((*scoreAccessors[hypIndex])->getTime()) + 1ul);
+            }
+            else {
+                outerHyps_.push_back(innerHyps_[hypIndex]);
+            }
         }
 
         if (symbolStep == 0ul) {
@@ -1202,11 +1226,12 @@ void LexiconfreeRNNTTimesyncBeamSearch::finalizeHypotheses() {
 }
 
 void LexiconfreeRNNTTimesyncBeamSearch::maximumStableDelayPruning() {
-    if (currentSearchStep_ + 1 <= maximumStableDelay_) {
+    // Based on time frames, which advance with the search steps for a standard transducer but faster with TDT durations
+    if (numTimeframesReached_ + 1 <= maximumStableDelay_) {
         return;
     }
 
-    auto cutoff  = currentSearchStep_ + 1 - maximumStableDelay_;
+    auto cutoff  = numTimeframesReached_ + 1 - maximumStableDelay_;
     auto isPause = [this](Bliss::Lemma const* lemma) {
         return lemma and lemma == blankLemma_;
     };

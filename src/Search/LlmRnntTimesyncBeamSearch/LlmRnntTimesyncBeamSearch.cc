@@ -258,6 +258,7 @@ LlmRnntTimesyncBeamSearch::LlmRnntTimesyncBeamSearch(Core::Configuration const& 
           numFinishedWords_("num-finished-words"),
           numActiveHyps_("num-active-hyps"),
           currentSearchStep_(0ul),
+          numTimeframesReached_(0ul),
           finishedSegment_(false) {
     auto maxBeamSizes = paramMaxBeamSizes(config);
     maxBeamSizes_.insert(maxBeamSizes_.begin(), maxBeamSizes.begin(), maxBeamSizes.end());
@@ -311,8 +312,9 @@ void LlmRnntTimesyncBeamSearch::enterSegment(Bliss::SpeechSegment const* segment
     }
     beam_.front().words.llmHistory = llmWordScorer_.initialHistory();
 
-    currentSearchStep_ = 0ul;
-    finishedSegment_   = false;
+    currentSearchStep_    = 0ul;
+    numTimeframesReached_ = 0ul;
+    finishedSegment_      = false;
 
     initializationTime_.stop();
 
@@ -790,7 +792,29 @@ bool LlmRnntTimesyncBeamSearch::advanceTimestep() {
 
 bool LlmRnntTimesyncBeamSearch::advanceSymbolStep(size_t symbolStep) {
     if (not scoreInnerHyps()) {
-        return false;
+        if (symbolStep == 0ul) {
+            return false;
+        }
+        // All remaining inner hyps moved to a time step without input (yet) by their last label, e.g. with a TDT
+        // duration. They wait in the beam instead of discarding the progress of this timestep.
+        for (auto& hyp : innerHyps_) {
+            outerHyps_.push_back(std::move(hyp));
+        }
+        innerHyps_.clear();
+        return true;
+    }
+
+    /*
+     * Hyps that can't be scored are at a time step without input (yet), e.g. after a TDT duration moved them ahead
+     * of the other hyps or beyond the end of the segment. They wait in the beam unchanged, the other hyps are extended.
+     */
+    for (size_t hypIndex = 0ul; hypIndex < innerHyps_.size(); ++hypIndex) {
+        if (scoreAccessors_[hypIndex]) {
+            numTimeframesReached_ = std::max(numTimeframesReached_, static_cast<size_t>((*scoreAccessors_[hypIndex])->getTime()) + 1ul);
+        }
+        else {
+            outerHyps_.push_back(innerHyps_[hypIndex]);
+        }
     }
 
     extendWithBlank();
@@ -1051,11 +1075,12 @@ void LlmRnntTimesyncBeamSearch::cleanupCaches() {
 }
 
 void LlmRnntTimesyncBeamSearch::maximumStableDelayPruning() {
-    if (currentSearchStep_ + 1 <= maximumStableDelay_) {
+    // Based on time frames, which advance with the search steps for a standard transducer but faster with TDT durations
+    if (numTimeframesReached_ + 1 <= maximumStableDelay_) {
         return;
     }
 
-    auto cutoff = currentSearchStep_ + 1 - maximumStableDelay_;
+    auto cutoff = numTimeframesReached_ + 1 - maximumStableDelay_;
 
     // Find trace of current best hypothesis that has a recent word-end within the limit
     Score                   bestScore = Core::Type<Score>::max;

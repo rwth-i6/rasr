@@ -22,8 +22,10 @@ token sequence are always word boundaries. Most tokenizers only mark one side, s
 does not mean that there is none:
 
 * BPE: tokens without the ``separator`` suffix mark a boundary after themselves, e.g. ``wer`` in ``lo@@ wer``.
-* SentencePiece: pieces with a leading ``▁`` mark a boundary before themselves. Control pieces such as ``<s>`` and the
-  unknown piece are words of their own.
+* SentencePiece: pieces with a leading ``▁`` mark a boundary before themselves, or with a trailing ``▁`` after
+  themselves for models trained with ``treat_whitespace_as_suffix``. Control pieces such as ``<s>`` and the unknown
+  piece are words of their own. Pieces spanning several words, which models trained without ``split_by_whitespace``
+  can contain, only mark their outer boundaries.
 * HuggingFace: determined from the decoder in ``tokenizer.json``. Tokens with a leading ``Ġ`` (byte-level BPE, also
   other whitespace such as newlines) or ``▁`` (``Metaspace``) and tokens without the ``##`` prefix of ``WordPiece``
   mark a boundary before themselves, tokens with the ``</w>`` suffix of a ``BPEDecoder`` one after themselves. Special

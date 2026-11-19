@@ -1315,7 +1315,19 @@ updater runs (batched) the next time that context is scored.
   at once. Default unbounded.
 * ``max-cached-score-vectors`` (int): size of the score cache and of the hidden-state cache, as for
   ``stateful-onnx``. Default ``10000``.
+* ``durations`` (int vector): durations of a Token-and-Duration Transducer (TDT), e.g. ``0 1 2 3 4``, in the order
+  of the duration scores, see below. Default empty, i.e. a standard transducer.
+* ``blank-label-index`` (int): TDT only, the blank label, which only uses durations of at least one step. Default
+  ``-1``, i.e. the last token (the NeMo convention).
 * Default :ref:`transition-preset <Transition types and presets>`: ``transducer``.
+
+**Token-and-Duration Transducers.** With ``durations`` set, the ``scores`` output contains the token scores
+followed by one score per duration, both as negative log-probabilities, e.g. the separately log-softmax-normalized
+and negated token and duration logits of a NeMo TDT joint network. The durations are hidden from the search: the
+score of a label includes the score of the best duration, the score of blank that of the best duration of at least
+one step, and extending a scoring context advances its time step by that duration (``vertical-label-transition`` is
+not used). Hypotheses therefore reach different time steps, so the search has to keep hypotheses whose time step
+has no input feature (yet) instead of dropping them.
 
 .. code-block:: ini
 

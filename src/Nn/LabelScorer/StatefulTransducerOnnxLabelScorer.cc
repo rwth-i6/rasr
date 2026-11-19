@@ -94,6 +94,18 @@ const Core::ParameterInt StatefulTransducerOnnxLabelScorer::paramMaxCachedScores
         "Maximum size of cache that maps histories to scores. This prevents memory overflow in case of very long audio segments.",
         10000);
 
+const Core::ParameterIntVector StatefulTransducerOnnxLabelScorer::paramDurations(
+        "durations",
+        "Durations of a Token-and-Duration Transducer (TDT) in the order of the duration scores, which follow the token scores in the "
+        "scorer output. Empty for a standard transducer.",
+        "",
+        0);
+
+const Core::ParameterInt StatefulTransducerOnnxLabelScorer::paramBlankLabelIndex(
+        "blank-label-index",
+        "TDT only: index of the blank label, which only uses durations of at least one step. -1 for the last token.",
+        -1);
+
 // The hidden states and the scores output are not part of the IO spec; they are handled by `Onnx::OnnxInitUpdateScoreBundle`
 static const std::vector<Onnx::IOSpecification> scorerModelIoSpec = {
         Onnx::IOSpecification{
@@ -121,12 +133,25 @@ StatefulTransducerOnnxLabelScorer::StatefulTransducerOnnxLabelScorer(Core::Confi
           loopUpdatesHistory_(paramLoopUpdatesHistory(config)),
           verticalLabelTransition_(paramVerticalLabelTransition(config)),
           maxBatchSize_(paramMaxBatchSize(config)),
+          durations_(),
+          blankLabelIndex_(paramBlankLabelIndex(config)),
           initUpdateScoreBundle_(config, modelCache, {}, stateUpdaterModelIoSpec, scorerModelIoSpec),
           initialScoringContext_(),
           scoreCache_(paramMaxCachedScores(config)),
+          durationCache_(paramMaxCachedScores(config)),
           stateCache_(paramMaxCachedScores(config)) {
     scorerInputFeatureName_ = initUpdateScoreBundle_.scorerOnnxName("input-feature");
     updaterTokenName_       = initUpdateScoreBundle_.stateUpdaterOnnxName("token");
+
+    for (auto duration : paramDurations(config)) {
+        if (duration < 0) {
+            criticalError() << "TDT durations must not be negative, got " << duration;
+        }
+        durations_.push_back(static_cast<u32>(duration));
+    }
+    if (not durations_.empty() and std::none_of(durations_.begin(), durations_.end(), [](u32 d) { return d > 0u; })) {
+        criticalError() << "TDT durations need at least one positive duration for blank";
+    }
 }
 
 ScoringContextRef StatefulTransducerOnnxLabelScorer::getInitialScoringContext() {
@@ -179,12 +204,34 @@ ScoringContextRef StatefulTransducerOnnxLabelScorer::extendedScoringContext(Scor
             error() << "Unknown transition type " << transitionType;
     }
 
+    StepOnnxHiddenStateScoringContextRef stepOnnxHiddenStateScoringContext(dynamic_cast<StepOnnxHiddenStateScoringContext const*>(scoringContext.get()));
+
+    if (not durations_.empty()) {
+        // The durations were chosen together with the scores of this context, so it must have been scored
+        auto const& durations = stepOnnxHiddenStateScoringContext->labelAndBlankDurations;
+        if (not durations) {
+            criticalError() << "TDT scoring context is extended before it was scored";
+        }
+        // Blank and silence use the blank duration, all other transitions are label emissions
+        switch (transitionType) {
+            case TransitionType::BLANK_LOOP:
+            case TransitionType::SILENCE_LOOP:
+            case TransitionType::LABEL_TO_BLANK:
+            case TransitionType::INITIAL_BLANK:
+            case TransitionType::LABEL_TO_SILENCE:
+            case TransitionType::INITIAL_SILENCE:
+                timeIncrement = durations->second;
+                break;
+            default:
+                timeIncrement = durations->first;
+        }
+    }
+
     // If scoringContext is not going to be modified, return the original one
     if (not pushToken and timeIncrement == 0ul) {
         return scoringContext;
     }
 
-    StepOnnxHiddenStateScoringContextRef stepOnnxHiddenStateScoringContext(dynamic_cast<StepOnnxHiddenStateScoringContext const*>(scoringContext.get()));
     std::vector<LabelIndex>              newLabelSeq(stepOnnxHiddenStateScoringContext->labelSeq);
     bool                                 requiresFinalize = false;
 
@@ -212,6 +259,7 @@ void StatefulTransducerOnnxLabelScorer::resetInternal() {
     contextPreparationTime_.reset();
     stateCache_.clear();
     scoreCache_.clear();
+    durationCache_.clear();
 }
 
 std::optional<ScoreAccessorRef> StatefulTransducerOnnxLabelScorer::computeScoreAccessor(ScoringContextRef scoringContext) {
@@ -332,6 +380,10 @@ std::vector<std::optional<ScoreAccessorRef>> StatefulTransducerOnnxLabelScorer::
 
         verify(scoreCache_.contains(scoringContext));
         auto const& scoreVec         = scoreCache_.get(scoringContext)->get();
+        if (not durations_.empty()) {
+            verify(durationCache_.contains(scoringContext));
+            scoringContext->labelAndBlankDurations = durationCache_.get(scoringContext)->get();
+        }
         scoreAccessors[contextIndex] = Core::ref(new VectorScoreAccessor(scoreVec, scoringContext->currentStep));
     }
     contextPreparationTime_.stop();
@@ -389,8 +441,50 @@ void StatefulTransducerOnnxLabelScorer::cacheScores(std::vector<StepOnnxHiddenSt
 
     Core::StopWatch::Scope marshallingTimer(stateMarshallingTime_);
     for (size_t b = 0ul; b < scoringContextBatch.size(); ++b) {
-        scoreCache_.put(scoringContextBatch[b], scoreVecs[b]);
+        if (durations_.empty()) {
+            scoreCache_.put(scoringContextBatch[b], scoreVecs[b]);
+        }
+        else {
+            auto [tokenScores, durations] = tdtScoresAndDurations(*scoreVecs[b]);
+            scoreCache_.put(scoringContextBatch[b], tokenScores);
+            durationCache_.put(scoringContextBatch[b], durations);
+        }
     }
+}
+
+std::pair<std::shared_ptr<std::vector<Score>>, std::pair<u32, u32>> StatefulTransducerOnnxLabelScorer::tdtScoresAndDurations(std::vector<Score> const& scorerOutput) const {
+    if (scorerOutput.size() <= durations_.size()) {
+        criticalError() << "TDT scorer output has " << scorerOutput.size() << " scores, expected the token scores followed by "
+                        << durations_.size() << " duration scores";
+    }
+    size_t numTokens  = scorerOutput.size() - durations_.size();
+    size_t blankIndex = blankLabelIndex_ < 0 ? numTokens - 1ul : static_cast<size_t>(blankLabelIndex_);
+    if (blankIndex >= numTokens) {
+        criticalError() << "TDT blank label index " << blankIndex << " is not a token index, the scorer output has " << numTokens << " token scores";
+    }
+
+    // Scores are negative log-probabilities, so the best duration has the lowest score
+    auto  durationScores = scorerOutput.begin() + numTokens;
+    Score labelScore     = Core::Type<Score>::max;
+    Score blankScore     = Core::Type<Score>::max;
+    u32   labelDuration  = 0u;
+    u32   blankDuration  = 0u;
+    for (size_t i = 0ul; i < durations_.size(); ++i) {
+        if (durationScores[i] < labelScore) {
+            labelScore    = durationScores[i];
+            labelDuration = durations_[i];
+        }
+        if (durations_[i] > 0u and durationScores[i] < blankScore) {
+            blankScore    = durationScores[i];
+            blankDuration = durations_[i];
+        }
+    }
+
+    auto tokenScores = std::make_shared<std::vector<Score>>(scorerOutput.begin(), durationScores);
+    for (size_t i = 0ul; i < numTokens; ++i) {
+        (*tokenScores)[i] += i == blankIndex ? blankScore : labelScore;
+    }
+    return {tokenScores, {labelDuration, blankDuration}};
 }
 
 std::vector<Onnx::OnnxNamedValuesRef> StatefulTransducerOnnxLabelScorer::updatedHiddenStates(std::vector<Onnx::OnnxNamedValuesRef> const& hiddenStatesBatch, std::vector<s32> nextTokensBatch) {

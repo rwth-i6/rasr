@@ -370,9 +370,10 @@ hypothesis) are the exception: they are not pruned after the first label scorer,
 
 **Token-and-Duration Transducers.** Both transducer searches also work with a TDT model through
 ``stateful-transducer-onnx`` with ``durations`` set. The label scorer then advances each hypothesis by the duration
-of its last emission, so the hypotheses of the beam are at different time steps and a search step is no longer one
-time step, but one blank emission per hypothesis. Hypotheses at a time step without input (yet), i.e. ahead of the
-received features or beyond the end of the segment, wait in the beam unchanged while the others are extended. The
+of its last emission, labels included, so the hypotheses of the beam are at different time steps. Each search step
+only extends the hypotheses at its time step; within it, only labels with duration 0 keep a hypothesis in the inner
+loop. Hypotheses at later time steps, and those at a time step without input (yet), i.e. ahead of the received
+features or beyond the end of the segment, wait in the beam unchanged until the search reaches their time step. The
 ``maximum-stable-delay`` refers to the latest time step that has been scored.
 
 Every configured label scorer should have ``vertical-label-transition = true`` set (where that parameter is

@@ -805,15 +805,19 @@ bool LlmRnntTimesyncBeamSearch::advanceSymbolStep(size_t symbolStep) {
     }
 
     /*
-     * Hyps that can't be scored are at a time step without input (yet), e.g. after a TDT duration moved them ahead
-     * of the other hyps or beyond the end of the segment. They wait in the beam unchanged, the other hyps are extended.
+     * Only hyps at the time step of this search step are extended. With TDT durations, emissions move hyps to later
+     * time steps; there they wait in the beam unchanged until the search reaches their time step, so that hyps are
+     * only extended and compared at the same time step. Hyps that can't be scored are at a time step without input
+     * (yet), i.e. ahead of the received input or beyond the end of the segment, and wait as well.
      */
     for (size_t hypIndex = 0ul; hypIndex < innerHyps_.size(); ++hypIndex) {
-        if (scoreAccessors_[hypIndex]) {
-            numTimeframesReached_ = std::max(numTimeframesReached_, static_cast<size_t>((*scoreAccessors_[hypIndex])->getTime()) + 1ul);
+        auto const& accessor = scoreAccessors_[hypIndex];
+        if (accessor and (*accessor)->getTime() <= currentSearchStep_) {
+            numTimeframesReached_ = std::max(numTimeframesReached_, static_cast<size_t>((*accessor)->getTime()) + 1ul);
         }
         else {
             outerHyps_.push_back(innerHyps_[hypIndex]);
+            scoreAccessors_[hypIndex].reset();
         }
     }
 

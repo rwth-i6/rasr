@@ -16,8 +16,11 @@
 #ifndef STATEFUL_TRANSDUCER_ONNX_LABEL_SCORER_HH
 #define STATEFUL_TRANSDUCER_ONNX_LABEL_SCORER_HH
 
+#include <memory>
 #include <optional>
 #include <unordered_map>
+#include <utility>
+#include <vector>
 
 #include <Core/Component.hh>
 #include <Core/Configuration.hh>
@@ -43,6 +46,9 @@ struct StepOnnxHiddenStateScoringContext : public ScoringContext {
     std::vector<LabelIndex>          labelSeq;  // Used for hashing
     mutable Onnx::OnnxNamedValuesRef hiddenState;
     mutable bool                     requiresFinalize;
+
+    // TDT only: number of steps that a label and a blank emission advance from this context, set when it is scored
+    mutable std::optional<std::pair<u32, u32>> labelAndBlankDurations;
 
     StepOnnxHiddenStateScoringContext();
     StepOnnxHiddenStateScoringContext(Speech::TimeframeIndex step, std::vector<LabelIndex> const& labelSeq, Onnx::OnnxNamedValuesRef state, bool requiresFinalize);
@@ -84,16 +90,23 @@ struct LabelSeqEq {
  * Note: This LabelScorer is similar to the `StatefulOnnxLabelScorer`. The difference is that in this one the ScoringContext also
  * contains the current step and the input feature at the current step is fed to the Scorer. Furthermore, the state initializer
  * and updater here only take tokens and no input features.
+ *
+ * With `durations` set, the Label Scorer supports Token-and-Duration Transducers (TDT): the scorer output then contains the
+ * token scores followed by one score per duration. The durations stay hidden from the search: a label score includes the
+ * score of the best duration and a blank score the score of the best duration of at least one step, and extending the
+ * ScoringContext advances its step by that duration.
  */
 class StatefulTransducerOnnxLabelScorer : public BufferedLabelScorer {
     using Precursor = BufferedLabelScorer;
 
-    static const Core::ParameterBool paramBlankUpdatesHistory;
-    static const Core::ParameterBool paramSilenceUpdatesHistory;
-    static const Core::ParameterBool paramLoopUpdatesHistory;
-    static const Core::ParameterBool paramVerticalLabelTransition;
-    static const Core::ParameterInt  paramMaxBatchSize;
-    static const Core::ParameterInt  paramMaxCachedScores;
+    static const Core::ParameterBool      paramBlankUpdatesHistory;
+    static const Core::ParameterBool      paramSilenceUpdatesHistory;
+    static const Core::ParameterBool      paramLoopUpdatesHistory;
+    static const Core::ParameterBool      paramVerticalLabelTransition;
+    static const Core::ParameterInt       paramMaxBatchSize;
+    static const Core::ParameterInt       paramMaxCachedScores;
+    static const Core::ParameterIntVector paramDurations;
+    static const Core::ParameterInt       paramBlankLabelIndex;
 
 public:
     StatefulTransducerOnnxLabelScorer(Core::Configuration const& config, ModelCache& modelCache);
@@ -130,6 +143,9 @@ private:
     // state cache and into `resolvedStates`
     void cacheStates(std::vector<StepOnnxHiddenStateScoringContextRef> const& scoringContextBatch, ResolvedStateMap& resolvedStates);
 
+    // TDT: split the scorer output into token scores including the best duration scores and the corresponding durations
+    std::pair<std::shared_ptr<std::vector<Score>>, std::pair<u32, u32>> tdtScoresAndDurations(std::vector<Score> const& scorerOutput) const;
+
     void logScoringBreakdown() const override;
 
     bool   blankUpdatesHistory_;
@@ -137,6 +153,9 @@ private:
     bool   loopUpdatesHistory_;
     bool   verticalLabelTransition_;
     size_t maxBatchSize_;
+
+    std::vector<u32> durations_;        // TDT durations in the order of the duration scores, empty for a standard transducer
+    s32              blankLabelIndex_;  // TDT: label whose score is combined with the durations of at least one step, -1 for the last token
 
     Onnx::OnnxInitUpdateScoreBundle initUpdateScoreBundle_;
 
@@ -151,6 +170,9 @@ private:
     Core::StopWatch contextPreparationTime_;
 
     Core::FIFOCache<StepOnnxHiddenStateScoringContextRef, std::shared_ptr<std::vector<Score>>, ScoringContextHash, ScoringContextEq> scoreCache_;
+
+    // TDT: label and blank durations of the contexts in `scoreCache_`, filled and evicted together with it
+    Core::FIFOCache<StepOnnxHiddenStateScoringContextRef, std::pair<u32, u32>, ScoringContextHash, ScoringContextEq> durationCache_;
 
     // Keyed by the label sequence only, since the hidden state doesn't depend on the step
     Core::FIFOCache<StepOnnxHiddenStateScoringContextRef, Onnx::OnnxNamedValuesRef, LabelSeqHash, LabelSeqEq> stateCache_;

@@ -489,8 +489,7 @@ Score RecurrentLanguageModel<value_t, state_variable_t>::scoreTokenSequence(Hist
     }
 
     Score result = 0.0;
-    for (u32 ti = tokens.length(); ti > 0;) {
-        --ti;
+    for (s32 ti = static_cast<s32>(tokens.length()) - 1; ti >= 0; --ti) {
         result += score(prefixes[ti], tokens[ti]);
     }
     prefixHistory = prefixes.back();

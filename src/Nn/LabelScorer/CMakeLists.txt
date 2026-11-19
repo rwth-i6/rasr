@@ -7,7 +7,7 @@ target_sources(
             Encoder.cc
             EncoderDecoderLabelScorer.cc
             EncoderFactory.cc
-    ForcedSequenceLabelScorer.cc
+            ForcedSequenceLabelScorer.cc
             LabelScorer.cc
             LabelScorerFactory.cc
             NoOpLabelScorer.cc

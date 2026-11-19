@@ -23,12 +23,17 @@
 #include "ModelCache.hh"
 #include "ScoringContext.hh"
 
+namespace Tokenizer {
+class AbstractTokenizer;
+}  // namespace Tokenizer
+
 namespace Nn {
 
 /*
  * Scoring context for prefix speech LMs.
  * `labelSeq` contains only labels emitted by search, not from the prompt and speech-embeddings.
  * `historyLength` contains the total LM cache length, including prompt and speech-embedding positions.
+ * It is only known once the context has been scored and is 0 before.
  * Hashing and equality operators are based only on the `labelSeq`.
  */
 struct PrefixSpeechLmScoringContext : public ScoringContext {
@@ -42,7 +47,7 @@ struct PrefixSpeechLmScoringContext : public ScoringContext {
     mutable std::shared_ptr<HistoryState> state;
 
     PrefixSpeechLmScoringContext();
-    PrefixSpeechLmScoringContext(std::vector<LabelIndex>&& labelSeq, size_t historyLength, Core::Ref<PrefixSpeechLmScoringContext const> parent, std::shared_ptr<HistoryState> state = {});
+    PrefixSpeechLmScoringContext(std::vector<LabelIndex>&& labelSeq, Core::Ref<PrefixSpeechLmScoringContext const> parent);
 
     bool   isEqual(ScoringContextRef const& other) const override;
     size_t hash() const override;
@@ -55,23 +60,14 @@ typedef Core::Ref<PrefixSpeechLmScoringContext const> PrefixSpeechLmScoringConte
  * [initial prompt tokens, speech encoder states in LM embedding space, suffix prompt tokens]
  * before scoring hypothesis tokens one-by-one as usual.
  *
+ * The prompts are given either as text, which is tokenized with the configured tokenizer, or directly as token ids.
+ *
  * The LabelScorer requires two ONNX models, one which takes the prompts and encoder states
  * to produce the initial states and score distribution and one which takes a new token and
  * existing states to output updated states and scores after incorporating the token.
  * The states are managed with a StateManager.
  */
 class PrefixSpeechLmOnnxLabelScorer : public BufferedLabelScorer {
-    using Precursor    = BufferedLabelScorer;
-    using StateManager = AbstractStateManager<Onnx::Value, Onnx::OnnxStateVariable>;
-    using HistoryState = StateManager::HistoryState;
-
-    static const Core::ParameterIntVector paramInitialPromptLabels;
-    static const Core::ParameterIntVector paramSuffixPromptLabels;
-    static const Core::ParameterBool      paramBlankUpdatesHistory;
-    static const Core::ParameterBool      paramLoopUpdatesHistory;
-    static const Core::ParameterInt       paramMaxBatchSize;
-    static const Core::ParameterInt       paramMaxCachedScores;
-
 public:
     PrefixSpeechLmOnnxLabelScorer(Core::Configuration const& config, ModelCache& modelCache);
     virtual ~PrefixSpeechLmOnnxLabelScorer() = default;
@@ -89,15 +85,24 @@ protected:
     size_t                                       getMinActiveInputIndex(Core::CollapsedVector<ScoringContextRef> const& activeContexts) const override;
 
 private:
-    void setupInitialStates();
-    void cacheStatesAndScores(std::vector<PrefixSpeechLmScoringContextRef> const& scoringContextBatch);
+    using Precursor    = BufferedLabelScorer;
+    using StateManager = AbstractStateManager<Onnx::Value, Onnx::OnnxStateVariable>;
+    using HistoryState = StateManager::HistoryState;
 
-    void setupEncoderStatesValue();
-    void setupEncoderStatesSizeValue();
+    static const Core::ParameterString    paramInitialPrompt;
+    static const Core::ParameterString    paramSuffixPrompt;
+    static const Core::ParameterIntVector paramInitialPromptLabels;
+    static const Core::ParameterIntVector paramSuffixPromptLabels;
+    static const Core::ParameterBool      paramBlankUpdatesHistory;
+    static const Core::ParameterBool      paramSilenceUpdatesHistory;
+    static const Core::ParameterBool      paramLoopUpdatesHistory;
+    static const Core::ParameterInt       paramMaxBatchSize;
+    static const Core::ParameterInt       paramMaxCachedScores;
 
     std::vector<s32> initialPromptLabels_;
     std::vector<s32> suffixPromptLabels_;
     bool             blankUpdatesHistory_;
+    bool             silenceUpdatesHistory_;
     bool             loopUpdatesHistory_;
     size_t           maxBatchSize_;
 
@@ -121,13 +126,39 @@ private:
     std::string stepPrefixLengthName_;
     std::string stepScoresName_;
 
-    Onnx::Value encoderStatesValue_;
-    Onnx::Value encoderStatesSizeValue_;
-
     PrefixSpeechLmScoringContextRef initialContext_;
+    // Kept outside of `scoreCache_` since the prefill can't be recomputed once the inputs are cleaned up
+    std::shared_ptr<std::vector<Score>> initialScores_;
+
+    // Session runs of the initializer model that prefill the prompt and encoder states
+    Core::StopWatch initializerSessionTime_;
+    Core::StopWatch stepSessionTime_;
+    // Merging the prefix states into the batched session inputs and splitting the outputs back up
+    Core::StopWatch stateMarshallingTime_;
+    Core::StopWatch contextPreparationTime_;
 
     Core::FIFOCache<PrefixSpeechLmScoringContextRef, std::shared_ptr<std::vector<Score>>, ScoringContextHash, ScoringContextEq> scoreCache_;
     Core::FIFOCache<PrefixSpeechLmScoringContextRef, std::shared_ptr<HistoryState>, ScoringContextHash, ScoringContextEq>       stateCache_;
+
+    // Get the token ids of a prompt from either its text parameter (tokenized with `tokenizer`) or its label parameter.
+    // `tokenizer` may be null if the text parameter is not set.
+    std::vector<s32> getPromptLabels(Core::ParameterString const&        textParam,
+                                     Core::ParameterIntVector const&     labelsParam,
+                                     Tokenizer::AbstractTokenizer const* tokenizer) const;
+
+    // Replace the escape sequences \n, \t, \r, \\ and \xHH in a text prompt
+    std::string unescapePrompt(std::string const& text) const;
+
+    // Whether the prompt and encoder states have been prefilled for the current segment
+    bool isPrefilled() const;
+
+    void        setupInitialStates();
+    Onnx::Value createEncoderStatesValue() const;
+
+    // Forward a batch of scoringContexts through the step ONNX model and put the resulting states and scores into the caches
+    void cacheStatesAndScores(std::vector<PrefixSpeechLmScoringContextRef> const& scoringContextBatch);
+
+    void logScoringBreakdown() const override;
 };
 
 }  // namespace Nn

@@ -11,6 +11,7 @@
 #include "LibRASR.hh"
 #include "LlmScorer.hh"
 #include "Search.hh"
+#include "Tokenizer.hh"
 
 namespace py = pybind11;
 
@@ -61,4 +62,5 @@ PYBIND11_MODULE(librasr, m) {
     bindLlmScorer(m);
     bindSearchAlgorithm(m);
     bindAligner(m);
+    bindTokenizer(m);
 }

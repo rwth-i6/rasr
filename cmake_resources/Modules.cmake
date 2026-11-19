@@ -81,6 +81,9 @@ add_module_option(MODULE_SEARCH_WFST OFF)
 add_module_option(MODULE_SEARCH_LINEAR ON)
 add_module_option(MODULE_ADVANCED_TREE_SEARCH ON)
 
+# ****** Tokenizer ******
+add_module_option(MODULE_SENTENCEPIECE OFF)
+
 # ****** Signal ******
 add_module_option(MODULE_SIGNAL_GAMMATONE ON)
 add_module_option(MODULE_SIGNAL_PLP ON)

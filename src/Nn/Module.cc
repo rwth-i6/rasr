@@ -25,6 +25,7 @@
 #include "LabelScorer/CtcPrefixLabelScorer.hh"
 #include "LabelScorer/EncoderDecoderLabelScorer.hh"
 #include "LabelScorer/EncoderFactory.hh"
+#include "LabelScorer/ForcedSequenceLabelScorer.hh"
 #include "LabelScorer/NoOpLabelScorer.hh"
 #include "LabelScorer/PriorLabelScorer.hh"
 #include "LabelScorer/TransitionLabelScorer.hh"
@@ -163,6 +164,13 @@ Module_::Module_()
             "prior",
             [](Core::Configuration const& config, ModelCache&) {
                 return Core::ref(new PriorLabelScorer(config));
+            });
+
+    // Only allows a given label sequence (score 0 for its labels, infinity otherwise), for forced (re-)scoring of the sequence
+    labelScorerFactory_.registerLabelScorer(
+            "forced-sequence",
+            [](Core::Configuration const& config, ModelCache&) {
+                return Core::ref(new ForcedSequenceLabelScorer(config));
             });
 
     // A label scorer consisting of an encoder that pre-processes the features and another label scorer acting as decoder

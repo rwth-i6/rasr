@@ -1023,8 +1023,8 @@ built-in way to do this.
 Built-in label scorer types include:
 
 * ``no-context-onnx``, ``fixed-context-onnx``, ``full-context-onnx``, ``stateful-onnx``,
-  ``stateful-transducer-onnx``, ``state-managed-onnx``: forward features (and, depending on type, label history/hidden state) through an ONNX
-  model.
+  ``stateful-transducer-onnx``, ``state-managed-onnx``: forward features (and, depending on type, label
+  history/hidden state) through an ONNX model.
 * ``encoder-decoder`` / ``encoder-only``: wrap a separate encoder (see :ref:`Encoders` below) that
   pre-processes features, combined with a decoder label scorer (or no decoder, for encoder-only models).
 * ``ctc-prefix``: wraps a time-synchronous CTC scorer and derives label-synchronous prefix scores from it
@@ -1218,7 +1218,7 @@ which case the model receives both):
 * ``encoder-states`` / ``encoder-states-size``: the complete input sequence collected so far is fed in as one
   tensor, together with its length. Since this requires the whole sequence, scoring only starts once all
   features of the segment have been passed (i.e. after ``signalNoMoreFeatures``/``finishSegment``), and the
-  input buffer is never trimmed.
+  input buffer is never trimmed. Hypotheses can still only be scored for timesteps that exist in the input sequence.
 
 Since histories in a batch generally differ in length, the ``history`` input is always padded to the longest history
 in the batch, and the mandatory ``history-size`` input tells the model the true length of each entry, so the model

@@ -83,6 +83,13 @@ protected:
  *    features 25 to 75 are returned
  *  - The third chunk consists of features 40 to 90 and the outputs corresponding to
  *    features 50 to 90 are returned
+ * This is the left-aligned chunking, where the center of chunk i spans [i * step-size, i * step-size + chunk-size).
+ * With right-aligned chunking, the center of chunk i spans (i * step-size - chunk-size, i * step-size] instead.
+ * This requires that output t of a session depends on no input features after t * input-step-size,
+ * e.g. a left-padded causal frontend. On the last chunk, outputs starting past the segment end (computed from
+ * the model's internal padding) are kept as well.
+ * Since the session start is aligned to the output grid, sessions overlap by a few features even without
+ * left-padding, so models carrying a state between sessions are not supported.
  */
 class ChunkedOnnxEncoder : public OnnxEncoder {
 public:
@@ -93,6 +100,8 @@ public:
     static const Core::ParameterInt    paramLeftPadding;
     static const Core::ParameterInt    paramRightPadding;
     static const Core::ParameterBool   paramZeroPadding;
+    static const Core::Choice          chunkAlignmentChoice;
+    static const Core::ParameterChoice paramChunkAlignment;
     static const Core::Choice          windowTypeChoice;
     static const Core::ParameterChoice paramWindowType;
     static const Core::Choice          interpolationModeChoice;
@@ -113,6 +122,11 @@ protected:
     virtual void postEncodeCleanup() override;
 
 private:
+    enum ChunkAlignment {
+        LeftAligned,
+        RightAligned,
+    };
+
     enum WindowType {
         None,
         Triangular,
@@ -141,12 +155,23 @@ private:
     size_t            leftPadding_;
     size_t            rightPadding_;
     bool              zeroPadding_;
+    ChunkAlignment    chunkAlignment_;
+    size_t            outputGridStep_;  // Input features between the starts of consecutive outputs, used to align right-aligned sessions
     std::vector<f32>  window_;
     InterpolationMode interpolationMode_;
 
-    size_t                          chunkCenterStart_;  // Current absolute chunk start position disregarding how many features have been discarded so far
+    size_t                          chunkCenterEnd_;  // Current absolute chunk end position disregarding discarded features and the segment end
     size_t                          numDiscardedFeatures_;
     std::map<size_t, PendingOutput> pendingOutputs_;  // Associate outputs with their input start time to interpolate outputs from different chunks. Ordered for flushing
+
+    // Chunk 0's center ends with feature chunk-size - 1 when left-aligned and with feature 0 when right-aligned
+    size_t firstChunkCenterEnd() const;
+
+    // Absolute start of the current chunk center, clipped at 0
+    size_t chunkCenterStart() const;
+
+    // First input feature of the session for a chunk whose center starts at `centerStart`
+    size_t sessionStart(size_t centerStart) const;
 
     // Pre-compute window weights for expected chunk output size
     void initWindow(WindowType windowType);

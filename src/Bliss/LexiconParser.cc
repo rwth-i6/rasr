@@ -473,5 +473,8 @@ void VocabTextLexiconParser::createLemmata() {
         }
         lexicon_->addPronunciation(newLemma_, pron);
         lexicon_->setDefaultLemmaName(newLemma_);
+        // Like a lemma in an XML lexicon without explicit evaluation tokens. Otherwise every label would be a
+        // non-word, e.g. for the duplicate removal of n-best lists, which would then collapse all paths into one.
+        lexicon_->setDefaultEvaluationToken(newLemma_);
     }
 }

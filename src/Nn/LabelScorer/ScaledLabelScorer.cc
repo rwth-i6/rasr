@@ -44,6 +44,14 @@ public:
         return denseScores;
     }
 
+    std::optional<SparseScoreSpan> getSparseScores() const override {
+        auto sparseScores = base_->getSparseScores();
+        if (sparseScores) {
+            sparseScores->scale *= scale_;
+        }
+        return sparseScores;
+    }
+
     TimeframeIndex getTime() const override {
         return base_->getTime();
     }

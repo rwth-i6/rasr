@@ -208,9 +208,9 @@ std::vector<int64_t> Session::getOutputShape(std::string const& name) const {
     return res;
 }
 
-bool Session::run(std::vector<std::pair<std::string, Value>>&& inputs,
-                  std::vector<std::string> const&              output_names,
-                  std::vector<Value>&                          outputs) {
+Core::Status Session::run(std::vector<std::pair<std::string, Value>>&& inputs,
+                          std::vector<std::string> const&              output_names,
+                          std::vector<Value>&                          outputs) {
     Ort::RunOptions run_options;
 
     std::vector<char const*> input_names;
@@ -230,8 +230,7 @@ bool Session::run(std::vector<std::pair<std::string, Value>>&& inputs,
         out_vals = session_.Run(run_options, input_names.data(), input_vals.data(), inputs.size(), output_cnames.data(), output_cnames.size());
     }
     catch (Ort::Exception& e) {
-        warning() << "Exception during ONNX session run: " << e.what();
-        return false;
+        return Core::Status(Core::StatusCode::Internal, std::string("Exception during ONNX session run: ") + e.what());
     }
 
     outputs.resize(out_vals.size());
@@ -239,7 +238,7 @@ bool Session::run(std::vector<std::pair<std::string, Value>>&& inputs,
         outputs[i] = std::move(out_vals[i]);
     }
 
-    return true;
+    return Core::Status();
 }
 
 std::string Session::getCustomMetadata(std::string const& key) const {

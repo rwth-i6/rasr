@@ -15,6 +15,8 @@
 
 #include "StateManagedOnnxLabelScorer.hh"
 
+#include <stdexcept>
+
 #include <Core/XmlStream.hh>
 
 #include <Nn/Module.hh>
@@ -399,8 +401,11 @@ void StateManagedOnnxLabelScorer::cacheStatesAndScores(std::vector<StateManagedO
 
     std::vector<Onnx::Value> outputs;
     onnxSessionTime_.start();
-    onnxModel_->session.run(std::move(inputs), targets, outputs);
+    auto status = onnxModel_->session.run(std::move(inputs), targets, outputs);
     onnxSessionTime_.stop();
+    if (not status.ok()) {
+        throw std::runtime_error(status.message());
+    }
 
     for (size_t b = 0ul; b < scoringContextBatch.size(); ++b) {
         auto scores = std::make_shared<std::vector<Score>>();

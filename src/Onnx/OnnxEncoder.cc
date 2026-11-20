@@ -15,6 +15,8 @@
 
 #include "OnnxEncoder.hh"
 
+#include <stdexcept>
+
 #include <Core/XmlStream.hh>
 
 namespace Onnx {
@@ -131,8 +133,11 @@ OnnxEncoder::SessionRunResult OnnxEncoder::runSession(size_t inputStartIndex, si
     // Run session
     std::vector<Value> sessionOutputs;
     onnxSessionTime_.start();
-    onnxModel_->session.run(std::move(sessionInputs), outputNames, sessionOutputs);
+    auto status = onnxModel_->session.run(std::move(sessionInputs), outputNames, sessionOutputs);
     onnxSessionTime_.stop();
+    if (not status.ok()) {
+        throw std::runtime_error(status.message());
+    }
     ++numSessionRuns_;
 
     // Retrieve outputs

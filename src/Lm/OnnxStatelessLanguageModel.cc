@@ -15,6 +15,8 @@
 
 #include "OnnxStatelessLanguageModel.hh"
 
+#include <stdexcept>
+
 namespace Lm {
 
 static const std::vector<Onnx::IOSpecification> ioSpec = {
@@ -168,7 +170,10 @@ void OnnxStatelessLm::scoreBatch() const {
     sessionInputs.emplace_back(inputLengthsName_, Onnx::Value::create(lengthVec));
 
     std::vector<Onnx::Value> sessionOutputs;
-    onnxModel_.session.run(std::move(sessionInputs), {scoresName_}, sessionOutputs);
+    auto                     status = onnxModel_.session.run(std::move(sessionInputs), {scoresName_}, sessionOutputs);
+    if (not status.ok()) {
+        throw std::runtime_error(status.message());
+    }
 
     Onnx::Value scoreOutput(std::move(sessionOutputs.front()));  // Only one session output
 

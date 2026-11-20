@@ -35,6 +35,7 @@ add_subdirectory(LexiconfreeLabelsyncBeamSearch)
 add_subdirectory(LexiconfreeTimesyncBeamSearch)
 add_subdirectory(LexiconfreeRNNTTimesyncBeamSearch)
 add_subdirectory(TreeLabelsyncBeamSearch)
+add_subdirectory(TreeRNNTTimesyncBeamSearch)
 add_subdirectory(TreeTimesyncBeamSearch)
 
 target_link_libraries(

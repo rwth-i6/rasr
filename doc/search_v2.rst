@@ -67,7 +67,7 @@ configuration.
 Search algorithms
 -----------------
 
-Five search algorithms are currently implemented on top of ``SearchV2``. Which one to pick depends on the type of
+Six search algorithms are currently implemented on top of ``SearchV2``. Which one to pick depends on the type of
 model and vocabulary you use:
 
 * ``lexiconfree-timesync-beam-search``: time-synchronous decoding, no pronunciation lexicon required. Typical
@@ -82,6 +82,9 @@ model and vocabulary you use:
   see :ref:`Search tree types` below.
 * ``tree-labelsync-beam-search``: label-synchronous counterpart to ``tree-timesync-beam-search``, decoding over
   a pronunciation lexicon search tree built with the ``aed`` tree builder, with a word-level language model.
+* ``tree-rnnt-timesync-beam-search``: the tree counterpart of ``lexiconfree-rnnt-timesync-beam-search``,
+  decoding standard RNN-T/Transducer models over a pronunciation lexicon search tree with a word-level language
+  model.
 
 The "lexiconfree" searches technically still require a lexicon containing the output vocabulary. However, they do
 not build a pronunciation search tree or apply a word-level transition model. For details on the lexicon,
@@ -177,7 +180,7 @@ The search algorithm is selected with the ``type`` parameter under the ``search-
     [*.search-algorithm]
     type = lexiconfree-timesync-beam-search
     ; other options: lexiconfree-labelsync-beam-search, lexiconfree-rnnt-timesync-beam-search,
-    ; tree-timesync-beam-search, tree-labelsync-beam-search
+    ; tree-timesync-beam-search, tree-labelsync-beam-search, tree-rnnt-timesync-beam-search
 
 If unset, ``type`` defaults to ``lexiconfree-timesync-beam-search``.
 
@@ -645,6 +648,94 @@ Order of operations for one label-synchronous decoding step, assuming two label 
 
 The same tree caching considerations as for ``tree-timesync-beam-search`` above apply here as well.
 
+tree-rnnt-timesync-beam-search
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+The tree counterpart of ``lexiconfree-rnnt-timesync-beam-search``: the same per-timestep inner loop, where a
+hypothesis keeps emitting non-blank labels until it emits blank, but over a search tree with a word-level LM
+scored at word ends, like ``tree-timesync-beam-search``. It needs the same lexicon, acoustic model and language
+model, and the lexicon must contain a blank lemma.
+
+Within a word, the search moves to the blank state after the current label and from a root it starts the blank lemma.
+Non-blank labels follow the non-blank successors. The tree therefore needs direct label-to-label transitions within words,
+blank loops and no label loops, which the ``rna`` tree builder provides with its defaults (``allow-label-loop = false``,
+``allow-blank-loop = true``, ``force-blank-between-repeated-labels = false``). A word-end hypothesis can continue with
+the next word or blank in the same timestep. Right after leaving the blank lemma, a hypothesis does not start a new one,
+so a run of blank frames between words is one blank lemma in the result, which is treated as pause in maximum-stable-delay
+pruning. A word ends at the frame of its last label, the blank lemma one frame after its last blank.
+
+* ``max-beam-size``, ``score-threshold``, ``num-histogram-bins``, ``length-norm-scale``,
+  ``max-labels-per-timeframe``, ``recombination-mode``: same meaning as for
+  ``lexiconfree-rnnt-timesync-beam-search`` above. In ``sum`` mode, recombined hypotheses additionally need the
+  same word sequence, LM history and tree state.
+* ``max-word-end-beam-size``, ``word-end-score-threshold``: applied to the word-end hypotheses created in each
+  symbol step, otherwise same meaning as for ``tree-timesync-beam-search`` above.
+* ``sentence-end-fall-back``, ``cache-cleanup-interval``, ``maximum-stable-delay``,
+  ``maximum-stable-delay-pruning-interval``, ``tree-builder-type``: same meaning as for
+  ``tree-timesync-beam-search`` above. Sentence-end is scored at the end of the segment as there.
+
+LM lookahead is currently not supported.
+
+Order of operations for one time-synchronous decoding step, assuming two label scorers ``L_1`` and ``L_2`` with
+``max-beam-size = b_1 b_2``, ``score-threshold = s_1 s_2``, ``max-word-end-beam-size = b_w`` and
+``word-end-score-threshold = s_w``:
+
+#. Start the timestep with the beam from the previous timestep as the active hypotheses.
+#. Repeat, until either no active hypotheses remain or ``max-labels-per-timeframe`` non-blank labels have been
+   emitted within this timestep:
+
+   #. Extend each active hypothesis with blank along its blank successor in the search tree. Add the ``L_1`` and
+      ``L_2`` score contributions to these blank extensions and prune them with score-threshold ``s_2``.
+   #. Create word-end extension candidates from the blank hypotheses that reached a tree exit (i.e. the end of
+      the blank lemma), add their LM scores and blank-exit label scorer contributions and prune them with
+      score-threshold ``s_w``. Recombine equivalent word-end hypotheses (unless ``recombination-mode = off``) and
+      prune them with max-beam-size ``b_w``.
+   #. Add the blank and word-end hypotheses to this timestep's pool of finished hypotheses and recombine
+      equivalent ones (unless ``recombination-mode = off``).
+   #. Extend each active hypothesis with every non-blank search-tree successor, add the ``L_1`` score
+      contribution and prune the results with score-threshold ``s_1`` and max-beam-size ``b_1``.
+   #. Add the ``L_2`` score contribution to the surviving non-blank extensions and prune them with
+      score-threshold ``s_2``.
+   #. Prune the surviving extensions with max-beam-size ``b_2`` and recombine equivalent within-word hypotheses
+      (unless ``recombination-mode = off``).
+   #. Create word-end extension candidates from the within-word hypotheses that reached a tree exit, add their LM
+      scores and word-exit label scorer contributions and prune them with score-threshold ``s_w``. Recombine
+      equivalent word-end hypotheses (unless ``recombination-mode = off``) and prune them with max-beam-size
+      ``b_w``.
+   #. Add the surviving word-end hypotheses to the within-word hypotheses. Drop any that could no longer beat the
+      ``b_2``-th best finished hypothesis collected so far, the rest become the active hypotheses for the next
+      iteration of this loop.
+#. Prune this timestep's finished hypotheses with score-threshold ``s_2`` and max-beam-size ``b_2``, both applied
+   to the length-normalized score.
+#. The result becomes the beam for the next timestep.
+
+Example config:
+
+.. code-block:: ini
+
+    [*.search-algorithm]
+    type                     = tree-rnnt-timesync-beam-search
+    tree-builder-type        = rna
+    max-beam-size            = 64
+    max-word-end-beam-size   = 16
+    score-threshold          = 14.0
+    word-end-score-threshold = 0.5
+    max-labels-per-timeframe = 10
+    recombination-mode       = sum
+    maximum-stable-delay     = 50
+
+    [*.lexicon]
+    ; must contain a lemma marked special="blank"
+    file                     = /path/to/lexicon.xml.gz
+
+    [*.acoustic-model]
+    ; allophones / state-tying configuration, see "Common component configuration"
+
+    [*.language-model]
+    type                     = ARPA
+    file                     = /path/to/lm.gz
+    scale                    = 0.6
+
 Search tree types
 ^^^^^^^^^^^^^^^^^
 
@@ -704,7 +795,7 @@ This means that regardless of how the search process develops in the future, the
 The pruning runs every ``maximum-stable-delay-pruning-interval`` steps. After ``t`` decoded frames, the cutoff is
 ``c = t + 1 - maximum-stable-delay`` and the goal is to make sure that the stable partial traceback ends at ``c``
 or later. It is implemented by ``lexiconfree-timesync-beam-search``, ``lexiconfree-rnnt-timesync-beam-search``,
-``tree-timesync-beam-search`` and the classic ``advanced-tree-search``.
+``tree-timesync-beam-search``, ``tree-rnnt-timesync-beam-search`` and the classic ``advanced-tree-search``.
 
 1. **Reference:** the best hypothesis which has a lemma ending at ``c`` or later in its traceback or is currently
    in a pause (i.e. blank/silence segment). The earliest such lemma in the traceback is taken as the pruning root.
@@ -714,8 +805,8 @@ or later. It is implemented by ``lexiconfree-timesync-beam-search``, ``lexiconfr
    ongoing: this pause is split into two parts; before and after ``c``. Thus, if the reference contains such a pause,
    the partial pause up to ``c`` becomes the pruning root and all hypotheses that share the same partial pause are kept.
    The split is only cosmetic; it has no score contributions of its own. The score of the whole pause is attributed
-   to the remaining part. Only ``lexiconfree-timesync-beam-search``, ``lexiconfree-rnnt-timesync-beam-search`` and
-   ``tree-timesync-beam-search`` split pauses.
+   to the remaining part. Only ``lexiconfree-timesync-beam-search``, ``lexiconfree-rnnt-timesync-beam-search``,
+   ``tree-timesync-beam-search`` and ``tree-rnnt-timesync-beam-search`` split pauses.
 
 Consequences:
 

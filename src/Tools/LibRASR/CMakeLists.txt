@@ -1,4 +1,4 @@
-find_package(pybind11 REQUIRED)
+find_package(pybind11 3.0 REQUIRED)
 
 pybind11_add_module(librasr LibRASR.cc)
 add_install_library(librasr)

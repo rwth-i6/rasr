@@ -96,6 +96,14 @@ u64 const unknownPieceType               = 2u;
 u64 const controlPieceType               = 3u;
 u64 const userDefinedPieceType           = 4u;
 
+// The status codes of SentencePiece are the same as those of RASR
+Core::Status convertStatus(sentencepiece::util::Status const& status) {
+    if (status.ok()) {
+        return {};
+    }
+    return Core::Status(static_cast<Core::StatusCode>(status.code()), "SentencePiece error: " + status.ToString());
+}
+
 }  // namespace
 
 namespace Tokenizer {
@@ -105,15 +113,89 @@ const Core::ParameterString SentencePieceTokenizer::paramModelFile(
         "SentencePiece model file",
         "");
 
+Core::Status SentencePieceTokenizer::create(Core::Configuration const& config, TokenizerRef& tokenizer) {
+    std::shared_ptr<SentencePieceTokenizer> sentencePiece(new SentencePieceTokenizer(config));
+    Core::Status                            status = sentencePiece->load();
+    if (status.ok()) {
+        tokenizer = std::move(sentencePiece);
+    }
+    return status;
+}
+
+Core::Status SentencePieceTokenizer::encode(std::string const& text, std::vector<TokenId>& ids) const {
+    std::vector<int> pieceIds;
+    Core::Status     status = convertStatus(processor_.Encode(text, &pieceIds));
+    ids.assign(pieceIds.begin(), pieceIds.end());
+    return status;
+}
+
+Core::Status SentencePieceTokenizer::decode(std::vector<TokenId> const& ids, std::string& text) const {
+    for (auto id : ids) {
+        Core::Status status = checkTokenId(id);
+        if (not status.ok()) {
+            return status;
+        }
+    }
+    return convertStatus(processor_.Decode(std::vector<int>(ids.begin(), ids.end()), &text));
+}
+
+u32 SentencePieceTokenizer::vocabularySize() const {
+    return processor_.GetPieceSize();
+}
+
+AbstractTokenizer::TokenId SentencePieceTokenizer::tokenStrToId(std::string const& token) const {
+    // `PieceToId` returns the unknown id for unknown pieces
+    int id = processor_.PieceToId(token);
+    return (processor_.IsUnknown(id) and processor_.IdToPiece(id) != token) ? invalidTokenId : id;
+}
+
+Core::Status SentencePieceTokenizer::tokenIdToStr(TokenId id, std::string& token) const {
+    // `IdToPiece` does not check the range
+    Core::Status status = checkTokenId(id);
+    if (status.ok()) {
+        token = processor_.IdToPiece(id);
+    }
+    return status;
+}
+
+Core::Status SentencePieceTokenizer::wordBoundaryMarks(TokenId id, WordBoundaryMarks& marks) const {
+    Core::Status status = checkTokenId(id);
+    if (not status.ok()) {
+        return status;
+    }
+    std::string const& piece = processor_.IdToPiece(id);
+    if (standalonePieces_[id]) {
+        marks = {true, true};
+    }
+    else if (whitespaceAsSuffix_) {
+        marks = {false, endsWith(piece, whitespace)};
+    }
+    else {
+        marks = {Core::startsWith(piece, whitespace), false};
+    }
+    return {};
+}
+
+Core::Status SentencePieceTokenizer::tokenize(std::string const& text, std::vector<std::string>& tokens) const {
+    return convertStatus(processor_.Encode(text, &tokens));
+}
+
+Core::Status SentencePieceTokenizer::detokenize(std::vector<std::string> const& tokens, std::string& text) const {
+    return convertStatus(processor_.Decode(tokens, &text));
+}
+
 SentencePieceTokenizer::SentencePieceTokenizer(Core::Configuration const& config)
         : Core::Component(config),
           Precursor(config),
-          whitespaceAsSuffix_(false) {
+          whitespaceAsSuffix_(false) {}
+
+Core::Status SentencePieceTokenizer::load() {
     std::string modelFile = paramModelFile(config);
     auto        status    = processor_.Load(modelFile);
     if (not status.ok()) {
-        criticalError("Failed to load SentencePiece model '%s': %s", modelFile.c_str(), status.ToString().c_str());
-        return;
+        // SentencePiece reports malformed models as internal errors
+        auto code = status.code() == sentencepiece::util::StatusCode::kNotFound ? Core::StatusCode::NotFound : Core::StatusCode::InvalidFileFormat;
+        return Core::Status(code, "Failed to load SentencePiece model '" + modelFile + "': " + status.ToString());
     }
 
     // The piece types and the option `treat_whitespace_as_suffix` are read from the model, see sentencepiece_model.proto
@@ -138,70 +220,11 @@ SentencePieceTokenizer::SentencePieceTokenizer(Core::Configuration const& config
         }
     });
     if (not valid or not nestedValid or standalonePieces_.size() != vocabularySize()) {
-        criticalError("Failed to read the pieces of SentencePiece model '%s'", modelFile.c_str());
-        return;
+        return Core::Status(Core::StatusCode::InvalidFileFormat, "Failed to read the pieces of SentencePiece model '" + modelFile + "'");
     }
 
     log("Loaded SentencePiece model with vocabulary size %u from '%s'", vocabularySize(), modelFile.c_str());
-}
-
-std::vector<std::string> SentencePieceTokenizer::tokenize(std::string const& text) const {
-    std::vector<std::string> pieces;
-    checkStatus(processor_.Encode(text, &pieces));
-    return pieces;
-}
-
-std::string SentencePieceTokenizer::detokenize(std::vector<std::string> const& tokens) const {
-    std::string text;
-    checkStatus(processor_.Decode(tokens, &text));
-    return text;
-}
-
-u32 SentencePieceTokenizer::vocabularySize() const {
-    return processor_.GetPieceSize();
-}
-
-AbstractTokenizer::TokenId SentencePieceTokenizer::tokenStrToId(std::string const& token) const {
-    // `PieceToId` returns the unknown id for unknown pieces
-    int id = processor_.PieceToId(token);
-    return (processor_.IsUnknown(id) and processor_.IdToPiece(id) != token) ? invalidTokenId : id;
-}
-
-std::string SentencePieceTokenizer::tokenIdToStr(TokenId id) const {
-    // `IdToPiece` does not check the range
-    return checkTokenId(id) ? processor_.IdToPiece(id) : std::string();
-}
-
-AbstractTokenizer::WordBoundaryMarks SentencePieceTokenizer::wordBoundaryMarks(TokenId id) const {
-    if (not checkTokenId(id)) {
-        return {false, false};
-    }
-    if (standalonePieces_[id]) {
-        return {true, true};
-    }
-    std::string const& piece = processor_.IdToPiece(id);
-    if (whitespaceAsSuffix_) {
-        return {false, endsWith(piece, whitespace)};
-    }
-    return {Core::startsWith(piece, whitespace), false};
-}
-
-std::vector<AbstractTokenizer::TokenId> SentencePieceTokenizer::encode(std::string const& text) const {
-    std::vector<int> ids;
-    checkStatus(processor_.Encode(text, &ids));
-    return {ids.begin(), ids.end()};
-}
-
-std::string SentencePieceTokenizer::decode(std::vector<TokenId> const& ids) const {
-    std::string text;
-    checkStatus(processor_.Decode(std::vector<int>(ids.begin(), ids.end()), &text));
-    return text;
-}
-
-void SentencePieceTokenizer::checkStatus(sentencepiece::util::Status const& status) const {
-    if (not status.ok()) {
-        error("SentencePiece error: %s", status.ToString().c_str());
-    }
+    return {};
 }
 
 }  // namespace Tokenizer

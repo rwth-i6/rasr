@@ -30,24 +30,23 @@ namespace Tokenizer {
  * Registry of tokenizer types. Allows registering tokenizers from anywhere in the codebase (e.g. src/Python).
  */
 class TokenizerFactory {
-private:
-    // Needs to be declared before `paramTokenizerType` because `paramTokenizerType` depends on `choices_`
-    Core::Choice choices_;
-
 public:
-    typedef std::function<TokenizerRef(Core::Configuration const&)> CreationFunction;
+    typedef std::function<Core::Status(Core::Configuration const&, TokenizerRef&)> CreationFunction;
 
-    Core::ParameterChoice paramTokenizerType;
+    // A string rather than a `Core::ParameterChoice`, which reports invalid values as configuration errors that
+    // terminate the program on exit
+    Core::ParameterString paramTokenizerType;
 
     TokenizerFactory();
 
     // Registering an existing name replaces its creation function
     void registerTokenizer(const char* name, CreationFunction creationFunction);
 
-    // Create a tokenizer of the type given by `paramTokenizerType`
-    TokenizerRef createTokenizer(Core::Configuration const& config) const;
+    // Create a tokenizer of the type given by `paramTokenizerType`. An unknown type results in `InvalidArgument`.
+    Core::Status createTokenizer(Core::Configuration const& config, TokenizerRef& tokenizer) const;
 
 private:
+    Core::Choice                  choices_;
     std::vector<CreationFunction> registry_;
 };
 

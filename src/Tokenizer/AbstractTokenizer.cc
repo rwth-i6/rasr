@@ -15,42 +15,46 @@
 
 #include "AbstractTokenizer.hh"
 
+#include <Core/StringUtilities.hh>
+
 namespace Tokenizer {
 
 AbstractTokenizer::AbstractTokenizer(Core::Configuration const& config)
         : Core::Component(config) {}
 
-std::vector<AbstractTokenizer::TokenId> AbstractTokenizer::encode(std::string const& text) const {
+Core::Status AbstractTokenizer::tokenize(std::string const& text, std::vector<std::string>& tokens) const {
     std::vector<TokenId> ids;
-    for (auto const& token : tokenize(text)) {
-        TokenId id = tokenStrToId(token);
-        if (id == invalidTokenId) {
-            error("Token '%s' is not part of the vocabulary", token.c_str());
-            continue;
-        }
-        ids.push_back(id);
+    Core::Status         status = encode(text, ids);
+    if (not status.ok()) {
+        return status;
     }
-    return ids;
+    tokens.resize(ids.size());
+    for (size_t i = 0ul; i < ids.size(); ++i) {
+        status = tokenIdToStr(ids[i], tokens[i]);
+        if (not status.ok()) {
+            return status;
+        }
+    }
+    return {};
 }
 
-std::string AbstractTokenizer::decode(std::vector<TokenId> const& ids) const {
-    std::vector<std::string> tokens;
-    tokens.reserve(ids.size());
-    for (auto id : ids) {
-        if (not checkTokenId(id)) {
-            return {};
+Core::Status AbstractTokenizer::detokenize(std::vector<std::string> const& tokens, std::string& text) const {
+    std::vector<TokenId> ids;
+    ids.reserve(tokens.size());
+    for (auto const& token : tokens) {
+        ids.push_back(tokenStrToId(token));
+        if (ids.back() == invalidTokenId) {
+            return Core::Status(Core::StatusCode::NotFound, "Token '" + token + "' is not part of the vocabulary");
         }
-        tokens.push_back(tokenIdToStr(id));
     }
-    return detokenize(tokens);
+    return decode(ids, text);
 }
 
-bool AbstractTokenizer::checkTokenId(TokenId id) const {
+Core::Status AbstractTokenizer::checkTokenId(TokenId id) const {
     if (id >= vocabularySize()) {
-        error("Invalid token id %u for vocabulary size %u", id, vocabularySize());
-        return false;
+        return Core::Status(Core::StatusCode::OutOfRange, Core::form("Invalid token id %u for vocabulary size %u", id, vocabularySize()));
     }
-    return true;
+    return {};
 }
 
 }  // namespace Tokenizer

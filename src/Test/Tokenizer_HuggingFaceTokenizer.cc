@@ -68,9 +68,9 @@ TEST_F(Tokenizer, HuggingFaceTokenizerTest, Tokenize) {
         return;
     }
     auto tokenizer = createTokenizer();
-    auto tokens    = tokenizer->tokenize(text);
+    auto tokens    = tokenize(*tokenizer, text);
     EXPECT_EQ(join(tokens), std::string("the Ġnewest Ġlower Ġtower Ġis Ġwide r Ġthan Ġ st raÃ Ł e Ġ x y"));
-    EXPECT_EQ(tokenizer->detokenize(tokens), text);
+    EXPECT_EQ(detokenize(*tokenizer, tokens), text);
 }
 
 TEST_F(Tokenizer, HuggingFaceTokenizerTest, Vocabulary) {
@@ -82,7 +82,7 @@ TEST_F(Tokenizer, HuggingFaceTokenizerTest, Vocabulary) {
     EXPECT_EQ(tokenizer->tokenStrToId("<s>"), 0u);
     EXPECT_EQ(tokenizer->tokenStrToId("Ġtower"), 266u);
     EXPECT_EQ(tokenizer->tokenStrToId("xy"), AbstractTokenizer::invalidTokenId);
-    EXPECT_EQ(tokenizer->tokenIdToStr(266u), std::string("Ġtower"));
+    EXPECT_EQ(tokenIdToStr(*tokenizer, 266u), std::string("Ġtower"));
 }
 
 TEST_F(Tokenizer, HuggingFaceTokenizerTest, EncodeDecode) {
@@ -90,9 +90,9 @@ TEST_F(Tokenizer, HuggingFaceTokenizerTest, EncodeDecode) {
         return;
     }
     auto tokenizer = createTokenizer();
-    auto ids       = tokenizer->encode(text);
+    auto ids       = encode(*tokenizer, text);
     EXPECT_EQ(join(ids), std::string("277 283 281 266 271 279 83 280 222 262 297 255 70 222 89 90"));
-    EXPECT_EQ(tokenizer->decode(ids), text);
+    EXPECT_EQ(decode(*tokenizer, ids), text);
 }
 
 // The post-processor of the test tokenizer prepends "<s>"
@@ -103,12 +103,22 @@ TEST_F(Tokenizer, HuggingFaceTokenizerTest, SpecialTokens) {
     setTokenizerParameter("add-special-tokens-on-encode", "true");
     setTokenizerParameter("remove-special-tokens-on-decode", "false");
     auto tokenizer = createTokenizer();
-    auto ids       = tokenizer->encode("the tower");
+    auto ids       = encode(*tokenizer, "the tower");
     EXPECT_EQ(join(ids), std::string("0 277 266"));
-    EXPECT_EQ(tokenizer->decode(ids), std::string("<s>the tower"));
+    EXPECT_EQ(decode(*tokenizer, ids), std::string("<s>the tower"));
 
     setTokenizerParameter("remove-special-tokens-on-decode", "true");
-    EXPECT_EQ(createTokenizer()->decode(ids), std::string("the tower"));
+    EXPECT_EQ(decode(*createTokenizer(), ids), std::string("the tower"));
+}
+
+// Special tokens in the text are only encoded as such if `encode-special-tokens-as-text` is disabled
+TEST_F(Tokenizer, HuggingFaceTokenizerTest, SpecialTokensInText) {
+    if (not tokenizersAvailable()) {
+        return;
+    }
+    EXPECT_EQ(join(tokenize(*createTokenizer(), "<s>the")), std::string("< s > the"));
+    setTokenizerParameter("encode-special-tokens-as-text", "false");
+    EXPECT_EQ(join(tokenize(*createTokenizer(), "<s>the")), std::string("<s> the"));
 }
 
 TEST_F(Tokenizer, HuggingFaceTokenizerTest, EmptyInput) {
@@ -116,10 +126,10 @@ TEST_F(Tokenizer, HuggingFaceTokenizerTest, EmptyInput) {
         return;
     }
     auto tokenizer = createTokenizer();
-    EXPECT_TRUE(tokenizer->tokenize("").empty());
-    EXPECT_TRUE(tokenizer->encode("").empty());
-    EXPECT_EQ(tokenizer->detokenize({}), std::string());
-    EXPECT_EQ(tokenizer->decode({}), std::string());
+    EXPECT_TRUE(tokenize(*tokenizer, "").empty());
+    EXPECT_TRUE(encode(*tokenizer, "").empty());
+    EXPECT_EQ(detokenize(*tokenizer, {}), std::string());
+    EXPECT_EQ(decode(*tokenizer, {}), std::string());
 }
 
 // Byte-level BPE keeps all whitespace, e.g. "Ġ" for blanks and "Ċ" for newlines
@@ -129,10 +139,10 @@ TEST_F(Tokenizer, HuggingFaceTokenizerTest, Whitespace) {
     }
     auto        tokenizer = createTokenizer();
     std::string text      = "the\ttower\nis  low";
-    auto        tokens    = tokenizer->tokenize(text);
+    auto        tokens    = tokenize(*tokenizer, text);
     EXPECT_EQ(join(tokens), std::string("the ĉ t ower Ċ is Ġ Ġl o w"));
-    EXPECT_EQ(tokenizer->detokenize(tokens), text);
-    EXPECT_EQ(tokenizer->decode(tokenizer->encode("   ")), std::string("   "));
+    EXPECT_EQ(detokenize(*tokenizer, tokens), text);
+    EXPECT_EQ(decode(*tokenizer, encode(*tokenizer, "   ")), std::string("   "));
 }
 
 TEST_F(Tokenizer, HuggingFaceTokenizerTest, Punctuation) {
@@ -141,9 +151,9 @@ TEST_F(Tokenizer, HuggingFaceTokenizerTest, Punctuation) {
     }
     auto        tokenizer = createTokenizer();
     std::string text      = " lower. tower, (new)! ";
-    auto        tokens    = tokenizer->tokenize(text);
+    auto        tokens    = tokenize(*tokenizer, text);
     EXPECT_EQ(join(tokens), std::string("Ġlower . Ġtower , Ġ ( ne w ) ! Ġ"));
-    EXPECT_EQ(tokenizer->detokenize(tokens), text);
+    EXPECT_EQ(detokenize(*tokenizer, tokens), text);
 }
 
 // Characters outside of the training data are split into bytes
@@ -152,30 +162,42 @@ TEST_F(Tokenizer, HuggingFaceTokenizerTest, RareCharacters) {
         return;
     }
     auto tokenizer = createTokenizer();
-    EXPECT_EQ(join(tokenizer->tokenize("🙂 tower")), std::string("ð Ł Ļ Ĥ Ġtower"));
-    EXPECT_EQ(tokenizer->decode(tokenizer->encode("🙂 e\u0301")), std::string("🙂 e\u0301"));
+    EXPECT_EQ(join(tokenize(*tokenizer, "🙂 tower")), std::string("ð Ł Ļ Ĥ Ġtower"));
+    EXPECT_EQ(decode(*tokenizer, encode(*tokenizer, "🙂 e\u0301")), std::string("🙂 e\u0301"));
 }
 
-// Python cannot represent invalid UTF-8 as str, which results in an error instead of an exception
+// Python cannot represent invalid UTF-8 as str
 TEST_F(Tokenizer, HuggingFaceTokenizerTest, InvalidUtf8) {
     if (not tokenizersAvailable()) {
         return;
     }
-    delayErrors();
-    auto tokenizer = createTokenizer();
-    EXPECT_TRUE(tokenizer->encode("\xff\xfelow").empty());
-    EXPECT_TRUE(tokenizer->hasFatalErrors());
+    auto                 tokenizer = createTokenizer();
+    std::vector<TokenId> ids;
+    EXPECT_FALSE(tokenizer->encode("\xff\xfelow", ids).ok());
 }
 
 TEST_F(Tokenizer, HuggingFaceTokenizerTest, InvalidTokenId) {
     if (not tokenizersAvailable()) {
         return;
     }
-    delayErrors();
-    auto tokenizer = createTokenizer();
-    EXPECT_EQ(tokenizer->tokenIdToStr(300u), std::string());
-    EXPECT_EQ(tokenizer->decode({277u, 300u}), std::string());
-    EXPECT_TRUE(tokenizer->hasFatalErrors());
+    auto                                 tokenizer = createTokenizer();
+    std::string                          result;
+    AbstractTokenizer::WordBoundaryMarks marks;
+    EXPECT_EQ(tokenizer->tokenIdToStr(300u, result).code(), Core::StatusCode::OutOfRange);
+    EXPECT_EQ(tokenizer->decode({277u, 300u}, result).code(), Core::StatusCode::OutOfRange);
+    EXPECT_EQ(tokenizer->wordBoundaryMarks(300u, marks).code(), Core::StatusCode::OutOfRange);
+}
+
+TEST_F(Tokenizer, HuggingFaceTokenizerTest, InvalidTokenizerFile) {
+    if (not tokenizersAvailable()) {
+        return;
+    }
+    Test::Directory         dir;
+    Tokenizer::TokenizerRef tokenizer;
+    setTokenizerParameter("tokenizer-file", "does-not-exist.json");
+    EXPECT_EQ(createTokenizer(tokenizer).code(), Core::StatusCode::NotFound);
+    setTokenizerParameter("tokenizer-file", writeFile(dir, "tokenizer.json", "{"));
+    EXPECT_EQ(createTokenizer(tokenizer).code(), Core::StatusCode::InvalidFileFormat);
 }
 
 // Byte-level BPE marks word starts with "Ġ", whitespace such as newlines and special tokens are words of their own
@@ -185,7 +207,7 @@ TEST_F(Tokenizer, HuggingFaceTokenizerTest, WordBoundaryMarks) {
     }
     setTokenizerParameter("add-special-tokens-on-encode", "true");
     auto tokenizer = createTokenizer();
-    EXPECT_EQ(formatWordBoundaryMarks(*tokenizer, tokenizer->encode("the tower,\nlow")), std::string("<s>:BA the:-- Ġtower:B- ,:-- Ċ:BA lo:-- w:--"));
+    EXPECT_EQ(formatWordBoundaryMarks(*tokenizer, encode(*tokenizer, "the tower,\nlow")), std::string("<s>:BA the:-- Ġtower:B- ,:-- Ċ:BA lo:-- w:--"));
 }
 
 // The marking is determined from the decoder, here tested with minimal tokenizers
@@ -212,11 +234,10 @@ TEST_F(Tokenizer, HuggingFaceTokenizerTest, WordBoundaryMarksUnknownDecoder) {
     }
     Test::Directory dir;
     setTokenizerParameter("tokenizer-file", writeFile(dir, "tokenizer.json", minimalTokenizer("null")));
-    delayErrors();
-    auto tokenizer = createTokenizer();
-    EXPECT_TRUE(tokenizer->wordBoundaryMarks(4u).before);  // Special tokens do not depend on the decoder
-    tokenizer->wordBoundaryMarks(0u);
-    EXPECT_TRUE(tokenizer->hasFatalErrors());
+    auto                                 tokenizer = createTokenizer();
+    AbstractTokenizer::WordBoundaryMarks marks;
+    EXPECT_EQ(formatWordBoundaryMarks(*tokenizer, {4u}), std::string("[S]:BA"));  // Special tokens do not depend on the decoder
+    EXPECT_EQ(tokenizer->wordBoundaryMarks(0u, marks).code(), Core::StatusCode::Unimplemented);
 }
 
 }  // namespace Tokenizer

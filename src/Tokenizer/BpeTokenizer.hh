@@ -33,7 +33,7 @@ namespace Tokenizer {
  * `vocab-file` defines the token ids as a RETURNN-style python dict literal {'<s>': 0, 'lo@@': 1, ...}. As in RETURNN
  * and `apply_bpe.py --vocabulary`, subwords that are not in the vocabulary are split by reversing their merges until
  * they are in the vocabulary or cannot be split further. When encoding, the remaining out-of-vocabulary tokens are
- * mapped to `unknown-token` if it is set.
+ * mapped to `unknown-token` if it is set, otherwise they result in `NotFound`.
  */
 class BpeTokenizer : public AbstractTokenizer {
 public:
@@ -44,19 +44,21 @@ public:
     static const Core::ParameterString paramSeparator;
     static const Core::ParameterString paramUnknownToken;
 
-    BpeTokenizer(Core::Configuration const& config);
+    static Core::Status create(Core::Configuration const& config, TokenizerRef& tokenizer);
 
-    std::vector<std::string> tokenize(std::string const& text) const override;
-    std::string              detokenize(std::vector<std::string> const& tokens) const override;
+    Core::Status encode(std::string const& text, std::vector<TokenId>& ids) const override;
+    Core::Status decode(std::vector<TokenId> const& ids, std::string& text) const override;
 
-    u32         vocabularySize() const override;
-    TokenId     tokenStrToId(std::string const& token) const override;
-    std::string tokenIdToStr(TokenId id) const override;
+    u32          vocabularySize() const override;
+    TokenId      tokenStrToId(std::string const& token) const override;
+    Core::Status tokenIdToStr(TokenId id, std::string& token) const override;
 
     // All subwords except the last one of a word end with the separator, so only boundaries after tokens are marked
-    WordBoundaryMarks wordBoundaryMarks(TokenId id) const override;
+    Core::Status wordBoundaryMarks(TokenId id, WordBoundaryMarks& marks) const override;
 
-    std::vector<TokenId> encode(std::string const& text) const override;
+    // Also for tokens that are not part of the vocabulary
+    Core::Status tokenize(std::string const& text, std::vector<std::string>& tokens) const override;
+    Core::Status detokenize(std::vector<std::string> const& tokens, std::string& text) const override;
 
 private:
     std::string const separator_;
@@ -72,9 +74,12 @@ private:
     std::vector<std::string>                 tokens_;  // Indexed by id
     TokenId                                  unknownTokenId_;
 
-    void loadCodes(std::string const& filename);
-    void loadVocabulary(std::string const& filename);
-    void addToken(std::string const& token, TokenId id);
+    BpeTokenizer(Core::Configuration const& config);
+
+    Core::Status load();
+    Core::Status loadCodes(std::string const& filename);
+    Core::Status loadVocabulary(std::string const& filename);
+    void         addToken(std::string const& token, TokenId id);
 
     std::vector<std::string> segmentWord(std::string const& word) const;
 

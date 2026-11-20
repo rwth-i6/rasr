@@ -16,6 +16,7 @@
 #include "Tokenizer.hh"
 
 #include <memory>
+#include <stdexcept>
 #include <string>
 
 #include <pybind11/stl.h>
@@ -23,8 +24,18 @@
 #include <Python/Tokenizer.hh>
 #include <Tokenizer/Module.hh>
 
-// Make it so that a `py::object` can use `Core::Ref` as a holder type instead of the usual `std::unique_ptr`.
-PYBIND11_DECLARE_HOLDER_TYPE(T, Core::Ref<T>, true);
+namespace {
+
+using Tokenizer::AbstractTokenizer;
+using TokenId = AbstractTokenizer::TokenId;
+
+void throwOnError(Core::Status const& status) {
+    if (not status.ok()) {
+        throw std::runtime_error(status.message());
+    }
+}
+
+}  // namespace
 
 void registerPythonTokenizer(std::string const& name, py::object const& pyTokenizerClass) {
     // The factory is destroyed with the static objects of RASR, which happens after the python interpreter has been
@@ -37,12 +48,16 @@ void registerPythonTokenizer(std::string const& name, py::object const& pyTokeni
     });
     Tokenizer::Module::instance().tokenizerFactory().registerTokenizer(
             name.c_str(),
-            [callable](Core::Configuration const& config) {
+            [callable](Core::Configuration const& config, Tokenizer::TokenizerRef& tokenizer) {
                 py::gil_scoped_acquire gil;
-                // Call constructor of `pyTokenizerClass`
-                py::object inst = (*callable)(config);
-                inst.cast<Python::PythonTokenizer*>()->setInstance(inst);
-                return inst.cast<Tokenizer::TokenizerRef>();
+                try {
+                    // Call constructor of `pyTokenizerClass`. The returned pointer keeps the python object alive.
+                    tokenizer = (*callable)(config).cast<Tokenizer::TokenizerRef>();
+                    return Core::Status();
+                }
+                catch (std::exception const& exception) {  // Python exceptions and pybind11 cast errors
+                    return Core::Status(Core::StatusCode::Unknown, std::string("Failed to create python tokenizer: ") + exception.what());
+                }
             });
 }
 
@@ -62,29 +77,33 @@ void bindTokenizer(py::module_& module) {
     module.def(
             "create_tokenizer",
             [](Core::Configuration const& config) {
-                return Tokenizer::Module::instance().tokenizerFactory().createTokenizer(Core::Configuration(config, "tokenizer"));
+                Tokenizer::TokenizerRef tokenizer;
+                throwOnError(Tokenizer::Module::instance().tokenizerFactory().createTokenizer(Core::Configuration(config, "tokenizer"), tokenizer));
+                return tokenizer;
             },
             py::arg("config"),
             "Create the tokenizer configured via `*.tokenizer.*`, e.g. `*.tokenizer.type`. Works for native as well as registered python tokenizer types.");
 
-    // Specify `Python::PythonTokenizer` as trampoline class and `Core::Ref<Tokenizer::AbstractTokenizer>` as holder type
-    py::class_<Tokenizer::AbstractTokenizer, Python::PythonTokenizer, Tokenizer::TokenizerRef> pyTokenizer(
+    // Specify `Python::PythonTokenizer` as trampoline class and `py::smart_holder` as holder type, which allows passing
+    // python implementations to RASR as `std::shared_ptr`
+    py::class_<AbstractTokenizer, Python::PythonTokenizer, py::smart_holder> pyTokenizer(
             module,
             "Tokenizer",
             "Abstract base class for tokenizers that convert between text and token sequences.\n"
             "Concrete subclasses need to implement the following methods:\n"
-            " - `tokenize`\n"
-            " - `detokenize`\n"
+            " - `encode`\n"
+            " - `decode`\n"
             " - `vocabulary_size`\n"
             " - `token_str_to_id`\n"
             " - `token_id_to_str`\n"
             " - `word_boundary_marks`\n"
-            "`encode` and `decode` can optionally be overridden.");
+            "`tokenize` and `detokenize` can optionally be overridden.\n"
+            "Errors raise a `RuntimeError`.");
 
-    pyTokenizer.attr("INVALID_TOKEN_ID") = Tokenizer::AbstractTokenizer::invalidTokenId;
+    pyTokenizer.attr("INVALID_TOKEN_ID") = AbstractTokenizer::invalidTokenId;
 
     // Registered before `word_boundary_marks`, which returns it
-    using WordBoundaryMarks = Tokenizer::AbstractTokenizer::WordBoundaryMarks;
+    using WordBoundaryMarks = AbstractTokenizer::WordBoundaryMarks;
     py::class_<WordBoundaryMarks>(pyTokenizer, "WordBoundaryMarks", "Word boundaries that a token marks before and after itself, see `Tokenizer.word_boundary_marks`.")
             .def(py::init([](bool before, bool after) { return WordBoundaryMarks{before, after}; }), py::arg("before"), py::arg("after"))
             .def_readwrite("before", &WordBoundaryMarks::before)
@@ -99,51 +118,75 @@ void bindTokenizer(py::module_& module) {
             "Construct a tokenizer from a RASR config.");
 
     pyTokenizer.def(
-            "tokenize",
-            &Tokenizer::AbstractTokenizer::tokenize,
+            "encode",
+            [](AbstractTokenizer const& self, std::string const& text) {
+                std::vector<TokenId> ids;
+                throwOnError(self.encode(text, ids));
+                return ids;
+            },
             py::arg("text"),
-            "Split text into a list of token strings.");
+            "Convert text into a list of token ids.");
 
     pyTokenizer.def(
-            "detokenize",
-            &Tokenizer::AbstractTokenizer::detokenize,
-            py::arg("tokens"),
-            "Convert a list of token strings back to text.");
+            "decode",
+            [](AbstractTokenizer const& self, std::vector<TokenId> const& ids) {
+                std::string text;
+                throwOnError(self.decode(ids, text));
+                return text;
+            },
+            py::arg("ids"),
+            "Convert a list of token ids back to text.");
 
     pyTokenizer.def(
             "vocabulary_size",
-            &Tokenizer::AbstractTokenizer::vocabularySize,
+            &AbstractTokenizer::vocabularySize,
             "Return the number of token ids.");
 
     pyTokenizer.def(
             "token_str_to_id",
-            &Tokenizer::AbstractTokenizer::tokenStrToId,
+            &AbstractTokenizer::tokenStrToId,
             py::arg("token"),
             "Return the id of a token string or `INVALID_TOKEN_ID` if it is not part of the vocabulary.");
 
     pyTokenizer.def(
             "token_id_to_str",
-            &Tokenizer::AbstractTokenizer::tokenIdToStr,
+            [](AbstractTokenizer const& self, TokenId id) {
+                std::string token;
+                throwOnError(self.tokenIdToStr(id, token));
+                return token;
+            },
             py::arg("id"),
             "Return the token string of an id.");
 
     pyTokenizer.def(
             "word_boundary_marks",
-            &Tokenizer::AbstractTokenizer::wordBoundaryMarks,
+            [](AbstractTokenizer const& self, TokenId id) {
+                WordBoundaryMarks marks;
+                throwOnError(self.wordBoundaryMarks(id, marks));
+                return marks;
+            },
             py::arg("id"),
             "Return the word boundaries that a token marks before and after itself. A word boundary lies between two consecutive\n"
             "tokens if the first one marks it after itself or the second one before itself. Most tokenizers only mark one side,\n"
             "e.g. BPE tokens without \"@@\" mark a boundary after themselves and SentencePiece pieces with \"▁\" one before themselves.");
 
     pyTokenizer.def(
-            "encode",
-            &Tokenizer::AbstractTokenizer::encode,
+            "tokenize",
+            [](AbstractTokenizer const& self, std::string const& text) {
+                std::vector<std::string> tokens;
+                throwOnError(self.tokenize(text, tokens));
+                return tokens;
+            },
             py::arg("text"),
-            "Convert text into a list of token ids.");
+            "Split text into a list of token strings.");
 
     pyTokenizer.def(
-            "decode",
-            &Tokenizer::AbstractTokenizer::decode,
-            py::arg("ids"),
-            "Convert a list of token ids back to text.");
+            "detokenize",
+            [](AbstractTokenizer const& self, std::vector<std::string> const& tokens) {
+                std::string text;
+                throwOnError(self.detokenize(tokens, text));
+                return text;
+            },
+            py::arg("tokens"),
+            "Convert a list of token strings back to text.");
 }

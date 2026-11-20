@@ -33,6 +33,8 @@ namespace Test {
  */
 class TokenizerFixture : public ConfigurableFixture {
 public:
+    typedef Tokenizer::AbstractTokenizer::TokenId TokenId;
+
     virtual void setUp() {
         setParameter("*.channel", "nil");
         setParameter("*.error.channel", "stderr");
@@ -45,14 +47,8 @@ protected:
         setParameter("*.tokenizer." + name, value);
     }
 
-    // Expected errors are counted instead of terminating and not printed, check them with `hasFatalErrors()`
-    void delayErrors() {
-        setTokenizerParameter("on-error", "delayed-exit");
-        setTokenizerParameter("error.channel", "nil");
-    }
-
-    Tokenizer::TokenizerRef createTokenizer() const {
-        return Tokenizer::Module::instance().tokenizerFactory().createTokenizer(select("tokenizer"));
+    Core::Status createTokenizer(Tokenizer::TokenizerRef& tokenizer) const {
+        return Tokenizer::Module::instance().tokenizerFactory().createTokenizer(select("tokenizer"), tokenizer);
     }
 
     static std::string writeFile(Test::Directory const& dir, std::string const& name, std::string const& content) {
@@ -62,14 +58,56 @@ protected:
         return path;
     }
 
+    static void expectOk(Core::Status const& status) {
+        CPPUNIT_ASSERT_MESSAGE(status.message(), status.ok());
+    }
+
+    // The following expect the creation or the call of the tokenizer to succeed, so that tests can compare the results
+    Tokenizer::TokenizerRef createTokenizer() const {
+        Tokenizer::TokenizerRef tokenizer;
+        expectOk(createTokenizer(tokenizer));
+        return tokenizer;
+    }
+
+    static std::vector<TokenId> encode(Tokenizer::AbstractTokenizer const& tokenizer, std::string const& input) {
+        std::vector<TokenId> ids;
+        expectOk(tokenizer.encode(input, ids));
+        return ids;
+    }
+
+    static std::string decode(Tokenizer::AbstractTokenizer const& tokenizer, std::vector<TokenId> const& ids) {
+        std::string result;
+        expectOk(tokenizer.decode(ids, result));
+        return result;
+    }
+
+    static std::vector<std::string> tokenize(Tokenizer::AbstractTokenizer const& tokenizer, std::string const& input) {
+        std::vector<std::string> tokens;
+        expectOk(tokenizer.tokenize(input, tokens));
+        return tokens;
+    }
+
+    static std::string detokenize(Tokenizer::AbstractTokenizer const& tokenizer, std::vector<std::string> const& tokens) {
+        std::string result;
+        expectOk(tokenizer.detokenize(tokens, result));
+        return result;
+    }
+
+    static std::string tokenIdToStr(Tokenizer::AbstractTokenizer const& tokenizer, TokenId id) {
+        std::string token;
+        expectOk(tokenizer.tokenIdToStr(id, token));
+        return token;
+    }
+
     // Word boundaries marked before ("B") and after ("A") the tokens, e.g. "lo@@:-- wer:-A"
-    static std::string formatWordBoundaryMarks(Tokenizer::AbstractTokenizer const& tokenizer, std::vector<Tokenizer::AbstractTokenizer::TokenId> const& ids) {
-        std::vector<std::string> marks;
+    static std::string formatWordBoundaryMarks(Tokenizer::AbstractTokenizer const& tokenizer, std::vector<TokenId> const& ids) {
+        std::vector<std::string> formatted;
         for (auto id : ids) {
-            auto boundaries = tokenizer.wordBoundaryMarks(id);
-            marks.push_back(tokenizer.tokenIdToStr(id) + ":" + (boundaries.before ? "B" : "-") + (boundaries.after ? "A" : "-"));
+            Tokenizer::AbstractTokenizer::WordBoundaryMarks marks;
+            expectOk(tokenizer.wordBoundaryMarks(id, marks));
+            formatted.push_back(tokenIdToStr(tokenizer, id) + ":" + (marks.before ? "B" : "-") + (marks.after ? "A" : "-"));
         }
-        return join(marks);
+        return join(formatted);
     }
 
     // Space-separated string representation of token or id sequences for comparison and readable test failures

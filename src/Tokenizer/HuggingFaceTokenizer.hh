@@ -18,6 +18,7 @@
 
 #include <string>
 #include <unordered_set>
+#include <vector>
 
 #include <Python/Utilities.hh>
 
@@ -40,22 +41,24 @@ public:
     static const Core::ParameterString paramTokenizerFile;
     static const Core::ParameterBool   paramAddSpecialTokensOnEncode;
     static const Core::ParameterBool   paramRemoveSpecialTokensOnDecode;
+    static const Core::ParameterBool   paramEncodeSpecialTokensAsText;
 
-    HuggingFaceTokenizer(Core::Configuration const& config);
+    static Core::Status create(Core::Configuration const& config, TokenizerRef& tokenizer);
+
     ~HuggingFaceTokenizer();
 
-    std::vector<std::string> tokenize(std::string const& text) const override;
-    std::string              detokenize(std::vector<std::string> const& tokens) const override;
+    Core::Status encode(std::string const& text, std::vector<TokenId>& ids) const override;
+    Core::Status decode(std::vector<TokenId> const& ids, std::string& text) const override;
 
-    u32         vocabularySize() const override;
-    TokenId     tokenStrToId(std::string const& token) const override;
-    std::string tokenIdToStr(TokenId id) const override;
+    u32          vocabularySize() const override;
+    TokenId      tokenStrToId(std::string const& token) const override;
+    Core::Status tokenIdToStr(TokenId id, std::string& token) const override;
 
-    // Determined from the decoder in tokenizer.json, special tokens are words of their own
-    WordBoundaryMarks wordBoundaryMarks(TokenId id) const override;
+    // Determined from the decoder in tokenizer.json, special tokens are words of their own. Unsupported decoders result
+    // in `Unimplemented`.
+    Core::Status wordBoundaryMarks(TokenId id, WordBoundaryMarks& marks) const override;
 
-    std::vector<TokenId> encode(std::string const& text) const override;
-    std::string          decode(std::vector<TokenId> const& ids) const override;
+    Core::Status tokenize(std::string const& text, std::vector<std::string>& tokens) const override;
 
 private:
     // How tokens mark word boundaries, see https://huggingface.co/docs/tokenizers/api/decoders
@@ -78,6 +81,10 @@ private:
     u32                         vocabularySize_;
     WordBoundaryMarking         wordBoundaryMarking_;
     std::unordered_set<TokenId> specialTokenIds_;
+
+    HuggingFaceTokenizer(Core::Configuration const& config);
+
+    Core::Status load();
 
     // Parses the JSON of a decoder, which may be None
     static WordBoundaryMarking parseWordBoundaryMarking(pybind11::handle decoder);

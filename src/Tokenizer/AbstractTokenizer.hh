@@ -16,11 +16,12 @@
 #ifndef _TOKENIZER_ABSTRACT_TOKENIZER_HH
 #define _TOKENIZER_ABSTRACT_TOKENIZER_HH
 
+#include <memory>
 #include <string>
 #include <vector>
 
 #include <Core/Component.hh>
-#include <Core/ReferenceCounting.hh>
+#include <Core/Status.hh>
 #include <Core/Types.hh>
 
 namespace Tokenizer {
@@ -30,9 +31,11 @@ namespace Tokenizer {
  *
  * Converts text to token sequences and back. Tokens are available both as strings
  * (e.g. to look them up as lemmas in a lexicon) and as ids of the tokenizer's own vocabulary.
+ *
+ * Methods that can fail return a status and write their result to the last argument, whose content is unspecified if
+ * the status is not ok. Invalid token ids result in `OutOfRange`.
  */
-class AbstractTokenizer : public virtual Core::Component,
-                          public Core::ReferenceCounted {
+class AbstractTokenizer : public virtual Core::Component {
 public:
     typedef u32              TokenId;
     static constexpr TokenId invalidTokenId = Core::Type<TokenId>::max;
@@ -54,8 +57,8 @@ public:
     AbstractTokenizer(Core::Configuration const& config);
     virtual ~AbstractTokenizer() = default;
 
-    virtual std::vector<std::string> tokenize(std::string const& text) const                  = 0;
-    virtual std::string              detokenize(std::vector<std::string> const& tokens) const = 0;
+    virtual Core::Status encode(std::string const& text, std::vector<TokenId>& ids) const = 0;
+    virtual Core::Status decode(std::vector<TokenId> const& ids, std::string& text) const = 0;
 
     // Valid ids are in [0, vocabularySize())
     virtual u32 vocabularySize() const = 0;
@@ -63,24 +66,21 @@ public:
     // Returns `invalidTokenId` if `token` is not part of the vocabulary
     virtual TokenId tokenStrToId(std::string const& token) const = 0;
 
-    // Raises an error and returns an empty string for invalid ids
-    virtual std::string tokenIdToStr(TokenId id) const = 0;
+    virtual Core::Status tokenIdToStr(TokenId id, std::string& token) const            = 0;
+    virtual Core::Status wordBoundaryMarks(TokenId id, WordBoundaryMarks& marks) const = 0;
 
-    // Raises an error and returns no boundaries for invalid ids
-    virtual WordBoundaryMarks wordBoundaryMarks(TokenId id) const = 0;
+    // Default: `encode` then `tokenIdToStr` for each id
+    virtual Core::Status tokenize(std::string const& text, std::vector<std::string>& tokens) const;
 
-    // Default: Apply `tokenize` then `tokenStrToId` to each item
-    virtual std::vector<TokenId> encode(std::string const& text) const;
-
-    // Default: Apply `tokenIdToStr` to each item then `detokenize`. Raises an error and returns an empty string for invalid ids.
-    virtual std::string decode(std::vector<TokenId> const& ids) const;
+    // Default: `tokenStrToId` for each token then `decode`. Tokens that are not part of the vocabulary result in `NotFound`.
+    virtual Core::Status detokenize(std::vector<std::string> const& tokens, std::string& text) const;
 
 protected:
-    // Raises an error if `id` is not in [0, vocabularySize())
-    bool checkTokenId(TokenId id) const;
+    // `OutOfRange` if `id` is not in [0, vocabularySize())
+    Core::Status checkTokenId(TokenId id) const;
 };
 
-typedef Core::Ref<AbstractTokenizer> TokenizerRef;
+typedef std::shared_ptr<AbstractTokenizer> TokenizerRef;
 
 }  // namespace Tokenizer
 

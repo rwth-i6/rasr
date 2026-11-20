@@ -178,49 +178,46 @@ const Core::ParameterString BpeTokenizer::paramUnknownToken(
         "token that out-of-vocabulary tokens are mapped to when encoding",
         "");
 
-BpeTokenizer::BpeTokenizer(Core::Configuration const& config)
-        : Core::Component(config),
-          Precursor(config),
-          separator_(paramSeparator(config)),
-          endOfWordAttached_(false),
-          unknownTokenId_(invalidTokenId) {
-    if (separator_.empty()) {
-        criticalError("BPE separator must not be empty");
+Core::Status BpeTokenizer::create(Core::Configuration const& config, TokenizerRef& tokenizer) {
+    std::shared_ptr<BpeTokenizer> bpe(new BpeTokenizer(config));
+    Core::Status                  status = bpe->load();
+    if (status.ok()) {
+        tokenizer = std::move(bpe);
     }
-    loadCodes(paramCodesFile(config));
-    loadVocabulary(paramVocabFile(config));
-    std::string unknownToken = paramUnknownToken(config);
-    if (not unknownToken.empty()) {
-        unknownTokenId_ = tokenStrToId(unknownToken);
-        if (unknownTokenId_ == invalidTokenId) {
-            criticalError("Unknown token '%s' is not part of the vocabulary", unknownToken.c_str());
-        }
-    }
+    return status;
 }
 
-std::vector<std::string> BpeTokenizer::tokenize(std::string const& text) const {
+Core::Status BpeTokenizer::encode(std::string const& text, std::vector<TokenId>& ids) const {
     std::vector<std::string> tokens;
-    for (auto const& word : splitWords(text)) {
-        auto subwords = segmentWord(word);
-        for (size_t i = 0ul; i + 1 < subwords.size(); ++i) {
-            tokens.push_back(subwords[i] + separator_);
-        }
-        tokens.push_back(subwords.back());
+    Core::Status             status = tokenize(text, tokens);
+    if (not status.ok()) {
+        return status;
     }
-    return tokens;
+    ids.clear();
+    for (auto const& token : tokens) {
+        TokenId id = tokenStrToId(token);
+        if (id == invalidTokenId) {
+            id = unknownTokenId_;
+        }
+        if (id == invalidTokenId) {
+            return Core::Status(Core::StatusCode::NotFound, "Token '" + token + "' is not part of the vocabulary");
+        }
+        ids.push_back(id);
+    }
+    return {};
 }
 
-std::string BpeTokenizer::detokenize(std::vector<std::string> const& tokens) const {
-    std::string text;
-    bool        continueWord = true;
-    for (auto const& token : tokens) {
-        if (not continueWord) {
-            text += utf8::blank;
+Core::Status BpeTokenizer::decode(std::vector<TokenId> const& ids, std::string& text) const {
+    std::vector<std::string> tokens;
+    tokens.reserve(ids.size());
+    for (auto id : ids) {
+        Core::Status status = checkTokenId(id);
+        if (not status.ok()) {
+            return status;
         }
-        continueWord = endsWith(token, separator_);
-        text.append(token, 0, continueWord ? token.size() - separator_.size() : token.size());
+        tokens.push_back(tokens_[id]);
     }
-    return text;
+    return detokenize(tokens, text);
 }
 
 u32 BpeTokenizer::vocabularySize() const {
@@ -232,34 +229,80 @@ AbstractTokenizer::TokenId BpeTokenizer::tokenStrToId(std::string const& token) 
     return it == tokenIds_.end() ? invalidTokenId : it->second;
 }
 
-std::string BpeTokenizer::tokenIdToStr(TokenId id) const {
-    return checkTokenId(id) ? tokens_[id] : std::string();
+Core::Status BpeTokenizer::tokenIdToStr(TokenId id, std::string& token) const {
+    Core::Status status = checkTokenId(id);
+    if (status.ok()) {
+        token = tokens_[id];
+    }
+    return status;
 }
 
-AbstractTokenizer::WordBoundaryMarks BpeTokenizer::wordBoundaryMarks(TokenId id) const {
-    if (not checkTokenId(id)) {
-        return {false, false};
+Core::Status BpeTokenizer::wordBoundaryMarks(TokenId id, WordBoundaryMarks& marks) const {
+    Core::Status status = checkTokenId(id);
+    if (status.ok()) {
+        marks = {false, not endsWith(tokens_[id], separator_)};
     }
-    return {false, not endsWith(tokens_[id], separator_)};
+    return status;
 }
 
-std::vector<AbstractTokenizer::TokenId> BpeTokenizer::encode(std::string const& text) const {
-    if (unknownTokenId_ == invalidTokenId) {
-        return Precursor::encode(text);
+Core::Status BpeTokenizer::tokenize(std::string const& text, std::vector<std::string>& tokens) const {
+    tokens.clear();
+    for (auto const& word : splitWords(text)) {
+        auto subwords = segmentWord(word);
+        for (size_t i = 0ul; i + 1 < subwords.size(); ++i) {
+            tokens.push_back(subwords[i] + separator_);
+        }
+        tokens.push_back(subwords.back());
     }
-    std::vector<TokenId> ids;
-    for (auto const& token : tokenize(text)) {
-        TokenId id = tokenStrToId(token);
-        ids.push_back(id == invalidTokenId ? unknownTokenId_ : id);
-    }
-    return ids;
+    return {};
 }
 
-void BpeTokenizer::loadCodes(std::string const& filename) {
+Core::Status BpeTokenizer::detokenize(std::vector<std::string> const& tokens, std::string& text) const {
+    text.clear();
+    bool continueWord = true;
+    for (auto const& token : tokens) {
+        if (not continueWord) {
+            text += utf8::blank;
+        }
+        continueWord = endsWith(token, separator_);
+        text.append(token, 0, continueWord ? token.size() - separator_.size() : token.size());
+    }
+    return {};
+}
+
+BpeTokenizer::BpeTokenizer(Core::Configuration const& config)
+        : Core::Component(config),
+          Precursor(config),
+          separator_(paramSeparator(config)),
+          endOfWordAttached_(false),
+          unknownTokenId_(invalidTokenId) {}
+
+Core::Status BpeTokenizer::load() {
+    if (separator_.empty()) {
+        return Core::Status(Core::StatusCode::InvalidArgument, "BPE separator must not be empty");
+    }
+    Core::Status status = loadCodes(paramCodesFile(config));
+    if (not status.ok()) {
+        return status;
+    }
+    status = loadVocabulary(paramVocabFile(config));
+    if (not status.ok()) {
+        return status;
+    }
+    std::string unknownToken = paramUnknownToken(config);
+    if (not unknownToken.empty()) {
+        unknownTokenId_ = tokenStrToId(unknownToken);
+        if (unknownTokenId_ == invalidTokenId) {
+            return Core::Status(Core::StatusCode::InvalidArgument, "Unknown token '" + unknownToken + "' is not part of the vocabulary");
+        }
+    }
+    return {};
+}
+
+Core::Status BpeTokenizer::loadCodes(std::string const& filename) {
     Core::CompressedInputStream in(filename.c_str());
     if (not in) {
-        criticalError("Failed to open BPE codes file '%s'", filename.c_str());
-        return;
+        return Core::Status(Core::StatusCode::NotFound, "Failed to open BPE codes file '" + filename + "'");
     }
 
     std::string line;
@@ -278,39 +321,38 @@ void BpeTokenizer::loadCodes(std::string const& filename) {
         }
         auto pair = Core::split(line, " ");
         if (pair.size() != 2ul) {
-            criticalError("Invalid line in BPE codes file '%s': '%s'", filename.c_str(), line.c_str());
-            return;
+            return Core::Status(Core::StatusCode::InvalidFileFormat, "Invalid line in BPE codes file '" + filename + "': '" + line + "'");
         }
         // On duplicates, the first occurrence takes precedence
         mergeRanks_.emplace(line, rank++);
         mergedPairs_.emplace(pair[0] + pair[1], std::make_pair(pair[0], pair[1]));
     }
     log("Loaded %zu BPE merge operations from '%s'", mergeRanks_.size(), filename.c_str());
+    return {};
 }
 
-void BpeTokenizer::loadVocabulary(std::string const& filename) {
+Core::Status BpeTokenizer::loadVocabulary(std::string const& filename) {
     Core::CompressedInputStream in(filename.c_str());
     if (not in) {
-        criticalError("Failed to open BPE vocabulary file '%s'", filename.c_str());
-        return;
+        return Core::Status(Core::StatusCode::NotFound, "Failed to open BPE vocabulary file '" + filename + "'");
     }
     std::string content((std::istreambuf_iterator<char>(in)), std::istreambuf_iterator<char>());
 
     VocabularyEntries entries;
     if (not parsePythonDict(content, entries)) {
-        criticalError("Malformed python dict in BPE vocabulary file '%s'", filename.c_str());
-        return;
+        return Core::Status(Core::StatusCode::InvalidFileFormat, "Malformed python dict in BPE vocabulary file '" + filename + "'");
     }
 
     for (auto const& [token, id] : entries) {
         // Ids are expected to be dense, which also bounds the size of `tokens_`
         if (id >= entries.size()) {
-            criticalError("Id %u of token '%s' in BPE vocabulary file '%s' exceeds the number of entries", id, token.c_str(), filename.c_str());
-            return;
+            return Core::Status(Core::StatusCode::InvalidFileFormat,
+                                Core::form("Id %u of token '%s' in BPE vocabulary file '%s' exceeds the number of entries", id, token.c_str(), filename.c_str()));
         }
         addToken(token, id);
     }
     log("Loaded BPE vocabulary of size %u from '%s'", vocabularySize(), filename.c_str());
+    return {};
 }
 
 void BpeTokenizer::addToken(std::string const& token, TokenId id) {

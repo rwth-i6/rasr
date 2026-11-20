@@ -28,9 +28,9 @@ public:
 
 TEST_F(Tokenizer, SentencePieceTokenizerTest, Tokenize) {
     auto tokenizer = createTokenizer();
-    auto tokens    = tokenizer->tokenize(text);
+    auto tokens    = tokenize(*tokenizer, text);
     EXPECT_EQ(join(tokens), std::string("▁th e ▁new est ▁low er ▁tower ▁ i s ▁wide r ▁th an ▁ st r a ß e ▁ xy"));
-    EXPECT_EQ(tokenizer->detokenize(tokens), text);
+    EXPECT_EQ(detokenize(*tokenizer, tokens), text);
 }
 
 TEST_F(Tokenizer, SentencePieceTokenizerTest, Vocabulary) {
@@ -39,67 +39,71 @@ TEST_F(Tokenizer, SentencePieceTokenizerTest, Vocabulary) {
     EXPECT_EQ(tokenizer->tokenStrToId("<unk>"), 0u);
     EXPECT_EQ(tokenizer->tokenStrToId("▁tower"), 6u);
     EXPECT_EQ(tokenizer->tokenStrToId("xy"), AbstractTokenizer::invalidTokenId);
-    EXPECT_EQ(tokenizer->tokenIdToStr(6u), std::string("▁tower"));
+    EXPECT_EQ(tokenIdToStr(*tokenizer, 6u), std::string("▁tower"));
 }
 
 // Unknown pieces are encoded as the unknown id and decoded as " ⁇ "
 TEST_F(Tokenizer, SentencePieceTokenizerTest, EncodeDecode) {
     auto tokenizer = createTokenizer();
-    auto ids       = tokenizer->encode(text);
+    auto ids       = encode(*tokenizer, text);
     EXPECT_EQ(join(ids), std::string("3 4 15 18 10 8 6 5 12 9 17 14 3 16 5 7 14 20 27 4 5 0"));
-    EXPECT_EQ(tokenizer->decode(ids), std::string("the newest lower tower is wider than straße  ⁇ "));
+    EXPECT_EQ(decode(*tokenizer, ids), std::string("the newest lower tower is wider than straße  ⁇ "));
 }
 
 TEST_F(Tokenizer, SentencePieceTokenizerTest, EmptyInput) {
     auto tokenizer = createTokenizer();
-    EXPECT_TRUE(tokenizer->tokenize("").empty());
-    EXPECT_TRUE(tokenizer->tokenize("   ").empty());
-    EXPECT_TRUE(tokenizer->encode("").empty());
-    EXPECT_EQ(tokenizer->detokenize({}), std::string());
-    EXPECT_EQ(tokenizer->decode({}), std::string());
+    EXPECT_TRUE(tokenize(*tokenizer, "").empty());
+    EXPECT_TRUE(tokenize(*tokenizer, "   ").empty());
+    EXPECT_TRUE(encode(*tokenizer, "").empty());
+    EXPECT_EQ(detokenize(*tokenizer, {}), std::string());
+    EXPECT_EQ(decode(*tokenizer, {}), std::string());
 }
 
 // With identity normalization only blanks become "▁", other whitespace is kept as characters
 TEST_F(Tokenizer, SentencePieceTokenizerTest, Whitespace) {
     auto tokenizer = createTokenizer();
-    auto tokens    = tokenizer->tokenize("the\ttower\nis  low");
+    auto tokens    = tokenize(*tokenizer, "the\ttower\nis  low");
     EXPECT_EQ(join(tokens), std::string("▁th e \t t o w er \n i s ▁low"));
-    EXPECT_EQ(tokenizer->detokenize(tokens), std::string("the\ttower\nis low"));
+    EXPECT_EQ(detokenize(*tokenizer, tokens), std::string("the\ttower\nis low"));
 }
 
 TEST_F(Tokenizer, SentencePieceTokenizerTest, Punctuation) {
     auto tokenizer = createTokenizer();
-    auto tokens    = tokenizer->tokenize(" lower. tower, (new)! ");
+    auto tokens    = tokenize(*tokenizer, " lower. tower, (new)! ");
     EXPECT_EQ(join(tokens), std::string("▁low er . ▁tower , ▁ ( n e w )!"));
-    EXPECT_EQ(tokenizer->detokenize(tokens), std::string("lower. tower, (new)!"));
+    EXPECT_EQ(detokenize(*tokenizer, tokens), std::string("lower. tower, (new)!"));
 }
 
 // Invalid UTF-8 bytes are replaced by U+FFFD
 TEST_F(Tokenizer, SentencePieceTokenizerTest, RareCharacters) {
     auto tokenizer = createTokenizer();
-    EXPECT_EQ(join(tokenizer->tokenize("🙂 tower")), std::string("▁ 🙂 ▁tower"));
-    EXPECT_EQ(join(tokenizer->tokenize("\xff\xfelow")), std::string("▁ \uFFFD\uFFFD l o w"));
-    EXPECT_EQ(join(tokenizer->encode("\xff\xfelow")), std::string("5 0 26 23 30"));
+    EXPECT_EQ(join(tokenize(*tokenizer, "🙂 tower")), std::string("▁ 🙂 ▁tower"));
+    EXPECT_EQ(join(tokenize(*tokenizer, "\xff\xfelow")), std::string("▁ \uFFFD\uFFFD l o w"));
+    EXPECT_EQ(join(encode(*tokenizer, "\xff\xfelow")), std::string("5 0 26 23 30"));
 }
 
 TEST_F(Tokenizer, SentencePieceTokenizerTest, InvalidTokenId) {
-    delayErrors();
-    auto tokenizer = createTokenizer();
-    EXPECT_EQ(tokenizer->tokenIdToStr(32u), std::string());
-    EXPECT_TRUE(tokenizer->hasFatalErrors());
+    auto                                 tokenizer = createTokenizer();
+    std::string                          result;
+    AbstractTokenizer::WordBoundaryMarks marks;
+    EXPECT_EQ(tokenizer->tokenIdToStr(32u, result).code(), Core::StatusCode::OutOfRange);
+    EXPECT_EQ(tokenizer->decode({3u, 32u}, result).code(), Core::StatusCode::OutOfRange);
+    EXPECT_EQ(tokenizer->wordBoundaryMarks(32u, marks).code(), Core::StatusCode::OutOfRange);
 }
 
-TEST_F(Tokenizer, SentencePieceTokenizerTest, DecodeInvalidTokenId) {
-    delayErrors();
-    auto tokenizer = createTokenizer();
-    EXPECT_EQ(tokenizer->decode({3u, 32u}), std::string());
-    EXPECT_TRUE(tokenizer->hasFatalErrors());
+TEST_F(Tokenizer, SentencePieceTokenizerTest, InvalidModel) {
+    Test::Directory         dir;
+    Tokenizer::TokenizerRef tokenizer;
+    setTokenizerParameter("model-file", "does-not-exist.model");
+    EXPECT_EQ(createTokenizer(tokenizer).code(), Core::StatusCode::NotFound);
+    setTokenizerParameter("model-file", writeFile(dir, "malformed.model", "not a model"));
+    EXPECT_EQ(createTokenizer(tokenizer).code(), Core::StatusCode::InvalidFileFormat);
 }
 
 // Pieces that start a word begin with "▁", control pieces and the unknown piece are words of their own
 TEST_F(Tokenizer, SentencePieceTokenizerTest, WordBoundaryMarks) {
     auto tokenizer = createTokenizer();
-    EXPECT_EQ(formatWordBoundaryMarks(*tokenizer, tokenizer->encode("the lower tower")), std::string("▁th:B- e:-- ▁low:B- er:-- ▁tower:B-"));
+    EXPECT_EQ(formatWordBoundaryMarks(*tokenizer, encode(*tokenizer, "the lower tower")), std::string("▁th:B- e:-- ▁low:B- er:-- ▁tower:B-"));
     EXPECT_EQ(formatWordBoundaryMarks(*tokenizer, {0u, 1u, 2u}), std::string("<unk>:BA <s>:BA </s>:BA"));
 }
 
@@ -107,7 +111,7 @@ TEST_F(Tokenizer, SentencePieceTokenizerTest, WordBoundaryMarks) {
 TEST_F(Tokenizer, SentencePieceTokenizerTest, WordBoundaryMarksSuffix) {
     setTokenizerParameter("model-file", Test::dataFile("tokenizer/sentencepiece_suffix.model"));
     auto tokenizer = createTokenizer();
-    EXPECT_EQ(formatWordBoundaryMarks(*tokenizer, tokenizer->encode("wider newest")), std::string("w:-- i:-- d:-- er▁:-A newest▁:-A"));
+    EXPECT_EQ(formatWordBoundaryMarks(*tokenizer, encode(*tokenizer, "wider newest")), std::string("w:-- i:-- d:-- er▁:-A newest▁:-A"));
     EXPECT_EQ(formatWordBoundaryMarks(*tokenizer, {0u, 1u}), std::string("<unk>:BA <s>:BA"));
 }
 

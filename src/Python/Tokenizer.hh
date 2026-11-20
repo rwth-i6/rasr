@@ -17,6 +17,7 @@
 #define _PYTHON_TOKENIZER_HH
 
 #include <pybind11/pybind11.h>
+#include <pybind11/trampoline_self_life_support.h>
 
 #include <Tokenizer/AbstractTokenizer.hh>
 
@@ -27,8 +28,13 @@ namespace Python {
 /*
  * Trampoline class that allows implementing tokenizers in python and registering them in the TokenizerFactory.
  * See https://pybind11.readthedocs.io/en/stable/advanced/classes.html for the "trampoline" pattern.
+ *
+ * The python methods return their results and raise exceptions, which are turned into a status with code `Unknown`.
+ *
+ * Hidden like its base `py::trampoline_self_life_support`, which `py::smart_holder` requires.
  */
-class PythonTokenizer : public Tokenizer::AbstractTokenizer {
+class __attribute__((visibility("hidden"))) PythonTokenizer : public Tokenizer::AbstractTokenizer,
+                                                              public py::trampoline_self_life_support {
 public:
     using Precursor = Tokenizer::AbstractTokenizer;
 
@@ -36,22 +42,21 @@ public:
     virtual ~PythonTokenizer() = default;
 
     // Must be overridden in python by the snake_case names of these methods
-    std::vector<std::string> tokenize(std::string const& text) const override;
-    std::string              detokenize(std::vector<std::string> const& tokens) const override;
-    u32                      vocabularySize() const override;
-    TokenId                  tokenStrToId(std::string const& token) const override;
-    std::string              tokenIdToStr(TokenId id) const override;
-    WordBoundaryMarks        wordBoundaryMarks(TokenId id) const override;
+    Core::Status encode(std::string const& text, std::vector<TokenId>& ids) const override;
+    Core::Status decode(std::vector<TokenId> const& ids, std::string& text) const override;
+    u32          vocabularySize() const override;
+    TokenId      tokenStrToId(std::string const& token) const override;
+    Core::Status tokenIdToStr(TokenId id, std::string& token) const override;
+    Core::Status wordBoundaryMarks(TokenId id, WordBoundaryMarks& marks) const override;
 
     // Can be overridden in python, otherwise uses the default implementations
-    std::vector<TokenId> encode(std::string const& text) const override;
-    std::string          decode(std::vector<TokenId> const& ids) const override;
+    Core::Status tokenize(std::string const& text, std::vector<std::string>& tokens) const override;
+    Core::Status detokenize(std::vector<std::string> const& tokens, std::string& text) const override;
 
-    // Keep track of python object as a member to make sure it doesn't get garbage collected
-    void setInstance(py::object const& instance);
-
-protected:
-    py::object pyInstance_;
+private:
+    // Calls the python method `name` and stores its result, `Unimplemented` if the method is not overridden
+    template<typename T, typename... Args>
+    Core::Status callOverride(char const* name, T& result, Args const&... args) const;
 };
 
 }  // namespace Python

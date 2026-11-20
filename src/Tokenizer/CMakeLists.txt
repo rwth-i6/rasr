@@ -11,7 +11,7 @@ if(${MODULE_SENTENCEPIECE})
 endif()
 
 if(${MODULE_PYTHON})
-    find_package(pybind11 REQUIRED)
+    find_package(pybind11 3.0 REQUIRED)
     target_sources(RasrTokenizer PRIVATE HuggingFaceTokenizer.cc)
     target_link_libraries(RasrTokenizer PUBLIC RasrPython pybind11::headers)
 endif()

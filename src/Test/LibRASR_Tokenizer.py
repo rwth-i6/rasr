@@ -31,11 +31,12 @@ class CharTokenizer(librasr.Tokenizer):
         super().__init__(config)
         self.vocab = list("abcdefghijklmnopqrstuvwxyz ")
 
-    def tokenize(self, text: str) -> list[str]:
-        return list(text)
+    # Raises ValueError for characters that are not part of the vocabulary
+    def encode(self, text: str) -> list[int]:
+        return [self.vocab.index(character) for character in text]
 
-    def detokenize(self, tokens: list[str]) -> str:
-        return "".join(tokens)
+    def decode(self, ids: list[int]) -> str:
+        return "".join(self.vocab[id] for id in ids)
 
     def vocabulary_size(self) -> int:
         return len(self.vocab)
@@ -53,10 +54,17 @@ class CharTokenizer(librasr.Tokenizer):
 
 
 class UpperCaseTokenizer(CharTokenizer):
-    """Additionally overrides `decode`."""
+    """Additionally overrides `detokenize`."""
 
-    def decode(self, ids: list[int]) -> str:
-        return super().decode(ids).upper()
+    def detokenize(self, tokens: list[str]) -> str:
+        return super().detokenize(tokens).upper()
+
+
+class IncompleteTokenizer(librasr.Tokenizer):
+    """Does not implement `encode`."""
+
+    def vocabulary_size(self) -> int:
+        return 0
 
 
 librasr.register_tokenizer_type("test-chars", CharTokenizer)
@@ -88,6 +96,43 @@ class ConfiguredTokenizerTest(unittest.TestCase):
         self.assertEqual((boundaries.before, boundaries.after), (False, False))
         self.assertTrue(tokenizer.word_boundary_marks(tokenizer.token_str_to_id("r")).after)
         self.assertEqual(tokenizer.decode([2, 8, 3, 1]), "the newest tower <unk>")
+
+    def test_errors(self) -> None:
+        config = make_config(
+            **{
+                "lib-rasr.tokenizer.type": "bpe",
+                "lib-rasr.tokenizer.codes-file": str(DATA_DIR / "bpe.codes"),
+                "lib-rasr.tokenizer.vocab-file": str(DATA_DIR / "bpe.vocab.py"),
+            }
+        )
+        tokenizer = librasr.create_tokenizer(config)
+        with self.assertRaisesRegex(RuntimeError, "not part of the vocabulary"):
+            tokenizer.encode("xy")
+        with self.assertRaisesRegex(RuntimeError, "Invalid token id"):
+            tokenizer.token_id_to_str(34)
+        config.set("lib-rasr.tokenizer.vocab-file", str(DATA_DIR / "does-not-exist.py"))
+        with self.assertRaisesRegex(RuntimeError, "does-not-exist.py"):
+            librasr.create_tokenizer(config)
+
+    # Handled errors do not terminate the program later
+    def test_exit_after_error(self) -> None:
+        code = (
+            "import librasr\n"
+            "config = librasr.Configuration()\n"
+            "config.set('*.tokenizer.type', 'bpe')\n"
+            f"config.set('*.tokenizer.codes-file', {str(DATA_DIR / 'bpe.codes')!r})\n"
+            f"config.set('*.tokenizer.vocab-file', {str(DATA_DIR / 'bpe.vocab.py')!r})\n"
+            "librasr.create_tokenizer(config)\n"
+            "config.set('*.tokenizer.type', 'does-not-exist')\n"
+            "try:\n"
+            "    librasr.create_tokenizer(config)\n"
+            "except RuntimeError as error:\n"
+            "    assert 'No valid tokenizer type' in str(error)\n"
+            "else:\n"
+            "    raise AssertionError('no error')\n"
+        )
+        process = subprocess.run([sys.executable, "-c", code], capture_output=True)
+        self.assertEqual(process.returncode, 0, process.stderr.decode())
 
     def test_sub_config(self) -> None:
         config = make_config(
@@ -131,10 +176,10 @@ class PythonTokenizerTest(unittest.TestCase):
         self.config.set("lib-rasr.tokenizer.type", "test-chars")
         tokenizer = librasr.create_tokenizer(self.config)
         self.assertIsInstance(tokenizer, CharTokenizer)
-        # The default implementations of `encode` and `decode` in C++ call the python methods
-        ids = tokenizer.encode("hello world")
-        self.assertEqual(ids, [7, 4, 11, 11, 14, 26, 22, 14, 17, 11, 3])
-        self.assertEqual(tokenizer.decode(ids), "hello world")
+        # The default implementations of `tokenize` and `detokenize` in C++ call the python methods
+        tokens = tokenizer.tokenize("hello world")
+        self.assertEqual(tokens, list("hello world"))
+        self.assertEqual(tokenizer.detokenize(tokens), "hello world")
         # Calling the C++ method goes through RASR to the python implementation
         boundaries = librasr.Tokenizer.word_boundary_marks(tokenizer, tokenizer.token_str_to_id(" "))
         self.assertEqual(repr(boundaries), "WordBoundaryMarks(before=True, after=True)")
@@ -142,7 +187,20 @@ class PythonTokenizerTest(unittest.TestCase):
     def test_override_default_method(self) -> None:
         self.config.set("lib-rasr.tokenizer.type", "test-upper-case")
         tokenizer = librasr.create_tokenizer(self.config)
-        self.assertEqual(tokenizer.decode(tokenizer.encode("hello")), "HELLO")
+        self.assertEqual(tokenizer.detokenize(tokenizer.tokenize("hello")), "HELLO")
+        # Also when called from C++
+        self.assertEqual(librasr.Tokenizer.detokenize(tokenizer, ["h", "i"]), "HI")
+
+    # Exceptions of python implementations are passed on when called from C++
+    def test_python_exception(self) -> None:
+        tokenizer = CharTokenizer(self.config)
+        with self.assertRaisesRegex(RuntimeError, "ValueError"):
+            tokenizer.tokenize("Hello")
+
+    def test_missing_method(self) -> None:
+        tokenizer = IncompleteTokenizer(self.config)
+        with self.assertRaisesRegex(RuntimeError, "encode"):
+            tokenizer.tokenize("a")
 
     def test_register_again(self) -> None:
         self.config.set("lib-rasr.tokenizer.type", "test-replaced")

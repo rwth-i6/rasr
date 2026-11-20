@@ -15,6 +15,8 @@
 
 #include "HuggingFaceTokenizer.hh"
 
+#include <fstream>
+
 #include <pybind11/gil.h>
 #include <pybind11/stl.h>
 
@@ -41,16 +43,16 @@ void initPython() {
     initializer.init();
 }
 
-// Runs `f` while holding the GIL. Python exceptions (e.g. for invalid UTF-8 input) are turned into errors, `fallback` is returned then.
-template<typename T, typename F>
-T callPython(Core::Component const& component, T fallback, F&& f) {
+// Runs `f` while holding the GIL. Python exceptions (e.g. for invalid UTF-8 input) are turned into a status.
+template<typename F>
+Core::Status callPython(F&& f) {
     py::gil_scoped_acquire gil;
     try {
-        return f();
+        f();
+        return {};
     }
     catch (std::exception const& exception) {  // Python exceptions and pybind11 cast errors
-        component.error("HuggingFace tokenizer error: %s", exception.what());
-        return fallback;
+        return Core::Status(Core::StatusCode::Unknown, std::string("HuggingFace tokenizer error: ") + exception.what());
     }
 }
 
@@ -90,32 +92,19 @@ const Core::ParameterBool HuggingFaceTokenizer::paramRemoveSpecialTokensOnDecode
         "e.g. [\"<s>\", \"hello\", \"</s>\"] -> \"hello\" instead of \"<s>hello</s>\"",
         true);
 
-HuggingFaceTokenizer::HuggingFaceTokenizer(Core::Configuration const& config)
-        : Core::Component(config),
-          Precursor(config),
-          addSpecialTokensOnEncode_(paramAddSpecialTokensOnEncode(config)),
-          removeSpecialTokensOnDecode_(paramRemoveSpecialTokensOnDecode(config)),
-          vocabularySize_(0u),
-          wordBoundaryMarking_({WordBoundaryMarking::Type::Unknown, ""}) {
-    initPython();
-    std::string            tokenizerFile = paramTokenizerFile(config);
-    py::gil_scoped_acquire gil;
-    try {
-        py::object tokenizer = py::module_::import("tokenizers").attr("Tokenizer").attr("from_file")(tokenizerFile);
-        vocabularySize_      = tokenizer.attr("get_vocab_size")(py::arg("with_added_tokens") = true).cast<u32>();
-        wordBoundaryMarking_ = parseWordBoundaryMarking(py::module_::import("json").attr("loads")(tokenizer.attr("to_str")())["decoder"]);
-        for (auto item : tokenizer.attr("get_added_tokens_decoder")().cast<py::dict>()) {
-            if (item.second.attr("special").cast<bool>()) {
-                specialTokenIds_.insert(item.first.cast<TokenId>());
-            }
-        }
-        tokenizer_.takeOver(tokenizer.release().ptr());
+const Core::ParameterBool HuggingFaceTokenizer::paramEncodeSpecialTokensAsText(
+        "encode-special-tokens-as-text",
+        "whether `tokenize` and `encode` treat special tokens in the text as ordinary text, "
+        "e.g. \"<s>hi\" -> [\"<\", \"s\", \">\", \"hi\"] instead of [\"<s>\", \"hi\"]",
+        true);
+
+Core::Status HuggingFaceTokenizer::create(Core::Configuration const& config, TokenizerRef& tokenizer) {
+    std::shared_ptr<HuggingFaceTokenizer> huggingFace(new HuggingFaceTokenizer(config));
+    Core::Status                          status = huggingFace->load();
+    if (status.ok()) {
+        tokenizer = std::move(huggingFace);
     }
-    catch (py::error_already_set const& exception) {
-        criticalError("Failed to load HuggingFace tokenizer '%s': %s", tokenizerFile.c_str(), exception.what());
-        return;
-    }
-    log("Loaded HuggingFace tokenizer with vocabulary size %u from '%s'", vocabularySize_, tokenizerFile.c_str());
+    return status;
 }
 
 HuggingFaceTokenizer::~HuggingFaceTokenizer() {
@@ -125,24 +114,23 @@ HuggingFaceTokenizer::~HuggingFaceTokenizer() {
     }
 }
 
-std::vector<std::string> HuggingFaceTokenizer::tokenize(std::string const& text) const {
-    return callPython(*this, std::vector<std::string>(), [&] {
-        return py::handle(tokenizer_).attr("encode")(text, py::arg("add_special_tokens") = addSpecialTokensOnEncode_).attr("tokens").cast<std::vector<std::string>>();
+Core::Status HuggingFaceTokenizer::encode(std::string const& text, std::vector<TokenId>& ids) const {
+    return callPython([&] {
+        ids = py::handle(tokenizer_).attr("encode")(text, py::arg("add_special_tokens") = addSpecialTokensOnEncode_).attr("ids").cast<std::vector<TokenId>>();
     });
 }
 
-std::string HuggingFaceTokenizer::detokenize(std::vector<std::string> const& tokens) const {
-    std::vector<TokenId> ids;
-    ids.reserve(tokens.size());
-    for (auto const& token : tokens) {
-        TokenId id = tokenStrToId(token);
-        if (id == invalidTokenId) {
-            error("Token '%s' is not part of the vocabulary", token.c_str());
-            continue;
+Core::Status HuggingFaceTokenizer::decode(std::vector<TokenId> const& ids, std::string& text) const {
+    // `tokenizers` silently skips invalid ids
+    for (auto id : ids) {
+        Core::Status status = checkTokenId(id);
+        if (not status.ok()) {
+            return status;
         }
-        ids.push_back(id);
     }
-    return decode(ids);
+    return callPython([&] {
+        text = py::handle(tokenizer_).attr("decode")(ids, py::arg("skip_special_tokens") = removeSpecialTokensOnDecode_).cast<std::string>();
+    });
 }
 
 u32 HuggingFaceTokenizer::vocabularySize() const {
@@ -150,62 +138,101 @@ u32 HuggingFaceTokenizer::vocabularySize() const {
 }
 
 AbstractTokenizer::TokenId HuggingFaceTokenizer::tokenStrToId(std::string const& token) const {
-    return callPython(*this, invalidTokenId, [&] {
+    py::gil_scoped_acquire gil;
+    try {
         py::object id = py::handle(tokenizer_).attr("token_to_id")(token);
         return id.is_none() ? invalidTokenId : id.cast<TokenId>();
-    });
-}
-
-std::string HuggingFaceTokenizer::tokenIdToStr(TokenId id) const {
-    if (not checkTokenId(id)) {
-        return {};
     }
-    return callPython(*this, std::string(), [&] {
-        return py::handle(tokenizer_).attr("id_to_token")(id).cast<std::string>();
+    catch (py::error_already_set const&) {  // E.g. for invalid UTF-8, which cannot be part of the vocabulary
+        return invalidTokenId;
+    }
+}
+
+Core::Status HuggingFaceTokenizer::tokenIdToStr(TokenId id, std::string& token) const {
+    Core::Status status = checkTokenId(id);
+    if (not status.ok()) {
+        return status;
+    }
+    return callPython([&] {
+        token = py::handle(tokenizer_).attr("id_to_token")(id).cast<std::string>();
     });
 }
 
-AbstractTokenizer::WordBoundaryMarks HuggingFaceTokenizer::wordBoundaryMarks(TokenId id) const {
-    if (not checkTokenId(id)) {
-        return {false, false};
+Core::Status HuggingFaceTokenizer::wordBoundaryMarks(TokenId id, WordBoundaryMarks& marks) const {
+    std::string  token;
+    Core::Status status = tokenIdToStr(id, token);
+    if (not status.ok()) {
+        return status;
     }
     if (specialTokenIds_.count(id) > 0ul) {
-        return {true, true};
+        marks = {true, true};
+        return {};
     }
-    std::string        token  = tokenIdToStr(id);
     std::string const& marker = wordBoundaryMarking_.marker;
     switch (wordBoundaryMarking_.type) {
         case WordBoundaryMarking::Type::ByteLevel:
-            return {startsWithByteLevelWhitespace(token), endsWithByteLevelWhitespace(token)};
+            marks = {startsWithByteLevelWhitespace(token), endsWithByteLevelWhitespace(token)};
+            return {};
         case WordBoundaryMarking::Type::Prefix:
-            return {Core::startsWith(token, marker), false};
+            marks = {Core::startsWith(token, marker), false};
+            return {};
         case WordBoundaryMarking::Type::ContinuationPrefix:
-            return {not Core::startsWith(token, marker), false};
+            marks = {not Core::startsWith(token, marker), false};
+            return {};
         case WordBoundaryMarking::Type::Suffix:
-            return {false, token.size() >= marker.size() and token.compare(token.size() - marker.size(), marker.size(), marker) == 0};
+            marks = {false, token.size() >= marker.size() and token.compare(token.size() - marker.size(), marker.size(), marker) == 0};
+            return {};
         case WordBoundaryMarking::Type::Unknown:
             break;
     }
-    error("Word boundaries are not supported for the decoder of this HuggingFace tokenizer");
-    return {false, false};
+    return Core::Status(Core::StatusCode::Unimplemented, "Word boundaries are not supported for the decoder of this HuggingFace tokenizer");
 }
 
-std::vector<AbstractTokenizer::TokenId> HuggingFaceTokenizer::encode(std::string const& text) const {
-    return callPython(*this, std::vector<TokenId>(), [&] {
-        return py::handle(tokenizer_).attr("encode")(text, py::arg("add_special_tokens") = addSpecialTokensOnEncode_).attr("ids").cast<std::vector<TokenId>>();
+Core::Status HuggingFaceTokenizer::tokenize(std::string const& text, std::vector<std::string>& tokens) const {
+    return callPython([&] {
+        tokens = py::handle(tokenizer_).attr("encode")(text, py::arg("add_special_tokens") = addSpecialTokensOnEncode_).attr("tokens").cast<std::vector<std::string>>();
     });
 }
 
-std::string HuggingFaceTokenizer::decode(std::vector<TokenId> const& ids) const {
-    // `tokenizers` silently skips invalid ids
-    for (auto id : ids) {
-        if (not checkTokenId(id)) {
-            return {};
-        }
+HuggingFaceTokenizer::HuggingFaceTokenizer(Core::Configuration const& config)
+        : Core::Component(config),
+          Precursor(config),
+          addSpecialTokensOnEncode_(paramAddSpecialTokensOnEncode(config)),
+          removeSpecialTokensOnDecode_(paramRemoveSpecialTokensOnDecode(config)),
+          vocabularySize_(0u),
+          wordBoundaryMarking_({WordBoundaryMarking::Type::Unknown, ""}) {}
+
+Core::Status HuggingFaceTokenizer::load() {
+    std::string tokenizerFile = paramTokenizerFile(config);
+    if (not std::ifstream(tokenizerFile).good()) {
+        return Core::Status(Core::StatusCode::NotFound, "Failed to open HuggingFace tokenizer file '" + tokenizerFile + "'");
     }
-    return callPython(*this, std::string(), [&] {
-        return py::handle(tokenizer_).attr("decode")(ids, py::arg("skip_special_tokens") = removeSpecialTokensOnDecode_).cast<std::string>();
-    });
+    initPython();
+    py::gil_scoped_acquire gil;
+    py::object             tokenizers;
+    try {
+        tokenizers = py::module_::import("tokenizers");
+    }
+    catch (py::error_already_set const& exception) {
+        return Core::Status(Core::StatusCode::FailedPrecondition, std::string("Failed to import python package 'tokenizers': ") + exception.what());
+    }
+    try {
+        py::object tokenizer                    = tokenizers.attr("Tokenizer").attr("from_file")(tokenizerFile);
+        tokenizer.attr("encode_special_tokens") = paramEncodeSpecialTokensAsText(config);
+        vocabularySize_                         = tokenizer.attr("get_vocab_size")(py::arg("with_added_tokens") = true).cast<u32>();
+        wordBoundaryMarking_                    = parseWordBoundaryMarking(py::module_::import("json").attr("loads")(tokenizer.attr("to_str")())["decoder"]);
+        for (auto item : tokenizer.attr("get_added_tokens_decoder")().cast<py::dict>()) {
+            if (item.second.attr("special").cast<bool>()) {
+                specialTokenIds_.insert(item.first.cast<TokenId>());
+            }
+        }
+        tokenizer_.takeOver(tokenizer.release().ptr());
+    }
+    catch (py::error_already_set const& exception) {
+        return Core::Status(Core::StatusCode::InvalidFileFormat, "Failed to load HuggingFace tokenizer '" + tokenizerFile + "': " + exception.what());
+    }
+    log("Loaded HuggingFace tokenizer with vocabulary size %u from '%s'", vocabularySize_, tokenizerFile.c_str());
+    return {};
 }
 
 HuggingFaceTokenizer::WordBoundaryMarking HuggingFaceTokenizer::parseWordBoundaryMarking(py::handle decoder) {

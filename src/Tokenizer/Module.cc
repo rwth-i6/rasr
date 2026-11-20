@@ -28,27 +28,15 @@ namespace Tokenizer {
 Module_::Module_()
         : tokenizerFactory_() {
     // subword-nmt style BPE
-    tokenizerFactory_.registerTokenizer(
-            "bpe",
-            [](Core::Configuration const& config) {
-                return Core::ref(new BpeTokenizer(config));
-            });
+    tokenizerFactory_.registerTokenizer("bpe", &BpeTokenizer::create);
 
 #ifdef MODULE_SENTENCEPIECE
-    tokenizerFactory_.registerTokenizer(
-            "sentencepiece",
-            [](Core::Configuration const& config) {
-                return Core::ref(new SentencePieceTokenizer(config));
-            });
+    tokenizerFactory_.registerTokenizer("sentencepiece", &SentencePieceTokenizer::create);
 #endif
 
 #ifdef MODULE_PYTHON
     // Loads a tokenizer.json via the python `tokenizers` package
-    tokenizerFactory_.registerTokenizer(
-            "huggingface",
-            [](Core::Configuration const& config) {
-                return Core::ref(new HuggingFaceTokenizer(config));
-            });
+    tokenizerFactory_.registerTokenizer("huggingface", &HuggingFaceTokenizer::create);
 #endif
 }
 

@@ -7,11 +7,11 @@ in a lexicon) and as ids of the tokenizer's own vocabulary.
 
 Common parameters:
 
-type (enum):
+type (string):
     type of the tokenizer, see below. Further types can be registered in the tokenizer factory, e.g. from python.
 
-Encoding out-of-vocabulary tokens (where not mapped to an unknown token) and decoding invalid ids raise an error,
-which terminates the program unless configured otherwise via ``on-error``.
+Failures, e.g. a missing file, encoding out-of-vocabulary tokens (where not mapped to an unknown token) or decoding
+invalid ids, are returned to the caller as ``Core::Status``. From python they raise a ``RuntimeError``.
 
 Word boundaries
 ---------------
@@ -54,7 +54,7 @@ vocab-file (string):
 separator (string):
     suffix of non-final subwords, default ``@@``
 unknown-token (string):
-    token that out-of-vocabulary tokens are mapped to when encoding. If not set, encoding them raises an error.
+    token that out-of-vocabulary tokens are mapped to when encoding. If not set, encoding them fails.
 
 **Example**
 
@@ -99,6 +99,9 @@ add-special-tokens-on-encode (bool):
 remove-special-tokens-on-decode (bool):
     whether ``decode`` and ``detokenize`` drop special tokens from the text, e.g. ``["<s>", "hello", "</s>"]`` ->
     ``"hello"`` instead of ``"<s>hello</s>"``. Default true.
+encode-special-tokens-as-text (bool):
+    whether ``tokenize`` and ``encode`` treat special tokens in the text as ordinary text, e.g. ``"<s>hi"`` ->
+    ``["<", "s", ">", "hi"]`` instead of ``["<s>", "hi"]``. Default true.
 
 Usage from python
 -----------------
@@ -135,11 +138,11 @@ configured like the built-in types, also for components that create their tokeni
             super().__init__(config)
             self.vocab = list("abcdefghijklmnopqrstuvwxyz ")
 
-        def tokenize(self, text: str) -> list[str]:
-            return list(text)
+        def encode(self, text: str) -> list[int]:
+            return [self.vocab.index(character) for character in text]
 
-        def detokenize(self, tokens: list[str]) -> str:
-            return "".join(tokens)
+        def decode(self, ids: list[int]) -> str:
+            return "".join(self.vocab[id] for id in ids)
 
         def vocabulary_size(self) -> int:
             return len(self.vocab)
@@ -167,9 +170,9 @@ configured like the built-in types, also for components that create their tokeni
     ids = tokenizer.encode("hello world")  # [7, 4, 11, 11, 14, 26, 22, 14, 17, 11, 3]
     text = tokenizer.decode(ids)  # "hello world"
 
-``tokenize``, ``detokenize``, ``vocabulary_size``, ``token_str_to_id``, ``token_id_to_str`` and ``word_boundary_marks`` must
-be implemented.
-``encode`` and ``decode`` can be overridden, by default they are based on the other methods. Register the type before
+``encode``, ``decode``, ``vocabulary_size``, ``token_str_to_id``, ``token_id_to_str`` and ``word_boundary_marks`` must be
+implemented. Exceptions are passed on as failures to C++ callers.
+``tokenize`` and ``detokenize`` can be overridden, by default they are based on the other methods. Register the type before
 creating a tokenizer that uses it. Registering an existing name, also of a built-in type such as ``bpe``, replaces it.
 Instead of the class, a function that creates an instance from the config can be registered, e.g. to pass further
 arguments to the constructor.

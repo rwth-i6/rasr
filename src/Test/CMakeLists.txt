@@ -21,6 +21,7 @@ add_executable(
     Test_File.cc
     Test_Lexicon.cc
     Tokenizer_BpeTokenizer.cc
+    Tokenizer_TokenizerFactory.cc
     UnitTester.cc
 )
 add_install_executable(unit-test)

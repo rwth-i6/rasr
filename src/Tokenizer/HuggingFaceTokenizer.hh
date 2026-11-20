@@ -43,22 +43,22 @@ public:
     static const Core::ParameterBool   paramRemoveSpecialTokensOnDecode;
     static const Core::ParameterBool   paramEncodeSpecialTokensAsText;
 
-    static Core::Status create(Core::Configuration const& config, TokenizerRef& tokenizer);
+    static Core::Expected<TokenizerRef> create(Core::Configuration const& config);
 
     ~HuggingFaceTokenizer();
 
-    Core::Status encode(std::string const& text, std::vector<TokenId>& ids) const override;
-    Core::Status decode(std::vector<TokenId> const& ids, std::string& text) const override;
+    Core::Expected<std::vector<TokenId>> encode(std::string const& text) const override;
+    Core::Expected<std::string>          decode(std::vector<TokenId> const& ids) const override;
 
-    u32          vocabularySize() const override;
-    TokenId      tokenStrToId(std::string const& token) const override;
-    Core::Status tokenIdToStr(TokenId id, std::string& token) const override;
+    u32                         vocabularySize() const override;
+    TokenId                     tokenStrToId(std::string const& token) const override;
+    Core::Expected<std::string> tokenIdToStr(TokenId id) const override;
 
     // Determined from the decoder in tokenizer.json, special tokens are words of their own. Unsupported decoders result
     // in `Unimplemented`.
-    Core::Status wordBoundaryMarks(TokenId id, WordBoundaryMarks& marks) const override;
+    Core::Expected<WordBoundaryMarks> wordBoundaryMarks(TokenId id) const override;
 
-    Core::Status tokenize(std::string const& text, std::vector<std::string>& tokens) const override;
+    Core::Expected<std::vector<std::string>> tokenize(std::string const& text) const override;
 
 private:
     // How tokens mark word boundaries, see https://huggingface.co/docs/tokenizers/api/decoders

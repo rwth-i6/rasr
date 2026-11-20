@@ -104,9 +104,8 @@ TEST_F(Tokenizer, BpeTokenizerTest, UnknownToken) {
 }
 
 TEST_F(Tokenizer, BpeTokenizerTest, OutOfVocabulary) {
-    auto                 tokenizer = createTokenizer();
-    std::vector<TokenId> ids;
-    EXPECT_EQ(tokenizer->encode("the xy", ids).code(), Core::StatusCode::NotFound);
+    auto tokenizer = createTokenizer();
+    EXPECT_EQ(errorCode(tokenizer->encode("the xy")), Core::StatusCode::NotFound);
 }
 
 // As RETURNN does, subwords that are not in the vocabulary are split by reversing their merges, e.g. "owe" into "o"
@@ -130,39 +129,34 @@ TEST_F(Tokenizer, BpeTokenizerTest, VocabularySplitCodesVersion01) {
 }
 
 TEST_F(Tokenizer, BpeTokenizerTest, InvalidTokenId) {
-    auto                                 tokenizer = createTokenizer();
-    std::string                          result;
-    AbstractTokenizer::WordBoundaryMarks marks;
-    EXPECT_EQ(tokenizer->tokenIdToStr(34u, result).code(), Core::StatusCode::OutOfRange);
-    EXPECT_EQ(tokenizer->decode({2u, 34u}, result).code(), Core::StatusCode::OutOfRange);
-    EXPECT_EQ(tokenizer->wordBoundaryMarks(34u, marks).code(), Core::StatusCode::OutOfRange);
+    auto tokenizer = createTokenizer();
+    EXPECT_EQ(errorCode(tokenizer->tokenIdToStr(34u)), Core::StatusCode::OutOfRange);
+    EXPECT_EQ(errorCode(tokenizer->decode({2u, 34u})), Core::StatusCode::OutOfRange);
+    EXPECT_EQ(errorCode(tokenizer->wordBoundaryMarks(34u)), Core::StatusCode::OutOfRange);
 }
 
 TEST_F(Tokenizer, BpeTokenizerTest, MissingFile) {
-    Tokenizer::TokenizerRef tokenizer;
     setTokenizerParameter("codes-file", "does-not-exist.codes");
-    EXPECT_EQ(createTokenizer(tokenizer).code(), Core::StatusCode::NotFound);
+    EXPECT_EQ(errorCode(tryCreateTokenizer()), Core::StatusCode::NotFound);
     setTokenizerParameter("codes-file", Test::dataFile("tokenizer/bpe.codes"));
     setTokenizerParameter("vocab-file", "does-not-exist.py");
-    EXPECT_EQ(createTokenizer(tokenizer).code(), Core::StatusCode::NotFound);
+    EXPECT_EQ(errorCode(tryCreateTokenizer()), Core::StatusCode::NotFound);
 }
 
 TEST_F(Tokenizer, BpeTokenizerTest, MalformedVocabulary) {
-    Test::Directory         dir;
-    Tokenizer::TokenizerRef tokenizer;
+    Test::Directory dir;
     for (std::string vocabulary : {"['a']", "{'a': 0", "{'a' 0}", "{'a': -1}", "{'a': 1}", "{'\\x4': 0}"}) {
         setTokenizerParameter("vocab-file", writeFile(dir, "vocab.py", vocabulary));
-        EXPECT_EQ(createTokenizer(tokenizer).code(), Core::StatusCode::InvalidFileFormat);
+        EXPECT_EQ(errorCode(tryCreateTokenizer()), Core::StatusCode::InvalidFileFormat);
     }
 }
 
 TEST_F(Tokenizer, BpeTokenizerTest, InvalidParameter) {
-    Tokenizer::TokenizerRef tokenizer;
     setTokenizerParameter("separator", "");
-    EXPECT_EQ(createTokenizer(tokenizer).code(), Core::StatusCode::InvalidArgument);
+    EXPECT_EQ(errorCode(tryCreateTokenizer()), Core::StatusCode::InvalidArgument);
     setTokenizerParameter("separator", "@@");
     setTokenizerParameter("unknown-token", "<not-in-vocabulary>");
-    EXPECT_EQ(createTokenizer(tokenizer).code(), Core::StatusCode::InvalidArgument);
+    EXPECT_EQ(errorCode(tryCreateTokenizer()), Core::StatusCode::InvalidArgument);
 }
 
 // All subwords except the last one of a word end with the separator, so only boundaries after tokens are marked

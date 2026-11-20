@@ -22,32 +22,26 @@ namespace Tokenizer {
 AbstractTokenizer::AbstractTokenizer(Core::Configuration const& config)
         : Core::Component(config) {}
 
-Core::Status AbstractTokenizer::tokenize(std::string const& text, std::vector<std::string>& tokens) const {
-    std::vector<TokenId> ids;
-    Core::Status         status = encode(text, ids);
-    if (not status.ok()) {
-        return status;
+Core::Expected<std::vector<std::string>> AbstractTokenizer::tokenize(std::string const& text) const {
+    std::vector<TokenId>     ids = TRY(encode(text));
+    std::vector<std::string> tokens;
+    tokens.reserve(ids.size());
+    for (auto id : ids) {
+        tokens.push_back(TRY(tokenIdToStr(id)));
     }
-    tokens.resize(ids.size());
-    for (size_t i = 0ul; i < ids.size(); ++i) {
-        status = tokenIdToStr(ids[i], tokens[i]);
-        if (not status.ok()) {
-            return status;
-        }
-    }
-    return {};
+    return tokens;
 }
 
-Core::Status AbstractTokenizer::detokenize(std::vector<std::string> const& tokens, std::string& text) const {
+Core::Expected<std::string> AbstractTokenizer::detokenize(std::vector<std::string> const& tokens) const {
     std::vector<TokenId> ids;
     ids.reserve(tokens.size());
     for (auto const& token : tokens) {
         ids.push_back(tokenStrToId(token));
         if (ids.back() == invalidTokenId) {
-            return Core::Status(Core::StatusCode::NotFound, "Token '" + token + "' is not part of the vocabulary");
+            return std::unexpected(Core::Status(Core::StatusCode::NotFound, "Token '" + token + "' is not part of the vocabulary"));
         }
     }
-    return decode(ids, text);
+    return decode(ids);
 }
 
 Core::Status AbstractTokenizer::checkTokenId(TokenId id) const {

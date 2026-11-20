@@ -29,10 +29,12 @@ namespace {
 using Tokenizer::AbstractTokenizer;
 using TokenId = AbstractTokenizer::TokenId;
 
-void throwOnError(Core::Status const& status) {
-    if (not status.ok()) {
-        throw std::runtime_error(status.message());
+template<typename T>
+T valueOrThrow(Core::Expected<T> result) {
+    if (not result) {
+        throw std::runtime_error(result.error().message());
     }
+    return std::move(*result);
 }
 
 }  // namespace
@@ -48,15 +50,14 @@ void registerPythonTokenizer(std::string const& name, py::object const& pyTokeni
     });
     Tokenizer::Module::instance().tokenizerFactory().registerTokenizer(
             name.c_str(),
-            [callable](Core::Configuration const& config, Tokenizer::TokenizerRef& tokenizer) {
+            [callable](Core::Configuration const& config) -> Core::Expected<Tokenizer::TokenizerRef> {
                 py::gil_scoped_acquire gil;
                 try {
                     // Call constructor of `pyTokenizerClass`. The returned pointer keeps the python object alive.
-                    tokenizer = (*callable)(config).cast<Tokenizer::TokenizerRef>();
-                    return Core::Status();
+                    return (*callable)(config).cast<Tokenizer::TokenizerRef>();
                 }
                 catch (std::exception const& exception) {  // Python exceptions and pybind11 cast errors
-                    return Core::Status(Core::StatusCode::Unknown, std::string("Failed to create python tokenizer: ") + exception.what());
+                    return std::unexpected(Core::Status(Core::StatusCode::Unknown, std::string("Failed to create python tokenizer: ") + exception.what()));
                 }
             });
 }
@@ -77,9 +78,7 @@ void bindTokenizer(py::module_& module) {
     module.def(
             "create_tokenizer",
             [](Core::Configuration const& config) {
-                Tokenizer::TokenizerRef tokenizer;
-                throwOnError(Tokenizer::Module::instance().tokenizerFactory().createTokenizer(Core::Configuration(config, "tokenizer"), tokenizer));
-                return tokenizer;
+                return valueOrThrow(Tokenizer::Module::instance().tokenizerFactory().createTokenizer(Core::Configuration(config, "tokenizer")));
             },
             py::arg("config"),
             "Create the tokenizer configured via `*.tokenizer.*`, e.g. `*.tokenizer.type`. Works for native as well as registered python tokenizer types.");
@@ -120,9 +119,7 @@ void bindTokenizer(py::module_& module) {
     pyTokenizer.def(
             "encode",
             [](AbstractTokenizer const& self, std::string const& text) {
-                std::vector<TokenId> ids;
-                throwOnError(self.encode(text, ids));
-                return ids;
+                return valueOrThrow(self.encode(text));
             },
             py::arg("text"),
             "Convert text into a list of token ids.");
@@ -130,9 +127,7 @@ void bindTokenizer(py::module_& module) {
     pyTokenizer.def(
             "decode",
             [](AbstractTokenizer const& self, std::vector<TokenId> const& ids) {
-                std::string text;
-                throwOnError(self.decode(ids, text));
-                return text;
+                return valueOrThrow(self.decode(ids));
             },
             py::arg("ids"),
             "Convert a list of token ids back to text.");
@@ -151,9 +146,7 @@ void bindTokenizer(py::module_& module) {
     pyTokenizer.def(
             "token_id_to_str",
             [](AbstractTokenizer const& self, TokenId id) {
-                std::string token;
-                throwOnError(self.tokenIdToStr(id, token));
-                return token;
+                return valueOrThrow(self.tokenIdToStr(id));
             },
             py::arg("id"),
             "Return the token string of an id.");
@@ -161,9 +154,7 @@ void bindTokenizer(py::module_& module) {
     pyTokenizer.def(
             "word_boundary_marks",
             [](AbstractTokenizer const& self, TokenId id) {
-                WordBoundaryMarks marks;
-                throwOnError(self.wordBoundaryMarks(id, marks));
-                return marks;
+                return valueOrThrow(self.wordBoundaryMarks(id));
             },
             py::arg("id"),
             "Return the word boundaries that a token marks before and after itself. A word boundary lies between two consecutive\n"
@@ -173,9 +164,7 @@ void bindTokenizer(py::module_& module) {
     pyTokenizer.def(
             "tokenize",
             [](AbstractTokenizer const& self, std::string const& text) {
-                std::vector<std::string> tokens;
-                throwOnError(self.tokenize(text, tokens));
-                return tokens;
+                return valueOrThrow(self.tokenize(text));
             },
             py::arg("text"),
             "Split text into a list of token strings.");
@@ -183,9 +172,7 @@ void bindTokenizer(py::module_& module) {
     pyTokenizer.def(
             "detokenize",
             [](AbstractTokenizer const& self, std::vector<std::string> const& tokens) {
-                std::string text;
-                throwOnError(self.detokenize(tokens, text));
-                return text;
+                return valueOrThrow(self.detokenize(tokens));
             },
             py::arg("tokens"),
             "Convert a list of token strings back to text.");

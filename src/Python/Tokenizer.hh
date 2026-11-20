@@ -29,7 +29,7 @@ namespace Python {
  * Trampoline class that allows implementing tokenizers in python and registering them in the TokenizerFactory.
  * See https://pybind11.readthedocs.io/en/stable/advanced/classes.html for the "trampoline" pattern.
  *
- * The python methods return their results and raise exceptions, which are turned into a status with code `Unknown`.
+ * The python methods return their results and raise exceptions, which are turned into an error with code `Unknown`.
  *
  * Hidden like its base `py::trampoline_self_life_support`, which `py::smart_holder` requires.
  */
@@ -42,21 +42,21 @@ public:
     virtual ~PythonTokenizer() = default;
 
     // Must be overridden in python by the snake_case names of these methods
-    Core::Status encode(std::string const& text, std::vector<TokenId>& ids) const override;
-    Core::Status decode(std::vector<TokenId> const& ids, std::string& text) const override;
-    u32          vocabularySize() const override;
-    TokenId      tokenStrToId(std::string const& token) const override;
-    Core::Status tokenIdToStr(TokenId id, std::string& token) const override;
-    Core::Status wordBoundaryMarks(TokenId id, WordBoundaryMarks& marks) const override;
+    Core::Expected<std::vector<TokenId>> encode(std::string const& text) const override;
+    Core::Expected<std::string>          decode(std::vector<TokenId> const& ids) const override;
+    u32                                  vocabularySize() const override;
+    TokenId                              tokenStrToId(std::string const& token) const override;
+    Core::Expected<std::string>          tokenIdToStr(TokenId id) const override;
+    Core::Expected<WordBoundaryMarks>    wordBoundaryMarks(TokenId id) const override;
 
     // Can be overridden in python, otherwise uses the default implementations
-    Core::Status tokenize(std::string const& text, std::vector<std::string>& tokens) const override;
-    Core::Status detokenize(std::vector<std::string> const& tokens, std::string& text) const override;
+    Core::Expected<std::vector<std::string>> tokenize(std::string const& text) const override;
+    Core::Expected<std::string>              detokenize(std::vector<std::string> const& tokens) const override;
 
 private:
-    // Calls the python method `name` and stores its result, `Unimplemented` if the method is not overridden
+    // Calls the python method `name` and returns its result as T, `Unimplemented` if the method is not overridden
     template<typename T, typename... Args>
-    Core::Status callOverride(char const* name, T& result, Args const&... args) const;
+    Core::Expected<T> callOverride(char const* name, Args const&... args) const;
 };
 
 }  // namespace Python

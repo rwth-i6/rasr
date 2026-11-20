@@ -32,24 +32,24 @@ public:
 
     static const Core::ParameterString paramModelFile;
 
-    static Core::Status create(Core::Configuration const& config, TokenizerRef& tokenizer);
+    static Core::Expected<TokenizerRef> create(Core::Configuration const& config);
 
-    Core::Status encode(std::string const& text, std::vector<TokenId>& ids) const override;
-    Core::Status decode(std::vector<TokenId> const& ids, std::string& text) const override;
+    Core::Expected<std::vector<TokenId>> encode(std::string const& text) const override;
+    Core::Expected<std::string>          decode(std::vector<TokenId> const& ids) const override;
 
-    u32          vocabularySize() const override;
-    TokenId      tokenStrToId(std::string const& token) const override;
-    Core::Status tokenIdToStr(TokenId id, std::string& token) const override;
+    u32                         vocabularySize() const override;
+    TokenId                     tokenStrToId(std::string const& token) const override;
+    Core::Expected<std::string> tokenIdToStr(TokenId id) const override;
 
     // SentencePiece represents blanks by "▁" at the start of pieces, or at their end for models trained with
     // `treat_whitespace_as_suffix`, so only boundaries before or after tokens are marked. Control pieces such as "<s>",
     // the unknown piece and user-defined symbols are words of their own. Pieces spanning several words, which models
     // trained without `split_by_whitespace` can contain, only mark their outer boundaries.
-    Core::Status wordBoundaryMarks(TokenId id, WordBoundaryMarks& marks) const override;
+    Core::Expected<WordBoundaryMarks> wordBoundaryMarks(TokenId id) const override;
 
     // Pieces that are not part of the model are decoded as well
-    Core::Status tokenize(std::string const& text, std::vector<std::string>& tokens) const override;
-    Core::Status detokenize(std::vector<std::string> const& tokens, std::string& text) const override;
+    Core::Expected<std::vector<std::string>> tokenize(std::string const& text) const override;
+    Core::Expected<std::string>              detokenize(std::vector<std::string> const& tokens) const override;
 
 private:
     sentencepiece::SentencePieceProcessor processor_;

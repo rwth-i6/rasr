@@ -19,10 +19,8 @@ namespace Tokenizer {
 class TokenizerFactoryTest : public Test::TokenizerFixture {};
 
 TEST_F(Tokenizer, TokenizerFactoryTest, UnknownType) {
-    Tokenizer::TokenizerRef tokenizer;
     setTokenizerParameter("type", "does-not-exist");
-    EXPECT_EQ(createTokenizer(tokenizer).code(), Core::StatusCode::InvalidArgument);
-    EXPECT_FALSE(tokenizer);
+    EXPECT_EQ(errorCode(tryCreateTokenizer()), Core::StatusCode::InvalidArgument);
 }
 
 }  // namespace Tokenizer

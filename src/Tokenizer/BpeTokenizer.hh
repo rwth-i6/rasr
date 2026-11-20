@@ -44,21 +44,21 @@ public:
     static const Core::ParameterString paramSeparator;
     static const Core::ParameterString paramUnknownToken;
 
-    static Core::Status create(Core::Configuration const& config, TokenizerRef& tokenizer);
+    static Core::Expected<TokenizerRef> create(Core::Configuration const& config);
 
-    Core::Status encode(std::string const& text, std::vector<TokenId>& ids) const override;
-    Core::Status decode(std::vector<TokenId> const& ids, std::string& text) const override;
+    Core::Expected<std::vector<TokenId>> encode(std::string const& text) const override;
+    Core::Expected<std::string>          decode(std::vector<TokenId> const& ids) const override;
 
-    u32          vocabularySize() const override;
-    TokenId      tokenStrToId(std::string const& token) const override;
-    Core::Status tokenIdToStr(TokenId id, std::string& token) const override;
+    u32                         vocabularySize() const override;
+    TokenId                     tokenStrToId(std::string const& token) const override;
+    Core::Expected<std::string> tokenIdToStr(TokenId id) const override;
 
     // All subwords except the last one of a word end with the separator, so only boundaries after tokens are marked
-    Core::Status wordBoundaryMarks(TokenId id, WordBoundaryMarks& marks) const override;
+    Core::Expected<WordBoundaryMarks> wordBoundaryMarks(TokenId id) const override;
 
     // Also for tokens that are not part of the vocabulary
-    Core::Status tokenize(std::string const& text, std::vector<std::string>& tokens) const override;
-    Core::Status detokenize(std::vector<std::string> const& tokens, std::string& text) const override;
+    Core::Expected<std::vector<std::string>> tokenize(std::string const& text) const override;
+    Core::Expected<std::string>              detokenize(std::vector<std::string> const& tokens) const override;
 
 private:
     std::string const separator_;

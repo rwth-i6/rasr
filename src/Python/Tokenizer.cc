@@ -24,12 +24,12 @@ PythonTokenizer::PythonTokenizer(Core::Configuration const& config)
           Precursor(config) {
 }
 
-Core::Status PythonTokenizer::encode(std::string const& text, std::vector<TokenId>& ids) const {
-    return callOverride("encode", ids, text);
+Core::Expected<std::vector<PythonTokenizer::TokenId>> PythonTokenizer::encode(std::string const& text) const {
+    return callOverride<std::vector<TokenId>>("encode", text);
 }
 
-Core::Status PythonTokenizer::decode(std::vector<TokenId> const& ids, std::string& text) const {
-    return callOverride("decode", text, ids);
+Core::Expected<std::string> PythonTokenizer::decode(std::vector<TokenId> const& ids) const {
+    return callOverride<std::string>("decode", ids);
 }
 
 u32 PythonTokenizer::vocabularySize() const {
@@ -40,47 +40,46 @@ PythonTokenizer::TokenId PythonTokenizer::tokenStrToId(std::string const& token)
     PYBIND11_OVERRIDE_PURE_NAME(TokenId, Precursor, "token_str_to_id", tokenStrToId, token);
 }
 
-Core::Status PythonTokenizer::tokenIdToStr(TokenId id, std::string& token) const {
-    return callOverride("token_id_to_str", token, id);
+Core::Expected<std::string> PythonTokenizer::tokenIdToStr(TokenId id) const {
+    return callOverride<std::string>("token_id_to_str", id);
 }
 
-Core::Status PythonTokenizer::wordBoundaryMarks(TokenId id, WordBoundaryMarks& marks) const {
-    return callOverride("word_boundary_marks", marks, id);
+Core::Expected<PythonTokenizer::WordBoundaryMarks> PythonTokenizer::wordBoundaryMarks(TokenId id) const {
+    return callOverride<WordBoundaryMarks>("word_boundary_marks", id);
 }
 
-Core::Status PythonTokenizer::tokenize(std::string const& text, std::vector<std::string>& tokens) const {
+Core::Expected<std::vector<std::string>> PythonTokenizer::tokenize(std::string const& text) const {
     {
         py::gil_scoped_acquire gil;
         if (not py::get_override(static_cast<Precursor const*>(this), "tokenize")) {
-            return Precursor::tokenize(text, tokens);
+            return Precursor::tokenize(text);
         }
     }
-    return callOverride("tokenize", tokens, text);
+    return callOverride<std::vector<std::string>>("tokenize", text);
 }
 
-Core::Status PythonTokenizer::detokenize(std::vector<std::string> const& tokens, std::string& text) const {
+Core::Expected<std::string> PythonTokenizer::detokenize(std::vector<std::string> const& tokens) const {
     {
         py::gil_scoped_acquire gil;
         if (not py::get_override(static_cast<Precursor const*>(this), "detokenize")) {
-            return Precursor::detokenize(tokens, text);
+            return Precursor::detokenize(tokens);
         }
     }
-    return callOverride("detokenize", text, tokens);
+    return callOverride<std::string>("detokenize", tokens);
 }
 
 template<typename T, typename... Args>
-Core::Status PythonTokenizer::callOverride(char const* name, T& result, Args const&... args) const {
+Core::Expected<T> PythonTokenizer::callOverride(char const* name, Args const&... args) const {
     py::gil_scoped_acquire gil;
     py::function           method = py::get_override(static_cast<Precursor const*>(this), name);
     if (not method) {
-        return Core::Status(Core::StatusCode::Unimplemented, std::string("Python tokenizer does not implement `") + name + "`");
+        return std::unexpected(Core::Status(Core::StatusCode::Unimplemented, std::string("Python tokenizer does not implement `") + name + "`"));
     }
     try {
-        result = method(args...).template cast<T>();
-        return {};
+        return method(args...).template cast<T>();
     }
     catch (std::exception const& exception) {  // Python exceptions and pybind11 cast errors
-        return Core::Status(Core::StatusCode::Unknown, std::string("Python tokenizer error in `") + name + "`: " + exception.what());
+        return std::unexpected(Core::Status(Core::StatusCode::Unknown, std::string("Python tokenizer error in `") + name + "`: " + exception.what()));
     }
 }
 

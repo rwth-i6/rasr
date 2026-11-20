@@ -171,33 +171,29 @@ TEST_F(Tokenizer, HuggingFaceTokenizerTest, InvalidUtf8) {
     if (not tokenizersAvailable()) {
         return;
     }
-    auto                 tokenizer = createTokenizer();
-    std::vector<TokenId> ids;
-    EXPECT_FALSE(tokenizer->encode("\xff\xfelow", ids).ok());
+    auto tokenizer = createTokenizer();
+    EXPECT_FALSE(tokenizer->encode("\xff\xfelow").has_value());
 }
 
 TEST_F(Tokenizer, HuggingFaceTokenizerTest, InvalidTokenId) {
     if (not tokenizersAvailable()) {
         return;
     }
-    auto                                 tokenizer = createTokenizer();
-    std::string                          result;
-    AbstractTokenizer::WordBoundaryMarks marks;
-    EXPECT_EQ(tokenizer->tokenIdToStr(300u, result).code(), Core::StatusCode::OutOfRange);
-    EXPECT_EQ(tokenizer->decode({277u, 300u}, result).code(), Core::StatusCode::OutOfRange);
-    EXPECT_EQ(tokenizer->wordBoundaryMarks(300u, marks).code(), Core::StatusCode::OutOfRange);
+    auto tokenizer = createTokenizer();
+    EXPECT_EQ(errorCode(tokenizer->tokenIdToStr(300u)), Core::StatusCode::OutOfRange);
+    EXPECT_EQ(errorCode(tokenizer->decode({277u, 300u})), Core::StatusCode::OutOfRange);
+    EXPECT_EQ(errorCode(tokenizer->wordBoundaryMarks(300u)), Core::StatusCode::OutOfRange);
 }
 
 TEST_F(Tokenizer, HuggingFaceTokenizerTest, InvalidTokenizerFile) {
     if (not tokenizersAvailable()) {
         return;
     }
-    Test::Directory         dir;
-    Tokenizer::TokenizerRef tokenizer;
+    Test::Directory dir;
     setTokenizerParameter("tokenizer-file", "does-not-exist.json");
-    EXPECT_EQ(createTokenizer(tokenizer).code(), Core::StatusCode::NotFound);
+    EXPECT_EQ(errorCode(tryCreateTokenizer()), Core::StatusCode::NotFound);
     setTokenizerParameter("tokenizer-file", writeFile(dir, "tokenizer.json", "{"));
-    EXPECT_EQ(createTokenizer(tokenizer).code(), Core::StatusCode::InvalidFileFormat);
+    EXPECT_EQ(errorCode(tryCreateTokenizer()), Core::StatusCode::InvalidFileFormat);
 }
 
 // Byte-level BPE marks word starts with "Ġ", whitespace such as newlines and special tokens are words of their own
@@ -234,10 +230,9 @@ TEST_F(Tokenizer, HuggingFaceTokenizerTest, WordBoundaryMarksUnknownDecoder) {
     }
     Test::Directory dir;
     setTokenizerParameter("tokenizer-file", writeFile(dir, "tokenizer.json", minimalTokenizer("null")));
-    auto                                 tokenizer = createTokenizer();
-    AbstractTokenizer::WordBoundaryMarks marks;
+    auto tokenizer = createTokenizer();
     EXPECT_EQ(formatWordBoundaryMarks(*tokenizer, {4u}), std::string("[S]:BA"));  // Special tokens do not depend on the decoder
-    EXPECT_EQ(tokenizer->wordBoundaryMarks(0u, marks).code(), Core::StatusCode::Unimplemented);
+    EXPECT_EQ(errorCode(tokenizer->wordBoundaryMarks(0u)), Core::StatusCode::Unimplemented);
 }
 
 }  // namespace Tokenizer

@@ -11,7 +11,8 @@ type (string):
     type of the tokenizer, see below. Further types can be registered in the tokenizer factory, e.g. from python.
 
 Failures, e.g. a missing file, encoding out-of-vocabulary tokens (where not mapped to an unknown token) or decoding
-invalid ids, are returned to the caller as ``Core::Status``. From python they raise a ``RuntimeError``.
+invalid ids, are returned to the caller as the ``Core::Status`` error of a ``Core::Expected``. From python they raise a
+``RuntimeError``.
 
 Word boundaries
 ---------------

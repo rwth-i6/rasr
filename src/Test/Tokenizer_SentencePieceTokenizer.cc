@@ -83,21 +83,18 @@ TEST_F(Tokenizer, SentencePieceTokenizerTest, RareCharacters) {
 }
 
 TEST_F(Tokenizer, SentencePieceTokenizerTest, InvalidTokenId) {
-    auto                                 tokenizer = createTokenizer();
-    std::string                          result;
-    AbstractTokenizer::WordBoundaryMarks marks;
-    EXPECT_EQ(tokenizer->tokenIdToStr(32u, result).code(), Core::StatusCode::OutOfRange);
-    EXPECT_EQ(tokenizer->decode({3u, 32u}, result).code(), Core::StatusCode::OutOfRange);
-    EXPECT_EQ(tokenizer->wordBoundaryMarks(32u, marks).code(), Core::StatusCode::OutOfRange);
+    auto tokenizer = createTokenizer();
+    EXPECT_EQ(errorCode(tokenizer->tokenIdToStr(32u)), Core::StatusCode::OutOfRange);
+    EXPECT_EQ(errorCode(tokenizer->decode({3u, 32u})), Core::StatusCode::OutOfRange);
+    EXPECT_EQ(errorCode(tokenizer->wordBoundaryMarks(32u)), Core::StatusCode::OutOfRange);
 }
 
 TEST_F(Tokenizer, SentencePieceTokenizerTest, InvalidModel) {
-    Test::Directory         dir;
-    Tokenizer::TokenizerRef tokenizer;
+    Test::Directory dir;
     setTokenizerParameter("model-file", "does-not-exist.model");
-    EXPECT_EQ(createTokenizer(tokenizer).code(), Core::StatusCode::NotFound);
+    EXPECT_EQ(errorCode(tryCreateTokenizer()), Core::StatusCode::NotFound);
     setTokenizerParameter("model-file", writeFile(dir, "malformed.model", "not a model"));
-    EXPECT_EQ(createTokenizer(tokenizer).code(), Core::StatusCode::InvalidFileFormat);
+    EXPECT_EQ(errorCode(tryCreateTokenizer()), Core::StatusCode::InvalidFileFormat);
 }
 
 // Pieces that start a word begin with "▁", control pieces and the unknown piece are words of their own

@@ -178,46 +178,37 @@ const Core::ParameterString BpeTokenizer::paramUnknownToken(
         "token that out-of-vocabulary tokens are mapped to when encoding",
         "");
 
-Core::Status BpeTokenizer::create(Core::Configuration const& config, TokenizerRef& tokenizer) {
+Core::Expected<TokenizerRef> BpeTokenizer::create(Core::Configuration const& config) {
     std::shared_ptr<BpeTokenizer> bpe(new BpeTokenizer(config));
-    Core::Status                  status = bpe->load();
-    if (status.ok()) {
-        tokenizer = std::move(bpe);
-    }
-    return status;
+    TRY(bpe->load());
+    return bpe;
 }
 
-Core::Status BpeTokenizer::encode(std::string const& text, std::vector<TokenId>& ids) const {
-    std::vector<std::string> tokens;
-    Core::Status             status = tokenize(text, tokens);
-    if (not status.ok()) {
-        return status;
-    }
-    ids.clear();
+Core::Expected<std::vector<AbstractTokenizer::TokenId>> BpeTokenizer::encode(std::string const& text) const {
+    std::vector<std::string> tokens = TRY(tokenize(text));
+    std::vector<TokenId>     ids;
+    ids.reserve(tokens.size());
     for (auto const& token : tokens) {
         TokenId id = tokenStrToId(token);
         if (id == invalidTokenId) {
             id = unknownTokenId_;
         }
         if (id == invalidTokenId) {
-            return Core::Status(Core::StatusCode::NotFound, "Token '" + token + "' is not part of the vocabulary");
+            return std::unexpected(Core::Status(Core::StatusCode::NotFound, "Token '" + token + "' is not part of the vocabulary"));
         }
         ids.push_back(id);
     }
-    return {};
+    return ids;
 }
 
-Core::Status BpeTokenizer::decode(std::vector<TokenId> const& ids, std::string& text) const {
+Core::Expected<std::string> BpeTokenizer::decode(std::vector<TokenId> const& ids) const {
     std::vector<std::string> tokens;
     tokens.reserve(ids.size());
     for (auto id : ids) {
-        Core::Status status = checkTokenId(id);
-        if (not status.ok()) {
-            return status;
-        }
+        TRY(checkTokenId(id));
         tokens.push_back(tokens_[id]);
     }
-    return detokenize(tokens, text);
+    return detokenize(tokens);
 }
 
 u32 BpeTokenizer::vocabularySize() const {
@@ -229,24 +220,18 @@ AbstractTokenizer::TokenId BpeTokenizer::tokenStrToId(std::string const& token) 
     return it == tokenIds_.end() ? invalidTokenId : it->second;
 }
 
-Core::Status BpeTokenizer::tokenIdToStr(TokenId id, std::string& token) const {
-    Core::Status status = checkTokenId(id);
-    if (status.ok()) {
-        token = tokens_[id];
-    }
-    return status;
+Core::Expected<std::string> BpeTokenizer::tokenIdToStr(TokenId id) const {
+    TRY(checkTokenId(id));
+    return tokens_[id];
 }
 
-Core::Status BpeTokenizer::wordBoundaryMarks(TokenId id, WordBoundaryMarks& marks) const {
-    Core::Status status = checkTokenId(id);
-    if (status.ok()) {
-        marks = {false, not endsWith(tokens_[id], separator_)};
-    }
-    return status;
+Core::Expected<AbstractTokenizer::WordBoundaryMarks> BpeTokenizer::wordBoundaryMarks(TokenId id) const {
+    TRY(checkTokenId(id));
+    return WordBoundaryMarks{false, not endsWith(tokens_[id], separator_)};
 }
 
-Core::Status BpeTokenizer::tokenize(std::string const& text, std::vector<std::string>& tokens) const {
-    tokens.clear();
+Core::Expected<std::vector<std::string>> BpeTokenizer::tokenize(std::string const& text) const {
+    std::vector<std::string> tokens;
     for (auto const& word : splitWords(text)) {
         auto subwords = segmentWord(word);
         for (size_t i = 0ul; i + 1 < subwords.size(); ++i) {
@@ -254,12 +239,12 @@ Core::Status BpeTokenizer::tokenize(std::string const& text, std::vector<std::st
         }
         tokens.push_back(subwords.back());
     }
-    return {};
+    return tokens;
 }
 
-Core::Status BpeTokenizer::detokenize(std::vector<std::string> const& tokens, std::string& text) const {
-    text.clear();
-    bool continueWord = true;
+Core::Expected<std::string> BpeTokenizer::detokenize(std::vector<std::string> const& tokens) const {
+    std::string text;
+    bool        continueWord = true;
     for (auto const& token : tokens) {
         if (not continueWord) {
             text += utf8::blank;
@@ -267,7 +252,7 @@ Core::Status BpeTokenizer::detokenize(std::vector<std::string> const& tokens, st
         continueWord = endsWith(token, separator_);
         text.append(token, 0, continueWord ? token.size() - separator_.size() : token.size());
     }
-    return {};
+    return text;
 }
 
 BpeTokenizer::BpeTokenizer(Core::Configuration const& config)
@@ -281,14 +266,8 @@ Core::Status BpeTokenizer::load() {
     if (separator_.empty()) {
         return Core::Status(Core::StatusCode::InvalidArgument, "BPE separator must not be empty");
     }
-    Core::Status status = loadCodes(paramCodesFile(config));
-    if (not status.ok()) {
-        return status;
-    }
-    status = loadVocabulary(paramVocabFile(config));
-    if (not status.ok()) {
-        return status;
-    }
+    TRY(loadCodes(paramCodesFile(config)));
+    TRY(loadVocabulary(paramVocabFile(config)));
     std::string unknownToken = paramUnknownToken(config);
     if (not unknownToken.empty()) {
         unknownTokenId_ = tokenStrToId(unknownToken);

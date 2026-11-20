@@ -33,16 +33,16 @@ void TokenizerFactory::registerTokenizer(const char* name, CreationFunction crea
     registry_.push_back(std::move(creationFunction));
 }
 
-Core::Status TokenizerFactory::createTokenizer(Core::Configuration const& config, TokenizerRef& tokenizer) const {
+Core::Expected<TokenizerRef> TokenizerFactory::createTokenizer(Core::Configuration const& config) const {
     auto type = choices_[paramTokenizerType(config)];
     if (type == Core::Choice::IllegalValue) {
         std::stringstream message;
         message << "No valid tokenizer type defined in `" << config.getSelection() << "." << paramTokenizerType.name() << "`. ";
         message << "Possible values are: ";
         choices_.printIdentifiers(message);
-        return Core::Status(Core::StatusCode::InvalidArgument, message.str());
+        return std::unexpected(Core::Status(Core::StatusCode::InvalidArgument, message.str()));
     }
-    return registry_[type](config, tokenizer);
+    return registry_[type](config);
 }
 
 }  // namespace Tokenizer

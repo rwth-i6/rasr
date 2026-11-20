@@ -21,7 +21,7 @@
 #include <vector>
 
 #include <Core/Component.hh>
-#include <Core/Status.hh>
+#include <Core/Expected.hh>
 #include <Core/Types.hh>
 
 namespace Tokenizer {
@@ -32,8 +32,7 @@ namespace Tokenizer {
  * Converts text to token sequences and back. Tokens are available both as strings
  * (e.g. to look them up as lemmas in a lexicon) and as ids of the tokenizer's own vocabulary.
  *
- * Methods that can fail return a status and write their result to the last argument, whose content is unspecified if
- * the status is not ok. Invalid token ids result in `OutOfRange`.
+ * Methods that can fail return a `Core::Expected`. Invalid token ids result in `OutOfRange`.
  */
 class AbstractTokenizer : public virtual Core::Component {
 public:
@@ -57,8 +56,8 @@ public:
     AbstractTokenizer(Core::Configuration const& config);
     virtual ~AbstractTokenizer() = default;
 
-    virtual Core::Status encode(std::string const& text, std::vector<TokenId>& ids) const = 0;
-    virtual Core::Status decode(std::vector<TokenId> const& ids, std::string& text) const = 0;
+    virtual Core::Expected<std::vector<TokenId>> encode(std::string const& text) const         = 0;
+    virtual Core::Expected<std::string>          decode(std::vector<TokenId> const& ids) const = 0;
 
     // Valid ids are in [0, vocabularySize())
     virtual u32 vocabularySize() const = 0;
@@ -66,14 +65,14 @@ public:
     // Returns `invalidTokenId` if `token` is not part of the vocabulary
     virtual TokenId tokenStrToId(std::string const& token) const = 0;
 
-    virtual Core::Status tokenIdToStr(TokenId id, std::string& token) const            = 0;
-    virtual Core::Status wordBoundaryMarks(TokenId id, WordBoundaryMarks& marks) const = 0;
+    virtual Core::Expected<std::string>       tokenIdToStr(TokenId id) const      = 0;
+    virtual Core::Expected<WordBoundaryMarks> wordBoundaryMarks(TokenId id) const = 0;
 
     // Default: `encode` then `tokenIdToStr` for each id
-    virtual Core::Status tokenize(std::string const& text, std::vector<std::string>& tokens) const;
+    virtual Core::Expected<std::vector<std::string>> tokenize(std::string const& text) const;
 
     // Default: `tokenStrToId` for each token then `decode`. Tokens that are not part of the vocabulary result in `NotFound`.
-    virtual Core::Status detokenize(std::vector<std::string> const& tokens, std::string& text) const;
+    virtual Core::Expected<std::string> detokenize(std::vector<std::string> const& tokens) const;
 
 protected:
     // `OutOfRange` if `id` is not in [0, vocabularySize())

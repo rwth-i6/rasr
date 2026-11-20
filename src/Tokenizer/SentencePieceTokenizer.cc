@@ -113,30 +113,25 @@ const Core::ParameterString SentencePieceTokenizer::paramModelFile(
         "SentencePiece model file",
         "");
 
-Core::Status SentencePieceTokenizer::create(Core::Configuration const& config, TokenizerRef& tokenizer) {
+Core::Expected<TokenizerRef> SentencePieceTokenizer::create(Core::Configuration const& config) {
     std::shared_ptr<SentencePieceTokenizer> sentencePiece(new SentencePieceTokenizer(config));
-    Core::Status                            status = sentencePiece->load();
-    if (status.ok()) {
-        tokenizer = std::move(sentencePiece);
-    }
-    return status;
+    TRY(sentencePiece->load());
+    return sentencePiece;
 }
 
-Core::Status SentencePieceTokenizer::encode(std::string const& text, std::vector<TokenId>& ids) const {
+Core::Expected<std::vector<AbstractTokenizer::TokenId>> SentencePieceTokenizer::encode(std::string const& text) const {
     std::vector<int> pieceIds;
-    Core::Status     status = convertStatus(processor_.Encode(text, &pieceIds));
-    ids.assign(pieceIds.begin(), pieceIds.end());
-    return status;
+    TRY(convertStatus(processor_.Encode(text, &pieceIds)));
+    return std::vector<TokenId>(pieceIds.begin(), pieceIds.end());
 }
 
-Core::Status SentencePieceTokenizer::decode(std::vector<TokenId> const& ids, std::string& text) const {
+Core::Expected<std::string> SentencePieceTokenizer::decode(std::vector<TokenId> const& ids) const {
     for (auto id : ids) {
-        Core::Status status = checkTokenId(id);
-        if (not status.ok()) {
-            return status;
-        }
+        TRY(checkTokenId(id));
     }
-    return convertStatus(processor_.Decode(std::vector<int>(ids.begin(), ids.end()), &text));
+    std::string text;
+    TRY(convertStatus(processor_.Decode(std::vector<int>(ids.begin(), ids.end()), &text)));
+    return text;
 }
 
 u32 SentencePieceTokenizer::vocabularySize() const {
@@ -149,39 +144,34 @@ AbstractTokenizer::TokenId SentencePieceTokenizer::tokenStrToId(std::string cons
     return (processor_.IsUnknown(id) and processor_.IdToPiece(id) != token) ? invalidTokenId : id;
 }
 
-Core::Status SentencePieceTokenizer::tokenIdToStr(TokenId id, std::string& token) const {
+Core::Expected<std::string> SentencePieceTokenizer::tokenIdToStr(TokenId id) const {
     // `IdToPiece` does not check the range
-    Core::Status status = checkTokenId(id);
-    if (status.ok()) {
-        token = processor_.IdToPiece(id);
-    }
-    return status;
+    TRY(checkTokenId(id));
+    return processor_.IdToPiece(id);
 }
 
-Core::Status SentencePieceTokenizer::wordBoundaryMarks(TokenId id, WordBoundaryMarks& marks) const {
-    Core::Status status = checkTokenId(id);
-    if (not status.ok()) {
-        return status;
-    }
+Core::Expected<AbstractTokenizer::WordBoundaryMarks> SentencePieceTokenizer::wordBoundaryMarks(TokenId id) const {
+    TRY(checkTokenId(id));
     std::string const& piece = processor_.IdToPiece(id);
     if (standalonePieces_[id]) {
-        marks = {true, true};
+        return WordBoundaryMarks{true, true};
     }
-    else if (whitespaceAsSuffix_) {
-        marks = {false, endsWith(piece, whitespace)};
+    if (whitespaceAsSuffix_) {
+        return WordBoundaryMarks{false, endsWith(piece, whitespace)};
     }
-    else {
-        marks = {Core::startsWith(piece, whitespace), false};
-    }
-    return {};
+    return WordBoundaryMarks{Core::startsWith(piece, whitespace), false};
 }
 
-Core::Status SentencePieceTokenizer::tokenize(std::string const& text, std::vector<std::string>& tokens) const {
-    return convertStatus(processor_.Encode(text, &tokens));
+Core::Expected<std::vector<std::string>> SentencePieceTokenizer::tokenize(std::string const& text) const {
+    std::vector<std::string> tokens;
+    TRY(convertStatus(processor_.Encode(text, &tokens)));
+    return tokens;
 }
 
-Core::Status SentencePieceTokenizer::detokenize(std::vector<std::string> const& tokens, std::string& text) const {
-    return convertStatus(processor_.Decode(tokens, &text));
+Core::Expected<std::string> SentencePieceTokenizer::detokenize(std::vector<std::string> const& tokens) const {
+    std::string text;
+    TRY(convertStatus(processor_.Decode(tokens, &text)));
+    return text;
 }
 
 SentencePieceTokenizer::SentencePieceTokenizer(Core::Configuration const& config)

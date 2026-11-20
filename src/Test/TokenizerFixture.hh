@@ -20,6 +20,7 @@
 #include <string>
 #include <vector>
 
+#include <Core/Expected.hh>
 #include <Tokenizer/Module.hh>
 
 #include <Test/File.hh>
@@ -47,8 +48,8 @@ protected:
         setParameter("*.tokenizer." + name, value);
     }
 
-    Core::Status createTokenizer(Tokenizer::TokenizerRef& tokenizer) const {
-        return Tokenizer::Module::instance().tokenizerFactory().createTokenizer(select("tokenizer"), tokenizer);
+    Core::Expected<Tokenizer::TokenizerRef> tryCreateTokenizer() const {
+        return Tokenizer::Module::instance().tokenizerFactory().createTokenizer(select("tokenizer"));
     }
 
     static std::string writeFile(Test::Directory const& dir, std::string const& name, std::string const& content) {
@@ -58,53 +59,48 @@ protected:
         return path;
     }
 
-    static void expectOk(Core::Status const& status) {
-        CPPUNIT_ASSERT_MESSAGE(status.message(), status.ok());
+    // `Ok` if `result` holds a value
+    template<typename T>
+    static Core::StatusCode errorCode(Core::Expected<T> const& result) {
+        return result ? Core::StatusCode::Ok : result.error().code();
+    }
+
+    template<typename T>
+    static T expectValue(Core::Expected<T> result) {
+        CPPUNIT_ASSERT_MESSAGE(result ? std::string() : result.error().message(), result.has_value());
+        return std::move(*result);
     }
 
     // The following expect the creation or the call of the tokenizer to succeed, so that tests can compare the results
     Tokenizer::TokenizerRef createTokenizer() const {
-        Tokenizer::TokenizerRef tokenizer;
-        expectOk(createTokenizer(tokenizer));
-        return tokenizer;
+        return expectValue(tryCreateTokenizer());
     }
 
     static std::vector<TokenId> encode(Tokenizer::AbstractTokenizer const& tokenizer, std::string const& input) {
-        std::vector<TokenId> ids;
-        expectOk(tokenizer.encode(input, ids));
-        return ids;
+        return expectValue(tokenizer.encode(input));
     }
 
     static std::string decode(Tokenizer::AbstractTokenizer const& tokenizer, std::vector<TokenId> const& ids) {
-        std::string result;
-        expectOk(tokenizer.decode(ids, result));
-        return result;
+        return expectValue(tokenizer.decode(ids));
     }
 
     static std::vector<std::string> tokenize(Tokenizer::AbstractTokenizer const& tokenizer, std::string const& input) {
-        std::vector<std::string> tokens;
-        expectOk(tokenizer.tokenize(input, tokens));
-        return tokens;
+        return expectValue(tokenizer.tokenize(input));
     }
 
     static std::string detokenize(Tokenizer::AbstractTokenizer const& tokenizer, std::vector<std::string> const& tokens) {
-        std::string result;
-        expectOk(tokenizer.detokenize(tokens, result));
-        return result;
+        return expectValue(tokenizer.detokenize(tokens));
     }
 
     static std::string tokenIdToStr(Tokenizer::AbstractTokenizer const& tokenizer, TokenId id) {
-        std::string token;
-        expectOk(tokenizer.tokenIdToStr(id, token));
-        return token;
+        return expectValue(tokenizer.tokenIdToStr(id));
     }
 
     // Word boundaries marked before ("B") and after ("A") the tokens, e.g. "lo@@:-- wer:-A"
     static std::string formatWordBoundaryMarks(Tokenizer::AbstractTokenizer const& tokenizer, std::vector<TokenId> const& ids) {
         std::vector<std::string> formatted;
         for (auto id : ids) {
-            Tokenizer::AbstractTokenizer::WordBoundaryMarks marks;
-            expectOk(tokenizer.wordBoundaryMarks(id, marks));
+            auto marks = expectValue(tokenizer.wordBoundaryMarks(id));
             formatted.push_back(tokenIdToStr(tokenizer, id) + ":" + (marks.before ? "B" : "-") + (marks.after ? "A" : "-"));
         }
         return join(formatted);

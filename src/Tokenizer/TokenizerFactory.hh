@@ -31,7 +31,7 @@ namespace Tokenizer {
  */
 class TokenizerFactory {
 public:
-    typedef std::function<Core::Status(Core::Configuration const&, TokenizerRef&)> CreationFunction;
+    typedef std::function<Core::Expected<TokenizerRef>(Core::Configuration const&)> CreationFunction;
 
     // A string rather than a `Core::ParameterChoice`, which reports invalid values as configuration errors that
     // terminate the program on exit
@@ -43,7 +43,7 @@ public:
     void registerTokenizer(const char* name, CreationFunction creationFunction);
 
     // Create a tokenizer of the type given by `paramTokenizerType`. An unknown type results in `InvalidArgument`.
-    Core::Status createTokenizer(Core::Configuration const& config, TokenizerRef& tokenizer) const;
+    Core::Expected<TokenizerRef> createTokenizer(Core::Configuration const& config) const;
 
 private:
     Core::Choice                  choices_;

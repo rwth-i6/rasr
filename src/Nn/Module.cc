@@ -36,6 +36,7 @@
 
 #include "LabelScorer/FixedContextOnnxLabelScorer.hh"
 #include "LabelScorer/NoContextOnnxLabelScorer.hh"
+#include "LabelScorer/PrefixSpeechLmOnnxLabelScorer.hh"
 #include "LabelScorer/StateManagedOnnxLabelScorer.hh"
 #include "LabelScorer/StatefulOnnxLabelScorer.hh"
 #include "LabelScorer/StatefulTransducerOnnxLabelScorer.hh"
@@ -202,6 +203,13 @@ Module_::Module_()
             "fixed-context-onnx",
             [](Core::Configuration const& config, ModelCache& modelCache) {
                 return Core::ref(new FixedContextOnnxLabelScorer(config, modelCache));
+            });
+
+    // Feed speech-conditioned prompt into LM as prefix before decoding. Uses StateManager.
+    labelScorerFactory_.registerLabelScorer(
+            "prefix-speech-lm-onnx",
+            [](Core::Configuration const& config, ModelCache& modelCache) {
+                return Core::ref(new PrefixSpeechLmOnnxLabelScorer(config, modelCache));
             });
 
     // Compute scores based on hidden state tensors.

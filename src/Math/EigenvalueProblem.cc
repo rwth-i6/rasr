@@ -184,7 +184,7 @@ void EigenvalueProblem::sortEigenvalues(Vector<ValueType>& eigenvalues, Matrix<V
                                                   select1st<MapItem>(),
                                                   select1st<MapItem>()));
         }
-        else if (increasing) {
+        else if (eigenvalueSortType_ == increasing) {
             std::sort(eigenvalueIndexMap.begin(), eigenvalueIndexMap.end(),
                       Core::composeBinaryFunction(std::less<ValueType>(),
                                                   select1st<MapItem>(),

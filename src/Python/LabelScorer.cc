@@ -31,10 +31,6 @@ PythonLabelScorer::PythonLabelScorer(Core::Configuration const& config)
           Precursor(config) {
 }
 
-void PythonLabelScorer::reset() {
-    PYBIND11_OVERRIDE_PURE(void, LabelScorer, reset);
-}
-
 void PythonLabelScorer::signalNoMoreFeatures() {
     PYBIND11_OVERRIDE_PURE_NAME(
             void,
@@ -122,11 +118,29 @@ py::object PythonLabelScorer::extendedPythonScoringContext(py::object const& pyt
             transitionType);
 }
 
-std::optional<Nn::ScoreAccessorRef> PythonLabelScorer::getScoreAccessor(Nn::ScoringContextRef scoringContext) {
-    return getScoreAccessors({scoringContext})[0];
+std::vector<std::optional<std::pair<std::vector<Nn::Score>, Nn::TimeframeIndex>>> PythonLabelScorer::getPythonScoresWithTimes(std::vector<py::object> const& pythonContexts) {
+    using returnType = std::vector<std::optional<std::pair<std::vector<Nn::Score>, Nn::TimeframeIndex>>>;  // Macro can't handle types with commas inside properly
+    PYBIND11_OVERRIDE_PURE_NAME(
+            returnType,
+            Nn::LabelScorer,
+            "compute_scores_with_times",
+            computePythonScoresWithTimes,
+            pythonContexts);
 }
 
-std::vector<std::optional<Nn::ScoreAccessorRef>> PythonLabelScorer::getScoreAccessors(std::vector<Nn::ScoringContextRef> const& scoringContexts) {
+void PythonLabelScorer::resetInternal() {
+    PYBIND11_OVERRIDE_PURE_NAME(
+            void,
+            LabelScorer,
+            "reset",
+            resetInternal);
+}
+
+std::optional<Nn::ScoreAccessorRef> PythonLabelScorer::computeScoreAccessor(Nn::ScoringContextRef scoringContext) {
+    return computeScoreAccessors({scoringContext})[0];
+}
+
+std::vector<std::optional<Nn::ScoreAccessorRef>> PythonLabelScorer::computeScoreAccessors(std::vector<Nn::ScoringContextRef> const& scoringContexts) {
     std::vector<py::object> pythonContexts;
 
     pythonContexts.reserve(scoringContexts.size());
@@ -143,6 +157,7 @@ std::vector<std::optional<Nn::ScoreAccessorRef>> PythonLabelScorer::getScoreAcce
     auto                                             pythonScoresWithTimes = getPythonScoresWithTimes(pythonContexts);
     for (size_t contextIndex = 0ul; contextIndex < scoringContexts.size(); ++contextIndex) {
         if (not pythonScoresWithTimes[contextIndex]) {
+            countUncomputedAccessors();
             continue;
         }
         auto scoreVec                = std::make_shared<std::vector<Nn::Score>>(std::move(pythonScoresWithTimes[contextIndex]->first));
@@ -150,16 +165,6 @@ std::vector<std::optional<Nn::ScoreAccessorRef>> PythonLabelScorer::getScoreAcce
     }
 
     return scoreAccessors;
-}
-
-std::vector<std::optional<std::pair<std::vector<Nn::Score>, Nn::TimeframeIndex>>> PythonLabelScorer::getPythonScoresWithTimes(std::vector<py::object> const& pythonContexts) {
-    using returnType = std::vector<std::optional<std::pair<std::vector<Nn::Score>, Nn::TimeframeIndex>>>;  // Macro can't handle types with commas inside properly
-    PYBIND11_OVERRIDE_PURE_NAME(
-            returnType,
-            Nn::LabelScorer,
-            "compute_scores_with_times",
-            computePythonScoresWithTimes,
-            pythonContexts);
 }
 
 }  // namespace Python

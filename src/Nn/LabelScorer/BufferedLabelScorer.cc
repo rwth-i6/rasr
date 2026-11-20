@@ -25,12 +25,6 @@ BufferedLabelScorer::BufferedLabelScorer(Core::Configuration const& config, Tran
           numDeletedInputs_(0ul) {
 }
 
-void BufferedLabelScorer::reset() {
-    inputBuffer_.clear();
-    numDeletedInputs_   = 0ul;
-    expectMoreFeatures_ = true;
-}
-
 void BufferedLabelScorer::signalNoMoreFeatures() {
     expectMoreFeatures_ = false;
 }
@@ -51,6 +45,12 @@ void BufferedLabelScorer::cleanupCaches(Core::CollapsedVector<ScoringContextRef>
         inputBuffer_.erase(inputBuffer_.begin(), inputBuffer_.begin() + numInputsToDelete);
         numDeletedInputs_ += numInputsToDelete;
     }
+}
+
+void BufferedLabelScorer::resetInternal() {
+    inputBuffer_.clear();
+    numDeletedInputs_   = 0ul;
+    expectMoreFeatures_ = true;
 }
 std::optional<DataView> BufferedLabelScorer::getInput(size_t inputIndex) const {
     if (inputIndex < numDeletedInputs_) {

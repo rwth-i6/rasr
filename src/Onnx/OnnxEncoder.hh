@@ -37,22 +37,12 @@ public:
     OnnxEncoder(Core::Configuration const& config, Nn::ModelCache& modelCache);
     virtual ~OnnxEncoder() = default;
 
-    // Clear buffers and reset segment end flag.
-    virtual void reset() override;
-
 protected:
     struct SessionRunResult {
         Nn::DataView outputView;
         size_t       nOutputs;
         size_t       outputSize;
     };
-
-    // Encode features inside the input buffer and put the results into the output buffer
-    virtual void encode() override;
-
-    // Runs onnxModel_ on features from inputBuffer_[inputStartIndex : inputStartIndex + nInputs]
-    // Potentially add zero-padding features to inputs before running session
-    SessionRunResult runSession(size_t inputStartIndex, size_t nInputs, size_t leftZeroPadding = 0ul, size_t rightZeroPadding = 0ul);
 
     const size_t inputsPerOutput_;
     const size_t inputStepSize_;
@@ -64,6 +54,23 @@ protected:
 
     std::unique_ptr<StateManager>  stateManager_;
     std::vector<OnnxStateVariable> stateVariables_;
+
+    Core::StopWatch onnxSessionTime_;
+    // One per `encode()` for this encoder, one per chunk for `ChunkedOnnxEncoder`
+    size_t numSessionRuns_ = 0ul;
+
+    // Clear buffers, segment end flag and ONNX state variables
+    void resetInternal() override;
+
+    // Encode features inside the input buffer and put the results into the output buffer
+    virtual void encode() override;
+
+    // Runs onnxModel_ on features from inputBuffer_[inputStartIndex : inputStartIndex + nInputs]
+    // Potentially add zero-padding features to inputs before running session
+    SessionRunResult runSession(size_t inputStartIndex, size_t nInputs, size_t leftZeroPadding = 0ul, size_t rightZeroPadding = 0ul);
+
+    void logEncodeBreakdown() const override;
+    void logAdditionalStatistics() const override;
 };
 
 /*
@@ -93,9 +100,9 @@ public:
 
     ChunkedOnnxEncoder(Core::Configuration const& config, Nn::ModelCache& modelCache);
 
-    virtual void reset() override;
-
 protected:
+    void resetInternal() override;
+
     // Check if enough features are buffered to fill the chunk or segment end has been signaled
     virtual bool canEncode() const override;
 
@@ -129,15 +136,6 @@ private:
         void finalize(InterpolationMode mode);
     };
 
-    // Pre-compute window weights for expected chunk output size
-    void initWindow(WindowType windowType);
-
-    // Flush all outputs for which the input start time is before `inputStart` as no outputs from later chunks will add to them
-    void flushPendingOutputsUpTo(size_t inputStart);
-
-    // Add data from outputView to associated pending output or create a new one if none exists
-    void accumulatePendingOutput(Nn::EncodedSpan data, f32 weight);
-
     size_t            chunkSize_;
     size_t            stepSize_;
     size_t            leftPadding_;
@@ -149,6 +147,15 @@ private:
     size_t                          chunkCenterStart_;  // Current absolute chunk start position disregarding how many features have been discarded so far
     size_t                          numDiscardedFeatures_;
     std::map<size_t, PendingOutput> pendingOutputs_;  // Associate outputs with their input start time to interpolate outputs from different chunks. Ordered for flushing
+
+    // Pre-compute window weights for expected chunk output size
+    void initWindow(WindowType windowType);
+
+    // Flush all outputs for which the input start time is before `inputStart` as no outputs from later chunks will add to them
+    void flushPendingOutputsUpTo(size_t inputStart);
+
+    // Add data from outputView to associated pending output or create a new one if none exists
+    void accumulatePendingOutput(Nn::EncodedSpan data, f32 weight);
 };
 
 }  // namespace Onnx

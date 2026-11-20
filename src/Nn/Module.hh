@@ -45,8 +45,10 @@ private:
     static const Core::Choice          compressedVectorFactoryTypeChoice;
     static const Core::ParameterChoice compressedVectorFactoryTypeParam;
 
+#ifdef MODULE_ONNX
     static const Core::Choice          stateManagerTypeChoice;
     static const Core::ParameterChoice stateManagerTypeParam;
+#endif
 
 public:
     Module_();

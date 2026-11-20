@@ -1088,26 +1088,6 @@ ConstLatticeRef nbest(ConstLatticeRef l, u32 n, bool removeDuplicates, NBestAlgo
 }
 // -------------------------------------------------------------------------
 
-// -------------------------------------------------------------------------
-namespace {
-const Core::Choice choiceNBestAlgorithm(
-        "eppstein", Eppstein,
-        "mori", Mori,
-        Core::Choice::endMark());
-const Core::ParameterString paramNBestAlgorithm(
-        "algorithm",
-        "n-best algorithm",
-        "eppstein");
-NBestAlgorithm getNBestAlgorithm(const Core::Configuration& config) {
-    Core::Choice::Value nBestChoice = choiceNBestAlgorithm[paramNBestAlgorithm(config)];
-    if (nBestChoice == Core::Choice::IllegalValue)
-        Core::Application::us()->criticalError(
-                "NBestAlgorithm: Unknown algorithm \"%s\"",
-                paramNBestAlgorithm(config).c_str());
-    return NBestAlgorithm(nBestChoice);
-}
-}  // namespace
-
 class NBestNode : public FilterNode {
     typedef FilterNode Precursor;
 

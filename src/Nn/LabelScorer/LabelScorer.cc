@@ -15,6 +15,8 @@
 
 #include "LabelScorer.hh"
 
+#include <Core/XmlStream.hh>
+
 namespace Nn {
 
 /*
@@ -34,17 +36,69 @@ void LabelScorer::addInputs(DataView const& input, size_t nTimesteps) {
     }
 }
 
-std::vector<std::optional<ScoreAccessorRef>> LabelScorer::getScoreAccessors(std::vector<ScoringContextRef> const& scoringContexts) {
+TransitionSet LabelScorer::enabledTransitions() const {
+    return enabledTransitions_;
+}
+
+/*
+ * =============================
+ * === StatTrackingLabelScorer =
+ * =============================
+ */
+StatTrackingLabelScorer::StatTrackingLabelScorer(Core::Configuration const& config, TransitionPresetType defaultPreset)
+        : Core::Component(config),
+          LabelScorer(config, defaultPreset),
+          statisticsChannel_(config, "statistics") {
+}
+
+void StatTrackingLabelScorer::reset() {
+    scoringTime_.reset();
+    numScoreAccessorsRequested_ = 0ul;
+    numScoreAccessorsComputed_  = 0ul;
+    resetInternal();
+}
+
+void StatTrackingLabelScorer::logStatistics() const {
+    if (not statisticsChannel_.isOpen()) {
+        return;
+    }
+
+    statisticsChannel_ << Core::XmlOpen("label-scorer-statistics") + Core::XmlAttribute("component", fullName());
+    statisticsChannel_ << Core::XmlOpen("scoring-time") + Core::XmlAttribute("unit", "milliseconds") + Core::XmlAttribute("total", scoringTime_.elapsedMilliseconds());
+    logScoringBreakdown();
+    statisticsChannel_ << Core::XmlClose("scoring-time");
+    logAdditionalStatistics();
+    statisticsChannel_ << Core::XmlFull("num-score-accessors-requested", numScoreAccessorsRequested_);
+    statisticsChannel_ << Core::XmlFull("num-score-accessors-computed", numScoreAccessorsComputed_);
+    statisticsChannel_ << Core::XmlClose("label-scorer-statistics");
+}
+
+std::optional<ScoreAccessorRef> StatTrackingLabelScorer::getScoreAccessor(ScoringContextRef scoringContext) {
+    ++numScoreAccessorsRequested_;
+    ++numScoreAccessorsComputed_;
+    Core::StopWatch::Scope timer(scoringTime_);
+    return computeScoreAccessor(scoringContext);
+}
+
+std::vector<std::optional<ScoreAccessorRef>> StatTrackingLabelScorer::getScoreAccessors(std::vector<ScoringContextRef> const& scoringContexts) {
+    numScoreAccessorsRequested_ += scoringContexts.size();
+    numScoreAccessorsComputed_ += scoringContexts.size();
+    Core::StopWatch::Scope timer(scoringTime_);
+    return computeScoreAccessors(scoringContexts);
+}
+
+std::vector<std::optional<ScoreAccessorRef>> StatTrackingLabelScorer::computeScoreAccessors(std::vector<ScoringContextRef> const& scoringContexts) {
     std::vector<std::optional<ScoreAccessorRef>> result;
     result.reserve(scoringContexts.size());
     for (auto const& scoringContext : scoringContexts) {
-        result.push_back(getScoreAccessor(scoringContext));
+        result.push_back(computeScoreAccessor(scoringContext));
     }
     return result;
 }
 
-TransitionSet LabelScorer::enabledTransitions() const {
-    return enabledTransitions_;
+void StatTrackingLabelScorer::countUncomputedAccessors(size_t num) const {
+    verify(num <= numScoreAccessorsComputed_);
+    numScoreAccessorsComputed_ -= num;
 }
 
 }  // namespace Nn

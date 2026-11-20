@@ -61,6 +61,15 @@ struct HMMSequence {
 
 using ExitHash = Core::HashMap<Search::PersistentStateTree::Exit, u32, Search::PersistentStateTree::Exit::Hash>;
 
+/*
+ * Base class of all tree builders.
+ *
+ * Note for tree builders whose tree contains the blank lemma (special lemma "blank"):
+ * `TreeTimesyncBeamSearch` never starts a new blank lemma from a root state directly after a blank exit,
+ * so that a sequence of blank frames is always covered by one single blank segment. Consecutive blank frames
+ * between words are therefore only possible via a self-loop on the state of the blank lemma. If the tree builder
+ * doesn't add such a loop (e.g. because blank loops are disabled), blank between words can only last a single frame.
+ */
 class AbstractTreeBuilder : public Core::Component {
 public:
     using StateId = u32;

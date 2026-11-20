@@ -42,15 +42,12 @@ private:
  * The transition scores are all individually specified as config parameters.
  * It should be used together with a main LabelScorer
  */
-class TransitionLabelScorer : public LabelScorer {
+class TransitionLabelScorer : public StatTrackingLabelScorer {
 public:
-    using Precursor = LabelScorer;
+    using Precursor = StatTrackingLabelScorer;
 
     TransitionLabelScorer(Core::Configuration const& config);
     virtual ~TransitionLabelScorer() = default;
-
-    // No op
-    void reset() override;
 
     // No op
     void signalNoMoreFeatures() override;
@@ -64,8 +61,12 @@ public:
     // No op
     void addInput(DataView const& input) override;
 
+protected:
+    // No op
+    void resetInternal() override;
+
     // Return transition score based on transition type of the request
-    std::optional<ScoreAccessorRef> getScoreAccessor(ScoringContextRef scoringContext) override;
+    std::optional<ScoreAccessorRef> computeScoreAccessor(ScoringContextRef scoringContext) override;
 
 private:
     Core::Ref<FixedTransitionScoreAccessor> transitionScoreAccessor_;

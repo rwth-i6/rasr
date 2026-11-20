@@ -441,6 +441,14 @@ Value::Value(Value const& other)
             copyFrom<int8_t>(other.value_);
             break;
         }
+        case ValueDataType::UINT8: {
+            copyFrom<uint8_t>(other.value_);
+            break;
+        }
+        case ValueDataType::BOOL: {
+            copyFrom<bool>(other.value_);
+            break;
+        }
         default: defect();
     }
 }
@@ -1440,6 +1448,9 @@ bool Value::isOnDevice() const {
 }
 
 Value Value::toHost() const {
+    if (empty()) {
+        return Value();
+    }
     if (not isOnDevice()) {
         return Value(*this);
     }

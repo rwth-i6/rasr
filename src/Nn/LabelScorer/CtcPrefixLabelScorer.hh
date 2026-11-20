@@ -16,6 +16,8 @@
 #ifndef CTC_PREFIX_LABEL_SCORER_HH
 #define CTC_PREFIX_LABEL_SCORER_HH
 
+#include <Math/FastMatrix.hh>
+
 #include "LabelScorer.hh"
 #include "ModelCache.hh"
 #include "ScaledLabelScorer.hh"

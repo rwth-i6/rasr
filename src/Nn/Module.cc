@@ -20,19 +20,25 @@
 #include <Nn/FixedQuantizationCompressedVectorFactory.hh>
 #include <Nn/QuantizedCompressedVectorFactory.hh>
 #include <Nn/ReducedPrecisionCompressedVectorFactory.hh>
+#ifdef MODULE_ONNX
 #include <Onnx/OnnxLstmStateManager.hh>
 #include <Onnx/OnnxTransformerStateManager.hh>
+#endif
 
 #include "LabelScorer/CombineLabelScorer.hh"
 #include "LabelScorer/CtcPrefixLabelScorer.hh"
 #include "LabelScorer/EncoderDecoderLabelScorer.hh"
 #include "LabelScorer/EncoderFactory.hh"
+#ifdef MODULE_ONNX
 #include "LabelScorer/FixedContextOnnxLabelScorer.hh"
 #include "LabelScorer/NoContextOnnxLabelScorer.hh"
+#endif
 #include "LabelScorer/NoOpLabelScorer.hh"
 #include "LabelScorer/PriorLabelScorer.hh"
+#ifdef MODULE_ONNX
 #include "LabelScorer/StateManagedOnnxLabelScorer.hh"
 #include "LabelScorer/StatefulOnnxLabelScorer.hh"
+#endif
 #include "LabelScorer/TransitionLabelScorer.hh"
 #include "Statistics.hh"
 
@@ -180,6 +186,7 @@ Module_::Module_()
                         scaledDecoder));
             });
 
+#ifdef MODULE_ONNX
     // Compute scores by forwarding a single input feature vector without history through an ONNX model
     labelScorerFactory_.registerLabelScorer(
             "no-context-onnx",
@@ -207,6 +214,7 @@ Module_::Module_()
             [](Core::Configuration const& config, ModelCache& modelCache) {
                 return Core::ref(new StateManagedOnnxLabelScorer(config, modelCache));
             });
+#endif
 
     // Returns predefined scores based on the transition type of each score request
     labelScorerFactory_.registerLabelScorer(
@@ -254,6 +262,7 @@ CompressedVectorFactoryPtr<float> Module_::createCompressedVectorFactory(Core::C
     }
 }
 
+#ifdef MODULE_ONNX
 std::unique_ptr<AbstractStateManager<Onnx::Value, Onnx::OnnxStateVariable>> Module_::createStateManager(Core::Configuration const& config) {
     switch (stateManagerTypeParam(config)) {
         case LstmStateManagerType:
@@ -272,3 +281,4 @@ std::unique_ptr<AbstractStateManager<Onnx::Value, Onnx::OnnxStateVariable>> Modu
             defect();
     }
 }
+#endif

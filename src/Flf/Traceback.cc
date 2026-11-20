@@ -19,6 +19,7 @@
 #include <Core/StringUtilities.hh>
 #include <Core/XmlStream.hh>
 #include <Search/Search.hh>
+#include <unordered_set>
 
 #include "Best.hh"
 #include "FlfCore/Basic.hh"
@@ -60,6 +61,7 @@ public:
     static const Core::ParameterBool         paramDumpSubwordAlignment;
     static const Core::ParameterBool         paramFillEmptySegments;
     static const Core::ParameterFloat        paramFrameShiftTime;
+    static const Core::ParameterBool         paramSplitZeroLengthWords;
 
 private:
     Core::Channel                    dump_;
@@ -83,7 +85,10 @@ private:
     bool                       dumpSubwordAlignment_;
     bool                       fillEmptySegments_;
     float                      frameShiftTime_;
+    bool                       splitZeroLengthWords_;
     LatticeAlignmentBuilderRef alignmentBuilder_;
+
+    std::unordered_set<const Bliss::Lemma*> excludedLemmas_;
 
 protected:
     void dumpBlissTraceback(ConstLatticeRef l, Core::XmlWriter& os) {
@@ -285,6 +290,67 @@ protected:
 #endif
     };
 
+    struct PathArc {
+        ConstStateRef sr;
+        const Arc*    arc;
+        f32           begin;       // in frames
+        f32           end;         // in frames
+        bool          splittable;  // printed word that may receive a share of the preceding frame
+    };
+
+    /*
+     * Lexical words that are printed to the CTM, except for sentence boundaries and blank.
+     */
+    bool isSplittableWord(Fsa::LabelId                                  label,
+                          const Lexicon::LemmaAlphabetRef&              lAlphabet,
+                          const Lexicon::LemmaPronunciationAlphabetRef& lpAlphabet,
+                          const LabelMapRef&                            nonWordToEpsilonMap) const {
+        if ((label < Fsa::FirstLabelId) || (label > Fsa::LastLabelId) || !(lAlphabet || lpAlphabet) || !(*nonWordToEpsilonMap)[label].empty()) {
+            return false;
+        }
+        const Bliss::Lemma* lemma = nullptr;
+        if (lAlphabet) {
+            lemma = lAlphabet->lemma(label);
+        }
+        else if (const Bliss::LemmaPronunciation* lemmaPron = lpAlphabet->lemmaPronunciation(label)) {
+            lemma = lemmaPron->lemma();
+        }
+        return lemma && (excludedLemmas_.find(lemma) == excludedLemmas_.end());
+    }
+
+    /*
+     * Searches that emit several labels within one frame (e.g. RNN-T) produce word arcs with zero duration,
+     * which would otherwise be dropped from the CTM. All words ending at time t after an arc of positive duration
+     * have been emitted within the frame [t-1, t). This frame is split evenly between them.
+     */
+    static void splitZeroLengthWords(std::vector<PathArc>& path) {
+        std::vector<size_t> group;
+        for (size_t i = 0; i < path.size();) {
+            if (path[i].begin >= path[i].end) {
+                ++i;
+                continue;
+            }
+            const f32 t = path[i].end;
+            group.assign(1, i);
+            size_t j = i + 1;
+            for (; (j < path.size()) && (path[j].begin == t) && (path[j].end == t); ++j) {
+                if (path[j].splittable) {
+                    group.push_back(j);
+                }
+            }
+            if (group.size() > 1) {
+                const f32 frameBegin = t - 1.0f;
+                const f32 share      = 1.0f / f32(group.size());
+                path[i].end          = frameBegin + share;
+                for (size_t k = 1; k < group.size(); ++k) {
+                    path[group[k]].begin = frameBegin + f32(k) * share;
+                    path[group[k]].end   = (k + 1 < group.size()) ? frameBegin + f32(k + 1) * share : t;
+                }
+            }
+            i = j;
+        }
+    }
+
     void dumpCtmTraceback(ConstLatticeRef l, std::ostream& os) {
         CtmPrinter cp(os);
         f32        begin = 0.0;
@@ -372,12 +438,23 @@ protected:
                 cp.printHeader(segment_);
                 header_printed = true;
 
+                // Collect the path first, so that words with zero duration can be given a share of the preceding frame
+                std::vector<PathArc> path;
                 for (; sr->hasArcs(); sr = p->getState(sr->begin()->target())) {
                     verify(sr->nArcs() == 1);
-                    const Arc&      a            = *sr->begin();
+                    const Arc& a = *sr->begin();
+                    path.push_back({sr, &a, f32(boundaries.get(sr->id()).time()), f32(boundaries.get(a.target()).time()), isSplittableWord(a.input(), lAlphabet, lpAlphabet, nonWordToEpsilonMap)});
+                }
+                if (splitZeroLengthWords_) {
+                    splitZeroLengthWords(path);
+                }
+
+                for (const PathArc& pathArc : path) {
+                    sr                           = pathArc.sr;
+                    const Arc&      a            = *pathArc.arc;
                     const Boundary &leftBoundary = boundaries.get(sr->id()), &rightBoundary = boundaries.get(a.target());
-                    f32             wordBegin = f32(leftBoundary.time()) * frameShiftTime_;
-                    f32             wordEnd   = f32(rightBoundary.time()) * frameShiftTime_;
+                    f32             wordBegin = pathArc.begin * frameShiftTime_;
+                    f32             wordEnd   = pathArc.end * frameShiftTime_;
                     if (wordBegin < wordEnd) {
                         if (lAlphabet || lpAlphabet) {
                             std::string      word;
@@ -589,6 +666,12 @@ public:
                 dumpSubwordAlignment_               = paramDumpSubwordAlignment(ctmConfig);
                 fillEmptySegments_                  = paramFillEmptySegments(ctmConfig);
                 frameShiftTime_                     = paramFrameShiftTime(ctmConfig);
+                splitZeroLengthWords_               = paramSplitZeroLengthWords(ctmConfig);
+                for (const char* special : {"sentence-begin", "sentence-end", "sentence-boundary", "blank"}) {
+                    for (const Bliss::Lemma* lemma : Lexicon::us()->specialLemmas(special)) {
+                        excludedLemmas_.insert(lemma);
+                    }
+                }
                 if (dumpPhonemeAlignment_ || dumpSubwordAlignment_) {
                     createAlignmentBuilder(ctmConfig);
                 }
@@ -697,6 +780,10 @@ const Core::ParameterFloat DumpTracebackNode::paramFrameShiftTime(
         "frame-shift-time",
         "shift-time of frames of the lattice time axis in seconds. Defaults to 0.01 = 10ms. Important for correct word boundaries when subsampling is used.",
         0.01);
+const Core::ParameterBool DumpTracebackNode::paramSplitZeroLengthWords(
+        "split-zero-length-words",
+        "words with zero duration (e.g. several labels emitted within one frame by RNN-T) get an even share of the frame they were emitted in instead of being dropped",
+        true);
 NodeRef createDumpTracebackNode(const std::string& name, const Core::Configuration& config) {
     return NodeRef(new DumpTracebackNode(name, config));
 }

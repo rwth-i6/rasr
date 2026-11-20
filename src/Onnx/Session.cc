@@ -4,11 +4,13 @@
 #include "Session.hh"
 
 #include <chrono>
+#include <exception>
 
 #ifdef MODULE_CUDA
 #include <cuda_runtime.h>
 #endif
 
+#include "SharedWeightGroup.hh"
 #include "Util.hh"
 
 namespace Onnx {
@@ -41,6 +43,10 @@ const Core::ParameterBool Session::paramRemovePrefixFromKey("remove-prefix-from-
                                                             "Whether to remove the prefix from the state keys for the node name lookup",
                                                             true);
 
+const Core::ParameterString Session::paramWeightGroup("weight-group",
+                                                      "Name of a process-wide ONNX initializer weight group. Sessions with the same non-empty group share equal initializers.",
+                                                      "");
+
 Session::Session(Core::Configuration const& config)
         : Precursor(config),
           file_(paramFile(config)),
@@ -48,8 +54,10 @@ Session::Session(Core::Configuration const& config)
           interOpNumThreads_(paramInterOpNumThreads(config)),
           statePrefix_(paramStatePrefix(config)),
           removePrefixFromKey_(paramRemovePrefixFromKey(config)),
+          weightGroup_(paramWeightGroup(config)),
           allocator_(),
           env_(ORT_LOGGING_LEVEL_WARNING),
+          sharedWeightGroup_(nullptr),
           session_(nullptr),
           inputNameMap_(),
           outputNameMap_() {
@@ -58,7 +66,8 @@ Session::Session(Core::Configuration const& config)
     session_opts.SetInterOpNumThreads(interOpNumThreads_);
 
     auto providers = Ort::GetAvailableProviders();
-    switch (paramExecutionProviderType(config)) {
+    auto provider  = static_cast<ExecutionProviderType>(paramExecutionProviderType(config));
+    switch (provider) {
         case ExecutionProviderType::cpu: {
             if (std::find(providers.begin(), providers.end(), "CPUExecutionProvider") == providers.end()) {
                 error() << "Requested CPU execution provider for ONNX session but it is not available.";
@@ -87,7 +96,30 @@ Session::Session(Core::Configuration const& config)
             error() << "Execution provider for ONNX session not known.";
     }
 
-    session_ = Ort::Session(env_, file_.c_str(), session_opts);
+    if (not weightGroup_.empty()) {
+        constexpr double gib = 1024.0 * 1024.0 * 1024.0;
+        // SharedWeightGroup reports errors by exceptions, like the ONNX Runtime C++ API it uses
+        try {
+            sharedWeightGroup_ = SharedWeightGroup::get(weightGroup_, provider);
+            auto statistics    = sharedWeightGroup_->addInitializers(file_, session_opts);
+            log("ONNX weight group '%s' for %s: registered %zu new initializers (%.3f GiB) and %zu initializers already in the group (%.3f GiB), group total %.3f GiB",
+                weightGroup_.c_str(),
+                file_.c_str(),
+                statistics.newInitializers,
+                statistics.newBytes / gib,
+                statistics.sharedInitializers,
+                statistics.sharedBytes / gib,
+                statistics.groupBytes / gib);
+        }
+        catch (std::exception const& e) {
+            criticalError() << "Failed to prepare ONNX weight group '" << weightGroup_ << "' for " << file_ << ": " << e.what();
+        }
+        session_ = Ort::Session(env_, file_.c_str(), session_opts, sharedWeightGroup_->prepackedWeightsContainer());
+        sharedWeightGroup_->releaseHostPages();
+    }
+    else {
+        session_ = Ort::Session(env_, file_.c_str(), session_opts);
+    }
 
     size_t num_inputs  = session_.GetInputCount();
     size_t num_outputs = session_.GetOutputCount();

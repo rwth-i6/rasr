@@ -15,6 +15,8 @@
 
 namespace Onnx {
 
+class SharedWeightGroup;
+
 enum ExecutionProviderType {
     cpu,
     cuda
@@ -29,6 +31,7 @@ public:
     static const Core::ParameterInt    paramInterOpNumThreads;
     static const Core::ParameterString paramStatePrefix;
     static const Core::ParameterBool   paramRemovePrefixFromKey;
+    static const Core::ParameterString paramWeightGroup;
 
     static const Core::Choice          executionProviderChoice;
     static const Core::ParameterChoice paramExecutionProviderType;
@@ -60,10 +63,12 @@ private:
     const size_t      interOpNumThreads_;
     const std::string statePrefix_;
     const bool        removePrefixFromKey_;
+    const std::string weightGroup_;
 
-    Ort::AllocatorWithDefaultOptions allocator_;
-    Ort::Env                         env_;
-    Ort::Session                     session_;
+    Ort::AllocatorWithDefaultOptions   allocator_;
+    Ort::Env                           env_;
+    std::shared_ptr<SharedWeightGroup> sharedWeightGroup_;
+    Ort::Session                       session_;
 
     std::unordered_map<std::string, size_t> inputNameMap_;
     std::unordered_map<std::string, size_t> outputNameMap_;

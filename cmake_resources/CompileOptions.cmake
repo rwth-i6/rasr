@@ -55,9 +55,9 @@ find_package(Threads REQUIRED)
 find_package(ZLIB REQUIRED)
 find_package(Iconv REQUIRED)
 # use Boost's own BoostConfig.cmake instead of the deprecated FindBoost module
-if (POLICY CMP0167)
+if(POLICY CMP0167)
     cmake_policy(SET CMP0167 NEW)
-endif ()
+endif()
 find_package(Boost REQUIRED)
 find_package(LAPACK REQUIRED)
 
@@ -66,7 +66,7 @@ find_library(LIB_RT rt REQUIRED)
 add_library(RasrSystemDependencies INTERFACE)
 target_link_libraries(
     RasrSystemDependencies INTERFACE LibXml2::LibXml2 ZLIB::ZLIB Iconv::Iconv
-    Boost::headers Threads::Threads ${LIB_RT}
+                                     Boost::headers Threads::Threads ${LIB_RT}
 )
 
 add_library(RasrLapackDependencies INTERFACE)
@@ -104,9 +104,9 @@ endif()
 if(${MODULE_CUDA})
     # "native" needs a GPU at configure time, otherwise set CUDAARCHS or pass
     # -DCMAKE_CUDA_ARCHITECTURES=...
-    if (NOT DEFINED CMAKE_CUDA_ARCHITECTURES AND NOT DEFINED ENV{CUDAARCHS})
+    if(NOT DEFINED CMAKE_CUDA_ARCHITECTURES AND NOT DEFINED ENV{CUDAARCHS})
         set(CMAKE_CUDA_ARCHITECTURES native)
-    endif ()
+    endif()
     enable_language(CUDA)
 endif()
 

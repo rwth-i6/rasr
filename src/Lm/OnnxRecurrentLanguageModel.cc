@@ -68,7 +68,7 @@ std::unique_ptr<OnnxSoftmaxAdapter> createOnnxSoftmaxAdapter(Core::Configuration
 
 OnnxRecurrentLanguageModel::OnnxRecurrentLanguageModel(Core::Configuration const& c, Bliss::LexiconRef l)
         : Core::Component(c),
-          Precursor(c, l, Nn::Module::instance().createStateManager(select("state-manager"))),
+          Precursor(c, l, Nn::Module::instance().createStateManager(select("state-manager"), Onnx::Session::executionProviderType(select("session")))),
           session_(select("session")),
           ioSpec_(getIOSpec(-2)),
           mapping_(select("io-map"), ioSpec_),

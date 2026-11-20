@@ -34,6 +34,10 @@ public:
     static const Core::Choice          executionProviderChoice;
     static const Core::ParameterChoice paramExecutionProviderType;
 
+    // Execution provider of a session with the given configuration, e.g. to choose components matching a session
+    // before it is created
+    static ExecutionProviderType executionProviderType(Core::Configuration const& config);
+
     Session(Core::Configuration const& config);
     virtual ~Session() = default;
 

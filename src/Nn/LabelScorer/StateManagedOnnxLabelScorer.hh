@@ -18,6 +18,7 @@
 
 #include <Core/FIFOCache.hh>
 #include <Onnx/Model.hh>
+#include <Onnx/PersistentInput.hh>
 
 #include "BufferedLabelScorer.hh"
 #include "ModelCache.hh"
@@ -102,8 +103,9 @@ private:
     std::string encoderStatesName_;
     std::string encoderStatesSizeName_;
 
-    Onnx::Value encoderStatesValue_;
-    Onnx::Value encoderStatesSizeValue_;
+    // Passed to every session run, as views to avoid copies (and uploaded to the device only once for CUDA sessions)
+    Onnx::PersistentInput encoderStatesValue_;
+    Onnx::Value           encoderStatesSizeValue_;
 
     Core::StopWatch onnxSessionTime_;
     // Merging the prefix states into the batched session inputs and splitting the outputs back up

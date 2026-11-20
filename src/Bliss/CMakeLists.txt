@@ -14,6 +14,7 @@ add_library(
     Phoneme.cc
     Phonology.cc
     PrefixTree.cc
+    ReturnnVocabulary.cc
     SegmentOrdering.cc
     Symbol.cc
     Unknown.cc

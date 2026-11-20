@@ -15,6 +15,7 @@
 
 #include "LabelScorer.hh"
 
+#include <memory>
 #include <string>
 #include <pybind11/numpy.h>
 #include <pybind11/stl.h>
@@ -31,12 +32,20 @@
 PYBIND11_DECLARE_HOLDER_TYPE(T, Core::Ref<T>, true);
 
 void registerPythonLabelScorer(std::string const& name, py::object const& pyLabelScorerClass) {
+    // The factory is destroyed with the static objects of RASR, which happens after the python interpreter has been
+    // finalized, when the reference can only be leaked
+    std::shared_ptr<py::object> callable(new py::object(pyLabelScorerClass), [](py::object* object) {
+        if (not Py_IsInitialized()) {
+            object->release();
+        }
+        delete object;
+    });
     Nn::Module::instance().labelScorerFactory().registerLabelScorer(
             name.c_str(),
-            [pyLabelScorerClass](Core::Configuration const& config, Nn::ModelCache& modelCache) {
+            [callable](Core::Configuration const& config, Nn::ModelCache& modelCache) {
                 py::gil_scoped_acquire gil;
                 // Call constructor of `pyLabelScorerClass`
-                py::object inst = pyLabelScorerClass(config);
+                py::object inst = (*callable)(config);
                 inst.cast<Python::PythonLabelScorer*>()->setInstance(inst);
                 return inst.cast<Core::Ref<Nn::LabelScorer>>();
             });

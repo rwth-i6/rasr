@@ -49,8 +49,9 @@ codes-file (string):
     merge operations as written by ``learn_bpe.py`` (versions 0.1 and 0.2)
 vocab-file (string):
     RETURNN-style vocabulary defining the token ids, i.e. a python dict literal ``{'<s>': 0, 'lo@@': 1, ...}``
-    as written by ``create-py-vocab.py``. As in RETURNN and ``apply_bpe.py --vocabulary``, subwords that are not in the
-    vocabulary are split by reversing their merges until they are in the vocabulary or cannot be split further.
+    as written by ``create-py-vocab.py``, with ids from 0 to N-1 without gaps. As in RETURNN and
+    ``apply_bpe.py --vocabulary``, subwords that are not in the vocabulary are split by reversing their merges until
+    they are in the vocabulary or cannot be split further.
 separator (string):
     suffix of non-final subwords, default ``@@``
 unknown-token (string):

@@ -3,7 +3,7 @@ add_library(
                          TokenizerFactory.cc
 )
 
-target_link_libraries(RasrTokenizer PUBLIC RasrCore)
+target_link_libraries(RasrTokenizer PUBLIC RasrBliss RasrCore)
 
 if(${MODULE_SENTENCEPIECE})
     target_sources(RasrTokenizer PRIVATE SentencePieceTokenizer.cc)

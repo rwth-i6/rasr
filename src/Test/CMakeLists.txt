@@ -1,6 +1,7 @@
 add_executable(
     unit-test
     Bliss_Orthography.cc
+    Bliss_ReturnnVocabulary.cc
     Bliss_SegmentOrdering.cc
     Core_StringUtilities.cc
     Core_Thread.cc

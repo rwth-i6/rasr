@@ -15,10 +15,6 @@
 
 #include "BpeTokenizer.hh"
 
-#include <algorithm>
-#include <cctype>
-#include <cstdlib>
-#include <iterator>
 #include <unordered_set>
 #include <utility>
 
@@ -70,88 +66,6 @@ std::vector<std::string> splitWords(std::string const& text) {
         words.pop_back();
     }
     return words;
-}
-
-typedef std::vector<std::pair<std::string, u32>> VocabularyEntries;
-
-// Parses `digits` hex digits at `position` as unicode code point and appends it as UTF-8
-bool appendCodePoint(std::string const& content, size_t& position, size_t digits, std::string& result) {
-    std::string hexDigits = content.substr(position, digits);
-    if (hexDigits.size() != digits or not std::all_of(hexDigits.begin(), hexDigits.end(), [](unsigned char character) { return std::isxdigit(character); })) {
-        return false;
-    }
-    result += narrow(std::wstring(1, static_cast<wchar_t>(std::strtoul(hexDigits.c_str(), nullptr, 16))));
-    position += digits;
-    return true;
-}
-
-// Parses the python string literal whose opening quote is at `position` and moves `position` behind the closing quote.
-// Handles the escape sequences written by python's `repr`.
-bool parsePythonString(std::string const& content, size_t& position, std::string& result) {
-    char const quote = content[position++];
-    result.clear();
-    while (position < content.size() and content[position] != quote) {
-        char character = content[position++];
-        if (character != '\\' or position == content.size()) {
-            result += character;
-            continue;
-        }
-        char escaped = content[position++];
-        switch (escaped) {
-            case 'n': result += '\n'; break;
-            case 't': result += '\t'; break;
-            case 'r': result += '\r'; break;
-            case 'x':
-            case 'u':
-            case 'U': {
-                size_t digits = escaped == 'x' ? 2ul : (escaped == 'u' ? 4ul : 8ul);
-                if (not appendCodePoint(content, position, digits, result)) {
-                    return false;
-                }
-                break;
-            }
-            default: result += escaped;  // \\, \' and \"
-        }
-    }
-    if (position == content.size()) {
-        return false;
-    }
-    ++position;
-    return true;
-}
-
-// Parses a python dict literal {'token': id, ...} as written by create-py-vocab.py of rwth-i6/subword-nmt
-bool parsePythonDict(std::string const& content, VocabularyEntries& entries) {
-    size_t position = content.find_first_not_of(utf8::whitespace);
-    if (position == std::string::npos or content[position] != '{') {
-        return false;
-    }
-    ++position;
-    while (true) {
-        position = content.find_first_not_of(" \t\n\r,", position);
-        if (position == std::string::npos) {
-            return false;
-        }
-        if (content[position] == '}') {
-            return true;
-        }
-        std::string token;
-        if ((content[position] != '\'' and content[position] != '"') or not parsePythonString(content, position, token)) {
-            return false;
-        }
-        position = content.find_first_not_of(" \t\n\r", position);
-        if (position == std::string::npos or content[position] != ':') {
-            return false;
-        }
-        char const* begin = content.c_str() + position + 1;
-        char*       end   = nullptr;
-        long        id    = std::strtol(begin, &end, 10);
-        if (end == begin or id < 0 or id >= static_cast<long>(Tokenizer::AbstractTokenizer::invalidTokenId)) {
-            return false;
-        }
-        entries.emplace_back(token, id);
-        position = end - content.c_str();
-    }
 }
 
 }  // namespace
@@ -215,24 +129,24 @@ Core::Status BpeTokenizer::decode(std::vector<TokenId> const& ids, std::string& 
         if (not status.ok()) {
             return status;
         }
-        tokens.push_back(tokens_[id]);
+        tokens.push_back(vocabulary_.token(id));
     }
     return detokenize(tokens, text);
 }
 
 u32 BpeTokenizer::vocabularySize() const {
-    return tokens_.size();
+    return vocabulary_.size();
 }
 
 AbstractTokenizer::TokenId BpeTokenizer::tokenStrToId(std::string const& token) const {
-    auto it = tokenIds_.find(token);
-    return it == tokenIds_.end() ? invalidTokenId : it->second;
+    static_assert(Bliss::ReturnnVocabulary::invalidId == invalidTokenId);
+    return vocabulary_.id(token);
 }
 
 Core::Status BpeTokenizer::tokenIdToStr(TokenId id, std::string& token) const {
     Core::Status status = checkTokenId(id);
     if (status.ok()) {
-        token = tokens_[id];
+        token = vocabulary_.token(id);
     }
     return status;
 }
@@ -240,7 +154,7 @@ Core::Status BpeTokenizer::tokenIdToStr(TokenId id, std::string& token) const {
 Core::Status BpeTokenizer::wordBoundaryMarks(TokenId id, WordBoundaryMarks& marks) const {
     Core::Status status = checkTokenId(id);
     if (status.ok()) {
-        marks = {false, not endsWith(tokens_[id], separator_)};
+        marks = {false, not endsWith(vocabulary_.token(id), separator_)};
     }
     return status;
 }
@@ -285,10 +199,12 @@ Core::Status BpeTokenizer::load() {
     if (not status.ok()) {
         return status;
     }
-    status = loadVocabulary(paramVocabFile(config));
+    std::string vocabFile = paramVocabFile(config);
+    status                = Bliss::ReturnnVocabulary::load(vocabFile, vocabulary_);
     if (not status.ok()) {
         return status;
     }
+    log("Loaded BPE vocabulary of size %u from '%s'", vocabularySize(), vocabFile.c_str());
     std::string unknownToken = paramUnknownToken(config);
     if (not unknownToken.empty()) {
         unknownTokenId_ = tokenStrToId(unknownToken);
@@ -329,41 +245,6 @@ Core::Status BpeTokenizer::loadCodes(std::string const& filename) {
     }
     log("Loaded %zu BPE merge operations from '%s'", mergeRanks_.size(), filename.c_str());
     return {};
-}
-
-Core::Status BpeTokenizer::loadVocabulary(std::string const& filename) {
-    Core::CompressedInputStream in(filename.c_str());
-    if (not in) {
-        return Core::Status(Core::StatusCode::NotFound, "Failed to open BPE vocabulary file '" + filename + "'");
-    }
-    std::string content((std::istreambuf_iterator<char>(in)), std::istreambuf_iterator<char>());
-
-    VocabularyEntries entries;
-    if (not parsePythonDict(content, entries)) {
-        return Core::Status(Core::StatusCode::InvalidFileFormat, "Malformed python dict in BPE vocabulary file '" + filename + "'");
-    }
-
-    for (auto const& [token, id] : entries) {
-        // Ids are expected to be dense, which also bounds the size of `tokens_`
-        if (id >= entries.size()) {
-            return Core::Status(Core::StatusCode::InvalidFileFormat,
-                                Core::form("Id %u of token '%s' in BPE vocabulary file '%s' exceeds the number of entries", id, token.c_str(), filename.c_str()));
-        }
-        addToken(token, id);
-    }
-    log("Loaded BPE vocabulary of size %u from '%s'", vocabularySize(), filename.c_str());
-    return {};
-}
-
-void BpeTokenizer::addToken(std::string const& token, TokenId id) {
-    tokenIds_.emplace(token, id);
-    if (id >= tokens_.size()) {
-        tokens_.resize(id + 1);
-    }
-    // If several tokens share an id (e.g. '<s>' and '</s>' in RETURNN vocabularies), the first one is used for decoding
-    if (tokens_[id].empty()) {
-        tokens_[id] = token;
-    }
 }
 
 std::vector<std::string> BpeTokenizer::segmentWord(std::string const& word) const {
@@ -426,7 +307,7 @@ std::vector<std::string> BpeTokenizer::segmentWord(std::string const& word) cons
 }
 
 void BpeTokenizer::splitIntoVocabulary(std::string const& subword, bool final, std::vector<std::string>& result) const {
-    if (tokenIds_.count(final ? subword : subword + separator_) > 0ul) {
+    if (vocabulary_.id(final ? subword : subword + separator_) != invalidTokenId) {
         result.push_back(subword);
         return;
     }

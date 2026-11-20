@@ -86,7 +86,7 @@ TEST_F(Tokenizer, BpeTokenizerTest, Vocabulary) {
     EXPECT_EQ(tokenizer->tokenStrToId("tower"), 3u);
     EXPECT_EQ(tokenizer->tokenStrToId("x@@"), AbstractTokenizer::invalidTokenId);
     EXPECT_EQ(tokenIdToStr(*tokenizer, 3u), std::string("tower"));
-    // "<s>" and "</s>" share an id, the first one is used for decoding
+    // "<s>" and "</s>" share an id, "<s>" is used for decoding
     EXPECT_EQ(tokenizer->tokenStrToId("</s>"), 0u);
     EXPECT_EQ(tokenIdToStr(*tokenizer, 0u), std::string("<s>"));
 
@@ -147,15 +147,6 @@ TEST_F(Tokenizer, BpeTokenizerTest, MissingFile) {
     EXPECT_EQ(createTokenizer(tokenizer).code(), Core::StatusCode::NotFound);
 }
 
-TEST_F(Tokenizer, BpeTokenizerTest, MalformedVocabulary) {
-    Test::Directory         dir;
-    Tokenizer::TokenizerRef tokenizer;
-    for (std::string vocabulary : {"['a']", "{'a': 0", "{'a' 0}", "{'a': -1}", "{'a': 1}", "{'\\x4': 0}"}) {
-        setTokenizerParameter("vocab-file", writeFile(dir, "vocab.py", vocabulary));
-        EXPECT_EQ(createTokenizer(tokenizer).code(), Core::StatusCode::InvalidFileFormat);
-    }
-}
-
 TEST_F(Tokenizer, BpeTokenizerTest, InvalidParameter) {
     Tokenizer::TokenizerRef tokenizer;
     setTokenizerParameter("separator", "");
@@ -169,19 +160,6 @@ TEST_F(Tokenizer, BpeTokenizerTest, InvalidParameter) {
 TEST_F(Tokenizer, BpeTokenizerTest, WordBoundaryMarks) {
     auto tokenizer = createTokenizer();
     EXPECT_EQ(formatWordBoundaryMarks(*tokenizer, encode(*tokenizer, "wider tower")), std::string("wide@@:-- r:-A tower:-A"));
-}
-
-// Quotes and escape sequences as written by python's `repr`
-TEST_F(Tokenizer, BpeTokenizerTest, VocabularyEscapes) {
-    Test::Directory dir;
-    setTokenizerParameter("vocab-file", writeFile(dir, "vocab.py", "{'<s>': 0, \"it's\": 1, 'a\\'b\\\\': 2, '\\u200b@@': 3, '\\xad': 4, 'ß': 5}\n"));
-    auto tokenizer = createTokenizer();
-    EXPECT_EQ(tokenizer->vocabularySize(), 6u);
-    EXPECT_EQ(tokenizer->tokenStrToId("it's"), 1u);
-    EXPECT_EQ(tokenizer->tokenStrToId("a'b\\"), 2u);
-    EXPECT_EQ(tokenizer->tokenStrToId("\u200b@@"), 3u);
-    EXPECT_EQ(tokenizer->tokenStrToId("\u00ad"), 4u);
-    EXPECT_EQ(tokenizer->tokenStrToId("ß"), 5u);
 }
 
 // Codes without version header are interpreted as version 0.1, i.e. the end-of-word marker is a separate symbol

@@ -2,6 +2,7 @@ add_executable(
     unit-test
     Bliss_Orthography.cc
     Bliss_SegmentOrdering.cc
+    Core_Status.cc
     Core_StringUtilities.cc
     Core_Thread.cc
     Core_ThreadPool.cc

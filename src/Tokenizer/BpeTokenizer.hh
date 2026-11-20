@@ -30,8 +30,10 @@ namespace Tokenizer {
  * the last one of a word get the `separator` suffix, e.g. "lower" -> "lo@@ wer". `detokenize` joins words with single
  * blanks.
  *
- * `vocab-file` defines the token ids as a RETURNN-style python dict literal {'<s>': 0, 'lo@@': 1, ...}.
- * When encoding, out-of-vocabulary tokens are mapped to `unknown-token` if it is set.
+ * `vocab-file` defines the token ids as a RETURNN-style python dict literal {'<s>': 0, 'lo@@': 1, ...}. As in RETURNN
+ * and `apply_bpe.py --vocabulary`, subwords that are not in the vocabulary are split by reversing their merges until
+ * they are in the vocabulary or cannot be split further. When encoding, the remaining out-of-vocabulary tokens are
+ * mapped to `unknown-token` if it is set.
  */
 class BpeTokenizer : public AbstractTokenizer {
 public:
@@ -63,6 +65,9 @@ private:
     bool                                 endOfWordAttached_;
     std::unordered_map<std::string, u32> mergeRanks_;  // Key: "<left> <right>"
 
+    // Merged symbol to the pair it was merged from, e.g. "er</w>" to "e" and "r</w>"
+    std::unordered_map<std::string, std::pair<std::string, std::string>> mergedPairs_;
+
     std::unordered_map<std::string, TokenId> tokenIds_;
     std::vector<std::string>                 tokens_;  // Indexed by id
     TokenId                                  unknownTokenId_;
@@ -72,6 +77,10 @@ private:
     void addToken(std::string const& token, TokenId id);
 
     std::vector<std::string> segmentWord(std::string const& word) const;
+
+    // Appends the subword or, if it is not in the vocabulary, the parts it was merged from, which are split further if
+    // needed. `final` is true for the last subword of a word, which has no separator.
+    void splitIntoVocabulary(std::string const& subword, bool final, std::vector<std::string>& result) const;
 };
 
 }  // namespace Tokenizer

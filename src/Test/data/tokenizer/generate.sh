@@ -12,10 +12,12 @@ cd "$(dirname "$0")"
 python3 "${I6_SUBWORD_NMT}/learn_bpe.py" --symbols 30 < corpus.txt > bpe.codes
 python3 "${I6_SUBWORD_NMT}/create-py-vocab.py" --txt corpus.txt --bpe bpe.codes --unk "<unk>" --out bpe.vocab.py
 
-# SentencePiece unigram models, the second one with blanks at the end instead of the start of pieces
+# SentencePiece unigram models, the second one with blanks at the end instead of the start of pieces and the third one
+# additionally with a user-defined symbol
 spm_train --input=corpus.txt --model_prefix=sentencepiece --vocab_size=32 --character_coverage=1.0 --normalization_rule_name=identity --minloglevel=2
 spm_train --input=corpus.txt --model_prefix=sentencepiece_suffix --vocab_size=32 --character_coverage=1.0 --normalization_rule_name=identity --treat_whitespace_as_suffix=true --minloglevel=2
-rm sentencepiece.vocab sentencepiece_suffix.vocab
+spm_train --input=corpus.txt --model_prefix=sentencepiece_symbols --vocab_size=32 --character_coverage=1.0 --normalization_rule_name=identity --treat_whitespace_as_suffix=true --user_defined_symbols=[NOISE] --minloglevel=2
+rm sentencepiece.vocab sentencepiece_suffix.vocab sentencepiece_symbols.vocab
 
 # HuggingFace byte-level BPE as used by GPT-style LLMs, with BOS added by the post-processor
 python3 - <<'PY'

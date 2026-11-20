@@ -15,6 +15,7 @@
 
 #include "Tokenizer.hh"
 
+#include <memory>
 #include <string>
 
 #include <pybind11/stl.h>
@@ -26,12 +27,20 @@
 PYBIND11_DECLARE_HOLDER_TYPE(T, Core::Ref<T>, true);
 
 void registerPythonTokenizer(std::string const& name, py::object const& pyTokenizerClass) {
+    // The factory is destroyed with the static objects of RASR, which happens after the python interpreter has been
+    // finalized, when the reference can only be leaked
+    std::shared_ptr<py::object> callable(new py::object(pyTokenizerClass), [](py::object* object) {
+        if (not Py_IsInitialized()) {
+            object->release();
+        }
+        delete object;
+    });
     Tokenizer::Module::instance().tokenizerFactory().registerTokenizer(
             name.c_str(),
-            [pyTokenizerClass](Core::Configuration const& config) {
+            [callable](Core::Configuration const& config) {
                 py::gil_scoped_acquire gil;
                 // Call constructor of `pyTokenizerClass`
-                py::object inst = pyTokenizerClass(config);
+                py::object inst = (*callable)(config);
                 inst.cast<Python::PythonTokenizer*>()->setInstance(inst);
                 return inst.cast<Tokenizer::TokenizerRef>();
             });
@@ -46,7 +55,9 @@ void bindTokenizer(py::module_& module) {
             "Register a custom tokenizer type in the internal tokenizer factory of RASR.\n\n"
             "Args:\n"
             "    name: The name under which the tokenizer type is registered. The same name must be used as `type` in the RASR config.\n"
-            "    tokenizer_cls: A class that inherits from `librasr.Tokenizer` and implements the abstract methods.");
+            "          Registering an existing name, also of a built-in type such as \"bpe\", replaces it.\n"
+            "    tokenizer_cls: A class that inherits from `librasr.Tokenizer` and implements the abstract methods, or a function that\n"
+            "                   creates an instance of such a class from the config.");
 
     module.def(
             "create_tokenizer",

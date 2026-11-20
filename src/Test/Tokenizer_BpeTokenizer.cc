@@ -56,7 +56,7 @@ TEST_F(Tokenizer, BpeTokenizerTest, Whitespace) {
 TEST_F(Tokenizer, BpeTokenizerTest, Punctuation) {
     auto tokenizer = createTokenizer();
     auto tokens    = tokenizer->tokenize("lower. tower, (new)!");
-    EXPECT_EQ(join(tokens), std::string("l@@ owe@@ r@@ . t@@ owe@@ r@@ , (@@ ne@@ w@@ )@@ !"));
+    EXPECT_EQ(join(tokens), std::string("l@@ o@@ w@@ e@@ r@@ . t@@ o@@ w@@ e@@ r@@ , (@@ ne@@ w@@ )@@ !"));
     EXPECT_EQ(tokenizer->detokenize(tokens), std::string("lower. tower, (new)!"));
 }
 
@@ -70,7 +70,9 @@ TEST_F(Tokenizer, BpeTokenizerTest, RareCharacters) {
 }
 
 TEST_F(Tokenizer, BpeTokenizerTest, Separator) {
+    Test::Directory dir;
     setTokenizerParameter("separator", "+");
+    setTokenizerParameter("vocab-file", writeFile(dir, "vocab.py", "{'wide+': 0, 'r': 1, 'tower': 2}"));
     auto tokenizer = createTokenizer();
     auto tokens    = tokenizer->tokenize("wider tower");
     EXPECT_EQ(join(tokens), std::string("wide+ r tower"));
@@ -105,6 +107,34 @@ TEST_F(Tokenizer, BpeTokenizerTest, OutOfVocabulary) {
     delayErrors();
     auto tokenizer = createTokenizer();
     EXPECT_EQ(join(tokenizer->encode("the xy")), std::string("2"));
+    EXPECT_TRUE(tokenizer->hasFatalErrors());
+}
+
+// As RETURNN does, subwords that are not in the vocabulary are split by reversing their merges, e.g. "owe" into "o"
+// and "we" and then "we" into "w" and "e". Subwords that cannot be split further stay as they are.
+TEST_F(Tokenizer, BpeTokenizerTest, VocabularySplit) {
+    setTokenizerParameter("unknown-token", "<unk>");
+    auto tokenizer = createTokenizer();
+    EXPECT_EQ(join(tokenizer->tokenize("lower.")), std::string("l@@ o@@ w@@ e@@ r@@ ."));
+    // The final subword "ower" is split via the merge of "owe" and "r</w>"
+    EXPECT_EQ(join(tokenizer->tokenize("power")), std::string("p@@ o@@ w@@ e@@ r"));
+    EXPECT_EQ(join(tokenizer->encode("power")), std::string("1 13 1 25 5"));
+}
+
+// In codes of version 0.1, the end-of-word marker is merged as separate symbol, e.g. "er" and "</w>"
+TEST_F(Tokenizer, BpeTokenizerTest, VocabularySplitCodesVersion01) {
+    Test::Directory dir;
+    setTokenizerParameter("codes-file", writeFile(dir, "codes", "l o\nlo w\ne r\ner </w>\n"));
+    setTokenizerParameter("vocab-file", writeFile(dir, "vocab.py", "{'l@@': 0, 'o@@': 1, 'w@@': 2, 'e@@': 3, 'r': 4}"));
+    auto tokenizer = createTokenizer();
+    EXPECT_EQ(join(tokenizer->tokenize("lower")), std::string("l@@ o@@ w@@ e@@ r"));
+}
+
+// Invalid ids are not decoded partially
+TEST_F(Tokenizer, BpeTokenizerTest, DecodeInvalidTokenId) {
+    delayErrors();
+    auto tokenizer = createTokenizer();
+    EXPECT_EQ(tokenizer->decode({2u, 34u}), std::string());
     EXPECT_TRUE(tokenizer->hasFatalErrors());
 }
 
@@ -145,6 +175,7 @@ TEST_F(Tokenizer, BpeTokenizerTest, VocabularyEscapes) {
 TEST_F(Tokenizer, BpeTokenizerTest, CodesVersion01) {
     Test::Directory dir;
     setTokenizerParameter("codes-file", writeFile(dir, "codes", "l o\nlo w\ne r\ner </w>\nö n\nlo w\n"));
+    setTokenizerParameter("vocab-file", writeFile(dir, "vocab.py", "{'low@@': 0, 'er': 1, 'low': 2, 's@@': 3, 'c@@': 4, 'h@@': 5, 'ön': 6, 'a': 7}"));
     auto tokenizer = createTokenizer();
     EXPECT_EQ(join(tokenizer->tokenize("lower low schön a lowlow")), std::string("low@@ er low s@@ c@@ h@@ ön a low@@ low"));
 }

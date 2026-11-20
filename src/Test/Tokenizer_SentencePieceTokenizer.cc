@@ -111,4 +111,16 @@ TEST_F(Tokenizer, SentencePieceTokenizerTest, WordBoundaryMarksSuffix) {
     EXPECT_EQ(formatWordBoundaryMarks(*tokenizer, {0u, 1u}), std::string("<unk>:BA <s>:BA"));
 }
 
+// User-defined symbols are words of their own, also in id sequences that do not come from `encode`, e.g. a recognition
+// result. `encode` puts a separate "▁" after them instead.
+TEST_F(Tokenizer, SentencePieceTokenizerTest, WordBoundaryMarksUserDefinedSymbols) {
+    setTokenizerParameter("model-file", Test::dataFile("tokenizer/sentencepiece_symbols.model"));
+    auto                                    tokenizer = createTokenizer();
+    std::vector<AbstractTokenizer::TokenId> ids;
+    for (auto token : {"tower▁", "[NOISE]", "lower▁"}) {
+        ids.push_back(tokenizer->tokenStrToId(token));
+    }
+    EXPECT_EQ(formatWordBoundaryMarks(*tokenizer, ids), std::string("tower▁:-A [NOISE]:BA lower▁:-A"));
+}
+
 }  // namespace Tokenizer

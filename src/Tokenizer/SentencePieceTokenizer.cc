@@ -15,6 +15,8 @@
 
 #include "SentencePieceTokenizer.hh"
 
+#include <string_view>
+
 #include <Core/StringUtilities.hh>
 
 namespace {
@@ -25,6 +27,74 @@ std::string const whitespace = "\u2581";
 bool endsWith(std::string const& text, std::string const& suffix) {
     return text.size() >= suffix.size() and text.compare(text.size() - suffix.size(), suffix.size(), suffix) == 0;
 }
+
+// Field of a protobuf message, see https://protobuf.dev/programming-guides/encoding
+struct ProtobufField {
+    u32              number;
+    u32              wireType;
+    u64              varint;  // Value of varint fields (wire type 0)
+    std::string_view bytes;   // Value of length-delimited fields (wire type 2)
+};
+
+bool readVarint(std::string_view data, size_t& position, u64& value) {
+    value = 0u;
+    for (u32 shift = 0u; shift < 64u and position < data.size(); shift += 7u) {
+        u8 byte = static_cast<u8>(data[position++]);
+        value |= static_cast<u64>(byte & 0x7fu) << shift;
+        if ((byte & 0x80u) == 0u) {
+            return true;
+        }
+    }
+    return false;
+}
+
+// Calls `visit` for each field of the message, returns false for malformed messages
+template<typename Visit>
+bool forEachProtobufField(std::string_view message, Visit visit) {
+    size_t position = 0ul;
+    while (position < message.size()) {
+        u64 key;
+        if (not readVarint(message, position, key)) {
+            return false;
+        }
+        ProtobufField field{static_cast<u32>(key >> 3u), static_cast<u32>(key & 7u), 0u, {}};
+        u64           length = 0u;
+        switch (field.wireType) {
+            case 0u:
+                if (not readVarint(message, position, field.varint)) {
+                    return false;
+                }
+                break;
+            case 1u: length = 8u; break;
+            case 2u:
+                if (not readVarint(message, position, length)) {
+                    return false;
+                }
+                break;
+            case 5u: length = 4u; break;
+            default: return false;
+        }
+        if (length > message.size() - position) {
+            return false;
+        }
+        if (field.wireType == 2u) {
+            field.bytes = message.substr(position, length);
+        }
+        position += length;
+        visit(field);
+    }
+    return true;
+}
+
+// Field numbers and piece types of sentencepiece_model.proto
+u32 const modelPiecesField               = 1u;
+u32 const modelTrainerSpecField          = 2u;
+u32 const pieceTypeField                 = 3u;
+u32 const trainerWhitespaceAsSuffixField = 24u;
+u64 const normalPieceType                = 1u;
+u64 const unknownPieceType               = 2u;
+u64 const controlPieceType               = 3u;
+u64 const userDefinedPieceType           = 4u;
 
 }  // namespace
 
@@ -46,18 +116,31 @@ SentencePieceTokenizer::SentencePieceTokenizer(Core::Configuration const& config
         return;
     }
 
-    // The option `treat_whitespace_as_suffix` of the model is not accessible via the SentencePiece API, but its
-    // pieces end instead of start with the blank
-    u32 prefixes = 0u;
-    u32 suffixes = 0u;
-    for (int id = 0; id < processor_.GetPieceSize(); ++id) {
-        std::string const& piece = processor_.IdToPiece(id);
-        if (piece != whitespace) {
-            prefixes += Core::startsWith(piece, whitespace);
-            suffixes += endsWith(piece, whitespace);
+    // The piece types and the option `treat_whitespace_as_suffix` are read from the model, see sentencepiece_model.proto
+    std::string model       = processor_.serialized_model_proto();
+    bool        nestedValid = true;
+    bool        valid       = forEachProtobufField(model, [&](ProtobufField const& field) {
+        if (field.number == modelPiecesField and field.wireType == 2u) {
+            u64 type = normalPieceType;
+            nestedValid &= forEachProtobufField(field.bytes, [&](ProtobufField const& pieceField) {
+                if (pieceField.number == pieceTypeField and pieceField.wireType == 0u) {
+                    type = pieceField.varint;
+                }
+            });
+            standalonePieces_.push_back(type == unknownPieceType or type == controlPieceType or type == userDefinedPieceType);
         }
+        else if (field.number == modelTrainerSpecField and field.wireType == 2u) {
+            nestedValid &= forEachProtobufField(field.bytes, [&](ProtobufField const& trainerField) {
+                if (trainerField.number == trainerWhitespaceAsSuffixField and trainerField.wireType == 0u) {
+                    whitespaceAsSuffix_ = trainerField.varint != 0u;
+                }
+            });
+        }
+    });
+    if (not valid or not nestedValid or standalonePieces_.size() != vocabularySize()) {
+        criticalError("Failed to read the pieces of SentencePiece model '%s'", modelFile.c_str());
+        return;
     }
-    whitespaceAsSuffix_ = suffixes > prefixes;
 
     log("Loaded SentencePiece model with vocabulary size %u from '%s'", vocabularySize(), modelFile.c_str());
 }
@@ -93,7 +176,7 @@ AbstractTokenizer::WordBoundaryMarks SentencePieceTokenizer::wordBoundaryMarks(T
     if (not checkTokenId(id)) {
         return {false, false};
     }
-    if (processor_.IsControl(id) or processor_.IsUnknown(id)) {
+    if (standalonePieces_[id]) {
         return {true, true};
     }
     std::string const& piece = processor_.IdToPiece(id);

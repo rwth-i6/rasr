@@ -276,12 +276,14 @@ void BpeTokenizer::loadCodes(std::string const& filename) {
         if (line.empty()) {
             continue;
         }
-        if (Core::split(line, " ").size() != 2ul) {
+        auto pair = Core::split(line, " ");
+        if (pair.size() != 2ul) {
             criticalError("Invalid line in BPE codes file '%s': '%s'", filename.c_str(), line.c_str());
             return;
         }
         // On duplicates, the first occurrence takes precedence
         mergeRanks_.emplace(line, rank++);
+        mergedPairs_.emplace(pair[0] + pair[1], std::make_pair(pair[0], pair[1]));
     }
     log("Loaded %zu BPE merge operations from '%s'", mergeRanks_.size(), filename.c_str());
 }
@@ -373,7 +375,37 @@ std::vector<std::string> BpeTokenizer::segmentWord(std::string const& word) cons
     else if (endsWith(symbols.back(), endOfWord)) {
         symbols.back().resize(symbols.back().size() - endOfWord.size());
     }
-    return symbols;
+
+    std::vector<std::string> subwords;
+    for (size_t i = 0ul; i < symbols.size(); ++i) {
+        splitIntoVocabulary(symbols[i], i + 1 == symbols.size(), subwords);
+    }
+    return subwords;
+}
+
+void BpeTokenizer::splitIntoVocabulary(std::string const& subword, bool final, std::vector<std::string>& result) const {
+    if (tokenIds_.count(final ? subword : subword + separator_) > 0ul) {
+        result.push_back(subword);
+        return;
+    }
+
+    // The final subword was merged including the end-of-word marker, which in codes of version 0.1 is a separate
+    // symbol, so then the merge of the subword itself is reversed
+    auto merge = mergedPairs_.find(final ? subword + endOfWord : subword);
+    if (final and merge != mergedPairs_.end() and merge->second.second == endOfWord) {
+        merge = mergedPairs_.find(subword);
+    }
+    if (merge == mergedPairs_.end()) {
+        result.push_back(subword);
+        return;
+    }
+
+    auto [left, right] = merge->second;
+    if (endsWith(right, endOfWord)) {
+        right.resize(right.size() - endOfWord.size());
+    }
+    splitIntoVocabulary(left, false, result);
+    splitIntoVocabulary(right, final, result);
 }
 
 }  // namespace Tokenizer

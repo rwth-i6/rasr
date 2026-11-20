@@ -5,6 +5,8 @@ Run with: python3 src/Test/LibRASR_Tokenizer.py
 """
 
 import importlib.util
+import subprocess
+import sys
 import unittest
 from pathlib import Path
 
@@ -147,6 +149,12 @@ class PythonTokenizerTest(unittest.TestCase):
         librasr.register_tokenizer_type("test-replaced", CharTokenizer)
         librasr.register_tokenizer_type("test-replaced", UpperCaseTokenizer)
         self.assertIsInstance(librasr.create_tokenizer(self.config), UpperCaseTokenizer)
+
+    # RASR keeps the registered callable until after the interpreter has been finalized
+    def test_exit_after_register(self) -> None:
+        code = "import librasr; librasr.register_tokenizer_type('test-function', lambda config: None)"
+        process = subprocess.run([sys.executable, "-c", code], capture_output=True)
+        self.assertEqual(process.returncode, 0, process.stderr.decode())
 
 
 if __name__ == "__main__":

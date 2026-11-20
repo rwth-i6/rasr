@@ -72,7 +72,7 @@ public:
     // Default: Apply `tokenize` then `tokenStrToId` to each item
     virtual std::vector<TokenId> encode(std::string const& text) const;
 
-    // Default: Apply `tokenIdToStr` to each item then `detokenize`
+    // Default: Apply `tokenIdToStr` to each item then `detokenize`. Raises an error and returns an empty string for invalid ids.
     virtual std::string decode(std::vector<TokenId> const& ids) const;
 
 protected:

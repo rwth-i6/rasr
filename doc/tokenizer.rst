@@ -23,8 +23,8 @@ does not mean that there is none:
 
 * BPE: tokens without the ``separator`` suffix mark a boundary after themselves, e.g. ``wer`` in ``lo@@ wer``.
 * SentencePiece: pieces with a leading ``▁`` mark a boundary before themselves, or with a trailing ``▁`` after
-  themselves for models trained with ``treat_whitespace_as_suffix``. Control pieces such as ``<s>`` and the unknown
-  piece are words of their own. Pieces spanning several words, which models trained without ``split_by_whitespace``
+  themselves for models trained with ``treat_whitespace_as_suffix``. Control pieces such as ``<s>``, the unknown
+  piece and user-defined symbols are words of their own. Pieces spanning several words, which models trained without ``split_by_whitespace``
   can contain, only mark their outer boundaries.
 * HuggingFace: determined from the decoder in ``tokenizer.json``. Tokens with a leading ``Ġ`` (byte-level BPE, also
   other whitespace such as newlines) or ``▁`` (``Metaspace``) and tokens without the ``##`` prefix of ``WordPiece``
@@ -49,7 +49,8 @@ codes-file (string):
     merge operations as written by ``learn_bpe.py`` (versions 0.1 and 0.2)
 vocab-file (string):
     RETURNN-style vocabulary defining the token ids, i.e. a python dict literal ``{'<s>': 0, 'lo@@': 1, ...}``
-    as written by ``create-py-vocab.py``
+    as written by ``create-py-vocab.py``. As in RETURNN and ``apply_bpe.py --vocabulary``, subwords that are not in the
+    vocabulary are split by reversing their merges until they are in the vocabulary or cannot be split further.
 separator (string):
     suffix of non-final subwords, default ``@@``
 unknown-token (string):
@@ -169,4 +170,6 @@ configured like the built-in types, also for components that create their tokeni
 ``tokenize``, ``detokenize``, ``vocabulary_size``, ``token_str_to_id``, ``token_id_to_str`` and ``word_boundary_marks`` must
 be implemented.
 ``encode`` and ``decode`` can be overridden, by default they are based on the other methods. Register the type before
-creating a tokenizer that uses it.
+creating a tokenizer that uses it. Registering an existing name, also of a built-in type such as ``bpe``, replaces it.
+Instead of the class, a function that creates an instance from the config can be registered, e.g. to pass further
+arguments to the constructor.

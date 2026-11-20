@@ -37,6 +37,9 @@ std::string AbstractTokenizer::decode(std::vector<TokenId> const& ids) const {
     std::vector<std::string> tokens;
     tokens.reserve(ids.size());
     for (auto id : ids) {
+        if (not checkTokenId(id)) {
+            return {};
+        }
         tokens.push_back(tokenIdToStr(id));
     }
     return detokenize(tokens);

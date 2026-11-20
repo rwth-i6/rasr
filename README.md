@@ -15,7 +15,7 @@ RASR can either be built directly on the host system or inside one of the provid
 For a native build, the following tools and libraries are required:
 
 - CMake >= 3.22
-- a C++ compiler with C++20 support, for example GCC or Clang
+- a C++ compiler with C++23 support, for example GCC >= 12 or Clang
 - Bison
 - libxml2
 - BLAS/LAPACK, for example OpenBLAS

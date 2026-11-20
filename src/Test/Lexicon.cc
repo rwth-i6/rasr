@@ -38,10 +38,9 @@ void Lexicon::addLemma(const std::string& orth, const std::string& pron,
         defineSpecialLemma(special, lemma);
     }
 
-    Bliss::Pronunciation* p      = nullptr;
-    Core::Status          status = getPronunciation(pron, p);
-    require(status.ok());
-    addPronunciation(lemma, p);
+    Core::Expected<Bliss::Pronunciation*> p = getPronunciation(pron);
+    require(p.has_value());
+    addPronunciation(lemma, *p);
 
     std::vector<std::string> orths;
     orths.push_back(orth);

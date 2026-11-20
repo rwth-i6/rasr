@@ -77,3 +77,18 @@ TEST_F(Test, TestLexicon, Lemma) {
     ++lpr.first;
     EXPECT_EQ(lpr.first, lpr.second);
 }
+
+TEST_F(Test, TestLexicon, GetPronunciation) {
+    Core::Expected<Bliss::Pronunciation*> pron = lexicon_->getPronunciation(" a  c ");
+    EXPECT_TRUE(pron.has_value());
+    EXPECT_EQ(u32(2), (*pron)->length());
+    EXPECT_EQ(Bliss::Phoneme::Id(lexicon_->phonemeInventory()->phoneme("a")->id()), (**pron)[0]);
+    EXPECT_EQ(Bliss::Phoneme::Id(lexicon_->phonemeInventory()->phoneme("c")->id()), (**pron)[1]);
+}
+
+TEST_F(Test, TestLexicon, GetPronunciationUnknownPhoneme) {
+    Core::Expected<Bliss::Pronunciation*> pron = lexicon_->getPronunciation("a x c");
+    EXPECT_FALSE(pron.has_value());
+    EXPECT_TRUE(pron.error().code() == Core::StatusCode::InvalidArgument);
+    EXPECT_EQ(std::string("INVALID_ARGUMENT: Unknown phoneme: \"x\""), pron.error().message());
+}

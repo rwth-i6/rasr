@@ -1,4 +1,4 @@
-set(CMAKE_CXX_STANDARD 20)
+set(CMAKE_CXX_STANDARD 23)
 include(CheckCXXCompilerFlag)
 
 add_compile_definitions(_GNU_SOURCE)

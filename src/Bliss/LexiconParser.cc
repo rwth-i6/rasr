@@ -261,18 +261,17 @@ void LexiconElement::addPhon(const WeightedPhonemeString& phon) {
         return;
     }
 
-    Pronunciation* pron   = nullptr;
-    Core::Status   status = product_->getPronunciation(phon.phon, pron);
-    if (pron == nullptr) {
-        parser()->error("Could not create pronunciation for %s: %s", phon.phon.c_str(), status.message().c_str());
+    Core::Expected<Pronunciation*> pron = product_->getPronunciation(phon.phon);
+    if (!pron) {
+        parser()->error("Could not create pronunciation for %s: %s", phon.phon.c_str(), pron.error().message().c_str());
         return;
     }
-    else if (lemma_->hasPronunciation(pron)) {
+    else if (lemma_->hasPronunciation(*pron)) {
         parser()->error("duplicate pronunciation");
         return;
     }
 
-    product_->addPronunciation(lemma_, pron, phon.weight);
+    product_->addPronunciation(lemma_, *pron, phon.weight);
 }
 
 void LexiconElement::startTokSeq(const XmlAttributes atts) {
@@ -465,13 +464,12 @@ void VocabTextLexiconParser::createLemmata() {
         lexicon_->setOrthographicForms(newLemma_, {symbol});
 
         // set phon
-        Pronunciation* pron   = nullptr;
-        Core::Status   status = lexicon_->getPronunciation(symbol, pron);
-        if (pron == nullptr) {
-            Core::Application::us()->error("Could not create pronunciation for %s: %s", symbol.c_str(), status.message().c_str());
+        Core::Expected<Pronunciation*> pron = lexicon_->getPronunciation(symbol);
+        if (!pron) {
+            Core::Application::us()->error("Could not create pronunciation for %s: %s", symbol.c_str(), pron.error().message().c_str());
             return;
         }
-        lexicon_->addPronunciation(newLemma_, pron);
+        lexicon_->addPronunciation(newLemma_, *pron);
         lexicon_->setDefaultLemmaName(newLemma_);
     }
 }

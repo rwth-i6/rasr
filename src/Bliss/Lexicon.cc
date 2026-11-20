@@ -266,10 +266,11 @@ Pronunciation* Lexicon::getOrCreatePronunciation(const std::vector<Phoneme::Id>&
     return pron;
 }
 
-Core::Status Lexicon::parsePronunciation(const std::string& phonStr, std::vector<Phoneme::Id>& phonemes) const {
+Core::Expected<std::vector<Phoneme::Id>> Lexicon::parsePronunciation(const std::string& phonStr) const {
     require(phonemeInventory());
-    const Phoneme*         phoneme;
-    std::string::size_type i, j;
+    std::vector<Phoneme::Id> phonemes;
+    const Phoneme*           phoneme;
+    std::string::size_type   i, j;
     i = phonStr.find_first_not_of(utf8::whitespace);
     while (i != std::string::npos) {
         j = phonStr.find_first_of(utf8::whitespace, i);
@@ -280,26 +281,19 @@ Core::Status Lexicon::parsePronunciation(const std::string& phonStr, std::vector
         }
         else {
             std::string errorMessage = std::string("Unknown phoneme: \"") + phonStr.substr(i, j - i) + "\"";
-            return Core::Status(Core::StatusCode::InvalidArgument, errorMessage);
+            return std::unexpected(Core::Status(Core::StatusCode::InvalidArgument, errorMessage));
         }
         i = phonStr.find_first_not_of(utf8::whitespace, j);
     }
-    return Core::Status();
+    return phonemes;
 }
 
-Core::Status Lexicon::getPronunciation(const std::string& phon, Pronunciation*& out) {
+Core::Expected<Pronunciation*> Lexicon::getPronunciation(const std::string& phon) {
     require(phonemeInventory());
 
-    std::vector<Phoneme::Id> phonemes;
-    Core::Status             status = parsePronunciation(phon, phonemes);
-    if (!status.ok()) {
-        out = nullptr;
-        return status;
-    }
-
+    std::vector<Phoneme::Id> phonemes = TRY(parsePronunciation(phon));
     phonemes.push_back(Phoneme::term);
-    out = getOrCreatePronunciation(phonemes);
-    return status;
+    return getOrCreatePronunciation(phonemes);
 }
 
 Pronunciation* Lexicon::getPronunciation(const std::vector<Phoneme::Id>& phonemes) {

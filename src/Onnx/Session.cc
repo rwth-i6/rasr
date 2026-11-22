@@ -4,12 +4,39 @@
 #include "Session.hh"
 
 #include <chrono>
+#include <cstdlib>
 
 #ifdef MODULE_CUDA
 #include <cuda_runtime.h>
 #endif
 
 #include "Util.hh"
+
+namespace {
+
+/*
+ * onnxruntime >= 1.29 (Linux) starts Microsoft's 1DS telemetry when the first Ort::Env of the
+ * process is created: it creates $XDG_CACHE_HOME/Microsoft/DeveloperTools/.onnxruntime/ with a
+ * SQLite database in WAL mode and may upload events. With a shared (e.g. NFS) home directory,
+ * all processes on all nodes share that database, which can kill them with SIGBUS.
+ * The only runtime switch is ORT_DISABLE_TELEMETRY, read with getenv() when the first Ort::Env
+ * is created, so set it before that. An explicit value set by the user is kept.
+ */
+Ort::Env createEnv() {
+    [[maybe_unused]] static bool const telemetryDisabled = setenv("ORT_DISABLE_TELEMETRY", "1", 0) == 0;
+
+    Ort::Env env(ORT_LOGGING_LEVEL_WARNING);
+    /*
+     * As of onnxruntime 1.31.1 this only clears a flag that stops further events from being
+     * logged (OneDsTelemetry::DisableTelemetryEvents()). The database and uploader already exist
+     * at this point unless ORT_DISABLE_TELEMETRY was set, in which case the call has no effect.
+     * Kept in case a future version makes it a full opt-out.
+     */
+    env.DisableTelemetryEvents();
+    return env;
+}
+
+}  // namespace
 
 namespace Onnx {
 
@@ -49,7 +76,7 @@ Session::Session(Core::Configuration const& config)
           statePrefix_(paramStatePrefix(config)),
           removePrefixFromKey_(paramRemovePrefixFromKey(config)),
           allocator_(),
-          env_(ORT_LOGGING_LEVEL_WARNING),
+          env_(createEnv()),
           session_(nullptr),
           inputNameMap_(),
           outputNameMap_() {

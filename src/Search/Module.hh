@@ -50,7 +50,8 @@ enum SearchTypeV2 {
     TreeLabelsyncBeamSearchType,
     TreeTimesyncBeamSearchType,
     LlmTimesyncBeamSearchType,
-    LlmRnntTimesyncBeamSearchType
+    LlmRnntTimesyncBeamSearchType,
+    LlmLabelsyncBeamSearchType
 };
 
 class Module_ {
@@ -66,7 +67,7 @@ public:
     SearchAlgorithmV2*                   createSearchAlgorithmV2(const Core::Configuration& config) const;
     LatticeHandler*                      createLatticeHandler(const Core::Configuration& c) const;
 
-    // Registry of LLM scorer types used by `LlmTimesyncBeamSearch`
+    // Registry of LLM scorer types used by the LLM searches
     LlmScorerFactory& llmScorerFactory() {
         return llmScorerFactory_;
     }

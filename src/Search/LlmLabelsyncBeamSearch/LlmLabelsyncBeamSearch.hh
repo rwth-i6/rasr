@@ -1,0 +1,367 @@
+/** Copyright 2025 RWTH Aachen University. All rights reserved.
+ *
+ *  Licensed under the RWTH ASR License (the "License");
+ *  you may not use this file except in compliance with the License.
+ *  You may obtain a copy of the License at
+ *
+ *      http://www.hltpr.rwth-aachen.de/rwth-asr/rwth-asr-license.html
+ *
+ *  Unless required by applicable law or agreed to in writing, software
+ *  distributed under the License is distributed on an "AS IS" BASIS,
+ *  WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ *  See the License for the specific language governing permissions and
+ *  limitations under the License.
+ */
+
+#ifndef LLM_LABELSYNC_BEAM_SEARCH_HH
+#define LLM_LABELSYNC_BEAM_SEARCH_HH
+
+#include <optional>
+
+#include <Bliss/Lexicon.hh>
+#include <Core/Channel.hh>
+#include <Core/Parameter.hh>
+#include <Core/StopWatch.hh>
+#include <Nn/LabelScorer/DataView.hh>
+#include <Nn/LabelScorer/LabelScorer.hh>
+#include <Nn/LabelScorer/ScoringContext.hh>
+#include <Search/Histogram.hh>
+#include <Search/SearchV2.hh>
+#include <Search/Traceback.hh>
+
+#include <Search/Llm/LlmWordScorer.hh>
+#include <Search/Llm/WordAssembler.hh>
+
+namespace Search {
+
+/*
+ * Label synchronous beam search without pronunciation lexicon like `LexiconfreeLabelsyncBeamSearch`, which
+ * additionally scores the words assembled from the word-piece labels with an LLM as soon as they are finished,
+ * see `WordAssembler` and `LlmWordScorer`. The LLM has its own vocabulary, e.g. a second ASR model with a
+ * different tokenizer that scores the words given the audio.
+ * When a hypothesis emits the sentence-end label, its pending word and the sentence-end tokens of the LLM are
+ * scored. Hypotheses are compared after the LLM costs of their finished words have been added.
+ *
+ * The search requires a lexicon that represents the vocabulary. Each lemma is viewed as a word-piece token with its
+ * index in the lexicon corresponding to the associated output index of the label scorer.
+ */
+class LlmLabelsyncBeamSearch : public SearchAlgorithmV2 {
+public:
+    static const Core::ParameterIntVector   paramMaxBeamSizes;
+    static const Core::ParameterFloatVector paramScoreThresholds;
+    static const Core::ParameterInt         paramNumHistogramBins;
+    static const Core::ParameterInt         paramSentenceEndLabelIndex;
+    static const Core::ParameterInt         paramCacheCleanupInterval;
+    static const Core::ParameterInt         paramPreLlmMaxBeamSize;
+    static const Core::ParameterFloat       paramPreLlmScoreThreshold;
+    static const Core::ParameterFloat       paramLlmScale;
+    static const Core::ParameterFloat       paramWordPenalty;
+    static const Core::ParameterFloat       paramLengthNormScale;
+    static const Core::ParameterFloat       paramMaxLabelsPerTimestep;
+    static const Core::Choice               choicePruningStrategyType;
+    static const Core::ParameterChoice      paramPruningStrategyType;
+    static const Core::Choice               choiceRecombinationMode;
+    static const Core::ParameterChoice      paramRecombinationMode;
+
+    LlmLabelsyncBeamSearch(Core::Configuration const&);
+
+    // Inherited methods from `SearchAlgorithmV2`
+
+    Speech::ModelCombination::Mode  requiredModelCombination() const override;
+    bool                            setModelCombination(Speech::ModelCombination const& modelCombination) override;
+    void                            enterSegment(Bliss::SpeechSegment const* = nullptr) override;
+    void                            finishSegment() override;
+    void                            putFeature(Nn::DataView const& feature) override;
+    void                            putFeatures(Nn::DataView const& features, size_t nTimesteps) override;
+    Core::Ref<const Traceback>      getCurrentBestTraceback() const override;
+    Core::Ref<const LatticeAdaptor> getCurrentBestWordLattice() const override;
+    Core::Ref<const LatticeTrace>   getCurrentBestLatticeTrace() const override;
+    Core::Ref<const LatticeTrace>   getCommonPrefix() const override;
+    bool                            decodeStep() override;
+
+protected:
+    /*
+     * Possible extension for some label hypothesis in the beam
+     */
+    struct ExtensionCandidate {
+        Nn::LabelIndex                   nextToken;       // Proposed token to extend the hypothesis with
+        const Bliss::LemmaPronunciation* pron;            // Pronunciation of lemma corresponding to `nextToken` for traceback
+        Score                            score;           // Would-be score of full hypothesis after extension
+        Search::TimeframeIndex           timeframe;       // Timestamp of `nextToken` for traceback
+        Nn::TransitionType               transitionType;  // Type of transition toward `nextToken`
+        size_t                           baseHypIndex;    // Index of base hypothesis in global beam
+        bool                             isActive;        // Indicates whether the extension has not produced a sentence-end label yet
+
+        inline Score pruningScore() const {
+            return score;
+        }
+
+        bool operator<(ExtensionCandidate const& other) const {
+            return score < other.score;
+        }
+    };
+
+    // Word and LLM state of a hypothesis after an extension
+    struct WordState {
+        WordAssembler::WordId pendingWord;
+        LlmHistory            llmHistory;
+        Score                 llmScore;  // Scaled LLM costs and word penalties included in the score
+    };
+
+    /*
+     * Struct containing all information about a single hypothesis in the beam
+     */
+    struct LabelHypothesis {
+        std::vector<Nn::ScoringContextRef> scoringContexts;  // Contexts to compute scores based on this hypothesis
+        Nn::LabelIndex                     currentToken;     // Most recent token in associated label sequence (useful to infer transition type)
+        size_t                             length;           // Number of tokens in hypothesis for length normalization
+        Score                              score;            // Full score of hypothesis
+        Score                              scaledScore;      // Length-normalized score of hypothesis
+        Core::Ref<LatticeTrace>            trace;            // Associated trace for traceback or lattice building off of hypothesis
+        bool                               isActive;         // Indicates whether the hypothesis has not produced a sentence-end label yet
+        WordState                          words;            // Words finished and pending
+
+        LabelHypothesis();
+        LabelHypothesis(LabelHypothesis const& base, ExtensionCandidate const& extension, WordState const& newWords, std::vector<Nn::ScoringContextRef> const& newScoringContexts, float lengthNormScale);
+
+        inline Score pruningScore() const {
+            return scaledScore;
+        }
+
+        bool operator<(LabelHypothesis const& other) const {
+            return scaledScore < other.scaledScore;
+        }
+
+        bool operator>(LabelHypothesis const& other) const {
+            return scaledScore > other.scaledScore;
+        }
+
+        /*
+         * Get string representation for debugging.
+         */
+        std::string toString(WordAssembler const& wordAssembler) const;
+    };
+
+private:
+    enum class HypothesisFilter {
+        Active,
+        Terminated,
+        Any,
+    };
+
+    /*
+     * `referenceScore` is the score that `relativeThreshold` is applied relative to.
+     * If unset, the best score within the pruned set is used. In `separateScorePruning`
+     * this is the best score within the respective pool.
+     */
+    struct PruningParams {
+        Score                relativeThreshold;
+        size_t               maxBeamSize;
+        std::optional<Score> referenceScore = std::nullopt;
+    };
+
+    std::vector<size_t> maxBeamSizes_;
+    std::vector<bool>   useScorePruning_;
+    std::vector<Score>  scoreThresholds_;
+    Histogram           scoreHistogram_;
+    Histogram           activeScoreHistogram_;
+    Histogram           terminatedScoreHistogram_;
+    float               lengthNormScale_;
+    float               maxLabelsPerTimestep_;
+    Nn::LabelIndex      sentenceEndLabelIndex_;
+    Core::Choice::Value pruningStrategyType_;
+    bool                recombinationEnabled_;
+    size_t              preLlmMaxBeamSize_;
+    Score               preLlmScoreThreshold_;
+    Score               llmScale_;
+    Score               wordPenalty_;
+    // Per-segment timing and statistics. Defaults to the standard log target.
+    mutable Core::XmlChannel statisticsChannel_;
+    // Statistics for every search step. Disabled unless a target is configured.
+    Core::XmlChannel stepwiseStatisticsChannel_;
+    size_t           cacheCleanupInterval_;
+
+    Core::Channel debugChannel_;
+
+    std::vector<Core::Ref<Nn::LabelScorer>> labelScorers_;
+    Bliss::LexiconRef                       lexicon_;
+    WordAssembler                           wordAssembler_;
+    LlmWordScorer                           llmWordScorer_;
+    std::vector<LabelHypothesis>            beam_;
+
+    // Pre-allocated intermediate vectors
+    std::vector<int>                   hypIndexToContextIndexMap_;
+    std::vector<ExtensionCandidate>    extensions_;
+    std::vector<LabelHypothesis>       newBeam_;
+    std::vector<Nn::ScoringContextRef> scoringContexts_;
+    std::vector<LabelHypothesis>       tempHypotheses_;
+    std::vector<WordState>              extensionWords_;  // Word state of each of `extensions_` after the LLM phase
+    std::vector<LlmWordScorer::Request> wordRequests_;
+    std::vector<LlmWordScorer::Result>  wordResults_;
+    std::vector<size_t>                 wordRequestExtensions_;  // Index into `extensions_` of each word request
+    std::vector<LlmHistory>             activeHistories_;
+
+    // Scores and timeframes read out of the accessors of the current label scorer, indexed like
+    // `scoringContexts_`
+    std::vector<std::optional<Nn::DenseScoreSpan>> denseScoreSpans_;
+    std::vector<Nn::TimeframeIndex>                scoreTimes_;
+
+    Core::StopWatch initializationTime_;
+    Core::StopWatch featureProcessingTime_;
+    Core::StopWatch recognitionTime_;
+    /*
+     * Phases of `scoreAndPruneExtensions` per label scorer, adding up to the matching
+     * `scoreAndPruneExtensionsTimes_` entry. Scorers that compute scores lazily do that work
+     * during the score readout; the pruning phase also prepares the next scorer's contexts.
+     */
+    std::vector<Core::StopWatch> scoreAndPruneExtensionsTimes_;
+    std::vector<Core::StopWatch> scoringTimes_;
+    std::vector<Core::StopWatch> scoreReadoutTimes_;
+    std::vector<Core::StopWatch> intermediatePruningTimes_;
+    Core::StopWatch              buildNewBeamTime_;
+    Core::StopWatch              recombinationTime_;
+    Core::StopWatch              beamPruningTime_;
+    Core::StopWatch              preLlmPruningTime_;
+    Core::StopWatch              wordAssemblyTime_;
+    Core::StopWatch              wordScoringTime_;
+
+    Core::Statistics<u32>              numInputHyps_;
+    Core::Statistics<u32>              numExtensionsBeforeFirstPruning_;
+    std::vector<Core::Statistics<u32>> numHypsAfterIntermediatePruning_;
+    Core::Statistics<u32>              numTerminatedHypsAfterScorePruning_;
+    Core::Statistics<u32>              numTerminatedHypsAfterRecombination_;
+    Core::Statistics<u32>              numTerminatedHypsAfterBeamPruning_;
+    Core::Statistics<u32>              numActiveHypsAfterScorePruning_;
+    Core::Statistics<u32>              numActiveHypsAfterRecombination_;
+    Core::Statistics<u32>              numActiveHypsAfterBeamPruning_;
+    Core::Statistics<u32>              numHypsBeforeLlm_;
+    Core::Statistics<u32>              numFinishedWords_;
+
+    size_t currentSearchStep_;
+    size_t totalTimesteps_;
+    bool   finishedSegment_;
+
+    template<typename Element>
+    bool matchesHypothesisFilter(Element const& element, HypothesisFilter filter) const;
+
+    template<typename Element>
+    Element const* getBestHypothesis(std::vector<Element> const& elements, HypothesisFilter filter) const;
+
+    LabelHypothesis const* getWorstHypothesis(std::vector<LabelHypothesis> const& hypotheses, HypothesisFilter filter) const;
+
+    // Overall best while preferring terminated over active hypotheses if any terminated ones exist
+    LabelHypothesis const& getOutputHypothesis(std::vector<LabelHypothesis> const& hypotheses) const;
+
+    void logStatistics() const;
+
+    /*
+     * Log the timing and statistics of the search itself, without the label scorers.
+     */
+    void logOwnStatistics() const;
+
+    /*
+     * Run the multi-scorer loop: create extensions from the first scorer, update scores with
+     * subsequent scorers, apply intermediate pruning after each scorer.
+     * Populates `extensions_`. Returns false if no extensions survive (decode step should abort).
+     */
+    bool scoreAndPruneExtensions();
+
+    /*
+     * Read the scores and timeframes of the current label scorer into `denseScoreSpans_` and
+     * `scoreTimes_`. Lazily computing scorers do their work here.
+     */
+    void readOutScoreAccessors(std::vector<std::optional<Nn::ScoreAccessorRef>> const& scoreAccessors);
+
+    /*
+     * Create the extension candidates in `extensions_` from the scores of the first label scorer,
+     * pre-pruning by score while they are created.
+     */
+    void createExtensions(std::vector<std::optional<Nn::ScoreAccessorRef>> const& scoreAccessors);
+
+    /*
+     * Add the scores of label scorer `scorerIdx` to the existing extension candidates.
+     */
+    void updateExtensionScores(size_t scorerIdx, std::vector<std::optional<Nn::ScoreAccessorRef>> const& scoreAccessors);
+
+    /*
+     * Prune `extensions_` according to the configured pruning strategy.
+     */
+    void pruneExtensions(size_t scorerIdx, size_t maxBeamSize);
+
+    /*
+     * Collect the scoring contexts for the next label scorer into `scoringContexts_`, dropping the
+     * hypotheses whose extensions did not survive pruning.
+     */
+    void prepareNextScoringContexts(size_t scorerIdx);
+
+    /*
+     * Create new beam hypotheses from the surviving extensions in `extensions_`.
+     * Carries over terminated hypotheses from the current beam and adds new ones from extensions.
+     * Populates `newBeam_`.
+     */
+    void buildNewBeamFromExtensions();
+
+    /*
+     * Prune `extensions_` with `pre-llm-score-threshold` and `pre-llm-max-beam-size` before the LLM is applied.
+     * Returns false if no extension survives.
+     */
+    bool pruneBeforeLlm();
+
+    /*
+     * Assemble the words of all extensions in `extensions_` and add the LLM costs of the finished words. Extensions
+     * with the sentence-end label finish their pending word and also add the LLM costs of the sentence end.
+     * Populates `extensionWords_`.
+     */
+    void applyLlm();
+    void assembleWords();
+    void scoreFinishedWords();
+
+    /*
+     * Log the per-step statistics and debug output for the current beam.
+     */
+    void logStepStatistics();
+
+    /*
+     * Apply the final score-pruning stage to `newBeam_` according to the configured pruning strategy.
+     * In `joint` mode active and terminated hypotheses are pruned against the overall best hypothesis;
+     * in `separate` mode terminated ones are pruned against the best terminated hypothesis.
+     */
+    void pruneNewBeamByScore();
+
+    /*
+     * Apply the final max-beam-size pruning stage to `newBeam_` according to the configured pruning
+     * strategy. In `separate` mode active and terminated hypotheses each get their own beam size.
+     */
+    void pruneNewBeamBySize();
+
+    /*
+     * Helper function for acoustic pruning of hypotheses. Calculates an absolute threshold based on best score + relative threshold and
+     * score histogram. If given, referenceScore is used instead of the best score in hypotheses for relative pruning.
+     * Removes all elements worse than the absolute threshold.
+     */
+    template<typename Element>
+    void scorePruning(std::vector<Element>& hypotheses, PruningParams const& pruningParams);
+
+    /*
+     * Score pruning applied separately for active/terminated hypotheses.
+     */
+    template<typename Element>
+    void separateScorePruning(
+            std::vector<Element>& elements,
+            PruningParams const&  activePruningParams,
+            PruningParams const&  terminatedPruningParams);
+
+    /*
+     * Helper function for recombination of hypotheses with the same scoring context
+     */
+    void recombination();
+
+    /*
+     * Count hyps with `isActive` flag in `newBeam_`
+     */
+    size_t numActiveHyps() const;
+};
+
+}  // namespace Search
+
+#endif  // LLM_LABELSYNC_BEAM_SEARCH_HH

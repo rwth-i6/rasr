@@ -174,7 +174,7 @@ The search algorithm is selected with the ``type`` parameter under the ``search-
     [*.search-algorithm]
     type = lexiconfree-timesync-beam-search
     ; other options: lexiconfree-labelsync-beam-search, tree-timesync-beam-search, tree-labelsync-beam-search,
-    ;                llm-timesync-beam-search, llm-rnnt-timesync-beam-search
+    ;                llm-timesync-beam-search, llm-rnnt-timesync-beam-search, llm-labelsync-beam-search
 
 If unset, ``type`` defaults to ``lexiconfree-timesync-beam-search``.
 
@@ -769,6 +769,45 @@ and per-timestep statistics on the number of symbol steps, inner and outer hypot
     [*.search-algorithm.llm]
     type                     = huggingface
     model                    = Qwen/Qwen2.5-0.5B
+
+llm-labelsync-beam-search
+^^^^^^^^^^^^^^^^^^^^^^^^^
+
+The label-synchronous counterpart of ``llm-timesync-beam-search`` for autoregressive models such as AEDs or speech
+LLMs: ``lexiconfree-labelsync-beam-search`` with words assembled from the emitted word pieces and scored by an LLM
+in the same way, with the same LLM interface, caching, spelling variants and statistics. The LLM has its own
+vocabulary, so it can be a second ASR model with a different tokenizer that scores the words given the audio, e.g.
+a speech LLM registered from Python.
+
+In each step, the extensions of the active hypotheses are scored and pruned with all label scorers, pruned with
+``pre-llm-score-threshold`` and ``pre-llm-max-beam-size``, and the words they finish are scored with the LLM before
+score pruning, recombination and beam pruning. An extension with the sentence-end label also scores its pending word
+and the LLM's sentence-end tokens; the terminated hypothesis is then kept unchanged. A word is only scored once it is
+finished, so with ``word-start-marked`` word pieces every active hypothesis has exactly one unscored pending word.
+
+Parameters:
+
+* ``max-beam-size``, ``score-threshold``, ``num-histogram-bins``, ``length-norm-scale``,
+  ``max-labels-per-timestep``, ``pruning-strategy-type``, ``sentence-end-label-index``, ``cache-cleanup-interval``: as
+  for ``lexiconfree-labelsync-beam-search``. The length normalization counts the label-scorer tokens, not the words.
+* ``pre-llm-max-beam-size``, ``pre-llm-score-threshold``, ``word-piece-convention``, ``word-piece-marker``,
+  ``llm-scale``, ``word-penalty`` and the ``llm`` selection: as for ``llm-timesync-beam-search``.
+* ``recombination-mode`` (``off``/``on``): as for ``lexiconfree-labelsync-beam-search``, but hypotheses are only
+  recombined if their LLM history and pending word are equal as well.
+
+.. code-block:: ini
+
+    [*.search-algorithm]
+    type                  = llm-labelsync-beam-search
+    max-beam-size         = 8
+    score-threshold       = 12.0
+    length-norm-scale     = 1.0
+    word-piece-convention = word-start-marked
+    llm-scale             = 0.3
+
+    [*.search-algorithm.llm]
+    type  = my-speech-llm  ; an LlmScorer type registered from Python via librasr.register_llm_scorer_type
+    model = /path/to/model
 
 Search tree types
 ^^^^^^^^^^^^^^^^^

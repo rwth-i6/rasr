@@ -21,6 +21,7 @@
 #include <iterator>
 #include <utility>
 
+#include <Core/Assertions.hh>
 #include <Core/CompressedStream.hh>
 #include <Core/StringUtilities.hh>
 #include <Core/Unicode.hh>
@@ -161,7 +162,8 @@ ReturnnVocabulary::Id ReturnnVocabulary::id(std::string const& token) const {
 }
 
 std::string const& ReturnnVocabulary::token(Id id) const {
-    return tokens_.at(id);
+    require(id < tokens_.size());
+    return tokens_[id];
 }
 
 }  // namespace Bliss

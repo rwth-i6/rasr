@@ -13,7 +13,6 @@
  *  limitations under the License.
  */
 #include <fstream>
-#include <stdexcept>
 
 #include <Bliss/ReturnnVocabulary.hh>
 #include <Test/File.hh>
@@ -88,12 +87,6 @@ TEST(Bliss, ReturnnVocabulary, Malformed) {
     for (std::string content : {"", "{}", "['a']", "{'a': 0", "{'a' 0}", "{'a': -1}", "{'a': 1}", "{'a': 0, 'b': 2}", "{'a': 0, 'b': 1, 'a': 2}", "{'\\x4': 0}"}) {
         EXPECT_EQ(loadContent(content, vocabulary).code(), Core::StatusCode::InvalidFileFormat);
     }
-}
-
-TEST(Bliss, ReturnnVocabulary, InvalidId) {
-    ReturnnVocabulary vocabulary;
-    EXPECT_TRUE(loadContent("{'a': 0}", vocabulary).ok());
-    CPPUNIT_ASSERT_THROW(vocabulary.token(1u), std::out_of_range);
 }
 
 }  // namespace Bliss

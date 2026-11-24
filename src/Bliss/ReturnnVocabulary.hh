@@ -45,7 +45,7 @@ public:
     // Returns `invalidId` if `token` is not part of the vocabulary
     Id id(std::string const& token) const;
 
-    // Throws `std::out_of_range` for ids not below `size()`
+    // `id` must be below `size()`
     std::string const& token(Id id) const;
 
 private:

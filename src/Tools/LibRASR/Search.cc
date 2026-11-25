@@ -177,28 +177,32 @@ void bindSearchAlgorithm(py::module_& module) {
             "recognize_segment",
             &SearchAlgorithm::recognizeSegment,
             py::arg("features"),
-            py::arg("name")           = "",
-            py::arg("initial_prompt") = py::none(),
-            py::arg("suffix_prompt")  = py::none(),
+            py::arg("name")            = "",
+            py::arg("initial_prompt")  = py::none(),
+            py::arg("suffix_prompt")   = py::none(),
+            py::arg("target_sequence") = py::none(),
             "Convenience function to start a segment, pass all the features as a numpy array of shape [T, F] or [1, T, F], finish the segment, and return the recognition result.\n\n"
             "The optional `name` is only used to identify the segment in the log, as in\n"
             "`enter_segment()`.\n"
             "The optional `initial_prompt` / `suffix_prompt` (lists of token ids) override the prompts of\n"
-            "`prefix-speech-lm-onnx` label scorers for this segment.");
+            "`prefix-speech-lm-onnx` label scorers for this segment.\n"
+            "The optional `target_sequence` (list of label ids) sets the target sequence of `forced-sequence` label scorers.");
 
     pySearchAlgorithm.def(
             "recognize_segment_n_best",
             &SearchAlgorithm::recognizeSegmentNBest,
             py::arg("features"),
             py::arg("n"),
-            py::arg("name")           = "",
-            py::arg("initial_prompt") = py::none(),
-            py::arg("suffix_prompt")  = py::none(),
+            py::arg("name")            = "",
+            py::arg("initial_prompt")  = py::none(),
+            py::arg("suffix_prompt")   = py::none(),
+            py::arg("target_sequence") = py::none(),
             "Convenience function to start a segment, pass all the features as a numpy array of shape [T, F] or [1, T, F], finish the segment, and return a n-best list of results.\n\n"
             "The optional `name` is only used to identify the segment in the log, as in\n"
             "`enter_segment()`.\n"
             "The optional `initial_prompt` / `suffix_prompt` (lists of token ids) override the prompts of\n"
-            "`prefix-speech-lm-onnx` label scorers for this segment.");
+            "`prefix-speech-lm-onnx` label scorers for this segment.\n"
+            "The optional `target_sequence` (list of label ids) sets the target sequence of `forced-sequence` label scorers.");
 
     pySearchAlgorithm.def(
             "model_combination",
@@ -317,19 +321,23 @@ void bindSearchAlgorithm(py::module_& module) {
                std::vector<py::array_t<f32>> const&   features,
                std::vector<std::string> const&        names,
                BatchedSearchAlgorithm::Prompts const& initialPrompts,
-               BatchedSearchAlgorithm::Prompts const& suffixPrompts) {
-                return self.recognizeSegments(features, names, initialPrompts, suffixPrompts);
+               BatchedSearchAlgorithm::Prompts const& suffixPrompts,
+               BatchedSearchAlgorithm::Prompts const& targetSequences) {
+                return self.recognizeSegments(features, names, initialPrompts, suffixPrompts, targetSequences);
             },
             py::arg("features"),
-            py::arg("names")           = std::vector<std::string>(),
-            py::arg("initial_prompts") = py::none(),
-            py::arg("suffix_prompts")  = py::none(),
+            py::arg("names")            = std::vector<std::string>(),
+            py::arg("initial_prompts")  = py::none(),
+            py::arg("suffix_prompts")   = py::none(),
+            py::arg("target_sequences") = py::none(),
             "Convenience function to recognize a list of segments given their features as numpy arrays of shape [T, F] or [1, T, F].\n"
             "Decodes up to `max_active_segments()` segments at the same time (configured in the search) with continuous\n"
             "batching and returns the recognition results in the order of the inputs.\n"
             "Optionally, `names` (only used for logging) can be given with one entry per segment.\n"
             "The optional `initial_prompts` / `suffix_prompts` (one list of token ids per segment) override the prompts of\n"
-            "`prefix-speech-lm-onnx` label scorers per segment.");
+            "`prefix-speech-lm-onnx` label scorers per segment.\n"
+            "The optional `target_sequences` (one list of label ids per segment) set the target sequences of `forced-sequence`\n"
+            "label scorers per segment.");
 
     pyBatchedSearchAlgorithm.def(
             "recognize_segments_n_best",
@@ -338,14 +346,16 @@ void bindSearchAlgorithm(py::module_& module) {
                size_t                                 nBestSize,
                std::vector<std::string> const&        names,
                BatchedSearchAlgorithm::Prompts const& initialPrompts,
-               BatchedSearchAlgorithm::Prompts const& suffixPrompts) {
-                return self.recognizeSegmentsNBest(features, nBestSize, names, initialPrompts, suffixPrompts);
+               BatchedSearchAlgorithm::Prompts const& suffixPrompts,
+               BatchedSearchAlgorithm::Prompts const& targetSequences) {
+                return self.recognizeSegmentsNBest(features, nBestSize, names, initialPrompts, suffixPrompts, targetSequences);
             },
             py::arg("features"),
             py::arg("n"),
-            py::arg("names")           = std::vector<std::string>(),
-            py::arg("initial_prompts") = py::none(),
-            py::arg("suffix_prompts")  = py::none(),
+            py::arg("names")            = std::vector<std::string>(),
+            py::arg("initial_prompts")  = py::none(),
+            py::arg("suffix_prompts")   = py::none(),
+            py::arg("target_sequences") = py::none(),
             "Same as `recognize_segments` but returns a n-best list of recognition results for each segment.");
 
     pyBatchedSearchAlgorithm.def(

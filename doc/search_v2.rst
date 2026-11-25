@@ -764,6 +764,15 @@ contributed to it. A model producing log-probabilities directly (e.g. a ``log_so
 its sign flipped before being used as a score -- see ``negate-input`` under :ref:`prior / no-op` below for a
 built-in way to do this.
 
+**Sparse scores:** a label scorer can state that only a few labels can follow in a step (e.g. a label scorer that only
+allows the next label of a given label sequence). If it is the first label scorer (``label-scorer`` /
+``label-scorer-1``), ``lexiconfree-labelsync-beam-search`` and ``lexiconfree-timesync-beam-search`` then only create
+the extensions with these labels plus the transitions without a new label (sentence end; blank, label loop and
+silence), instead of iterating over the whole vocabulary. Like dense scores, sparse scores don't depend on the type of
+the transition. The label scorers of later stages are queried per extension as usual, so they must be able to score
+any label. ``combine`` provides sparse scores if at least one of its sub-scorers does and all others provide sparse or
+dense scores.
+
 Built-in label scorer types include:
 
 * ``no-context-onnx``, ``fixed-context-onnx``, ``stateful-onnx``, ``stateful-transducer-onnx``,
@@ -778,6 +787,8 @@ Built-in label scorer types include:
   (see :ref:`combine` below for when this one is actually the better choice).
 * ``transition``: returns fixed scores per transition type, useful for e.g. modeling label-loop penalties.
 * ``prior`` / ``no-op``: pass through externally computed scores as-is, optionally subtracting a prior.
+* ``forced-sequence``: only allows a given label sequence, for scoring that sequence with the other label scorers
+  ("forced scoring").
 
 Label scorer configuration is its own (large) topic. The essential thing to know for ``SearchV2`` is only that
 ``*.search-algorithm.label-scorer.type`` selects the implementation, and that ``num-label-scorers`` /
@@ -1167,6 +1178,67 @@ and/or subtracting a prior from it, which is useful e.g. to convert posteriors i
     prior-file   = /path/to/prior.xml
     priori-scale = 0.3
 
+forced-sequence
+^^^^^^^^^^^^^^^
+
+Only allows one given label sequence, the label scorer counterpart of the ``cheating-segment`` word LM: transitions
+that emit a label (``label-to-label``, ``blank-to-label``, ``silence-to-label``, ``initial-label``) get score 0 if
+the label is the next label of the target sequence and ``infinity-score`` otherwise, and the ``sentence-end``
+transition gets score 0 only after the whole target sequence. All other transitions (blank, loops, silence, word
+exits) don't emit a label of the target sequence and get score 0. It needs no inputs.
+
+Together with other label scorers, the search can then only follow the target sequence, and the score of the
+resulting hypothesis is the score that the other label scorers assign to this sequence. This allows scoring given
+label sequences with exactly the models and computations of the search, e.g. for rescoring or for comparing
+candidate outputs. Hypotheses with an infinite score cannot become the result.
+
+The target sequence (label indices, without sentence end) is set per segment from Python via
+``ForcedSequenceLabelScorer.set_target_sequence`` before the features of the segment are passed (e.g. before
+``recognize_segment``); it is kept until it is replaced.
+
+The output length limits of the search must allow the whole target sequence. In the time-synchronous searches:
+
+* The forced score is the score of the best alignment of the target sequence that the search finds within its beam
+  (e.g. for CTC, a Viterbi-like score, not the sum over all alignments).
+* Only the ``sentence-end`` transition enforces that the whole target sequence is emitted, so a sentence end must be
+  configured (``sentence-end-label-index`` or a sentence-end lemma in the lexicon). Otherwise a hypothesis that
+  emitted only a prefix of the target sequence can be the result. If no hypothesis can emit the whole target sequence
+  (e.g. not enough frames), the result has an infinite score.
+
+Parameters:
+
+* ``infinity-score`` (float): score of labels that deviate from the target sequence. Default: the maximal score value,
+  which counts as infinite.
+* Default :ref:`transition-preset <Transition types and presets>`: ``all``.
+
+It provides :ref:`sparse scores <Label scorers>` (only the next label of the target sequence), so the lexicon-free
+searches only create the extensions with this label instead of iterating over the whole vocabulary. It is most
+efficient as the first of several label scorer stages: the following label scorers then only read out the scores of
+these extensions. In searches without sparse scores (the tree searches), a large but finite ``score-threshold`` on the
+first stage prunes the other labels right away instead; it must be larger than the score differences between the
+hypotheses, because the time-synchronous searches keep several alignments of the target sequence in the beam (a
+threshold of 0 would only keep the currently best one):
+
+.. code-block:: ini
+
+    [*.search-algorithm]
+    num-label-scorers = 2
+    max-beam-size     = 16 16
+
+    [*.search-algorithm.label-scorer-1]
+    type = forced-sequence
+
+    [*.search-algorithm.label-scorer-2]
+    type = state-managed-onnx
+    ; ...
+
+.. code-block:: python
+
+    search = librasr.SearchAlgorithm(config)
+    forced_scorer = search.model_combination().label_scorer(0).label_scorer()
+    forced_scorer.set_target_sequence([17, 4, 230])
+    traceback = search.recognize_segment(features)
+
 Encoders
 --------
 
@@ -1514,6 +1586,8 @@ scorer, or used as the ``decoder`` of an ``encoder-decoder`` label scorer.
 * A native label scorer wrapping a Python one exposes ``get_sub_scorer(index=0)`` on ``ScaledLabelScorer``
   (e.g. to reach into a ``combine`` or ``encoder-decoder`` scorer instance from Python at runtime) and
   ``set_scale``/``scale`` for adjusting its log-linear weight without touching the config.
+* ``ScaledLabelScorer.label_scorer()`` returns the label scorer that is scaled, e.g. to access functions of specific
+  label scorer types such as ``ForcedSequenceLabelScorer.set_target_sequence`` (see :ref:`forced-sequence`).
 
 Reading results
 -----------------

@@ -16,7 +16,9 @@
 #include "CombineLabelScorer.hh"
 
 #include <algorithm>
+#include <mutex>
 
+#include <Math/Utilities.hh>
 #include <Nn/Module.hh>
 #include "Types.hh"
 
@@ -105,6 +107,18 @@ public:
         return DenseScoreSpan(std::move(denseScoreTerms));
     }
 
+    // Sparse if at least one sub-accessor is sparse and all others are sparse or dense (as dense scores, this requires
+    // scores that don't depend on the transition type): the candidates are the labels of the shortest sparse list that
+    // all other sparse sub-accessors also list, with the summed scores of all sub-accessors (non-finite sums dropped).
+    // Computed once on the first call.
+    std::optional<SparseScoreSpan> getSparseScores() const override {
+        std::call_once(sparseScoresComputed_, [this]() { computeSparseScores(); });
+        if (not hasSparseScores_) {
+            return std::nullopt;
+        }
+        return SparseScoreSpan{.labels = sparseLabels_, .scores = sparseScoreValues_};
+    }
+
     // Max of timeframes from sub-scorers
     TimeframeIndex getTime() const override {
         return std::accumulate(subAccessors_.begin(), subAccessors_.end(), 0, [](TimeframeIndex max, ScoreAccessorRef subAccessor) {
@@ -113,7 +127,68 @@ public:
     }
 
 private:
+    void computeSparseScores() const {
+        std::vector<std::optional<SparseScoreSpan>> sparseSpans(subAccessors_.size());
+        std::vector<std::optional<DenseScoreSpan>>  denseSpans(subAccessors_.size());
+        std::optional<size_t>                       shortestIdx;
+        for (size_t i = 0ul; i < subAccessors_.size(); ++i) {
+            sparseSpans[i] = subAccessors_[i]->getSparseScores();
+            if (sparseSpans[i]) {
+                if (not shortestIdx or sparseSpans[i]->size() < sparseSpans[*shortestIdx]->size()) {
+                    shortestIdx = i;
+                }
+                continue;
+            }
+            denseSpans[i] = subAccessors_[i]->getDenseScores();
+            if (not denseSpans[i]) {
+                return;  // scores of this sub-accessor only via `getScore`
+            }
+        }
+        if (not shortestIdx) {
+            return;
+        }
+        hasSparseScores_ = true;
+
+        auto const& shortest = *sparseSpans[*shortestIdx];
+        sparseLabels_.reserve(shortest.size());
+        sparseScoreValues_.reserve(shortest.size());
+        for (size_t labelIdx = 0ul; labelIdx < shortest.size(); ++labelIdx) {
+            LabelIndex label  = shortest.labels[labelIdx];
+            Score      score  = shortest[labelIdx];
+            bool       listed = true;
+            for (size_t i = 0ul; i < subAccessors_.size() and listed; ++i) {
+                if (i == *shortestIdx) {
+                    continue;
+                }
+                if (sparseSpans[i]) {
+                    auto const& labels = sparseSpans[i]->labels;
+                    auto        it     = std::find(labels.begin(), labels.end(), label);
+                    listed             = it != labels.end();
+                    if (listed) {
+                        score += (*sparseSpans[i])[it - labels.begin()];
+                    }
+                }
+                else {
+                    listed = label < denseSpans[i]->size();
+                    if (listed) {
+                        score += (*denseSpans[i])[label];
+                    }
+                }
+            }
+            if (not listed or Math::isinf(score) or score >= Core::Type<Score>::max) {
+                continue;
+            }
+            sparseLabels_.push_back(label);
+            sparseScoreValues_.push_back(score);
+        }
+    }
+
     std::vector<ScoreAccessorRef> subAccessors_;
+
+    mutable std::once_flag          sparseScoresComputed_;
+    mutable bool                    hasSparseScores_ = false;
+    mutable std::vector<LabelIndex> sparseLabels_;
+    mutable std::vector<Score>      sparseScoreValues_;
 };
 
 }  // namespace

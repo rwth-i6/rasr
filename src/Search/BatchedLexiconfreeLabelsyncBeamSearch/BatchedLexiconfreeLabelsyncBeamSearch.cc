@@ -823,13 +823,10 @@ void BatchedLexiconfreeLabelsyncBeamSearch::scoreExtensions(SegmentState&       
                 continue;
             }
 
-            // Extend with the selected tokens if their number is limited and with all lemmas otherwise
-            bool   limitExtensions = selectTokens(denseScores, hyp.currentToken, buffers);
-            size_t numCandidates   = limitExtensions ? buffers.selectedTokens.size() : lemmas.second - lemmas.first;
-
-            // Iterate over possible successors
-            for (size_t candidateIdx = 0ul; candidateIdx < numCandidates; ++candidateIdx) {
-                auto const*    lemma      = lemmas.first[limitExtensions ? buffers.selectedTokens[candidateIdx] : candidateIdx];
+            // Create the extension of `hyp` with `lemma` (pre-pruned by score). `sparseScore`: score of the label from the
+            // sparse scores, if it is listed there. `skipInfinite`: don't create it if its score is infinite (cheap for
+            // the few candidates of sparse scores; not done for all lemmas)
+            auto addExtension = [&](Bliss::Lemma const* lemma, std::optional<Score> sparseScore, bool skipInfinite) {
                 Nn::LabelIndex tokenIdx   = lemma->id();
                 bool           terminated = false;
 
@@ -845,10 +842,19 @@ void BatchedLexiconfreeLabelsyncBeamSearch::scoreExtensions(SegmentState&       
                 auto extScore = hyp.score;
                 auto extTime  = hyp.trace->time;
                 if (labelScorer->scoresTransition(transitionType)) {
-                    extScore += (denseScores and tokenIdx < denseScores->size())
-                                        ? (*denseScores)[tokenIdx]
-                                        : (*scoreAccessor)->getScore(transitionType, tokenIdx);
+                    if (sparseScore) {
+                        extScore += *sparseScore;
+                    }
+                    else {
+                        extScore += (denseScores and tokenIdx < denseScores->size())
+                                            ? (*denseScores)[tokenIdx]
+                                            : (*scoreAccessor)->getScore(transitionType, tokenIdx);
+                    }
                     extTime = std::max(extTime, scoreTime);
+                }
+
+                if (skipInfinite and extScore >= Core::Type<Score>::max) {
+                    return;
                 }
 
                 // Pre-prune based on score before creating extension instance and appending to list
@@ -857,7 +863,7 @@ void BatchedLexiconfreeLabelsyncBeamSearch::scoreExtensions(SegmentState&       
                                                    ? currentBestTerminatedScore
                                                    : currentBestScore;
                     if (extScore > referenceScore + scoreThresholds_.front()) {
-                        continue;
+                        return;
                     }
                 }
                 currentBestScore = std::min(currentBestScore, extScore);
@@ -873,6 +879,31 @@ void BatchedLexiconfreeLabelsyncBeamSearch::scoreExtensions(SegmentState&       
                          .transitionType = transitionType,
                          .baseHypIndex   = hypIndex,
                          .isActive       = not terminated});
+            };
+
+            auto sparseScores = (*scoreAccessor)->getSparseScores();
+            if (sparseScores) {
+                // Only the labels of the sparse scores can follow via label transitions, plus the sentence end
+                size_t numLemmas = lemmas.second - lemmas.first;
+                for (size_t i = 0ul; i < sparseScores->size(); ++i) {
+                    auto tokenIdx = sparseScores->labels[i];
+                    if (tokenIdx == sentenceEndLabelIndex_) {
+                        continue;  // added below
+                    }
+                    require_lt(tokenIdx, numLemmas);
+                    addExtension(lemmas.first[tokenIdx], (*sparseScores)[i], true);
+                }
+                if (sentenceEndLabelIndex_ != Nn::invalidLabelIndex and sentenceEndLabelIndex_ < numLemmas) {
+                    addExtension(lemmas.first[sentenceEndLabelIndex_], std::nullopt, true);
+                }
+            }
+            else {
+                // Extend with the selected tokens if their number is limited and with all lemmas otherwise
+                bool   limitExtensions = selectTokens(denseScores, hyp.currentToken, buffers);
+                size_t numCandidates   = limitExtensions ? buffers.selectedTokens.size() : lemmas.second - lemmas.first;
+                for (size_t candidateIdx = 0ul; candidateIdx < numCandidates; ++candidateIdx) {
+                    addExtension(lemmas.first[limitExtensions ? buffers.selectedTokens[candidateIdx] : candidateIdx], std::nullopt, false);
+                }
             }
         }
     }
@@ -1281,13 +1312,15 @@ void BatchedLexiconfreeLabelsyncBeamSearch::scorePruning(std::vector<Element>& h
     }
 
     // Find ranges for score histogram and setting absolute threshold
-    Score lowerScore = Core::Type<Score>::max;
-    Score upperScore = Core::Type<Score>::min;
+    Score  lowerScore         = Core::Type<Score>::max;
+    Score  upperScore         = Core::Type<Score>::min;
+    size_t numFiniteScoreHyps = 0ul;
 
     for (auto const& hyp : hypotheses) {
         if (Math::isinf(hyp.score) or hyp.score >= Core::Type<Score>::max) {
             continue;
         }
+        ++numFiniteScoreHyps;
         lowerScore = std::min(lowerScore, hyp.pruningScore());
         upperScore = std::max(upperScore, hyp.pruningScore());
     }
@@ -1310,9 +1343,16 @@ void BatchedLexiconfreeLabelsyncBeamSearch::scorePruning(std::vector<Element>& h
     }
 
     if (lowerScore == upperScore) {
-        // All scores are the same (usually only happens when exactly 1 hyp is active)
+        // All finite scores are the same (usually only happens when exactly 1 hyp is active)
         if (hypotheses.size() > pruningParams.maxBeamSize) {
-            hypotheses.resize(pruningParams.maxBeamSize);
+            if (numFiniteScoreHyps < hypotheses.size()) {
+                // Move the hyps with finite score to the front so that only hyps with non-finite score are cut off
+                // (the order among the equal finite scores does not matter)
+                std::partition(hypotheses.begin(), hypotheses.end(), [](auto const& hyp) {
+                    return not(Math::isinf(hyp.score) or hyp.score >= Core::Type<Score>::max);
+                });
+            }
+            hypotheses.resize(std::min(pruningParams.maxBeamSize, numFiniteScoreHyps));
         }
         return;
     }

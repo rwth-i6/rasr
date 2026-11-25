@@ -19,6 +19,7 @@
 
 #include <Nn/Module.hh>
 #include <algorithm>
+#include <cmath>
 #include <unordered_set>
 
 #include "ScoreAccessor.hh"
@@ -59,6 +60,72 @@ bool PrefixSpeechLmScoringContext::isEqual(ScoringContextRef const& other) const
 
     return labelSeqEqual(labelSeq, otherPtr->labelSeq);
 }
+
+namespace {
+
+/*
+ * Score accessor for the top-k scores of the step model: provides them as sparse scores; `getScore` returns the score
+ * of a listed label and the maximal score (impossible) for all other labels
+ */
+class SparseVectorScoreAccessor : public ScoreAccessor {
+public:
+    SparseVectorScoreAccessor(std::shared_ptr<PrefixSpeechLmSparseScores const> scores, TimeframeIndex time)
+            : scores_(std::move(scores)),
+              time_(time) {}
+
+    Score getScore(TransitionType transitionType, LabelIndex labelIndex) const override {
+        auto it = std::lower_bound(scores_->labels.begin(), scores_->labels.end(), labelIndex);
+        if (it == scores_->labels.end() or *it != labelIndex) {
+            return Core::Type<Score>::max;
+        }
+        return scores_->scores[it - scores_->labels.begin()];
+    }
+
+    std::optional<SparseScoreSpan> getSparseScores() const override {
+        return SparseScoreSpan{.labels = scores_->labels, .scores = scores_->scores};
+    }
+
+    TimeframeIndex getTime() const override {
+        return time_;
+    }
+
+private:
+    std::shared_ptr<PrefixSpeechLmSparseScores const> scores_;
+    TimeframeIndex                                    time_;
+};
+
+/*
+ * Score accessor for the full distribution with a plausibility threshold: provides only the plausible labels as sparse
+ * scores (so that the search only extends these), `getScore` returns the real score of any label (e.g. the sentence end,
+ * which the search scores via `getScore`)
+ */
+class PlausibleScoreAccessor : public ScoreAccessor {
+public:
+    PlausibleScoreAccessor(std::shared_ptr<std::vector<Score>> dense, std::shared_ptr<PrefixSpeechLmSparseScores const> plausible, TimeframeIndex time)
+            : dense_(std::move(dense)),
+              plausible_(std::move(plausible)),
+              time_(time) {}
+
+    Score getScore(TransitionType transitionType, LabelIndex labelIndex) const override {
+        verify(labelIndex < dense_->size());
+        return (*dense_)[labelIndex];
+    }
+
+    std::optional<SparseScoreSpan> getSparseScores() const override {
+        return SparseScoreSpan{.labels = plausible_->labels, .scores = plausible_->scores};
+    }
+
+    TimeframeIndex getTime() const override {
+        return time_;
+    }
+
+private:
+    std::shared_ptr<std::vector<Score>>               dense_;
+    std::shared_ptr<PrefixSpeechLmSparseScores const> plausible_;
+    TimeframeIndex                                    time_;
+};
+
+}  // namespace
 
 /*
  * =====================================
@@ -160,6 +227,22 @@ static const std::vector<Onnx::IOSpecification> stepIoSpec = {
                 false,
                 {Onnx::ValueType::TENSOR},
                 {Onnx::ValueDataType::FLOAT},
+                {{-1, -1, -2}, {-1, 1, -2}}},
+        // Optional top-k outputs of the step model: if both are mapped, a step only reads the scores of these labels
+        // (provided as sparse scores) instead of the full `scores`; labels < 0 are ignored
+        Onnx::IOSpecification{
+                "topk-scores",
+                Onnx::IODirection::OUTPUT,
+                true,
+                {Onnx::ValueType::TENSOR},
+                {Onnx::ValueDataType::FLOAT},
+                {{-1, -1, -2}, {-1, 1, -2}}},
+        Onnx::IOSpecification{
+                "topk-indices",
+                Onnx::IODirection::OUTPUT,
+                true,
+                {Onnx::ValueType::TENSOR},
+                {Onnx::ValueDataType::INT64},
                 {{-1, -1, -2}, {-1, 1, -2}}}};
 
 const Core::ParameterIntVector PrefixSpeechLmOnnxLabelScorer::paramInitialPromptLabels(
@@ -211,6 +294,35 @@ const Core::ParameterInt PrefixSpeechLmOnnxLabelScorer::paramMaxCachedScores(
         "Maximum size of cache that maps scoring contexts to scores and state slices. In multi-segment usage this applies to each segment separately.",
         10000);
 
+const Core::ParameterString PrefixSpeechLmOnnxLabelScorer::paramModelCacheKey(
+        "model-cache-key",
+        "Key under which the ONNX models are shared with other label scorers of the same search (e.g. two label scorers on "
+        "the same model with different inputs): label scorers with the same key use the same loaded models, so the "
+        "model configs must be the same. Default: the config path of the models, i.e. no sharing.",
+        "");
+
+const Core::ParameterInt PrefixSpeechLmOnnxLabelScorer::paramInputFeatureOffset(
+        "input-feature-offset",
+        "Use only the input features from this index on (per time step), e.g. if the features of several label scorers "
+        "are concatenated.",
+        0,
+        0);
+
+const Core::ParameterInt PrefixSpeechLmOnnxLabelScorer::paramInputFeatureSize(
+        "input-feature-size",
+        "Use only this many input features from input-feature-offset on (per time step); 0: all.",
+        0,
+        0);
+
+const Core::ParameterFloat PrefixSpeechLmOnnxLabelScorer::paramPlausibilityThreshold(
+        "plausibility-threshold",
+        "If > 0 (alpha): only labels with probability >= alpha * the probability of the best label can be extended "
+        "(adaptive plausibility constraint of contrastive decoding), provided as sparse scores. The scores of all labels "
+        "stay available, e.g. for the sentence end. Only applies to the full score distributions (not to top-k outputs).",
+        0.0,
+        0.0,
+        1.0);
+
 PrefixSpeechLmOnnxLabelScorer::PrefixSpeechLmOnnxLabelScorer(Core::Configuration const& config, ModelCache& modelCache)
         : Core::Component(config),
           Precursor(config, TransitionPresetType::LM),
@@ -221,13 +333,17 @@ PrefixSpeechLmOnnxLabelScorer::PrefixSpeechLmOnnxLabelScorer(Core::Configuration
           maxCachedScores_(paramMaxCachedScores(config)),
           prefillWithStepModel_(paramPrefillWithStepModel(config)),
           stepEmbedsDim_(0l),
+          inputFeatureOffset_(paramInputFeatureOffset(config)),
+          inputFeatureSize_(paramInputFeatureSize(config)),
+          plausibilityScoreMargin_(paramPlausibilityThreshold(config) > 0.0 ? -std::log(paramPlausibilityThreshold(config)) : Core::Type<Score>::max),
           stateManager_(Module::instance().createStateManager(
                   select("state-manager"),
                   Onnx::Session::executionProviderType(Core::Configuration(Core::Configuration(config, "step-model"), "session")))),
           stateVectorFactory_(Module::instance().createCompressedVectorFactory(select("state-compression"))),
           segmentData_() {
+    auto                modelCacheKey = paramModelCacheKey(config);
     Core::Configuration stepModelConfig(config, "step-model");
-    stepOnnxModel_ = modelCache.getOrCreate<Onnx::Model>(stepModelConfig.getSelection(), stepModelConfig, stepIoSpec);
+    stepOnnxModel_ = modelCache.getOrCreate<Onnx::Model>(modelCacheKey.empty() ? stepModelConfig.getSelection() : modelCacheKey + ".step-model", stepModelConfig, stepIoSpec);
 
     stateVariables_ = stepOnnxModel_->session.getStateVariablesMetadata();
 
@@ -237,6 +353,11 @@ PrefixSpeechLmOnnxLabelScorer::PrefixSpeechLmOnnxLabelScorer(Core::Configuration
     stepEmbedsLengthName_ = stepOnnxModel_->mapping.getOnnxName("embeds-length");
     stepPrefixLengthName_ = stepOnnxModel_->mapping.getOnnxName("prefix-length");
     stepScoresName_       = stepOnnxModel_->mapping.getOnnxName("scores");
+    stepTopkScoresName_   = stepOnnxModel_->mapping.getOnnxName("topk-scores");
+    stepTopkIndicesName_  = stepOnnxModel_->mapping.getOnnxName("topk-indices");
+    if ((stepTopkScoresName_ == "") != (stepTopkIndicesName_ == "")) {
+        criticalError("Step model: either both or none of topk-scores and topk-indices must be mapped");
+    }
 
     if (stepEmbedsName_ != "") {
         auto embedsShape = stepOnnxModel_->session.getInputShape(stepEmbedsName_);
@@ -253,7 +374,8 @@ PrefixSpeechLmOnnxLabelScorer::PrefixSpeechLmOnnxLabelScorer(Core::Configuration
     }
     else {
         Core::Configuration initializerModelConfig(config, "initializer-model");
-        initializerOnnxModel_ = modelCache.getOrCreate<Onnx::Model>(initializerModelConfig.getSelection(), initializerModelConfig, initializerIoSpec);
+        initializerOnnxModel_ = modelCache.getOrCreate<Onnx::Model>(
+                modelCacheKey.empty() ? initializerModelConfig.getSelection() : modelCacheKey + ".initializer-model", initializerModelConfig, initializerIoSpec);
 
         initializerInitialPromptName_       = initializerOnnxModel_->mapping.getOnnxName("initial-prompt");
         initializerInitialPromptLengthName_ = initializerOnnxModel_->mapping.getOnnxName("initial-prompt-length");
@@ -305,8 +427,35 @@ void PrefixSpeechLmOnnxLabelScorer::removeSegment(SegmentId segment) {
     segmentData_.erase(segment);
 }
 
+PrefixSpeechLmOnnxLabelScorer::CachedScores PrefixSpeechLmOnnxLabelScorer::withPlausibleLabels(std::shared_ptr<std::vector<Score>> dense) const {
+    CachedScores cached{.dense = std::move(dense), .sparse = {}, .plausible = {}};
+    if (plausibilityScoreMargin_ >= Core::Type<Score>::max or cached.dense->empty()) {
+        return cached;
+    }
+    auto const& scores    = *cached.dense;
+    Score       limit     = *std::min_element(scores.begin(), scores.end()) + plausibilityScoreMargin_;
+    auto        plausible = std::make_shared<PrefixSpeechLmSparseScores>();
+    for (size_t label = 0ul; label < scores.size(); ++label) {
+        if (scores[label] <= limit) {
+            plausible->labels.push_back(static_cast<LabelIndex>(label));
+            plausible->scores.push_back(scores[label]);
+        }
+    }
+    cached.plausible = std::move(plausible);
+    return cached;
+}
+
 void PrefixSpeechLmOnnxLabelScorer::addSegmentInput(SegmentId segment, DataView const& input) {
-    Precursor::addSegmentInput(segment, input);
+    if (inputFeatureOffset_ > 0ul or inputFeatureSize_ > 0ul) {
+        size_t size = inputFeatureSize_ > 0ul ? inputFeatureSize_ : input.size() - std::min(inputFeatureOffset_, input.size());
+        if (inputFeatureOffset_ + size > input.size() or size == 0ul) {
+            criticalError() << "Input features of size " << input.size() << " don't contain input-feature-offset " << inputFeatureOffset_ << " + input-feature-size " << inputFeatureSize_;
+        }
+        Precursor::addSegmentInput(segment, DataView(input, size, inputFeatureOffset_));
+    }
+    else {
+        Precursor::addSegmentInput(segment, input);
+    }
     auto& data                  = segmentData(segment);
     data.encoderStatesValue     = Onnx::Value();
     data.encoderStatesSizeValue = Onnx::Value();
@@ -457,7 +606,16 @@ std::vector<std::optional<ScoreAccessorRef>> PrefixSpeechLmOnnxLabelScorer::comp
         }
         auto scores = segmentData(context->segment).scoreCache.get(context);
         verify(scores);
-        scoreAccessors[i] = Core::ref(new VectorScoreAccessor(scores->get(), context->labelSeq.size()));
+        auto const& cached = scores->get();
+        if (cached.sparse) {
+            scoreAccessors[i] = Core::ref(new SparseVectorScoreAccessor(cached.sparse, context->labelSeq.size()));
+        }
+        else if (cached.plausible) {
+            scoreAccessors[i] = Core::ref(new PlausibleScoreAccessor(cached.dense, cached.plausible, context->labelSeq.size()));
+        }
+        else {
+            scoreAccessors[i] = Core::ref(new VectorScoreAccessor(cached.dense, context->labelSeq.size()));
+        }
     }
     contextPreparationTime_.stop();
 
@@ -537,7 +695,7 @@ void PrefixSpeechLmOnnxLabelScorer::setupInitialStates(SegmentId segment) {
     initialContext->parent        = parent;
     initialContext->state         = std::make_shared<HistoryState>(std::move(promptStates.back()));
 
-    data.scoreCache.put(initialContext, scores);
+    data.scoreCache.put(initialContext, withPlausibleLabels(scores));
     data.stateCache.put(initialContext, initialContext->state);
 }
 
@@ -800,20 +958,61 @@ void PrefixSpeechLmOnnxLabelScorer::cacheStatesAndScores(std::vector<PrefixSpeec
         inputs.emplace_back(stepPrefixLengthName_, Onnx::Value::create(stateLengths));
     }
 
-    targets.emplace(targets.begin(), stepScoresName_);
+    // Score outputs first, then the states
+    bool   useTopk         = stepTopkScoresName_ != "";
+    size_t numScoreOutputs = useTopk ? 2ul : 1ul;
+    if (useTopk) {
+        targets.insert(targets.begin(), {stepTopkScoresName_, stepTopkIndicesName_});
+    }
+    else {
+        targets.emplace(targets.begin(), stepScoresName_);
+    }
 
     std::vector<Onnx::Value> outputs;
     onnxSessionTime_.start();
     stepOnnxModel_->session.run(std::move(inputs), targets, outputs);
     onnxSessionTime_.stop();
 
+    std::vector<Score> topkScores;
+    std::vector<s64>   topkIndices;
     for (size_t b = 0ul; b < scoringContextBatch.size(); ++b) {
-        auto scores = std::make_shared<std::vector<Score>>();
-        outputs.front().get(b, 0, *scores);
-        segmentData(scoringContextBatch[b]->segment).scoreCache.put(scoringContextBatch[b], scores);
+        CachedScores cached;
+        if (useTopk) {
+            outputs[0].get(b, 0, topkScores);
+            outputs[1].get(b, 0, topkIndices);
+            verify_eq(topkScores.size(), topkIndices.size());
+
+            // Sorted by label (for the lookup in `getScore`); negative labels mark unused entries, duplicates keep the
+            // best score
+            std::vector<std::pair<LabelIndex, Score>> entries;
+            entries.reserve(topkIndices.size());
+            for (size_t i = 0ul; i < topkIndices.size(); ++i) {
+                if (topkIndices[i] >= 0l) {
+                    entries.emplace_back(static_cast<LabelIndex>(topkIndices[i]), topkScores[i]);
+                }
+            }
+            std::sort(entries.begin(), entries.end());
+            auto sparse = std::make_shared<PrefixSpeechLmSparseScores>();
+            sparse->labels.reserve(entries.size());
+            sparse->scores.reserve(entries.size());
+            for (auto const& [label, score] : entries) {
+                if (not sparse->labels.empty() and sparse->labels.back() == label) {
+                    continue;  // sorted by (label, score): the first entry of a label has the best score
+                }
+                sparse->labels.push_back(label);
+                sparse->scores.push_back(score);
+            }
+            cached.sparse = std::move(sparse);
+        }
+        else {
+            auto dense = std::make_shared<std::vector<Score>>();
+            outputs[0].get(b, 0, *dense);
+            cached = withPlausibleLabels(std::move(dense));
+        }
+        segmentData(scoringContextBatch[b]->segment).scoreCache.put(scoringContextBatch[b], std::move(cached));
     }
 
-    std::vector<Onnx::Value> stateOutputs(std::make_move_iterator(outputs.begin() + 1), std::make_move_iterator(outputs.end()));
+    std::vector<Onnx::Value> stateOutputs(std::make_move_iterator(outputs.begin() + numScoreOutputs), std::make_move_iterator(outputs.end()));
     std::vector<size_t>      suffixLengths(scoringContextBatch.size(), 1ul);
     stateMarshallingTime_.start();
     auto splitStates = stateManager_->splitStates(stateVariables_, suffixLengths, stateOutputs, *stateVectorFactory_);

@@ -79,17 +79,19 @@ public:
     // The optional prompts override the prompts of prefix speech LM label scorers for this segment.
     // Returns the recognition result
     Traceback recognizeSegment(py::array_t<f32> const&                features,
-                               std::string const&                     name          = "",
-                               std::optional<std::vector<s32>> const& initialPrompt = std::nullopt,
-                               std::optional<std::vector<s32>> const& suffixPrompt  = std::nullopt);
+                               std::string const&                     name           = "",
+                               std::optional<std::vector<s32>> const& initialPrompt  = std::nullopt,
+                               std::optional<std::vector<s32>> const& suffixPrompt   = std::nullopt,
+                               std::optional<std::vector<s32>> const& targetSequence = std::nullopt);
 
     // Convenience function to recognize a full segment given all the features as a tensor of shape [T, F]
     // Returns a n-best list of recognition results
     std::vector<Traceback> recognizeSegmentNBest(py::array_t<f32> const&                features,
                                                  size_t                                 nBestSize,
-                                                 std::string const&                     name          = "",
-                                                 std::optional<std::vector<s32>> const& initialPrompt = std::nullopt,
-                                                 std::optional<std::vector<s32>> const& suffixPrompt  = std::nullopt);
+                                                 std::string const&                     name           = "",
+                                                 std::optional<std::vector<s32>> const& initialPrompt  = std::nullopt,
+                                                 std::optional<std::vector<s32>> const& suffixPrompt   = std::nullopt,
+                                                 std::optional<std::vector<s32>> const& targetSequence = std::nullopt);
 
 private:
     std::unique_ptr<Flf::LatticeHandler>       latticeHandler_;
@@ -172,19 +174,22 @@ public:
 
     // Convenience function to recognize several segments given their features as tensors of shape [T, F] each.
     // Decodes up to `maxActiveSegments()` segments at the same time. `names` (only used for logging) is either empty
-    // or has one entry per segment. The optional prompts override the prompts of prefix speech LM label scorers per segment.
+    // or has one entry per segment. The optional prompts override the prompts of prefix speech LM label scorers per segment,
+    // the optional target sequences set the target sequences of forced-sequence label scorers per segment.
     // Returns the recognition results in the order of the inputs.
     std::vector<Traceback> recognizeSegments(std::vector<py::array_t<f32>> const& features,
-                                             std::vector<std::string> const&      names          = {},
-                                             Prompts const&                       initialPrompts = std::nullopt,
-                                             Prompts const&                       suffixPrompts  = std::nullopt);
+                                             std::vector<std::string> const&      names           = {},
+                                             Prompts const&                       initialPrompts  = std::nullopt,
+                                             Prompts const&                       suffixPrompts   = std::nullopt,
+                                             Prompts const&                       targetSequences = std::nullopt);
 
     // Same as `recognizeSegments` but returns a n-best list of recognition results for each segment.
     std::vector<std::vector<Traceback>> recognizeSegmentsNBest(std::vector<py::array_t<f32>> const& features,
                                                                size_t                               nBestSize,
-                                                               std::vector<std::string> const&      names          = {},
-                                                               Prompts const&                       initialPrompts = std::nullopt,
-                                                               Prompts const&                       suffixPrompts  = std::nullopt);
+                                                               std::vector<std::string> const&      names           = {},
+                                                               Prompts const&                       initialPrompts  = std::nullopt,
+                                                               Prompts const&                       suffixPrompts   = std::nullopt,
+                                                               Prompts const&                       targetSequences = std::nullopt);
 
 private:
     std::unique_ptr<Flf::LatticeHandler>       latticeHandler_;
@@ -197,6 +202,7 @@ private:
                            std::vector<std::string> const&                   names,
                            Prompts const&                                    initialPrompts,
                            Prompts const&                                    suffixPrompts,
+                           Prompts const&                                    targetSequences,
                            std::function<void(size_t, SegmentHandle)> const& storeResult);
 };
 

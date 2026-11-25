@@ -29,6 +29,15 @@
 namespace Nn {
 
 /*
+ * Scores of only some labels, sorted by label: e.g. the top-k labels that the step model selects itself
+ * (`topk-scores` / `topk-indices` outputs)
+ */
+struct PrefixSpeechLmSparseScores {
+    std::vector<LabelIndex> labels;
+    std::vector<Score>      scores;
+};
+
+/*
  * Scoring context for prefix speech LMs.
  * `labelSeq` contains only labels emitted by search, not from the prompt and speech-embeddings.
  * `historyLength` contains the total LM cache length, including prompt and speech-embedding positions.
@@ -81,6 +90,10 @@ class PrefixSpeechLmOnnxLabelScorer : public BufferedLabelScorer {
     static const Core::ParameterBool      paramPrefillWithStepModel;
     static const Core::ParameterInt       paramMaxBatchSize;
     static const Core::ParameterInt       paramMaxCachedScores;
+    static const Core::ParameterString    paramModelCacheKey;
+    static const Core::ParameterInt       paramInputFeatureOffset;
+    static const Core::ParameterInt       paramInputFeatureSize;
+    static const Core::ParameterFloat     paramPlausibilityThreshold;
 
 public:
     PrefixSpeechLmOnnxLabelScorer(Core::Configuration const& config, ModelCache& modelCache);
@@ -94,8 +107,8 @@ public:
 
     // Override the initial or suffix prompt of the config for the given segment (default: the segment of single-segment search).
     // Call after the segment was started (`enterSegment` / `addSegment`) and before its features are passed.
-    void setInitialPrompt(std::vector<s32> const& prompt, SegmentId segment = defaultSegmentId);
-    void setSuffixPrompt(std::vector<s32> const& prompt, SegmentId segment = defaultSegmentId);
+    void              setInitialPrompt(std::vector<s32> const& prompt, SegmentId segment = defaultSegmentId);
+    void              setSuffixPrompt(std::vector<s32> const& prompt, SegmentId segment = defaultSegmentId);
     ScoringContextRef extendedScoringContext(ScoringContextRef scoringContext, LabelIndex nextToken, TransitionType transitionType) override;
 
 protected:
@@ -107,6 +120,20 @@ protected:
     size_t                                       getMinActiveInputIndex(Core::CollapsedVector<ScoringContextRef> const& activeContexts) const override;
 
 private:
+    /*
+     * Scores of one scoring context: the full distribution (initializer model, or step model without top-k outputs) or
+     * only the top-k labels selected by the step model
+     */
+    struct CachedScores {
+        std::shared_ptr<std::vector<Score>>               dense;
+        std::shared_ptr<PrefixSpeechLmSparseScores const> sparse;
+        // With `plausibility-threshold`: the plausible labels of `dense`, provided as sparse scores
+        std::shared_ptr<PrefixSpeechLmSparseScores const> plausible;
+    };
+
+    // Cache entry of the dense scores, with their plausible labels if `plausibility-threshold` is set
+    CachedScores withPlausibleLabels(std::shared_ptr<std::vector<Score>> dense) const;
+
     struct SegmentData {
         Onnx::Value encoderStatesValue;
         Onnx::Value encoderStatesSizeValue;
@@ -116,8 +143,8 @@ private:
         std::optional<std::vector<s32>> initialPrompt;  // Overrides of the prompts of the config
         std::optional<std::vector<s32>> suffixPrompt;
 
-        Core::FIFOCache<PrefixSpeechLmScoringContextRef, std::shared_ptr<std::vector<Score>>, ScoringContextHash, ScoringContextEq> scoreCache;
-        Core::FIFOCache<PrefixSpeechLmScoringContextRef, std::shared_ptr<HistoryState>, ScoringContextHash, ScoringContextEq>       stateCache;
+        Core::FIFOCache<PrefixSpeechLmScoringContextRef, CachedScores, ScoringContextHash, ScoringContextEq>                  scoreCache;
+        Core::FIFOCache<PrefixSpeechLmScoringContextRef, std::shared_ptr<HistoryState>, ScoringContextHash, ScoringContextEq> stateCache;
 
         SegmentData(size_t maxCachedScores);
     };
@@ -156,6 +183,9 @@ private:
     size_t           maxCachedScores_;
     bool             prefillWithStepModel_;
     int64_t          stepEmbedsDim_;  // feature dim of the "embeds" input of the step model, if it has one
+    size_t           inputFeatureOffset_;
+    size_t           inputFeatureSize_;         // 0: all features from the offset on
+    Score            plausibilityScoreMargin_;  // -log(plausibility-threshold), infinite if off
 
     std::shared_ptr<Onnx::Model> initializerOnnxModel_;
     std::shared_ptr<Onnx::Model> stepOnnxModel_;
@@ -178,7 +208,8 @@ private:
     std::string stepEmbedsLengthName_;
     std::string stepPrefixLengthName_;
     std::string stepScoresName_;
-
+    std::string stepTopkScoresName_;
+    std::string stepTopkIndicesName_;
 
     // Includes both the initializer and the step session runs
     Core::StopWatch onnxSessionTime_;

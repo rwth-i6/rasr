@@ -22,6 +22,7 @@
 #include <Nn/LabelScorer/CombineLabelScorer.hh>
 #include <Nn/LabelScorer/CtcPrefixLabelScorer.hh>
 #include <Nn/LabelScorer/EncoderDecoderLabelScorer.hh>
+#include <Nn/LabelScorer/ForcedSequenceLabelScorer.hh>
 #include <Nn/LabelScorer/ScaledLabelScorer.hh>
 #include <Nn/Module.hh>
 #include <Python/LabelScorer.hh>
@@ -241,4 +242,20 @@ void bindLabelScorer(py::module_& module) {
             "`segment` is the handle of a `BatchedSearchAlgorithm` segment; the default is the segment of `SearchAlgorithm`.\n"
             "Call after `enter_segment` / `add_segment` and before passing the features of the segment.");
 #endif
+
+    py::class_<Nn::ForcedSequenceLabelScorer, Nn::LabelScorer, Core::Ref<Nn::ForcedSequenceLabelScorer>> pyForcedSequenceLabelScorer(
+            module,
+            "ForcedSequenceLabelScorer",
+            "Label scorer that only allows a given label sequence (score 0 for its labels, `infinity-score` otherwise),\n"
+            "for forced scoring of the sequence with the other label scorers of the search.");
+
+    pyForcedSequenceLabelScorer.def(
+            "set_target_sequence",
+            &Nn::ForcedSequenceLabelScorer::setTargetSequence,
+            py::arg("target_sequence"),
+            py::arg("segment") = Nn::defaultSegmentId,
+            "Set the label indices (without sentence end) that the segment is forced to.\n"
+            "`segment` is the handle of a `BatchedSearchAlgorithm` segment; the default is the segment of `SearchAlgorithm`.\n"
+            "Call before passing the features of the segment, e.g. before `recognize_segment`; for the default segment, the\n"
+            "sequence is kept until it is replaced.");
 }

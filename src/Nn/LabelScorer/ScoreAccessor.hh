@@ -71,6 +71,29 @@ struct DenseScoreSpan {
 };
 
 /*
+ * Sparse score view: only the listed labels can follow via a transition that emits a new label (initial-label,
+ * label-to-label, blank-to-label, silence-to-label), all other labels are impossible for such transitions (their
+ * score is infinite). `scores[i] * scale` is the score of `labels[i]`; like dense scores, sparse scores don't depend on
+ * the type of the transition, so they are used for every transition to a listed label (also e.g. a label loop).
+ * Transitions without a new label to labels that are not listed (blank, loops, silence, sentence end) are scored via
+ * `ScoreAccessor::getScore` as usual.
+ */
+struct SparseScoreSpan {
+    std::span<LabelIndex const> labels;
+    std::span<Score const>      scores;
+    Score                       scale = 1.0;
+
+    size_t size() const {
+        return labels.size();
+    }
+
+    // Score of the label at position `idx` of the list
+    Score operator[](size_t idx) const {
+        return scores[idx] * scale;
+    }
+};
+
+/*
  * Abstract base class for score accessor interface
  */
 class ScoreAccessor : public Core::ReferenceCounted {
@@ -79,6 +102,11 @@ public:
 
     // Optional contiguous score view over vocabulary for accessors that support it
     virtual std::optional<DenseScoreSpan> getDenseScores() const;
+
+    // Optional sparse score view for accessors that only allow a few labels, see `SparseScoreSpan`.
+    // The searches that support it only create the extensions with these labels (with these scores) and the
+    // transitions without a new label, instead of iterating over the whole vocabulary, for the first label scorer.
+    virtual std::optional<SparseScoreSpan> getSparseScores() const;
 
     virtual TimeframeIndex getTime() const;
 

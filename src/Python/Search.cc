@@ -21,6 +21,7 @@
 #include <Flf/RecognizerV2.hh>
 #include <Nn/LabelScorer/CombineLabelScorer.hh>
 #include <Nn/LabelScorer/EncoderDecoderLabelScorer.hh>
+#include <Nn/LabelScorer/ForcedSequenceLabelScorer.hh>
 #include <Nn/LabelScorer/ScaledLabelScorer.hh>
 #include <Search/Module.hh>
 #include <Speech/ModelCombination.hh>
@@ -213,6 +214,47 @@ void setPrompts(Core::Component const&                 component,
     }
 }
 
+// Collect all forced-sequence label scorers, also inside scaled, combine and encoder-decoder label scorers
+void findForcedSequenceScorers(Nn::LabelScorer* labelScorer, std::vector<Nn::ForcedSequenceLabelScorer*>& result) {
+    if (auto* forcedSequence = dynamic_cast<Nn::ForcedSequenceLabelScorer*>(labelScorer)) {
+        result.push_back(forcedSequence);
+    }
+    else if (auto* scaled = dynamic_cast<Nn::ScaledLabelScorer*>(labelScorer)) {
+        findForcedSequenceScorers(scaled->labelScorer().get(), result);
+    }
+    else if (auto* combine = dynamic_cast<Nn::CombineLabelScorer*>(labelScorer)) {
+        for (size_t i = 0ul; i < combine->numSubScorers(); ++i) {
+            findForcedSequenceScorers(combine->getSubScorer(i).get(), result);
+        }
+    }
+    else if (auto* encoderDecoder = dynamic_cast<Nn::EncoderDecoderLabelScorer*>(labelScorer)) {
+        findForcedSequenceScorers(encoderDecoder->getDecoderLabelScorer().get(), result);
+    }
+}
+
+// Set the target sequence of all forced-sequence label scorers of the model combination for the segment, if given
+void setTargetSequence(Core::Component const&                 component,
+                       Speech::ModelCombination const&        modelCombination,
+                       std::optional<std::vector<s32>> const& targetSequence,
+                       Nn::SegmentId                          segment) {
+    if (not targetSequence) {
+        return;
+    }
+
+    std::vector<Nn::ForcedSequenceLabelScorer*> forcedSequenceScorers;
+    for (auto const& labelScorer : modelCombination.labelScorers()) {
+        findForcedSequenceScorers(labelScorer.get(), forcedSequenceScorers);
+    }
+    if (forcedSequenceScorers.empty()) {
+        component.error() << "A target sequence was given but there is no forced-sequence label scorer";
+        return;
+    }
+    std::vector<Nn::LabelIndex> labels(targetSequence->begin(), targetSequence->end());
+    for (auto* forcedSequenceScorer : forcedSequenceScorers) {
+        forcedSequenceScorer->setTargetSequence(labels, segment);
+    }
+}
+
 }  // namespace
 
 SearchAlgorithm::SearchAlgorithm(const Core::Configuration& c)
@@ -284,17 +326,19 @@ std::vector<Traceback> SearchAlgorithm::getCurrentNBestList(size_t nBestSize) {
     return searchLatticeToNBestList(searchAlgorithm_->getCurrentBestWordLattice(), lexicon_, latticeHandler_.get(), modelCombination_, nBestSize);
 }
 
-Traceback SearchAlgorithm::recognizeSegment(py::array_t<f32> const& features, std::string const& name, std::optional<std::vector<s32>> const& initialPrompt, std::optional<std::vector<s32>> const& suffixPrompt) {
+Traceback SearchAlgorithm::recognizeSegment(py::array_t<f32> const& features, std::string const& name, std::optional<std::vector<s32>> const& initialPrompt, std::optional<std::vector<s32>> const& suffixPrompt, std::optional<std::vector<s32>> const& targetSequence) {
     enterSegment(name);
     setPrompts(*this, modelCombination_, initialPrompt, suffixPrompt, Nn::defaultSegmentId);
+    setTargetSequence(*this, modelCombination_, targetSequence, Nn::defaultSegmentId);
     putFeatures(features);
     finishSegment();
     return getCurrentBestTraceback();
 }
 
-std::vector<Traceback> SearchAlgorithm::recognizeSegmentNBest(py::array_t<f32> const& features, size_t nBestSize, std::string const& name, std::optional<std::vector<s32>> const& initialPrompt, std::optional<std::vector<s32>> const& suffixPrompt) {
+std::vector<Traceback> SearchAlgorithm::recognizeSegmentNBest(py::array_t<f32> const& features, size_t nBestSize, std::string const& name, std::optional<std::vector<s32>> const& initialPrompt, std::optional<std::vector<s32>> const& suffixPrompt, std::optional<std::vector<s32>> const& targetSequence) {
     enterSegment(name);
     setPrompts(*this, modelCombination_, initialPrompt, suffixPrompt, Nn::defaultSegmentId);
+    setTargetSequence(*this, modelCombination_, targetSequence, Nn::defaultSegmentId);
     putFeatures(features);
     finishSegment();
     return getCurrentNBestList(nBestSize);
@@ -380,17 +424,17 @@ std::vector<Traceback> BatchedSearchAlgorithm::getCurrentNBestList(SegmentHandle
     return searchLatticeToNBestList(searchAlgorithm_->getCurrentBestWordLattice(segment), lexicon_, latticeHandler_.get(), modelCombination_, nBestSize);
 }
 
-std::vector<Traceback> BatchedSearchAlgorithm::recognizeSegments(std::vector<py::array_t<f32>> const& features, std::vector<std::string> const& names, Prompts const& initialPrompts, Prompts const& suffixPrompts) {
+std::vector<Traceback> BatchedSearchAlgorithm::recognizeSegments(std::vector<py::array_t<f32>> const& features, std::vector<std::string> const& names, Prompts const& initialPrompts, Prompts const& suffixPrompts, Prompts const& targetSequences) {
     std::vector<Traceback> results(features.size());
-    recognizeSegments(features, names, initialPrompts, suffixPrompts, [this, &results](size_t index, SegmentHandle segment) {
+    recognizeSegments(features, names, initialPrompts, suffixPrompts, targetSequences, [this, &results](size_t index, SegmentHandle segment) {
         results[index] = getCurrentBestTraceback(segment);
     });
     return results;
 }
 
-std::vector<std::vector<Traceback>> BatchedSearchAlgorithm::recognizeSegmentsNBest(std::vector<py::array_t<f32>> const& features, size_t nBestSize, std::vector<std::string> const& names, Prompts const& initialPrompts, Prompts const& suffixPrompts) {
+std::vector<std::vector<Traceback>> BatchedSearchAlgorithm::recognizeSegmentsNBest(std::vector<py::array_t<f32>> const& features, size_t nBestSize, std::vector<std::string> const& names, Prompts const& initialPrompts, Prompts const& suffixPrompts, Prompts const& targetSequences) {
     std::vector<std::vector<Traceback>> results(features.size());
-    recognizeSegments(features, names, initialPrompts, suffixPrompts, [this, &results, nBestSize](size_t index, SegmentHandle segment) {
+    recognizeSegments(features, names, initialPrompts, suffixPrompts, targetSequences, [this, &results, nBestSize](size_t index, SegmentHandle segment) {
         results[index] = getCurrentNBestList(segment, nBestSize);
     });
     return results;
@@ -400,6 +444,7 @@ void BatchedSearchAlgorithm::recognizeSegments(std::vector<py::array_t<f32>> con
                                                std::vector<std::string> const&                   names,
                                                Prompts const&                                    initialPrompts,
                                                Prompts const&                                    suffixPrompts,
+                                               Prompts const&                                    targetSequences,
                                                std::function<void(size_t, SegmentHandle)> const& storeResult) {
     if (not searchAlgorithm_->segments().empty()) {
         error() << "recognize_segments can only be used if no other segments are present in the search";
@@ -411,6 +456,9 @@ void BatchedSearchAlgorithm::recognizeSegments(std::vector<py::array_t<f32>> con
         if (*prompts and (*prompts)->size() != features.size()) {
             error() << "Got " << (*prompts)->size() << " prompts for " << features.size() << " segments";
         }
+    }
+    if (targetSequences and targetSequences->size() != features.size()) {
+        error() << "Got " << targetSequences->size() << " target sequences for " << features.size() << " segments";
     }
 
     size_t batchSize = searchAlgorithm_->maxActiveSegments();
@@ -426,6 +474,7 @@ void BatchedSearchAlgorithm::recognizeSegments(std::vector<py::array_t<f32>> con
                        initialPrompts ? std::optional((*initialPrompts)[nextInput]) : std::nullopt,
                        suffixPrompts ? std::optional((*suffixPrompts)[nextInput]) : std::nullopt,
                        segment);
+            setTargetSequence(*this, modelCombination_, targetSequences ? std::optional((*targetSequences)[nextInput]) : std::nullopt, segment);
             putFeatures(segment, features[nextInput]);
             searchAlgorithm_->signalNoMoreFeatures(segment);
             activeSegments.emplace_back(segment, nextInput);

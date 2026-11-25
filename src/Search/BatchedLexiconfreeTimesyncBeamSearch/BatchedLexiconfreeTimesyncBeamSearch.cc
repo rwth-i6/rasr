@@ -16,6 +16,7 @@
 #include "BatchedLexiconfreeTimesyncBeamSearch.hh"
 
 #include <algorithm>
+#include <array>
 #include <numeric>
 #include <unordered_set>
 #include <strings.h>
@@ -749,31 +750,37 @@ void BatchedLexiconfreeTimesyncBeamSearch::scoreExtensions(SegmentState&        
             auto const& denseScores = denseScoreSpans[contextMap[hypIndex]];
             auto        scoreTime   = scoreTimes[contextMap[hypIndex]];
 
-            // Extend with the selected tokens if their number is limited and with all lemmas otherwise
-            bool   limitExtensions = selectTokens(denseScores, hyp.currentToken, buffers);
-            size_t numCandidates   = limitExtensions ? buffers.selectedTokens.size() : lemmas.second - lemmas.first;
-
-            // Iterate over possible successors
-            for (size_t candidateIdx = 0ul; candidateIdx < numCandidates; ++candidateIdx) {
-                auto const*    lemma    = lemmas.first[limitExtensions ? buffers.selectedTokens[candidateIdx] : candidateIdx];
+            // Create the extension of `hyp` with `lemma` (pre-pruned by score). `sparseScore`: score of the label from the
+            // sparse scores, if it is listed there. `skipInfinite`: don't create it if its score is infinite (cheap for
+            // the few candidates of sparse scores; not done for all lemmas)
+            auto addExtension = [&](Bliss::Lemma const* lemma, std::optional<Score> sparseScore, bool skipInfinite) {
                 Nn::LabelIndex tokenIdx = lemma->id();
                 // Don't score the sentence-end token
                 if (tokenIdx == sentenceEndLabelIndex_) {
-                    continue;
+                    return;
                 }
                 auto transitionType = inferTransitionType(hyp.currentToken, tokenIdx);
                 auto extScore       = hyp.score;
                 auto extTime        = hyp.trace->time;
                 if (labelScorer->scoresTransition(transitionType)) {
-                    extScore += (denseScores and tokenIdx < denseScores->size())
-                                        ? (*denseScores)[tokenIdx]
-                                        : (*scoreAccessor)->getScore(transitionType, tokenIdx);
+                    if (sparseScore) {
+                        extScore += *sparseScore;
+                    }
+                    else {
+                        extScore += (denseScores and tokenIdx < denseScores->size())
+                                            ? (*denseScores)[tokenIdx]
+                                            : (*scoreAccessor)->getScore(transitionType, tokenIdx);
+                    }
                     extTime = std::max(extTime, scoreTime);
+                }
+
+                if (skipInfinite and extScore >= Core::Type<Score>::max) {
+                    return;
                 }
 
                 // Pre-prune based on score before creating extension instance and appending to list
                 if (useScorePruning_.front() and extScore > currentBestScore + scoreThresholds_.front()) {
-                    continue;
+                    return;
                 }
                 currentBestScore = std::min(currentBestScore, extScore);
 
@@ -784,6 +791,39 @@ void BatchedLexiconfreeTimesyncBeamSearch::scoreExtensions(SegmentState&        
                          .timeframe      = extTime,
                          .transitionType = transitionType,
                          .baseHypIndex   = hypIndex});
+            };
+
+            auto sparseScores = (*scoreAccessor)->getSparseScores();
+            if (sparseScores) {
+                // Only the labels of the sparse scores can follow via transitions that emit a new label; transitions
+                // without a new label (blank, label loop, silence) are always candidates
+                size_t numLemmas = lemmas.second - lemmas.first;
+                auto   isListed  = [&sparseScores](Nn::LabelIndex label) {
+                    return std::find(sparseScores->labels.begin(), sparseScores->labels.end(), label) != sparseScores->labels.end();
+                };
+                for (size_t i = 0ul; i < sparseScores->size(); ++i) {
+                    auto tokenIdx = sparseScores->labels[i];
+                    require_lt(tokenIdx, numLemmas);
+                    addExtension(lemmas.first[tokenIdx], (*sparseScores)[i], true);
+                }
+                std::array<Nn::LabelIndex, 3> extraCandidates = {useBlank_ ? blankLabelIndex_ : Nn::invalidLabelIndex,
+                                                                 useSilence_ ? silenceLabelIndex_ : Nn::invalidLabelIndex,
+                                                                 collapseRepeatedLabels_ ? hyp.currentToken : Nn::invalidLabelIndex};
+                for (size_t i = 0ul; i < extraCandidates.size(); ++i) {
+                    auto tokenIdx    = extraCandidates[i];
+                    bool isDuplicate = std::find(extraCandidates.begin(), extraCandidates.begin() + i, tokenIdx) != extraCandidates.begin() + i;
+                    if (tokenIdx != Nn::invalidLabelIndex and tokenIdx < numLemmas and not isDuplicate and not isListed(tokenIdx)) {
+                        addExtension(lemmas.first[tokenIdx], std::nullopt, true);
+                    }
+                }
+            }
+            else {
+                // Extend with the selected tokens if their number is limited and with all lemmas otherwise
+                bool   limitExtensions = selectTokens(denseScores, hyp.currentToken, buffers);
+                size_t numCandidates   = limitExtensions ? buffers.selectedTokens.size() : lemmas.second - lemmas.first;
+                for (size_t candidateIdx = 0ul; candidateIdx < numCandidates; ++candidateIdx) {
+                    addExtension(lemmas.first[limitExtensions ? buffers.selectedTokens[candidateIdx] : candidateIdx], std::nullopt, false);
+                }
             }
         }
     }

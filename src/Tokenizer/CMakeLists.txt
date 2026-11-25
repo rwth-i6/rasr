@@ -1,5 +1,5 @@
 add_library(
-    RasrTokenizer STATIC AbstractTokenizer.cc BpeTokenizer.cc Module.cc
+    RasrTokenizer STATIC AbstractTokenizer.cc BpeTokenizer.cc Module.cc Text.cc
                          TokenizerFactory.cc
 )
 

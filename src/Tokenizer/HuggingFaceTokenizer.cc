@@ -24,6 +24,8 @@
 #include <Core/StringUtilities.hh>
 #include <Python/Init.hh>
 
+#include "Text.hh"
+
 namespace py = pybind11;
 
 namespace {
@@ -178,19 +180,20 @@ Core::Status HuggingFaceTokenizer::wordBoundaryMarks(TokenId id, WordBoundaryMar
         marks = {true, true};
         return {};
     }
-    std::string const& marker = wordBoundaryMarking_.marker;
+    std::string const& marker     = wordBoundaryMarking_.marker;
+    bool               whitespace = whitespaceTokens_[id];
     switch (wordBoundaryMarking_.type) {
         case WordBoundaryMarking::Type::ByteLevel:
-            marks = {startsWithByteLevelWhitespace(token), endsWithByteLevelWhitespace(token)};
+            marks = {startsWithByteLevelWhitespace(token), endsWithByteLevelWhitespace(token), whitespace};
             return {};
         case WordBoundaryMarking::Type::Prefix:
-            marks = {Core::startsWith(token, marker), false};
+            marks = {Core::startsWith(token, marker), false, whitespace};
             return {};
         case WordBoundaryMarking::Type::ContinuationPrefix:
-            marks = {not Core::startsWith(token, marker), false};
+            marks = {not Core::startsWith(token, marker), false, whitespace};
             return {};
         case WordBoundaryMarking::Type::Suffix:
-            marks = {false, token.size() >= marker.size() and token.compare(token.size() - marker.size(), marker.size(), marker) == 0};
+            marks = {false, token.size() >= marker.size() and token.compare(token.size() - marker.size(), marker.size(), marker) == 0, whitespace};
             return {};
         case WordBoundaryMarking::Type::Unknown:
             break;
@@ -235,6 +238,15 @@ Core::Status HuggingFaceTokenizer::load() {
             if (item.second.attr("special").cast<bool>()) {
                 specialTokenIds_.insert(item.first.cast<TokenId>());
             }
+        }
+        // Each token decoded on its own, in a single call
+        py::list singleTokens;
+        for (TokenId id = 0u; id < vocabularySize_; ++id) {
+            singleTokens.append(py::make_tuple(id));
+        }
+        auto decoded = tokenizer.attr("decode_batch")(singleTokens, py::arg("skip_special_tokens") = false).cast<std::vector<std::string>>();
+        for (auto const& text : decoded) {
+            whitespaceTokens_.push_back(isWhitespace(text));
         }
         tokenizer_.takeOver(tokenizer.release().ptr());
     }

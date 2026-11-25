@@ -57,6 +57,7 @@ private:
     // Read from the model, as the SentencePiece API does not provide them
     bool              whitespaceAsSuffix_;
     std::vector<bool> standalonePieces_;  // Indexed by id, pieces that are words of their own
+    std::vector<bool> whitespacePieces_;  // Indexed by id, see `WordBoundaryMarks::whitespace`
 
     SentencePieceTokenizer(Core::Configuration const& config);
 

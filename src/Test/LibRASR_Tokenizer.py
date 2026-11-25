@@ -50,7 +50,7 @@ class CharTokenizer(librasr.Tokenizer):
     # Blanks are words of their own
     def word_boundary_marks(self, id: int) -> librasr.Tokenizer.WordBoundaryMarks:
         blank = self.vocab[id] == " "
-        return librasr.Tokenizer.WordBoundaryMarks(before=blank, after=blank)
+        return librasr.Tokenizer.WordBoundaryMarks(before=blank, after=blank, whitespace=blank)
 
 
 class UpperCaseTokenizer(CharTokenizer):
@@ -192,7 +192,9 @@ class PythonTokenizerTest(unittest.TestCase):
         self.assertEqual(tokenizer.detokenize(tokens), "hello world")
         # Calling the C++ method goes through RASR to the python implementation
         boundaries = librasr.Tokenizer.word_boundary_marks(tokenizer, tokenizer.token_str_to_id(" "))
-        self.assertEqual(repr(boundaries), "WordBoundaryMarks(before=True, after=True)")
+        self.assertEqual(repr(boundaries), "WordBoundaryMarks(before=True, after=True, whitespace=True)")
+        # Tokens are not whitespace by default
+        self.assertFalse(librasr.Tokenizer.WordBoundaryMarks(before=True, after=True).whitespace)
         # `INVALID_TOKEN_ID` of the python implementation is passed on, the default `detokenize` fails on it
         self.assertEqual(librasr.Tokenizer.token_str_to_id(tokenizer, "A"), librasr.Tokenizer.INVALID_TOKEN_ID)
         with self.assertRaisesRegex(RuntimeError, "not part of the vocabulary"):

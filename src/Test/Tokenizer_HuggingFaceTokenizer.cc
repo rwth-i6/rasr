@@ -37,7 +37,7 @@ protected:
     static std::string minimalTokenizer(std::string const& decoder) {
         return R"({"version": "1.0", "truncation": null, "padding": null, "normalizer": null, "pre_tokenizer": null, "post_processor": null,
                    "added_tokens": [{"id": 4, "content": "[S]", "single_word": false, "lstrip": false, "rstrip": false, "normalized": false, "special": true}],
-                   "model": {"type": "WordLevel", "vocab": {"▁a": 0, "b": 1, "##c": 2, "d</w>": 3, "[S]": 4}, "unk_token": "b"},
+                   "model": {"type": "WordLevel", "vocab": {"▁a": 0, "b": 1, "##c": 2, "d</w>": 3, "[S]": 4, "▁": 5, "</w>": 6}, "unk_token": "b"},
                    "decoder": )" +
                decoder + "}";
     }
@@ -208,24 +208,26 @@ TEST_F(Tokenizer, HuggingFaceTokenizerTest, WordBoundaryMarks) {
     }
     setTokenizerParameter("add-special-tokens-on-encode", "true");
     auto tokenizer = createTokenizer();
-    EXPECT_EQ(formatWordBoundaryMarks(*tokenizer, encode(*tokenizer, "the tower,\nlow")), std::string("<s>:BA the:-- Ġtower:B- ,:-- Ċ:BA lo:-- w:--"));
+    EXPECT_EQ(formatWordBoundaryMarks(*tokenizer, encode(*tokenizer, "the tower,\nlow")), std::string("<s>:BA- the:--- Ġtower:B-- ,:--- Ċ:BAW lo:--- w:---"));
+    EXPECT_EQ(formatWordBoundaryMarks(*tokenizer, encode(*tokenizer, "lower  tower")), std::string("<s>:BA- l:--- ower:--- Ġ:BAW Ġtower:B--"));
 }
 
-// The marking is determined from the decoder, here tested with minimal tokenizers
+// The marking is determined from the decoder, here tested with minimal tokenizers. Tokens that the decoder turns into
+// whitespace or nothing are whitespace.
 TEST_F(Tokenizer, HuggingFaceTokenizerTest, WordBoundaryDecoders) {
     if (not tokenizersAvailable()) {
         return;
     }
     std::vector<std::pair<std::string, std::string>> decoders = {
-            {R"({"type": "Metaspace", "replacement": "▁", "prepend_scheme": "always", "split": true})", "▁a:B- b:-- ##c:-- d</w>:-- [S]:BA"},
-            {R"({"type": "Sequence", "decoders": [{"type": "Replace", "pattern": {"String": "▁"}, "content": " "}, {"type": "Fuse"}]})", "▁a:B- b:-- ##c:-- d</w>:-- [S]:BA"},
-            {R"({"type": "WordPiece", "prefix": "##", "cleanup": true})", "▁a:B- b:B- ##c:-- d</w>:B- [S]:BA"},
-            {R"({"type": "BPEDecoder", "suffix": "</w>"})", "▁a:-- b:-- ##c:-- d</w>:-A [S]:BA"},
+            {R"({"type": "Metaspace", "replacement": "▁", "prepend_scheme": "always", "split": true})", "▁a:B-- b:--- ##c:--- d</w>:--- [S]:BA- ▁:B-W </w>:---"},
+            {R"({"type": "Sequence", "decoders": [{"type": "Replace", "pattern": {"String": "▁"}, "content": " "}, {"type": "Fuse"}]})", "▁a:B-- b:--- ##c:--- d</w>:--- [S]:BA- ▁:B-W </w>:---"},
+            {R"({"type": "WordPiece", "prefix": "##", "cleanup": true})", "▁a:B-- b:B-- ##c:--- d</w>:B-- [S]:BA- ▁:B-- </w>:B--"},
+            {R"({"type": "BPEDecoder", "suffix": "</w>"})", "▁a:--- b:--- ##c:--- d</w>:-A- [S]:BA- ▁:--- </w>:-AW"},
     };
     Test::Directory dir;
     for (auto const& [decoder, expected] : decoders) {
         setTokenizerParameter("tokenizer-file", writeFile(dir, "tokenizer.json", minimalTokenizer(decoder)));
-        EXPECT_EQ(formatWordBoundaryMarks(*createTokenizer(), {0u, 1u, 2u, 3u, 4u}), expected);
+        EXPECT_EQ(formatWordBoundaryMarks(*createTokenizer(), {0u, 1u, 2u, 3u, 4u, 5u, 6u}), expected);
     }
 }
 
@@ -237,7 +239,7 @@ TEST_F(Tokenizer, HuggingFaceTokenizerTest, WordBoundaryMarksUnknownDecoder) {
     setTokenizerParameter("tokenizer-file", writeFile(dir, "tokenizer.json", minimalTokenizer("null")));
     auto                                 tokenizer = createTokenizer();
     AbstractTokenizer::WordBoundaryMarks marks;
-    EXPECT_EQ(formatWordBoundaryMarks(*tokenizer, {4u}), std::string("[S]:BA"));  // Special tokens do not depend on the decoder
+    EXPECT_EQ(formatWordBoundaryMarks(*tokenizer, {4u}), std::string("[S]:BA-"));  // Special tokens do not depend on the decoder
     EXPECT_EQ(tokenizer->wordBoundaryMarks(0u, marks).code(), Core::StatusCode::Unimplemented);
 }
 

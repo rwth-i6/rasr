@@ -100,23 +100,25 @@ TEST_F(Tokenizer, SentencePieceTokenizerTest, InvalidModel) {
     EXPECT_EQ(createTokenizer(tokenizer).code(), Core::StatusCode::InvalidFileFormat);
 }
 
-// Pieces that start a word begin with "▁", control pieces and the unknown piece are words of their own
+// Pieces that start a word begin with "▁", control pieces and the unknown piece are words of their own. A lone "▁" before
+// characters without a piece of their own is whitespace.
 TEST_F(Tokenizer, SentencePieceTokenizerTest, WordBoundaryMarks) {
     auto tokenizer = createTokenizer();
-    EXPECT_EQ(formatWordBoundaryMarks(*tokenizer, encode(*tokenizer, "the lower tower")), std::string("▁th:B- e:-- ▁low:B- er:-- ▁tower:B-"));
-    EXPECT_EQ(formatWordBoundaryMarks(*tokenizer, {0u, 1u, 2u}), std::string("<unk>:BA <s>:BA </s>:BA"));
+    EXPECT_EQ(formatWordBoundaryMarks(*tokenizer, encode(*tokenizer, "the lower tower")), std::string("▁th:B-- e:--- ▁low:B-- er:--- ▁tower:B--"));
+    EXPECT_EQ(formatWordBoundaryMarks(*tokenizer, {0u, 1u, 2u}), std::string("<unk>:BA- <s>:BA- </s>:BA-"));
+    EXPECT_EQ(formatWordBoundaryMarks(*tokenizer, encode(*tokenizer, "tower ß")), std::string("▁tower:B-- ▁:B-W ß:---"));
 }
 
 // Models trained with `treat_whitespace_as_suffix` have the blank at the end of pieces instead
 TEST_F(Tokenizer, SentencePieceTokenizerTest, WordBoundaryMarksSuffix) {
     setTokenizerParameter("model-file", Test::dataFile("tokenizer/sentencepiece_suffix.model"));
     auto tokenizer = createTokenizer();
-    EXPECT_EQ(formatWordBoundaryMarks(*tokenizer, encode(*tokenizer, "wider newest")), std::string("w:-- i:-- d:-- er▁:-A newest▁:-A"));
-    EXPECT_EQ(formatWordBoundaryMarks(*tokenizer, {0u, 1u}), std::string("<unk>:BA <s>:BA"));
+    EXPECT_EQ(formatWordBoundaryMarks(*tokenizer, encode(*tokenizer, "wider newest")), std::string("w:--- i:--- d:--- er▁:-A- newest▁:-A-"));
+    EXPECT_EQ(formatWordBoundaryMarks(*tokenizer, {0u, 1u}), std::string("<unk>:BA- <s>:BA-"));
 }
 
 // User-defined symbols are words of their own, also in id sequences that do not come from `encode`, e.g. a recognition
-// result. `encode` puts a separate "▁" after them instead.
+// result. `encode` puts a separate "▁" next to them, which is whitespace.
 TEST_F(Tokenizer, SentencePieceTokenizerTest, WordBoundaryMarksUserDefinedSymbols) {
     setTokenizerParameter("model-file", Test::dataFile("tokenizer/sentencepiece_symbols.model"));
     auto                                    tokenizer = createTokenizer();
@@ -124,7 +126,8 @@ TEST_F(Tokenizer, SentencePieceTokenizerTest, WordBoundaryMarksUserDefinedSymbol
     for (auto token : {"tower▁", "[NOISE]", "lower▁"}) {
         ids.push_back(tokenStrToId(*tokenizer, token));
     }
-    EXPECT_EQ(formatWordBoundaryMarks(*tokenizer, ids), std::string("tower▁:-A [NOISE]:BA lower▁:-A"));
+    EXPECT_EQ(formatWordBoundaryMarks(*tokenizer, ids), std::string("tower▁:-A- [NOISE]:BA- lower▁:-A-"));
+    EXPECT_EQ(formatWordBoundaryMarks(*tokenizer, encode(*tokenizer, "[NOISE] lower")), std::string("[NOISE]:BA- ▁:-AW lower▁:-A-"));
 }
 
 }  // namespace Tokenizer

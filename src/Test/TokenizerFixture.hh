@@ -116,13 +116,14 @@ protected:
         return token;
     }
 
-    // Word boundaries marked before ("B") and after ("A") the tokens, e.g. "lo@@:-- wer:-A"
+    // Word boundaries marked before ("B") and after ("A") the tokens and whether they are whitespace ("W"), e.g.
+    // "lo@@:--- wer:-A-"
     static std::string formatWordBoundaryMarks(Tokenizer::AbstractTokenizer const& tokenizer, std::vector<TokenId> const& ids) {
         std::vector<std::string> formatted;
         for (auto id : ids) {
             Tokenizer::AbstractTokenizer::WordBoundaryMarks marks;
             expectOk(tokenizer.wordBoundaryMarks(id, marks));
-            formatted.push_back(tokenIdToStr(tokenizer, id) + ":" + (marks.before ? "B" : "-") + (marks.after ? "A" : "-"));
+            formatted.push_back(tokenIdToStr(tokenizer, id) + ":" + (marks.before ? "B" : "-") + (marks.after ? "A" : "-") + (marks.whitespace ? "W" : "-"));
         }
         return join(formatted);
     }

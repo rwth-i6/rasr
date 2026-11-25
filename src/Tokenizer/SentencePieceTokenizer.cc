@@ -19,6 +19,8 @@
 
 #include <Core/StringUtilities.hh>
 
+#include "Text.hh"
+
 namespace {
 
 // SentencePiece represents blanks by this character
@@ -173,10 +175,10 @@ Core::Status SentencePieceTokenizer::wordBoundaryMarks(TokenId id, WordBoundaryM
         marks = {true, true};
     }
     else if (whitespaceAsSuffix_) {
-        marks = {false, endsWith(piece, whitespace)};
+        marks = {false, endsWith(piece, whitespace), whitespacePieces_[id]};
     }
     else {
-        marks = {Core::startsWith(piece, whitespace), false};
+        marks = {Core::startsWith(piece, whitespace), false, whitespacePieces_[id]};
     }
     return {};
 }
@@ -226,6 +228,18 @@ Core::Status SentencePieceTokenizer::load() {
     });
     if (not valid or not nestedValid or standalonePieces_.size() != static_cast<size_t>(processor_.GetPieceSize())) {
         return Core::Status(Core::StatusCode::InvalidFileFormat, "Failed to read the pieces of SentencePiece model '" + modelFile + "'");
+    }
+
+    whitespacePieces_.assign(standalonePieces_.size(), false);
+    for (size_t id = 0ul; id < standalonePieces_.size(); ++id) {
+        std::string text;
+        if (not standalonePieces_[id]) {
+            Core::Status decodeStatus = convertStatus(processor_.Decode(std::vector<int>{static_cast<int>(id)}, &text));
+            if (not decodeStatus.ok()) {
+                return decodeStatus;
+            }
+            whitespacePieces_[id] = isWhitespace(text);
+        }
     }
 
     log("Loaded SentencePiece model with vocabulary size %d from '%s'", processor_.GetPieceSize(), modelFile.c_str());

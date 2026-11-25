@@ -15,12 +15,13 @@
 
 #include "BpeTokenizer.hh"
 
-#include <unordered_set>
 #include <utility>
 
 #include <Core/CompressedStream.hh>
 #include <Core/StringUtilities.hh>
 #include <Core/Unicode.hh>
+
+#include "Text.hh"
 
 namespace {
 
@@ -30,32 +31,11 @@ bool endsWith(std::string const& text, std::string const& suffix) {
     return text.size() >= suffix.size() and text.compare(text.size() - suffix.size(), suffix.size(), suffix) == 0;
 }
 
-std::vector<std::string> splitUtf8Characters(std::string const& text) {
-    std::vector<std::string> characters;
-    for (size_t i = 0; i < text.size();) {
-        size_t length = 1;
-        while (i + length < text.size() and utf8::byteType(text[i + length]) == utf8::multiByteTail) {
-            ++length;
-        }
-        characters.push_back(text.substr(i, length));
-        i += length;
-    }
-    return characters;
-}
-
-// Whitespace characters of python's `str.split()`, which rwth-i6/subword-nmt uses to split text into words
-bool isWhitespace(std::string const& character) {
-    static std::unordered_set<std::string> const whitespace = {
-            "\t", "\n", "\v", "\f", "\r", "\x1c", "\x1d", "\x1e", "\x1f", " ", "\u0085", "\u00a0", "\u1680",
-            "\u2000", "\u2001", "\u2002", "\u2003", "\u2004", "\u2005", "\u2006", "\u2007", "\u2008", "\u2009", "\u200a",
-            "\u2028", "\u2029", "\u202f", "\u205f", "\u3000"};
-    return whitespace.count(character) > 0ul;
-}
-
+// Splits text into words at whitespace like python's `str.split()`, which rwth-i6/subword-nmt uses
 std::vector<std::string> splitWords(std::string const& text) {
     std::vector<std::string> words(1);
-    for (auto const& character : splitUtf8Characters(text)) {
-        if (not isWhitespace(character)) {
+    for (auto const& character : Tokenizer::splitUtf8Characters(text)) {
+        if (not Tokenizer::isWhitespace(character)) {
             words.back() += character;
         }
         else if (not words.back().empty()) {

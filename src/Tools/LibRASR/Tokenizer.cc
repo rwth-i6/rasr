@@ -104,12 +104,20 @@ void bindTokenizer(py::module_& module) {
 
     // Registered before `word_boundary_marks`, which returns it
     using WordBoundaryMarks = AbstractTokenizer::WordBoundaryMarks;
-    py::class_<WordBoundaryMarks>(pyTokenizer, "WordBoundaryMarks", "Word boundaries that a token marks before and after itself, see `Tokenizer.word_boundary_marks`.")
-            .def(py::init([](bool before, bool after) { return WordBoundaryMarks{before, after}; }), py::arg("before"), py::arg("after"))
+    py::class_<WordBoundaryMarks>(
+            pyTokenizer,
+            "WordBoundaryMarks",
+            "Word boundaries that a token marks before and after itself and whether it is whitespace, see `Tokenizer.word_boundary_marks`.")
+            .def(py::init([](bool before, bool after, bool whitespace) { return WordBoundaryMarks{before, after, whitespace}; }),
+                 py::arg("before"),
+                 py::arg("after"),
+                 py::arg("whitespace") = false)
             .def_readwrite("before", &WordBoundaryMarks::before)
             .def_readwrite("after", &WordBoundaryMarks::after)
+            .def_readwrite("whitespace", &WordBoundaryMarks::whitespace)
             .def("__repr__", [](WordBoundaryMarks const& self) {
-                return std::string("WordBoundaryMarks(before=") + (self.before ? "True" : "False") + ", after=" + (self.after ? "True" : "False") + ")";
+                return std::string("WordBoundaryMarks(before=") + (self.before ? "True" : "False") + ", after=" + (self.after ? "True" : "False") +
+                       ", whitespace=" + (self.whitespace ? "True" : "False") + ")";
             });
 
     pyTokenizer.def(
@@ -180,7 +188,9 @@ void bindTokenizer(py::module_& module) {
             py::arg("id"),
             "Return the word boundaries that a token marks before and after itself. A word boundary lies between two consecutive\n"
             "tokens if the first one marks it after itself or the second one before itself. Most tokenizers only mark one side,\n"
-            "e.g. BPE tokens without \"@@\" mark a boundary after themselves and SentencePiece pieces with \"▁\" one before themselves.");
+            "e.g. BPE tokens without \"@@\" mark a boundary after themselves and SentencePiece pieces with \"▁\" one before themselves.\n"
+            "`whitespace` is set for tokens that decode to only whitespace or nothing on their own, e.g. \"Ġ\" of byte-level BPE.\n"
+            "Such tokens can form words of their own that have no text.");
 
     pyTokenizer.def(
             "tokenize",

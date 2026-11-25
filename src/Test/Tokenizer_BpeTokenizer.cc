@@ -159,7 +159,7 @@ TEST_F(Tokenizer, BpeTokenizerTest, InvalidParameter) {
 // All subwords except the last one of a word end with the separator, so only boundaries after tokens are marked
 TEST_F(Tokenizer, BpeTokenizerTest, WordBoundaryMarks) {
     auto tokenizer = createTokenizer();
-    EXPECT_EQ(formatWordBoundaryMarks(*tokenizer, encode(*tokenizer, "wider tower")), std::string("wide@@:-- r:-A tower:-A"));
+    EXPECT_EQ(formatWordBoundaryMarks(*tokenizer, encode(*tokenizer, "wider tower")), std::string("wide@@:--- r:-A- tower:-A-"));
 }
 
 // Codes without version header are interpreted as version 0.1, i.e. the end-of-word marker is a separate symbol

@@ -47,10 +47,15 @@ public:
      * Most tokenizers mark only one side, so false means that the token does not mark a boundary, not that there is
      * none. E.g. the BPE token "wer" in "lo@@ wer" marks a boundary after itself but not whether a word starts before
      * it, which is only shown by the previous token.
+     *
+     * `whitespace` is set for tokens that decode to only whitespace or nothing on their own, e.g. "Ġ" of byte-level BPE
+     * or a lone "▁" of SentencePiece, which `encode` puts next to user-defined symbols. Such tokens can form words of
+     * their own that have no text. Special tokens are never whitespace.
      */
     struct WordBoundaryMarks {
         bool before;
         bool after;
+        bool whitespace = false;
     };
 
     AbstractTokenizer(Core::Configuration const& config);

@@ -81,6 +81,7 @@ private:
     u32                         vocabularySize_;
     WordBoundaryMarking         wordBoundaryMarking_;
     std::unordered_set<TokenId> specialTokenIds_;
+    std::vector<bool>           whitespaceTokens_;  // Indexed by id, see `WordBoundaryMarks::whitespace`
 
     HuggingFaceTokenizer(Core::Configuration const& config);
 

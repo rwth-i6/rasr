@@ -31,6 +31,12 @@ does not mean that there is none:
   mark a boundary before themselves, tokens with the ``</w>`` suffix of a ``BPEDecoder`` one after themselves. Special
   tokens are words of their own. Other decoders are not supported.
 
+Tokens that decode to only whitespace or nothing on their own, e.g. ``Ġ`` and ``Ċ`` of byte-level BPE or a lone ``▁``
+of SentencePiece, are marked as whitespace. They can form words of their own that have no text, e.g. SentencePiece puts
+a separate ``▁`` next to user-defined symbols (``[NOISE] lower`` becomes ``[NOISE] ▁ lower▁`` with
+``treat_whitespace_as_suffix``) and byte-level BPE tokenizes repeated blanks as ``Ġ``. Special tokens are never
+whitespace. BPE tokens never contain whitespace.
+
 With byte-level BPE, a word on its own is tokenized differently than inside a text, e.g. ``the`` and ``Ġthe``.
 
 BPE
@@ -125,7 +131,7 @@ Usage from python
 * ``librasr.Tokenizer`` methods: ``tokenize(text)`` / ``detokenize(tokens)`` convert between text and token strings,
   ``encode(text)`` / ``decode(ids)`` between text and token ids. Further ``vocabulary_size()``, ``token_str_to_id(token)``
   (``librasr.Tokenizer.INVALID_TOKEN_ID`` if not in the vocabulary), ``token_id_to_str(id)`` and ``word_boundary_marks(id)``,
-  which returns a ``librasr.Tokenizer.WordBoundaryMarks`` with the attributes ``before`` and ``after``.
+  which returns a ``librasr.Tokenizer.WordBoundaryMarks`` with the attributes ``before``, ``after`` and ``whitespace``.
 
 To implement a tokenizer in python, subclass ``librasr.Tokenizer`` and register it under a type name. It can then be
 configured like the built-in types, also for components that create their tokenizer in C++:
@@ -156,7 +162,7 @@ configured like the built-in types, also for components that create their tokeni
 
         def word_boundary_marks(self, id: int) -> librasr.Tokenizer.WordBoundaryMarks:
             blank = self.vocab[id] == " "  # blanks are words of their own
-            return librasr.Tokenizer.WordBoundaryMarks(before=blank, after=blank)
+            return librasr.Tokenizer.WordBoundaryMarks(before=blank, after=blank, whitespace=blank)
 
     librasr.register_tokenizer_type("chars", CharTokenizer)
 

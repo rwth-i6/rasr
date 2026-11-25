@@ -130,7 +130,7 @@ Usage from python
 * ``librasr.create_tokenizer(config)`` : create the tokenizer configured under ``lib-rasr.tokenizer``.
 * ``librasr.Tokenizer`` methods: ``tokenize(text)`` / ``detokenize(tokens)`` convert between text and token strings,
   ``encode(text)`` / ``decode(ids)`` between text and token ids. Further ``vocabulary_size()``, ``token_str_to_id(token)``
-  (``librasr.Tokenizer.INVALID_TOKEN_ID`` if not in the vocabulary), ``token_id_to_str(id)`` and ``word_boundary_marks(id)``,
+  (``None`` if not in the vocabulary), ``token_id_to_str(id)`` and ``word_boundary_marks(id)``,
   which returns a ``librasr.Tokenizer.WordBoundaryMarks`` with the attributes ``before``, ``after`` and ``whitespace``.
 
 To implement a tokenizer in python, subclass ``librasr.Tokenizer`` and register it under a type name. It can then be
@@ -154,8 +154,8 @@ configured like the built-in types, also for components that create their tokeni
         def vocabulary_size(self) -> int:
             return len(self.vocab)
 
-        def token_str_to_id(self, token: str) -> int:
-            return self.vocab.index(token) if token in self.vocab else librasr.Tokenizer.INVALID_TOKEN_ID
+        def token_str_to_id(self, token: str) -> int | None:
+            return self.vocab.index(token) if token in self.vocab else None
 
         def token_id_to_str(self, id: int) -> str:
             return self.vocab[id]

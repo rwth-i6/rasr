@@ -41,8 +41,8 @@ class CharTokenizer(librasr.Tokenizer):
     def vocabulary_size(self) -> int:
         return len(self.vocab)
 
-    def token_str_to_id(self, token: str) -> int:
-        return self.vocab.index(token) if token in self.vocab else librasr.Tokenizer.INVALID_TOKEN_ID
+    def token_str_to_id(self, token: str) -> int | None:
+        return self.vocab.index(token) if token in self.vocab else None
 
     def token_id_to_str(self, id: int) -> str:
         return self.vocab[id]
@@ -99,7 +99,7 @@ class ConfiguredTokenizerTest(unittest.TestCase):
         self.assertEqual(tokenizer.detokenize(tokens), TEXT)
         self.assertEqual(tokenizer.vocabulary_size(), 34)
         self.assertEqual(tokenizer.token_str_to_id("tower"), 3)
-        self.assertEqual(tokenizer.token_str_to_id("x@@"), librasr.Tokenizer.INVALID_TOKEN_ID)
+        self.assertIsNone(tokenizer.token_str_to_id("x@@"))
         self.assertEqual(tokenizer.token_id_to_str(3), "tower")
         self.assertEqual(tokenizer.encode(TEXT), [2, 8, 7, 3, 4, 30, 5, 9, 15, 29, 28, 19, 31, 24, 1, 1])
         boundaries = tokenizer.word_boundary_marks(tokenizer.token_str_to_id("wide@@"))
@@ -195,10 +195,12 @@ class PythonTokenizerTest(unittest.TestCase):
         self.assertEqual(repr(boundaries), "WordBoundaryMarks(before=True, after=True, whitespace=True)")
         # Tokens are not whitespace by default
         self.assertFalse(librasr.Tokenizer.WordBoundaryMarks(before=True, after=True).whitespace)
-        # `INVALID_TOKEN_ID` of the python implementation is passed on, the default `detokenize` fails on it
-        self.assertEqual(librasr.Tokenizer.token_str_to_id(tokenizer, "A"), librasr.Tokenizer.INVALID_TOKEN_ID)
+        # `None` of the python implementation is passed on, the default `detokenize` fails on it
+        self.assertIsNone(librasr.Tokenizer.token_str_to_id(tokenizer, "A"))
         with self.assertRaisesRegex(RuntimeError, "not part of the vocabulary"):
             tokenizer.detokenize(["A"])
+        # Id 0 is a valid id, not a missing token
+        self.assertEqual(librasr.Tokenizer.token_str_to_id(tokenizer, "a"), 0)
 
     def test_override_default_method(self) -> None:
         self.config.set("lib-rasr.tokenizer.type", "test-upper-case")

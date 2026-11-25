@@ -16,6 +16,7 @@
 #include "Tokenizer.hh"
 
 #include <memory>
+#include <optional>
 #include <stdexcept>
 #include <string>
 
@@ -100,8 +101,6 @@ void bindTokenizer(py::module_& module) {
             "`tokenize` and `detokenize` can optionally be overridden.\n"
             "Errors raise a `RuntimeError`.");
 
-    pyTokenizer.attr("INVALID_TOKEN_ID") = Python::PythonTokenizer::invalidTokenId;
-
     // Registered before `word_boundary_marks`, which returns it
     using WordBoundaryMarks = AbstractTokenizer::WordBoundaryMarks;
     py::class_<WordBoundaryMarks>(
@@ -156,17 +155,17 @@ void bindTokenizer(py::module_& module) {
 
     pyTokenizer.def(
             "token_str_to_id",
-            [](AbstractTokenizer const& self, std::string const& token) {
+            [](AbstractTokenizer const& self, std::string const& token) -> std::optional<TokenId> {
                 TokenId      id;
                 Core::Status status = self.tokenStrToId(token, id);
                 if (status.code() == Core::StatusCode::NotFound) {
-                    return Python::PythonTokenizer::invalidTokenId;
+                    return std::nullopt;
                 }
                 throwOnError(status);
                 return id;
             },
             py::arg("token"),
-            "Return the id of a token string or `INVALID_TOKEN_ID` if it is not part of the vocabulary.");
+            "Return the id of a token string or `None` if it is not part of the vocabulary.");
 
     pyTokenizer.def(
             "token_id_to_str",

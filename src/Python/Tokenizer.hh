@@ -30,6 +30,7 @@ namespace Python {
  * See https://pybind11.readthedocs.io/en/stable/advanced/classes.html for the "trampoline" pattern.
  *
  * The python methods return their results and raise exceptions, which are turned into a status with code `Unknown`.
+ * `token_str_to_id` returns `None` for tokens that are not part of the vocabulary, which gives `NotFound`.
  *
  * Hidden like its base `py::trampoline_self_life_support`, which `py::smart_holder` requires.
  */
@@ -37,9 +38,6 @@ class __attribute__((visibility("hidden"))) PythonTokenizer : public Tokenizer::
                                                               public py::trampoline_self_life_support {
 public:
     using Precursor = Tokenizer::AbstractTokenizer;
-
-    // Returned by `token_str_to_id` in python for tokens that are not part of the vocabulary
-    static constexpr TokenId invalidTokenId = Core::Type<TokenId>::max;
 
     PythonTokenizer(Core::Configuration const& config);
     virtual ~PythonTokenizer() = default;

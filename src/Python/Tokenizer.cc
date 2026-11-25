@@ -15,6 +15,8 @@
 
 #include "Tokenizer.hh"
 
+#include <optional>
+
 #include <pybind11/stl.h>
 
 namespace Python {
@@ -37,11 +39,16 @@ Core::Status PythonTokenizer::vocabularySize(u32& size) const {
 }
 
 Core::Status PythonTokenizer::tokenStrToId(std::string const& token, TokenId& id) const {
-    Core::Status status = callOverride("token_str_to_id", id, token);
-    if (status.ok() and id == invalidTokenId) {
+    std::optional<TokenId> result;
+    Core::Status           status = callOverride("token_str_to_id", result, token);
+    if (not status.ok()) {
+        return status;
+    }
+    if (not result) {
         return Core::Status(Core::StatusCode::NotFound, "Token '" + token + "' is not part of the vocabulary");
     }
-    return status;
+    id = *result;
+    return {};
 }
 
 Core::Status PythonTokenizer::tokenIdToStr(TokenId id, std::string& token) const {

@@ -93,6 +93,23 @@ protected:
         return result;
     }
 
+    static u32 vocabularySize(Tokenizer::AbstractTokenizer const& tokenizer) {
+        u32 size = 0u;
+        expectOk(tokenizer.vocabularySize(size));
+        return size;
+    }
+
+    static TokenId tokenStrToId(Tokenizer::AbstractTokenizer const& tokenizer, std::string const& token) {
+        TokenId id = 0u;
+        expectOk(tokenizer.tokenStrToId(token, id));
+        return id;
+    }
+
+    static Core::StatusCode tokenStrToIdCode(Tokenizer::AbstractTokenizer const& tokenizer, std::string const& token) {
+        TokenId id = 0u;
+        return tokenizer.tokenStrToId(token, id).code();
+    }
+
     static std::string tokenIdToStr(Tokenizer::AbstractTokenizer const& tokenizer, TokenId id) {
         std::string token;
         expectOk(tokenizer.tokenIdToStr(id, token));

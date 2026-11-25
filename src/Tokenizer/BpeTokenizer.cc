@@ -109,11 +109,11 @@ Core::Status BpeTokenizer::encode(std::string const& text, std::vector<TokenId>&
     }
     ids.clear();
     for (auto const& token : tokens) {
-        TokenId id = tokenStrToId(token);
-        if (id == invalidTokenId) {
+        TokenId id = vocabulary_.id(token);
+        if (id == Bliss::ReturnnVocabulary::invalidId) {
             id = unknownTokenId_;
         }
-        if (id == invalidTokenId) {
+        if (id == Bliss::ReturnnVocabulary::invalidId) {
             return Core::Status(Core::StatusCode::NotFound, "Token '" + token + "' is not part of the vocabulary");
         }
         ids.push_back(id);
@@ -134,13 +134,17 @@ Core::Status BpeTokenizer::decode(std::vector<TokenId> const& ids, std::string& 
     return detokenize(tokens, text);
 }
 
-u32 BpeTokenizer::vocabularySize() const {
-    return vocabulary_.size();
+Core::Status BpeTokenizer::vocabularySize(u32& size) const {
+    size = vocabulary_.size();
+    return {};
 }
 
-AbstractTokenizer::TokenId BpeTokenizer::tokenStrToId(std::string const& token) const {
-    static_assert(Bliss::ReturnnVocabulary::invalidId == invalidTokenId);
-    return vocabulary_.id(token);
+Core::Status BpeTokenizer::tokenStrToId(std::string const& token, TokenId& id) const {
+    id = vocabulary_.id(token);
+    if (id == Bliss::ReturnnVocabulary::invalidId) {
+        return Core::Status(Core::StatusCode::NotFound, "Token '" + token + "' is not part of the vocabulary");
+    }
+    return {};
 }
 
 Core::Status BpeTokenizer::tokenIdToStr(TokenId id, std::string& token) const {
@@ -189,7 +193,7 @@ BpeTokenizer::BpeTokenizer(Core::Configuration const& config)
           Precursor(config),
           separator_(paramSeparator(config)),
           endOfWordAttached_(false),
-          unknownTokenId_(invalidTokenId) {}
+          unknownTokenId_(Bliss::ReturnnVocabulary::invalidId) {}
 
 Core::Status BpeTokenizer::load() {
     if (separator_.empty()) {
@@ -204,11 +208,11 @@ Core::Status BpeTokenizer::load() {
     if (not status.ok()) {
         return status;
     }
-    log("Loaded BPE vocabulary of size %u from '%s'", vocabularySize(), vocabFile.c_str());
+    log("Loaded BPE vocabulary of size %u from '%s'", vocabulary_.size(), vocabFile.c_str());
     std::string unknownToken = paramUnknownToken(config);
     if (not unknownToken.empty()) {
-        unknownTokenId_ = tokenStrToId(unknownToken);
-        if (unknownTokenId_ == invalidTokenId) {
+        unknownTokenId_ = vocabulary_.id(unknownToken);
+        if (unknownTokenId_ == Bliss::ReturnnVocabulary::invalidId) {
             return Core::Status(Core::StatusCode::InvalidArgument, "Unknown token '" + unknownToken + "' is not part of the vocabulary");
         }
     }
@@ -307,7 +311,7 @@ std::vector<std::string> BpeTokenizer::segmentWord(std::string const& word) cons
 }
 
 void BpeTokenizer::splitIntoVocabulary(std::string const& subword, bool final, std::vector<std::string>& result) const {
-    if (vocabulary_.id(final ? subword : subword + separator_) != invalidTokenId) {
+    if (vocabulary_.id(final ? subword : subword + separator_) != Bliss::ReturnnVocabulary::invalidId) {
         result.push_back(subword);
         return;
     }

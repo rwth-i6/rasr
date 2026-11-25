@@ -39,22 +39,23 @@ Core::Status AbstractTokenizer::tokenize(std::string const& text, std::vector<st
 }
 
 Core::Status AbstractTokenizer::detokenize(std::vector<std::string> const& tokens, std::string& text) const {
-    std::vector<TokenId> ids;
-    ids.reserve(tokens.size());
-    for (auto const& token : tokens) {
-        ids.push_back(tokenStrToId(token));
-        if (ids.back() == invalidTokenId) {
-            return Core::Status(Core::StatusCode::NotFound, "Token '" + token + "' is not part of the vocabulary");
+    std::vector<TokenId> ids(tokens.size());
+    for (size_t i = 0ul; i < tokens.size(); ++i) {
+        Core::Status status = tokenStrToId(tokens[i], ids[i]);
+        if (not status.ok()) {
+            return status;
         }
     }
     return decode(ids, text);
 }
 
 Core::Status AbstractTokenizer::checkTokenId(TokenId id) const {
-    if (id >= vocabularySize()) {
-        return Core::Status(Core::StatusCode::OutOfRange, Core::form("Invalid token id %u for vocabulary size %u", id, vocabularySize()));
+    u32          size   = 0u;
+    Core::Status status = vocabularySize(size);
+    if (status.ok() and id >= size) {
+        return Core::Status(Core::StatusCode::OutOfRange, Core::form("Invalid token id %u for vocabulary size %u", id, size));
     }
-    return {};
+    return status;
 }
 
 }  // namespace Tokenizer

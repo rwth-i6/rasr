@@ -78,10 +78,10 @@ TEST_F(Tokenizer, HuggingFaceTokenizerTest, Vocabulary) {
         return;
     }
     auto tokenizer = createTokenizer();
-    EXPECT_EQ(tokenizer->vocabularySize(), 300u);
-    EXPECT_EQ(tokenizer->tokenStrToId("<s>"), 0u);
-    EXPECT_EQ(tokenizer->tokenStrToId("Ġtower"), 266u);
-    EXPECT_EQ(tokenizer->tokenStrToId("xy"), AbstractTokenizer::invalidTokenId);
+    EXPECT_EQ(vocabularySize(*tokenizer), 300u);
+    EXPECT_EQ(tokenStrToId(*tokenizer, "<s>"), 0u);
+    EXPECT_EQ(tokenStrToId(*tokenizer, "Ġtower"), 266u);
+    EXPECT_EQ(tokenStrToIdCode(*tokenizer, "xy"), Core::StatusCode::NotFound);
     EXPECT_EQ(tokenIdToStr(*tokenizer, 266u), std::string("Ġtower"));
 }
 
@@ -174,6 +174,7 @@ TEST_F(Tokenizer, HuggingFaceTokenizerTest, InvalidUtf8) {
     auto                 tokenizer = createTokenizer();
     std::vector<TokenId> ids;
     EXPECT_FALSE(tokenizer->encode("\xff\xfelow", ids).ok());
+    EXPECT_EQ(tokenStrToIdCode(*tokenizer, "\xff"), Core::StatusCode::NotFound);
 }
 
 TEST_F(Tokenizer, HuggingFaceTokenizerTest, InvalidTokenId) {

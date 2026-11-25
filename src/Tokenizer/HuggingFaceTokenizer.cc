@@ -133,19 +133,29 @@ Core::Status HuggingFaceTokenizer::decode(std::vector<TokenId> const& ids, std::
     });
 }
 
-u32 HuggingFaceTokenizer::vocabularySize() const {
-    return vocabularySize_;
+Core::Status HuggingFaceTokenizer::vocabularySize(u32& size) const {
+    size = vocabularySize_;
+    return {};
 }
 
-AbstractTokenizer::TokenId HuggingFaceTokenizer::tokenStrToId(std::string const& token) const {
-    py::gil_scoped_acquire gil;
-    try {
-        py::object id = py::handle(tokenizer_).attr("token_to_id")(token);
-        return id.is_none() ? invalidTokenId : id.cast<TokenId>();
+Core::Status HuggingFaceTokenizer::tokenStrToId(std::string const& token, TokenId& id) const {
+    bool         found  = false;
+    Core::Status status = callPython([&] {
+        py::object pyToken = py::reinterpret_steal<py::object>(PyUnicode_DecodeUTF8(token.data(), token.size(), nullptr));
+        if (not pyToken) {  // Invalid UTF-8 cannot be part of the vocabulary
+            PyErr_Clear();
+            return;
+        }
+        py::object result = py::handle(tokenizer_).attr("token_to_id")(pyToken);
+        found             = not result.is_none();
+        if (found) {
+            id = result.cast<TokenId>();
+        }
+    });
+    if (status.ok() and not found) {
+        return Core::Status(Core::StatusCode::NotFound, "Token '" + token + "' is not part of the vocabulary");
     }
-    catch (py::error_already_set const&) {  // E.g. for invalid UTF-8, which cannot be part of the vocabulary
-        return invalidTokenId;
-    }
+    return status;
 }
 
 Core::Status HuggingFaceTokenizer::tokenIdToStr(TokenId id, std::string& token) const {

@@ -50,8 +50,8 @@ public:
     Core::Status encode(std::string const& text, std::vector<TokenId>& ids) const override;
     Core::Status decode(std::vector<TokenId> const& ids, std::string& text) const override;
 
-    u32          vocabularySize() const override;
-    TokenId      tokenStrToId(std::string const& token) const override;
+    Core::Status vocabularySize(u32& size) const override;
+    Core::Status tokenStrToId(std::string const& token, TokenId& id) const override;
     Core::Status tokenIdToStr(TokenId id, std::string& token) const override;
 
     // Determined from the decoder in tokenizer.json, special tokens are words of their own. Unsupported decoders result

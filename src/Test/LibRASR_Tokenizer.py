@@ -60,8 +60,18 @@ class UpperCaseTokenizer(CharTokenizer):
         return super().detokenize(tokens).upper()
 
 
+class RaisingTokenizer(CharTokenizer):
+    """Raises in the methods that return their result without a status in C++."""
+
+    def vocabulary_size(self) -> int:
+        raise KeyError("size")
+
+    def token_str_to_id(self, token: str) -> int:
+        raise KeyError(token)
+
+
 class IncompleteTokenizer(librasr.Tokenizer):
-    """Does not implement `encode`."""
+    """Does not implement `encode` and `token_str_to_id`."""
 
     def vocabulary_size(self) -> int:
         return 0
@@ -183,6 +193,10 @@ class PythonTokenizerTest(unittest.TestCase):
         # Calling the C++ method goes through RASR to the python implementation
         boundaries = librasr.Tokenizer.word_boundary_marks(tokenizer, tokenizer.token_str_to_id(" "))
         self.assertEqual(repr(boundaries), "WordBoundaryMarks(before=True, after=True)")
+        # `INVALID_TOKEN_ID` of the python implementation is passed on, the default `detokenize` fails on it
+        self.assertEqual(librasr.Tokenizer.token_str_to_id(tokenizer, "A"), librasr.Tokenizer.INVALID_TOKEN_ID)
+        with self.assertRaisesRegex(RuntimeError, "not part of the vocabulary"):
+            tokenizer.detokenize(["A"])
 
     def test_override_default_method(self) -> None:
         self.config.set("lib-rasr.tokenizer.type", "test-upper-case")
@@ -196,11 +210,20 @@ class PythonTokenizerTest(unittest.TestCase):
         tokenizer = CharTokenizer(self.config)
         with self.assertRaisesRegex(RuntimeError, "ValueError"):
             tokenizer.tokenize("Hello")
+        tokenizer = RaisingTokenizer(self.config)
+        with self.assertRaisesRegex(RuntimeError, "KeyError"):
+            librasr.Tokenizer.vocabulary_size(tokenizer)
+        with self.assertRaisesRegex(RuntimeError, "KeyError"):
+            librasr.Tokenizer.token_str_to_id(tokenizer, "a")
+        with self.assertRaisesRegex(RuntimeError, "KeyError"):
+            tokenizer.detokenize(["a"])
 
     def test_missing_method(self) -> None:
         tokenizer = IncompleteTokenizer(self.config)
         with self.assertRaisesRegex(RuntimeError, "encode"):
             tokenizer.tokenize("a")
+        with self.assertRaisesRegex(RuntimeError, "not implement `token_str_to_id`"):
+            librasr.Tokenizer.token_str_to_id(tokenizer, "a")
 
     def test_register_again(self) -> None:
         self.config.set("lib-rasr.tokenizer.type", "test-replaced")

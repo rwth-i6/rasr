@@ -82,12 +82,12 @@ TEST_F(Tokenizer, BpeTokenizerTest, Separator) {
 // Vocabulary as written by create-py-vocab.py of rwth-i6/subword-nmt
 TEST_F(Tokenizer, BpeTokenizerTest, Vocabulary) {
     auto tokenizer = createTokenizer();
-    EXPECT_EQ(tokenizer->vocabularySize(), 34u);
-    EXPECT_EQ(tokenizer->tokenStrToId("tower"), 3u);
-    EXPECT_EQ(tokenizer->tokenStrToId("x@@"), AbstractTokenizer::invalidTokenId);
+    EXPECT_EQ(vocabularySize(*tokenizer), 34u);
+    EXPECT_EQ(tokenStrToId(*tokenizer, "tower"), 3u);
+    EXPECT_EQ(tokenStrToIdCode(*tokenizer, "x@@"), Core::StatusCode::NotFound);
     EXPECT_EQ(tokenIdToStr(*tokenizer, 3u), std::string("tower"));
     // "<s>" and "</s>" share an id, "<s>" is used for decoding
-    EXPECT_EQ(tokenizer->tokenStrToId("</s>"), 0u);
+    EXPECT_EQ(tokenStrToId(*tokenizer, "</s>"), 0u);
     EXPECT_EQ(tokenIdToStr(*tokenizer, 0u), std::string("<s>"));
 
     std::string inVocabulary = "the newest lower tower is wider than straße";

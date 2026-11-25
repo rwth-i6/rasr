@@ -37,8 +37,7 @@ namespace Tokenizer {
  */
 class AbstractTokenizer : public virtual Core::Component {
 public:
-    typedef u32              TokenId;
-    static constexpr TokenId invalidTokenId = Core::Type<TokenId>::max;
+    typedef u32 TokenId;
 
     /*
      * Word boundaries that a token marks before and after itself. A word boundary lies between two consecutive tokens
@@ -60,11 +59,11 @@ public:
     virtual Core::Status encode(std::string const& text, std::vector<TokenId>& ids) const = 0;
     virtual Core::Status decode(std::vector<TokenId> const& ids, std::string& text) const = 0;
 
-    // Valid ids are in [0, vocabularySize())
-    virtual u32 vocabularySize() const = 0;
+    // Valid ids are in [0, size)
+    virtual Core::Status vocabularySize(u32& size) const = 0;
 
-    // Returns `invalidTokenId` if `token` is not part of the vocabulary
-    virtual TokenId tokenStrToId(std::string const& token) const = 0;
+    // `NotFound` if `token` is not part of the vocabulary
+    virtual Core::Status tokenStrToId(std::string const& token, TokenId& id) const = 0;
 
     virtual Core::Status tokenIdToStr(TokenId id, std::string& token) const            = 0;
     virtual Core::Status wordBoundaryMarks(TokenId id, WordBoundaryMarks& marks) const = 0;
@@ -72,11 +71,11 @@ public:
     // Default: `encode` then `tokenIdToStr` for each id
     virtual Core::Status tokenize(std::string const& text, std::vector<std::string>& tokens) const;
 
-    // Default: `tokenStrToId` for each token then `decode`. Tokens that are not part of the vocabulary result in `NotFound`.
+    // Default: `tokenStrToId` for each token then `decode`
     virtual Core::Status detokenize(std::vector<std::string> const& tokens, std::string& text) const;
 
 protected:
-    // `OutOfRange` if `id` is not in [0, vocabularySize())
+    // `OutOfRange` if `id` is not below the vocabulary size
     Core::Status checkTokenId(TokenId id) const;
 };
 

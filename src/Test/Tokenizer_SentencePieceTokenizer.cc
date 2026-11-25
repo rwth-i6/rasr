@@ -35,10 +35,10 @@ TEST_F(Tokenizer, SentencePieceTokenizerTest, Tokenize) {
 
 TEST_F(Tokenizer, SentencePieceTokenizerTest, Vocabulary) {
     auto tokenizer = createTokenizer();
-    EXPECT_EQ(tokenizer->vocabularySize(), 32u);
-    EXPECT_EQ(tokenizer->tokenStrToId("<unk>"), 0u);
-    EXPECT_EQ(tokenizer->tokenStrToId("▁tower"), 6u);
-    EXPECT_EQ(tokenizer->tokenStrToId("xy"), AbstractTokenizer::invalidTokenId);
+    EXPECT_EQ(vocabularySize(*tokenizer), 32u);
+    EXPECT_EQ(tokenStrToId(*tokenizer, "<unk>"), 0u);
+    EXPECT_EQ(tokenStrToId(*tokenizer, "▁tower"), 6u);
+    EXPECT_EQ(tokenStrToIdCode(*tokenizer, "xy"), Core::StatusCode::NotFound);
     EXPECT_EQ(tokenIdToStr(*tokenizer, 6u), std::string("▁tower"));
 }
 
@@ -122,7 +122,7 @@ TEST_F(Tokenizer, SentencePieceTokenizerTest, WordBoundaryMarksUserDefinedSymbol
     auto                                    tokenizer = createTokenizer();
     std::vector<AbstractTokenizer::TokenId> ids;
     for (auto token : {"tower▁", "[NOISE]", "lower▁"}) {
-        ids.push_back(tokenizer->tokenStrToId(token));
+        ids.push_back(tokenStrToId(*tokenizer, token));
     }
     EXPECT_EQ(formatWordBoundaryMarks(*tokenizer, ids), std::string("tower▁:-A [NOISE]:BA lower▁:-A"));
 }

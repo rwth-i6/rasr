@@ -139,14 +139,19 @@ Core::Status SentencePieceTokenizer::decode(std::vector<TokenId> const& ids, std
     return convertStatus(processor_.Decode(std::vector<int>(ids.begin(), ids.end()), &text));
 }
 
-u32 SentencePieceTokenizer::vocabularySize() const {
-    return processor_.GetPieceSize();
+Core::Status SentencePieceTokenizer::vocabularySize(u32& size) const {
+    size = processor_.GetPieceSize();
+    return {};
 }
 
-AbstractTokenizer::TokenId SentencePieceTokenizer::tokenStrToId(std::string const& token) const {
+Core::Status SentencePieceTokenizer::tokenStrToId(std::string const& token, TokenId& id) const {
     // `PieceToId` returns the unknown id for unknown pieces
-    int id = processor_.PieceToId(token);
-    return (processor_.IsUnknown(id) and processor_.IdToPiece(id) != token) ? invalidTokenId : id;
+    int pieceId = processor_.PieceToId(token);
+    if (processor_.IsUnknown(pieceId) and processor_.IdToPiece(pieceId) != token) {
+        return Core::Status(Core::StatusCode::NotFound, "Token '" + token + "' is not part of the vocabulary");
+    }
+    id = pieceId;
+    return {};
 }
 
 Core::Status SentencePieceTokenizer::tokenIdToStr(TokenId id, std::string& token) const {
@@ -219,11 +224,11 @@ Core::Status SentencePieceTokenizer::load() {
             });
         }
     });
-    if (not valid or not nestedValid or standalonePieces_.size() != vocabularySize()) {
+    if (not valid or not nestedValid or standalonePieces_.size() != static_cast<size_t>(processor_.GetPieceSize())) {
         return Core::Status(Core::StatusCode::InvalidFileFormat, "Failed to read the pieces of SentencePiece model '" + modelFile + "'");
     }
 
-    log("Loaded SentencePiece model with vocabulary size %u from '%s'", vocabularySize(), modelFile.c_str());
+    log("Loaded SentencePiece model with vocabulary size %d from '%s'", processor_.GetPieceSize(), modelFile.c_str());
     return {};
 }
 

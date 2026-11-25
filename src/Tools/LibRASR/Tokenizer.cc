@@ -100,7 +100,7 @@ void bindTokenizer(py::module_& module) {
             "`tokenize` and `detokenize` can optionally be overridden.\n"
             "Errors raise a `RuntimeError`.");
 
-    pyTokenizer.attr("INVALID_TOKEN_ID") = AbstractTokenizer::invalidTokenId;
+    pyTokenizer.attr("INVALID_TOKEN_ID") = Python::PythonTokenizer::invalidTokenId;
 
     // Registered before `word_boundary_marks`, which returns it
     using WordBoundaryMarks = AbstractTokenizer::WordBoundaryMarks;
@@ -139,12 +139,24 @@ void bindTokenizer(py::module_& module) {
 
     pyTokenizer.def(
             "vocabulary_size",
-            &AbstractTokenizer::vocabularySize,
+            [](AbstractTokenizer const& self) {
+                u32 size;
+                throwOnError(self.vocabularySize(size));
+                return size;
+            },
             "Return the number of token ids.");
 
     pyTokenizer.def(
             "token_str_to_id",
-            &AbstractTokenizer::tokenStrToId,
+            [](AbstractTokenizer const& self, std::string const& token) {
+                TokenId      id;
+                Core::Status status = self.tokenStrToId(token, id);
+                if (status.code() == Core::StatusCode::NotFound) {
+                    return Python::PythonTokenizer::invalidTokenId;
+                }
+                throwOnError(status);
+                return id;
+            },
             py::arg("token"),
             "Return the id of a token string or `INVALID_TOKEN_ID` if it is not part of the vocabulary.");
 

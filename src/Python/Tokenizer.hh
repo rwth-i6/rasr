@@ -38,14 +38,17 @@ class __attribute__((visibility("hidden"))) PythonTokenizer : public Tokenizer::
 public:
     using Precursor = Tokenizer::AbstractTokenizer;
 
+    // Returned by `token_str_to_id` in python for tokens that are not part of the vocabulary
+    static constexpr TokenId invalidTokenId = Core::Type<TokenId>::max;
+
     PythonTokenizer(Core::Configuration const& config);
     virtual ~PythonTokenizer() = default;
 
     // Must be overridden in python by the snake_case names of these methods
     Core::Status encode(std::string const& text, std::vector<TokenId>& ids) const override;
     Core::Status decode(std::vector<TokenId> const& ids, std::string& text) const override;
-    u32          vocabularySize() const override;
-    TokenId      tokenStrToId(std::string const& token) const override;
+    Core::Status vocabularySize(u32& size) const override;
+    Core::Status tokenStrToId(std::string const& token, TokenId& id) const override;
     Core::Status tokenIdToStr(TokenId id, std::string& token) const override;
     Core::Status wordBoundaryMarks(TokenId id, WordBoundaryMarks& marks) const override;
 

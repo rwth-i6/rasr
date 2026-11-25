@@ -32,12 +32,16 @@ Core::Status PythonTokenizer::decode(std::vector<TokenId> const& ids, std::strin
     return callOverride("decode", text, ids);
 }
 
-u32 PythonTokenizer::vocabularySize() const {
-    PYBIND11_OVERRIDE_PURE_NAME(u32, Precursor, "vocabulary_size", vocabularySize);
+Core::Status PythonTokenizer::vocabularySize(u32& size) const {
+    return callOverride("vocabulary_size", size);
 }
 
-PythonTokenizer::TokenId PythonTokenizer::tokenStrToId(std::string const& token) const {
-    PYBIND11_OVERRIDE_PURE_NAME(TokenId, Precursor, "token_str_to_id", tokenStrToId, token);
+Core::Status PythonTokenizer::tokenStrToId(std::string const& token, TokenId& id) const {
+    Core::Status status = callOverride("token_str_to_id", id, token);
+    if (status.ok() and id == invalidTokenId) {
+        return Core::Status(Core::StatusCode::NotFound, "Token '" + token + "' is not part of the vocabulary");
+    }
+    return status;
 }
 
 Core::Status PythonTokenizer::tokenIdToStr(TokenId id, std::string& token) const {

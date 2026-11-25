@@ -52,8 +52,8 @@ public:
     Core::Status encode(std::string const& text, std::vector<TokenId>& ids) const override;
     Core::Status decode(std::vector<TokenId> const& ids, std::string& text) const override;
 
-    u32          vocabularySize() const override;
-    TokenId      tokenStrToId(std::string const& token) const override;
+    Core::Status vocabularySize(u32& size) const override;
+    Core::Status tokenStrToId(std::string const& token, TokenId& id) const override;
     Core::Status tokenIdToStr(TokenId id, std::string& token) const override;
 
     // All subwords except the last one of a word end with the separator, so only boundaries after tokens are marked

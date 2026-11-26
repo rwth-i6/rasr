@@ -74,6 +74,7 @@ OnnxRecurrentLanguageModel::OnnxRecurrentLanguageModel(Core::Configuration const
           mapping_(select("io-map"), ioSpec_),
           validator_(select("validator")),
           softmax_adapter_(createOnnxSoftmaxAdapter(select("softmax-adapter"))) {
+    stateManager().setCudaStream(session_.cudaStream());
     state_variables_ = session_.getStateVariablesMetadata();
 
     setEmptyHistory();

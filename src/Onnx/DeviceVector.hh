@@ -24,13 +24,11 @@
 
 #include <Nn/CompressedVector.hh>
 
-#include "Session.hh"
-
 namespace Onnx {
 
 /*
  * Pool of equally sized float slots in CUDA device memory, allocated in chunks and freed only with the pool.
- * Use the slots only on `Session::sharedCudaStream()`, so released slots can be reused right away.
+ * Use the slots only on one stream (of the session the states are for), so released slots can be reused right away.
  */
 class DeviceSlotPool {
 public:
@@ -72,7 +70,7 @@ private:
 
 /*
  * CUDA device memory that grows on demand and is reused between calls, e.g. for tensors rebuilt in every step.
- * Use it only on `Session::sharedCudaStream()`: growing frees the old memory, which waits for pending work on it.
+ * Use it only on one stream (of the session it is for): growing frees the old memory, which waits for pending work on it.
  */
 class DeviceBuffer {
 public:
@@ -98,11 +96,6 @@ inline size_t alignDeviceFloats(size_t numFloats) {
 
 // Abort with a message if `status` is an error
 void checkCudaStatus(cudaError_t status, char const* what);
-
-// `Session::sharedCudaStream()` as cudaStream_t
-inline cudaStream_t sharedStream() {
-    return static_cast<cudaStream_t>(Session::sharedCudaStream());
-}
 
 /*
  * Uncompressed vector in a `DeviceSlotPool` slot, used by the GPU state managers.

@@ -48,7 +48,8 @@ public:
     // Return the model combination used by the search.
     Speech::ModelCombination& modelCombination();
 
-    // Status of the last call. After a non-OK status, the current segment can't be continued.
+    // Status of the last call. After a non-OK status, the current segment can't be continued:
+    // until the next `enterSegment`, all other calls return this status (or an empty result) without running the search.
     Core::Status status() const;
 
     // Call at the beginning of a new segment.

@@ -127,7 +127,8 @@ void bindSearchAlgorithm(py::module_& module) {
             "these steps in one go given an array of segment features.\n\n"
             "`enter_segment`, `finish_segment`, `put_feature` and `put_features` return a `Status`.\n"
             "The methods that return a result set `status()` instead and return an empty result on failure.\n"
-            "After a non-OK status, the current segment can't be continued; start a new one with `enter_segment`.");
+            "After a non-OK status, the current segment can't be continued: until the next `enter_segment`, all other calls\n"
+            "return that status, or an empty result, without running the search again.");
 
     pySearchAlgorithm.def(
             py::init<const Core::Configuration&>(),

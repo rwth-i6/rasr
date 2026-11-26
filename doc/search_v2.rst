@@ -1473,7 +1473,8 @@ and intermediate results:
 the methods above return a ``librasr.Status`` (``ok()``, ``code()`` as a ``librasr.StatusCode`` and
 ``message()``). Methods that return a result instead, such as ``get_current_best_traceback`` or
 ``recognize_segment``, return an empty result on failure; check ``status()`` to tell the two apart. After a
-failure, the current segment can't be continued, start a new one with ``enter_segment()``:
+failure, the current segment can't be continued: until the next ``enter_segment()``, all other calls return the
+same status, or an empty result, without running the models again. Start a new segment with ``enter_segment()``:
 
 .. code-block:: python
 

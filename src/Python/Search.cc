@@ -64,6 +64,12 @@ Core::Status SearchAlgorithm::enterSegment(std::string const& name) {
 }
 
 Core::Status SearchAlgorithm::finishSegment() {
+    if (not status_.ok()) {
+        // The segment already failed, so don't run the search on it again
+        closeSegmentLog();
+        return status_;
+    }
+
     // Run the search first so that its statistics are logged inside the segment element
     status_ = searchAlgorithm_->finishSegment();
 
@@ -76,6 +82,10 @@ Core::Status SearchAlgorithm::finishSegment() {
 }
 
 Core::Status SearchAlgorithm::putFeature(py::array_t<f32> const& feature) {
+    if (not status_.ok()) {
+        return status_;
+    }
+
     size_t F = 0ul;
     if (feature.ndim() == 2) {
         if (feature.shape(0) != 1) {
@@ -95,6 +105,10 @@ Core::Status SearchAlgorithm::putFeature(py::array_t<f32> const& feature) {
 }
 
 Core::Status SearchAlgorithm::putFeatures(py::array_t<f32> const& features) {
+    if (not status_.ok()) {
+        return status_;
+    }
+
     size_t T = 0ul;
     size_t F = 0ul;
     if (features.ndim() == 3) {
@@ -117,6 +131,9 @@ Core::Status SearchAlgorithm::putFeatures(py::array_t<f32> const& features) {
 }
 
 Traceback SearchAlgorithm::getCurrentBestTraceback() {
+    if (not status_.ok()) {
+        return {};
+    }
     unsigned numSteps;
     status_ = searchAlgorithm_->decodeManySteps(numSteps);
     if (not status_.ok()) {
@@ -126,6 +143,9 @@ Traceback SearchAlgorithm::getCurrentBestTraceback() {
 }
 
 Traceback SearchAlgorithm::getCommonPrefix() {
+    if (not status_.ok()) {
+        return {};
+    }
     unsigned numSteps;
     status_ = searchAlgorithm_->decodeManySteps(numSteps);
     if (not status_.ok()) {
@@ -135,6 +155,9 @@ Traceback SearchAlgorithm::getCommonPrefix() {
 }
 
 std::vector<Traceback> SearchAlgorithm::getCurrentNBestList(size_t nBestSize) {
+    if (not status_.ok()) {
+        return {};
+    }
     unsigned numSteps;
     status_ = searchAlgorithm_->decodeManySteps(numSteps);
     if (not status_.ok()) {

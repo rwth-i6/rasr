@@ -1574,7 +1574,8 @@ scorer, or used as the ``decoder`` of an ``encoder-decoder`` label scorer.
   ``compute_scores_with_times`` (signatures shown in the example above).
 * All of them except ``reset`` and ``allowed_transition_types`` return a ``librasr.Status``, either alone or as
   the first element of a tuple together with their result. An error status makes the search stop the current
-  segment and report the status to the caller. Exceptions raised in these methods are not converted to a
+  segment and report the status to the caller. Returning anything else, e.g. ``None`` from an override written for
+  an older version, raises a ``TypeError`` that names the method. Exceptions raised in these methods are not converted to a
   ``Status``, so catch them and return an error status instead.
 * A native label scorer wrapping a Python one exposes ``get_sub_scorer(index=0)`` on ``ScaledLabelScorer``
   (e.g. to reach into a ``combine`` or ``encoder-decoder`` scorer instance from Python at runtime) and

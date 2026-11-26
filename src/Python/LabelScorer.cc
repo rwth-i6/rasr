@@ -26,17 +26,64 @@ namespace py = pybind11;
 
 namespace Python {
 
+namespace {
+
+/*
+ * Helpers to call the Python overrides that return a `librasr.Status`, alone or as the first element of a
+ * `(Status, value)` tuple. Unlike `PYBIND11_OVERRIDE_PURE_NAME`, they check the type of the returned object and raise a
+ * `TypeError` that names the override. Otherwise a wrong return value, e.g. `None` from an override written before
+ * these methods returned a Status, surfaces as a misleading "incompatible function arguments" error of whichever
+ * `librasr` function the search was called from. The caller must hold the GIL.
+ */
+
+py::function getPythonOverride(Nn::LabelScorer const* self, char const* name) {
+    py::function override = py::get_override(self, name);
+    if (not override) {
+        py::pybind11_fail(std::string("Tried to call pure virtual function \"LabelScorer.") + name + "\"");
+    }
+    return override;
+}
+
+[[noreturn]] void throwReturnTypeError(py::function const& override, char const* expected, py::handle result) {
+    throw py::type_error(py::str(override.attr("__qualname__")).cast<std::string>() + "() must return " + expected +
+                         ", but returned " + py::str(py::type::handle_of(result).attr("__name__")).cast<std::string>() +
+                         ". Python label scorers report errors by returning a librasr.Status, see \"Writing a custom label "
+                         "scorer in Python\" in the SearchV2 documentation.");
+}
+
+template<typename... Args>
+Core::Status callStatusOverride(Nn::LabelScorer const* self, char const* name, Args const&... args) {
+    auto       override = getPythonOverride(self, name);
+    py::object result   = override(args...);
+    if (not py::isinstance<Core::Status>(result)) {
+        throwReturnTypeError(override, "a librasr.Status", result);
+    }
+    return result.cast<Core::Status>();
+}
+
+template<typename... Args>
+std::pair<Core::Status, py::object> callStatusAndValueOverride(Nn::LabelScorer const* self, char const* name, Args const&... args) {
+    auto       override = getPythonOverride(self, name);
+    py::object result   = override(args...);
+    if (py::isinstance<py::tuple>(result)) {
+        auto tuple = result.cast<py::tuple>();
+        if (tuple.size() == 2 and py::isinstance<Core::Status>(tuple[0])) {
+            return {tuple[0].cast<Core::Status>(), tuple[1]};
+        }
+    }
+    throwReturnTypeError(override, "a tuple (librasr.Status, value)", result);
+}
+
+}  // namespace
+
 PythonLabelScorer::PythonLabelScorer(Core::Configuration const& config)
         : Core::Component(config),
           Precursor(config) {
 }
 
 Core::Status PythonLabelScorer::signalNoMoreFeatures() {
-    PYBIND11_OVERRIDE_PURE_NAME(
-            Core::Status,
-            LabelScorer,
-            "signal_no_more_features",
-            signalNoMoreFeatures);
+    py::gil_scoped_acquire gil;
+    return callStatusOverride(this, "signal_no_more_features");
 }
 
 Core::Status PythonLabelScorer::getInitialScoringContext(Nn::ScoringContextRef& initialScoringContext) {
@@ -50,12 +97,8 @@ Core::Status PythonLabelScorer::getInitialScoringContext(Nn::ScoringContextRef& 
 }
 
 std::pair<Core::Status, py::object> PythonLabelScorer::getInitialPythonScoringContext() {
-    using ReturnType = std::pair<Core::Status, py::object>;  // Macro can't handle types with commas inside properly
-    PYBIND11_OVERRIDE_PURE_NAME(
-            ReturnType,
-            Nn::LabelScorer,
-            "get_initial_scoring_context",
-            getInitialPythonScoringContext);
+    py::gil_scoped_acquire gil;
+    return callStatusAndValueOverride(this, "get_initial_scoring_context");
 }
 
 Core::Status PythonLabelScorer::addInput(Nn::DataView const& input) {
@@ -78,12 +121,8 @@ Core::Status PythonLabelScorer::addInputs(Nn::DataView const& input, size_t nTim
 }
 
 Core::Status PythonLabelScorer::addPythonInputs(py::array const& inputs) {
-    PYBIND11_OVERRIDE_PURE_NAME(
-            Core::Status,
-            Nn::LabelScorer,
-            "add_inputs",
-            addPythonInputs,
-            inputs);
+    py::gil_scoped_acquire gil;
+    return callStatusOverride(this, "add_inputs", inputs);
 }
 
 void PythonLabelScorer::setInstance(py::object const& instance) {
@@ -116,25 +155,18 @@ Core::Status PythonLabelScorer::extendedScoringContext(Nn::ScoringContextRef sco
 }
 
 std::pair<Core::Status, py::object> PythonLabelScorer::extendedPythonScoringContext(py::object const& pythonContext, Nn::LabelIndex nextToken, Nn::TransitionType transitionType) {
-    using ReturnType = std::pair<Core::Status, py::object>;  // Macro can't handle types with commas inside properly
-    PYBIND11_OVERRIDE_PURE_NAME(
-            ReturnType,
-            Nn::LabelScorer,
-            "extended_scoring_context",
-            extendedPythonScoringContext,
-            pythonContext,
-            nextToken,
-            transitionType);
+    py::gil_scoped_acquire gil;
+    return callStatusAndValueOverride(this, "extended_scoring_context", pythonContext, nextToken, transitionType);
 }
 
 std::pair<Core::Status, PythonLabelScorer::PythonScoresWithTimes> PythonLabelScorer::getPythonScoresWithTimes(std::vector<py::object> const& pythonContexts) {
-    using ReturnType = std::pair<Core::Status, PythonScoresWithTimes>;  // Macro can't handle types with commas inside properly
-    PYBIND11_OVERRIDE_PURE_NAME(
-            ReturnType,
-            Nn::LabelScorer,
-            "compute_scores_with_times",
-            computePythonScoresWithTimes,
-            pythonContexts);
+    py::gil_scoped_acquire gil;
+    auto [status, scoresWithTimes] = callStatusAndValueOverride(this, "compute_scores_with_times", pythonContexts);
+    if (not status.ok()) {
+        // The value accompanying an error status is ignored, so it doesn't have to be a valid score list
+        return {status, {}};
+    }
+    return {status, scoresWithTimes.cast<PythonScoresWithTimes>()};
 }
 
 void PythonLabelScorer::resetInternal() {

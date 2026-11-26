@@ -1261,6 +1261,11 @@ to bound memory/latency for long or streaming inputs.
   Default ``0`` each.
 * ``encoder.zero-padding`` (bool): whether to pad the first/last chunk with zeros to a uniform size. Default
   ``false``.
+* ``encoder.chunk-alignment`` (``left-aligned``/``right-aligned``): whether the center of chunk i starts or ends
+  at input feature ``i * step-size``. ``right-aligned`` is meant for causal encoders such as Nemotron: it avoids
+  waiting for the rest of a chunk and keeps the outputs past the segment end. It requires ``step-size`` to be a
+  multiple of ``input-step-size`` and supports neither ``zero-padding`` nor models with state variables.
+  Default ``left-aligned``.
 * ``encoder.window-type`` (``none``/``triangular``/``hamming``): weighting window used to blend overlapping
   chunk outputs back together. Default ``triangular``.
 * ``encoder.interpolation-mode`` (``no-interpolation``/``linear``/``log-linear``/``neglog-linear``): how

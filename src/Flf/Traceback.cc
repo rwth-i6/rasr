@@ -378,7 +378,7 @@ protected:
                     const Boundary &leftBoundary = boundaries.get(sr->id()), &rightBoundary = boundaries.get(a.target());
                     f32             wordBegin = f32(leftBoundary.time()) * frameShiftTime_;
                     f32             wordEnd   = f32(rightBoundary.time()) * frameShiftTime_;
-                    if (wordBegin < wordEnd) {
+                    if (wordBegin <= wordEnd) {
                         if (lAlphabet || lpAlphabet) {
                             std::string      word;
                             CtmPrinter::Type type = CtmPrinter::TypeInvalid;

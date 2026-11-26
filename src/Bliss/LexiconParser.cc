@@ -473,5 +473,7 @@ void VocabTextLexiconParser::createLemmata() {
         }
         lexicon_->addPronunciation(newLemma_, pron);
         lexicon_->setDefaultLemmaName(newLemma_);
+        // set eval, so that the labels are regarded as words
+        lexicon_->setDefaultEvaluationToken(newLemma_);
     }
 }

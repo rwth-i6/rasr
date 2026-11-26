@@ -35,9 +35,9 @@ std::vector<std::string> splitUtf8Characters(std::string const& text) {
 
 bool isWhitespace(std::string const& text) {
     static std::unordered_set<std::string> const whitespace = {
-            "\t", "\n", "\v", "\f", "\r", "\x1c", "\x1d", "\x1e", "\x1f", " ", "\u0085", " ", " ",
-            " ", " ", " ", " ", " ", " ", " ", " ", " ", " ", " ",
-            " ", " ", " ", " ", "　"};
+            "\t", "\n", "\v", "\f", "\r", "\x1c", "\x1d", "\x1e", "\x1f", " ", "\u0085", "\u00a0", "\u1680",
+            "\u2000", "\u2001", "\u2002", "\u2003", "\u2004", "\u2005", "\u2006", "\u2007", "\u2008", "\u2009", "\u200a",
+            "\u2028", "\u2029", "\u202f", "\u205f", "\u3000"};
     for (auto const& character : splitUtf8Characters(text)) {
         if (whitespace.count(character) == 0ul) {
             return false;

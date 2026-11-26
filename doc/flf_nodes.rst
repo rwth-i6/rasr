@@ -2905,6 +2905,10 @@ and works with a ``SearchAlgorithmV2`` instead of
 ``SearchAlgorithm``. Performs recognition of the input segments
 and sends the result lattices as outputs.
 
+If recognition of a segment fails (e.g. a failing ONNX model run), an error is logged, an empty lattice is sent
+for that segment and the run continues with the next segment. The status of the current segment is available on
+port 1: as bool whether it succeeded, as int the status code and as string the error message.
+
 See :doc:`search_v2` for a full guide to configuring the search algorithm and label scorer(s) used by this node.
 
 **Configuration**
@@ -2922,6 +2926,7 @@ See :doc:`search_v2` for a full guide to configuring the search algorithm and la
     0:bliss-speech-segment
     output:
     0:lattice
+    1:bool, int, string (status)
 
 reduce
 ------

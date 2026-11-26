@@ -119,6 +119,7 @@ TransformerCudaStateManager::TransformerCudaStateManager(Core::Configuration con
           maxHistory_(paramMaxHistoryLength(config)),
           alwaysIncludeFirstTokenState_(paramAlwaysIncludeFirstTokenState(config)),
           compressionWarningLogged_(false),
+          stream_(nullptr),
           pools_(paramSlotsPerChunk(config)) {
 }
 
@@ -126,6 +127,10 @@ TransformerCudaStateManager::~TransformerCudaStateManager() = default;
 
 bool TransformerCudaStateManager::requiresAllParentStates() const {
     return true;
+}
+
+void TransformerCudaStateManager::setCudaStream(void* stream) {
+    stream_ = static_cast<cudaStream_t>(stream);
 }
 
 TransformerCudaStateManager::HistoryState TransformerCudaStateManager::initialState(StateVariables const& vars, Nn::CompressedVectorFactory<float> const& vectorFactory) {
@@ -233,7 +238,7 @@ void TransformerCudaStateManager::mergeStates(StateVariables const&             
 
     char* deviceInput = static_cast<char*>(mergeInputBuffer_.allocate(hostInput.size()));
     // hostInput is pageable memory, so cudaMemcpyAsync returns only after it has been copied to a staging buffer
-    checkCudaStatus(cudaMemcpyAsync(deviceInput, hostInput.data(), hostInput.size(), cudaMemcpyHostToDevice, sharedStream()), "Uploading merge inputs");
+    checkCudaStatus(cudaMemcpyAsync(deviceInput, hostInput.data(), hostInput.size(), cudaMemcpyHostToDevice, stream_), "Uploading merge inputs");
     char const* devicePos = deviceInput + pointerBytes;
     checkCudaStatus(CudaKernels::launchStateMerge(reinterpret_cast<float const* const*>(deviceInput),
                                                   reinterpret_cast<size_t const*>(devicePos),
@@ -244,7 +249,7 @@ void TransformerCudaStateManager::mergeStates(StateVariables const&             
                                                   maxPrefix,
                                                   numBatch,
                                                   numVars,
-                                                  sharedStream()),
+                                                  stream_),
                     "Merging states on the device");
 
     feedDict.reserve(feedDict.size() + numVars);
@@ -316,10 +321,10 @@ std::vector<TransformerCudaStateManager::HistoryState> TransformerCudaStateManag
         }
     }
 
-    copier_.copy(batches, CudaKernels::StateCopyDirection::TensorToState);
+    copier_.copy(batches, CudaKernels::StateCopyDirection::TensorToState, stream_);
 
     // The caller may release the output tensors right after this call, so the copies must be done
-    checkCudaStatus(cudaStreamSynchronize(sharedStream()), "Synchronizing the shared CUDA stream after splitting states");
+    checkCudaStatus(cudaStreamSynchronize(stream_), "Synchronizing the CUDA stream after splitting states");
     return result;
 }
 

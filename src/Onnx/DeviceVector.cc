@@ -155,8 +155,8 @@ size_t DeviceVector::size() const {
 float DeviceVector::get(size_t pos) const {
     require_lt(pos, size_);
     float result = 0.0f;
-    // The data may still be written on the shared stream
-    checkCudaStatus(cudaStreamSynchronize(sharedStream()), "Synchronizing the shared CUDA stream");
+    // The data may still be written on the stream of its state manager (rare path, so wait for the whole device)
+    checkCudaStatus(cudaDeviceSynchronize(), "Synchronizing the CUDA device");
     checkCudaStatus(cudaMemcpy(&result, data_ + pos, sizeof(float), cudaMemcpyDeviceToHost), "Copying a state element from the device (cudaMemcpy)");
     return result;
 }
@@ -195,8 +195,8 @@ float* DeviceVector::deviceData() const {
 std::vector<float> DeviceVector::toHost() const {
     std::vector<float> result(size_);
     if (size_ > 0ul) {
-        // The data may still be written on the shared stream
-        checkCudaStatus(cudaStreamSynchronize(sharedStream()), "Synchronizing the shared CUDA stream");
+        // The data may still be written on the stream of its state manager (rare path, so wait for the whole device)
+        checkCudaStatus(cudaDeviceSynchronize(), "Synchronizing the CUDA device");
         checkCudaStatus(cudaMemcpy(result.data(), data_, size_ * sizeof(float), cudaMemcpyDeviceToHost), "Copying a state from the device (cudaMemcpy)");
     }
     return result;

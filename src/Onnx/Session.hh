@@ -39,7 +39,7 @@ public:
     static ExecutionProviderType executionProviderType(Core::Configuration const& config);
 
     Session(Core::Configuration const& config);
-    virtual ~Session() = default;
+    virtual ~Session();
 
     bool                 hasInput(std::string const& name) const;
     bool                 hasOutput(std::string const& name) const;
@@ -66,11 +66,11 @@ public:
              std::vector<MemoryLocation> const&           output_locations);
 
     /*
-     * cudaStream_t shared by all CUDA sessions (nullptr without MODULE_CUDA)
-     * Write device memory for session inputs on this stream
-     * Each run syncs the whole stream, so threads wait for each other
+     * cudaStream_t of this session (nullptr without the CUDA execution provider)
+     * Write device memory for inputs of this session on this stream
+     * Runs of this session are ordered on it, other sessions use their own streams
      */
-    static void* sharedCudaStream();
+    void* cudaStream() const;
 
     std::string                     getCustomMetadata(std::string const& key) const;
     std::vector<std::string> const& getCustomMetadataKeys() const;
@@ -86,6 +86,7 @@ private:
     const bool                  cudaUseTf32_;
     const ExecutionProviderType executionProviderType_;
     int                         cudaDevice_;
+    void*                       cudaStream_;  // cudaStream_t, destroyed after `session_`
 
     Ort::AllocatorWithDefaultOptions allocator_;
     Ort::Env                         env_;

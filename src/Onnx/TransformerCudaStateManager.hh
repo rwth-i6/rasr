@@ -44,6 +44,8 @@ public:
 
     bool requiresAllParentStates() const override;
 
+    void setCudaStream(void* stream) override;
+
     HistoryState initialState(StateVariables const& vars, Nn::CompressedVectorFactory<float> const& vectorFactory) override;
 
     void mergeStates(StateVariables const&                   vars,
@@ -61,6 +63,7 @@ private:
     const size_t maxHistory_;
     const bool   alwaysIncludeFirstTokenState_;
     bool         compressionWarningLogged_;
+    cudaStream_t stream_;  // of the session the states are for
 
     // Warn (once) if a state compression is configured: the states stay uncompressed floats on the device
     void warnIfCompressed(Nn::CompressedVectorFactory<float> const& vectorFactory);

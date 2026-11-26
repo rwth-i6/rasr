@@ -441,6 +441,14 @@ Value::Value(Value const& other)
             copyFrom<int8_t>(other.value_);
             break;
         }
+        case ValueDataType::UINT8: {
+            copyFrom<uint8_t>(other.value_);
+            break;
+        }
+        case ValueDataType::BOOL: {
+            copyFrom<bool>(other.value_);
+            break;
+        }
         default: defect();
     }
 }
@@ -1443,6 +1451,9 @@ bool Value::isOnDevice() const {
 }
 
 Value Value::toHost() const {
+    if (empty()) {
+        return Value();
+    }
     if (not isOnDevice()) {
         return Value(*this);
     }
@@ -1453,9 +1464,8 @@ Value Value::toHost() const {
     Ort::AllocatorWithDefaultOptions allocator;
     Ort::Value                       host = Ort::Value::CreateTensor(allocator, shape.data(), shape.size(), info.GetElementType());
 
-    // Device data may still be written on the shared compute stream
-    auto        stream = static_cast<cudaStream_t>(Session::sharedCudaStream());
-    cudaError_t status = cudaStreamSynchronize(stream);
+    // Device data may still be written on the stream of any session (rare path, so wait for the whole device)
+    cudaError_t status = cudaDeviceSynchronize();
     if (status == cudaSuccess) {
         status = cudaMemcpy(host.GetTensorMutableRawData(), value_.GetTensorRawData(), value_.GetTensorSizeInBytes(), cudaMemcpyDeviceToHost);
     }

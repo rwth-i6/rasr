@@ -73,7 +73,7 @@ Value PersistentInput::view(Session const& session) {
     }
 #ifdef MODULE_CUDA
     if (not uploaded_) {
-        upload();
+        upload(session);
     }
     Ort::MemoryInfo memoryInfo("Cuda", OrtDeviceAllocator, deviceId_, OrtMemTypeDefault);
 
@@ -86,7 +86,7 @@ Value PersistentInput::view(Session const& session) {
 #endif
 }
 
-void PersistentInput::upload() {
+void PersistentInput::upload(Session const& session) {
 #ifdef MODULE_CUDA
     size_t bytes = host_.value_.GetTensorSizeInBytes();
     require_gt(bytes, 0ul);
@@ -102,11 +102,11 @@ void PersistentInput::upload() {
         checkCuda(cudaMalloc(&device_, bytes), "Allocating device memory (cudaMalloc)");
         deviceCapacity_ = bytes;
     }
-    // On the shared stream, so the copy is ordered after earlier runs that may still read the old data
-    auto stream = static_cast<cudaStream_t>(Session::sharedCudaStream());
+    // On the stream of the session, so the copy is ordered after its earlier runs that may still read the old data
+    auto stream = static_cast<cudaStream_t>(session.cudaStream());
     checkCuda(cudaMemcpyAsync(device_, host_.value_.GetTensorRawData(), bytes, cudaMemcpyHostToDevice, stream), "Copying to the device (cudaMemcpyAsync)");
     // Wait for the copy, so the host tensor may be released or changed right away (it may be in pinned memory)
-    checkCuda(cudaStreamSynchronize(stream), "Synchronizing the shared CUDA stream");
+    checkCuda(cudaStreamSynchronize(stream), "Synchronizing the CUDA stream of the session");
     uploaded_ = true;
 #endif
 }

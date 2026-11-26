@@ -64,10 +64,6 @@ endif()
 
 target_link_libraries(RasrMm PUBLIC RasrAm RasrCore RasrMath RasrMc RasrSpeech)
 
-if(${MODULE_MM_BATCH})
-    target_compile_options(RasrMm PRIVATE "-msse2")
-endif()
-
 add_rasr_check_executable(check-mm check.cc)
 
 target_link_rasr_check_libraries(check-mm PRIVATE RasrMm)

@@ -41,7 +41,12 @@ const Core::ParameterInt LstmCudaStateManager::paramSlotsPerChunk(
 LstmCudaStateManager::LstmCudaStateManager(Core::Configuration const& config)
         : Precursor(config),
           compressionWarningLogged_(false),
+          stream_(nullptr),
           pools_(paramSlotsPerChunk(config)) {
+}
+
+void LstmCudaStateManager::setCudaStream(void* stream) {
+    stream_ = static_cast<cudaStream_t>(stream);
 }
 
 LstmCudaStateManager::HistoryState LstmCudaStateManager::initialState(StateVariables const& vars, Nn::CompressedVectorFactory<float> const& vectorFactory) {
@@ -55,7 +60,7 @@ LstmCudaStateManager::HistoryState LstmCudaStateManager::initialState(StateVaria
             criticalError("lstm-cuda state manager: state %s must have a fixed size", var.input_state_key.c_str());
         }
         auto state = std::make_unique<DeviceVector>(pools_.get(stateSize), stateSize);
-        checkCudaStatus(cudaMemsetAsync(state->deviceData(), 0, stateSize * sizeof(float), sharedStream()), "Zeroing initial state");
+        checkCudaStatus(cudaMemsetAsync(state->deviceData(), 0, stateSize * sizeof(float), stream_), "Zeroing initial state");
         result.push_back(std::move(state));
     }
     return result;
@@ -96,7 +101,7 @@ void LstmCudaStateManager::mergeStates(StateVariables const&                   v
             batches.back().tasks.push_back({state->deviceData(), merged + tensorOffsets[v] + b * stateSizes[v]});
         }
     }
-    copier_.copy(batches, CudaKernels::StateCopyDirection::StateToTensor);
+    copier_.copy(batches, CudaKernels::StateCopyDirection::StateToTensor, stream_);
 
     feedDict.reserve(feedDict.size() + vars.size());
     targets.reserve(targets.size() + vars.size());
@@ -144,7 +149,7 @@ std::vector<LstmCudaStateManager::HistoryState> LstmCudaStateManager::splitState
             result[b].push_back(std::move(state));
         }
     }
-    copier_.copy(batches, CudaKernels::StateCopyDirection::TensorToState);
+    copier_.copy(batches, CudaKernels::StateCopyDirection::TensorToState, stream_);
 
     // One state per batch entry, like the `lstm-cpu` state manager
     for (auto& suffixLength : suffixLengths) {
@@ -152,7 +157,7 @@ std::vector<LstmCudaStateManager::HistoryState> LstmCudaStateManager::splitState
     }
 
     // The caller may release the output tensors right after this call, so the copies must be done
-    checkCudaStatus(cudaStreamSynchronize(sharedStream()), "Synchronizing the shared CUDA stream after splitting states");
+    checkCudaStatus(cudaStreamSynchronize(stream_), "Synchronizing the CUDA stream after splitting states");
     return result;
 }
 

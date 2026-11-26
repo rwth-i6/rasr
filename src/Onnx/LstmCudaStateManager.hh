@@ -37,6 +37,8 @@ public:
     LstmCudaStateManager(Core::Configuration const& config);
     ~LstmCudaStateManager() override = default;
 
+    void setCudaStream(void* stream) override;
+
     HistoryState initialState(StateVariables const& vars, Nn::CompressedVectorFactory<float> const& vectorFactory) override;
 
     void mergeStates(StateVariables const&                   vars,
@@ -51,7 +53,8 @@ public:
                                           Nn::CompressedVectorFactory<float> const& vectorFactory) override;
 
 private:
-    bool compressionWarningLogged_;
+    bool         compressionWarningLogged_;
+    cudaStream_t stream_;  // of the session the states are for
 
     // Warn (once) if a state compression is configured: the states stay uncompressed floats on the device
     void warnIfCompressed(Nn::CompressedVectorFactory<float> const& vectorFactory);

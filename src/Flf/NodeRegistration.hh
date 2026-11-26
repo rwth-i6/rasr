@@ -2154,7 +2154,7 @@ void registerNodeCreators(NodeFactory* factory) {
                     "`SearchAlgorithm`. Performs recognition of the input segments\n"
                     "and sends the result lattices as outputs.\n"
                     "If recognition of a segment fails, an error is logged,\n"
-                    "the lattice is empty and port 1 holds the failure status.\n"
+                    "no lattice is sent and port 1 holds the failure status.\n"
                     "[*.network.recognizer-v2]\n"
                     "type = recognizer-v2\n"
                     "input:\n"

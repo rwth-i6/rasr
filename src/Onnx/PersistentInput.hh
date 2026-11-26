@@ -55,7 +55,7 @@ private:
     int    deviceId_;        // CUDA device of `device_`
     bool   uploaded_;
 
-    void upload();
+    void upload(Session const& session);
 };
 
 }  // namespace Onnx

@@ -92,16 +92,16 @@ std::string OnnxInitUpdateScoreBundle::stateUpdaterOnnxName(std::string const& k
     return stateUpdaterOnnxModel_->mapping.getOnnxName(key);
 }
 
+std::string OnnxInitUpdateScoreBundle::scorerOnnxName(std::string const& key) const {
+    return scorerOnnxModel_->mapping.getOnnxName(key);
+}
+
 Session const& OnnxInitUpdateScoreBundle::stateInitializerSession() const {
     return stateInitializerOnnxModel_->session;
 }
 
 Session const& OnnxInitUpdateScoreBundle::stateUpdaterSession() const {
     return stateUpdaterOnnxModel_->session;
-}
-
-std::string OnnxInitUpdateScoreBundle::scorerOnnxName(std::string const& key) const {
-    return scorerOnnxModel_->mapping.getOnnxName(key);
 }
 
 OnnxNamedValuesRef OnnxInitUpdateScoreBundle::initialState(SessionInputs extraInputs) {

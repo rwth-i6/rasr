@@ -223,7 +223,8 @@ LexiconfreeLabelsyncBeamSearch::LexiconfreeLabelsyncBeamSearch(Core::Configurati
           numActiveHypsAfterBeamPruning_("num-active-hyps-after-beam-pruning"),
           currentSearchStep_(0ul),
           totalTimesteps_(0ul),
-          finishedSegment_(false) {
+          finishedSegment_(false),
+          searchStepsOpen_(false) {
     auto maxBeamSizes = paramMaxBeamSizes(config);
     maxBeamSizes_.insert(maxBeamSizes_.begin(), maxBeamSizes.begin(), maxBeamSizes.end());
 
@@ -316,7 +317,10 @@ bool LexiconfreeLabelsyncBeamSearch::setModelCombination(Speech::ModelCombinatio
     return true;
 }
 
-void LexiconfreeLabelsyncBeamSearch::enterSegment(Bliss::SpeechSegment const* segment) {
+Core::Status LexiconfreeLabelsyncBeamSearch::enterSegment(Bliss::SpeechSegment const* segment) {
+    // A previous segment that failed or was never finished may have left its element open
+    closeSearchSteps();
+
     initializationTime_.reset();
     featureProcessingTime_.reset();
     recognitionTime_.reset();
@@ -351,7 +355,11 @@ void LexiconfreeLabelsyncBeamSearch::enterSegment(Bliss::SpeechSegment const* se
     beam_.push_back(LabelHypothesis());
     beam_.front().scoringContexts.clear();
     for (auto& labelScorer : labelScorers_) {
-        beam_.front().scoringContexts.push_back(labelScorer->getInitialScoringContext());
+        auto status = labelScorer->getInitialScoringContext(beam_.front().scoringContexts.emplace_back());
+        if (not status.ok()) {
+            initializationTime_.stop();
+            return status;
+        }
     }
 
     finishedSegment_    = false;
@@ -361,41 +369,53 @@ void LexiconfreeLabelsyncBeamSearch::enterSegment(Bliss::SpeechSegment const* se
 
     initializationTime_.stop();
 
-    if (stepwiseStatisticsChannel_.isOpen()) {
-        stepwiseStatisticsChannel_ << Core::XmlOpen("search-steps");
-    }
+    openSearchSteps();
+    return Core::Status();
 }
 
-void LexiconfreeLabelsyncBeamSearch::finishSegment() {
+Core::Status LexiconfreeLabelsyncBeamSearch::finishSegment() {
     featureProcessingTime_.start();
     for (auto& labelScorer : labelScorers_) {
-        labelScorer->signalNoMoreFeatures();
+        auto status = labelScorer->signalNoMoreFeatures();
+        if (not status.ok()) {
+            featureProcessingTime_.stop();
+            return closeSearchStepsOnError(status);
+        }
     }
     featureProcessingTime_.stop();
-    decodeManySteps();
-    if (stepwiseStatisticsChannel_.isOpen()) {
-        stepwiseStatisticsChannel_ << Core::XmlClose("search-steps");
+    unsigned numSteps;
+    auto     status = decodeManySteps(numSteps);
+    if (not status.ok()) {
+        return closeSearchStepsOnError(status);
     }
+    closeSearchSteps();
     logStatistics();
     finishedSegment_ = true;
+    return Core::Status();
 }
 
-void LexiconfreeLabelsyncBeamSearch::putFeature(Nn::DataView const& feature) {
-    featureProcessingTime_.start();
+Core::Status LexiconfreeLabelsyncBeamSearch::putFeature(Nn::DataView const& feature) {
+    Core::StopWatch::Scope timer(featureProcessingTime_);
     for (auto& labelScorer : labelScorers_) {
-        labelScorer->addInput(feature);
+        auto status = labelScorer->addInput(feature);
+        if (not status.ok()) {
+            return closeSearchStepsOnError(status);
+        }
     }
     ++totalTimesteps_;
-    featureProcessingTime_.stop();
+    return Core::Status();
 }
 
-void LexiconfreeLabelsyncBeamSearch::putFeatures(Nn::DataView const& features, size_t nTimesteps) {
-    featureProcessingTime_.start();
+Core::Status LexiconfreeLabelsyncBeamSearch::putFeatures(Nn::DataView const& features, size_t nTimesteps) {
+    Core::StopWatch::Scope timer(featureProcessingTime_);
     for (auto& labelScorer : labelScorers_) {
-        labelScorer->addInputs(features, nTimesteps);
+        auto status = labelScorer->addInputs(features, nTimesteps);
+        if (not status.ok()) {
+            return closeSearchStepsOnError(status);
+        }
     }
     totalTimesteps_ += nTimesteps;
-    featureProcessingTime_.stop();
+    return Core::Status();
 }
 
 Core::Ref<const Traceback> LexiconfreeLabelsyncBeamSearch::getCurrentBestTraceback() const {
@@ -436,34 +456,41 @@ Core::Ref<const LatticeTrace> LexiconfreeLabelsyncBeamSearch::getCommonPrefix() 
     return Core::Ref<const LatticeTrace>(searcher.rootTrace());
 }
 
-bool LexiconfreeLabelsyncBeamSearch::decodeStep() {
+Core::Status LexiconfreeLabelsyncBeamSearch::decodeStep(bool& stepMade) {
+    stepMade = false;
     if (finishedSegment_) {
-        return false;
+        return Core::Status();
     }
     if (currentSearchStep_ >= maxLabelsPerTimestep_ * totalTimesteps_) {
         warning() << "Terminated search due to reaching max number of label outputs given input count";
         finishedSegment_ = true;
-        return false;
+        return Core::Status();
     }
     if (std::all_of(beam_.begin(), beam_.end(), [](LabelHypothesis const& hyp) { return not hyp.isActive; })) {
         log() << "Terminated search because all hypotheses reached sentence-end";
         finishedSegment_ = true;
-        return false;
+        return Core::Status();
     }
 
     recognitionTime_.start();
 
-    bool hasExtensions = scoreAndPruneExtensions();
+    bool hasExtensions = false;
+    auto status        = scoreAndPruneExtensions(hasExtensions);
 
-    if (not hasExtensions) {
+    if (not status.ok() or not hasExtensions) {
         closeStepStatistics();
         recognitionTime_.stop();
-        return false;
+        return closeSearchStepsOnError(status);
     }
 
     buildNewBeamTime_.start();
-    buildNewBeamFromExtensions();
+    status = buildNewBeamFromExtensions();
     buildNewBeamTime_.stop();
+    if (not status.ok()) {
+        closeStepStatistics();
+        recognitionTime_.stop();
+        return closeSearchStepsOnError(status);
+    }
 
     // Prune terminated and active hypotheses by score according to the selected pruning strategy
     size_t const finalScorerIdx = labelScorers_.size() - 1;
@@ -532,7 +559,8 @@ bool LexiconfreeLabelsyncBeamSearch::decodeStep() {
     recognitionTime_.stop();
 
     logStepStatistics();
-    return true;
+    stepMade = true;
+    return Core::Status();
 }
 
 template<typename Element>
@@ -639,7 +667,8 @@ void LexiconfreeLabelsyncBeamSearch::logOwnStatistics() const {
     statisticsChannel_ << Core::XmlClose("search-statistics");
 }
 
-bool LexiconfreeLabelsyncBeamSearch::scoreAndPruneExtensions() {
+Core::Status LexiconfreeLabelsyncBeamSearch::scoreAndPruneExtensions(bool& hasExtensions) {
+    hasExtensions = false;
     /*
      * We collect the scoring contexts that need to be passed to the LabelScorer into `scoringContexts_`.
      * `hypIndexToContextIndexMap_` maps a beam index to the position of its context in `scoringContexts_`,
@@ -674,7 +703,10 @@ bool LexiconfreeLabelsyncBeamSearch::scoreAndPruneExtensions() {
         std::vector<std::optional<Nn::ScoreAccessorRef>> scoreAccessors;
         {
             Core::StopWatch::Scope scoringTimer(scoringTimes_[scorerIdx]);
-            scoreAccessors = labelScorers_[scorerIdx]->getScoreAccessors(scoringContexts_);
+            auto                   status = labelScorers_[scorerIdx]->getScoreAccessors(scoringContexts_, scoreAccessors);
+            if (not status.ok()) {
+                return status;
+            }
         }
 
         // Scores and timeframes of this label scorer, indexed like `scoringContexts_`. The spans
@@ -696,7 +728,7 @@ bool LexiconfreeLabelsyncBeamSearch::scoreAndPruneExtensions() {
         }
 
         if (extensions_.empty()) {
-            return false;
+            return Core::Status();
         }
 
         if (scorerIdx == 0ul) {
@@ -722,7 +754,7 @@ bool LexiconfreeLabelsyncBeamSearch::scoreAndPruneExtensions() {
             stepwiseStatisticsChannel_ << Core::XmlFull("num-hyps-after-intermediate-pruning", extensions_.size()) + Core::XmlAttribute("scorer", scorerIdx + 1);
         }
         if (extensions_.empty()) {
-            return false;
+            return Core::Status();
         }
 
         if (not isLastScorer) {
@@ -730,7 +762,8 @@ bool LexiconfreeLabelsyncBeamSearch::scoreAndPruneExtensions() {
         }
     }
 
-    return not extensions_.empty();
+    hasExtensions = not extensions_.empty();
+    return Core::Status();
 }
 
 void LexiconfreeLabelsyncBeamSearch::readOutScoreAccessors(std::vector<std::optional<Nn::ScoreAccessorRef>> const& scoreAccessors, std::vector<std::optional<Nn::DenseScoreSpan>>& denseScoreSpans, std::vector<Nn::TimeframeIndex>& scoreTimes) const {
@@ -871,7 +904,7 @@ void LexiconfreeLabelsyncBeamSearch::prepareNextScoringContexts(size_t scorerIdx
     }
 }
 
-void LexiconfreeLabelsyncBeamSearch::buildNewBeamFromExtensions() {
+Core::Status LexiconfreeLabelsyncBeamSearch::buildNewBeamFromExtensions() {
     newBeam_.clear();
 
     for (auto const& hyp : beam_) {
@@ -886,13 +919,18 @@ void LexiconfreeLabelsyncBeamSearch::buildNewBeamFromExtensions() {
         std::vector<Nn::ScoringContextRef> newScoringContexts;
         newScoringContexts.reserve(labelScorers_.size());
         for (size_t scorerIdx = 0ul; scorerIdx < labelScorers_.size(); ++scorerIdx) {
-            newScoringContexts.push_back(labelScorers_[scorerIdx]->extendedScoringContext(
+            auto status = labelScorers_[scorerIdx]->extendedScoringContext(
                     baseHyp.scoringContexts[scorerIdx],
                     extension.nextToken,
-                    extension.transitionType));
+                    extension.transitionType,
+                    newScoringContexts.emplace_back());
+            if (not status.ok()) {
+                return status;
+            }
         }
         newBeam_.push_back({baseHyp, extension, newScoringContexts, lengthNormScale_});
     }
+    return Core::Status();
 }
 
 void LexiconfreeLabelsyncBeamSearch::openStepStatistics() {
@@ -911,6 +949,28 @@ void LexiconfreeLabelsyncBeamSearch::closeStepStatistics() {
 
     stepwiseStatisticsChannel_ << Core::XmlClose("search-step-stats");
     stepStatisticsOpen_ = false;
+}
+
+void LexiconfreeLabelsyncBeamSearch::openSearchSteps() {
+    if (stepwiseStatisticsChannel_.isOpen()) {
+        stepwiseStatisticsChannel_ << Core::XmlOpen("search-steps");
+        searchStepsOpen_ = true;
+    }
+}
+
+void LexiconfreeLabelsyncBeamSearch::closeSearchSteps() {
+    if (not searchStepsOpen_) {
+        return;
+    }
+    stepwiseStatisticsChannel_ << Core::XmlClose("search-steps");
+    searchStepsOpen_ = false;
+}
+
+Core::Status LexiconfreeLabelsyncBeamSearch::closeSearchStepsOnError(Core::Status status) {
+    if (not status.ok()) {
+        closeSearchSteps();
+    }
+    return status;
 }
 
 void LexiconfreeLabelsyncBeamSearch::logStepStatistics() {

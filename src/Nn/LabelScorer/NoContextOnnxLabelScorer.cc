@@ -50,13 +50,15 @@ NoContextOnnxLabelScorer::NoContextOnnxLabelScorer(Core::Configuration const& co
     scoresName_             = onnxModel_->mapping.getOnnxName("scores");
 }
 
-ScoringContextRef NoContextOnnxLabelScorer::getInitialScoringContext() {
-    return Core::ref(new StepScoringContext());
+Core::Status NoContextOnnxLabelScorer::getInitialScoringContext(ScoringContextRef& initialScoringContext) {
+    initialScoringContext = Core::ref(new StepScoringContext());
+    return Core::Status();
 }
 
-ScoringContextRef NoContextOnnxLabelScorer::extendedScoringContext(ScoringContextRef scoringContext, LabelIndex nextToken, TransitionType transitionType) {
+Core::Status NoContextOnnxLabelScorer::extendedScoringContext(ScoringContextRef scoringContext, LabelIndex nextToken, TransitionType transitionType, ScoringContextRef& extendedContext) {
     StepScoringContextRef stepScoringContext(dynamic_cast<StepScoringContext const*>(scoringContext.get()));
-    return Core::ref(new StepScoringContext(stepScoringContext->currentStep + 1));
+    extendedContext = Core::ref(new StepScoringContext(stepScoringContext->currentStep + 1));
+    return Core::Status();
 }
 
 void NoContextOnnxLabelScorer::cleanupCaches(Core::CollapsedVector<ScoringContextRef> const& activeContexts) {
@@ -80,12 +82,8 @@ void NoContextOnnxLabelScorer::resetInternal() {
     scoreCache_.clear();
 }
 
-std::vector<std::optional<ScoreAccessorRef>> NoContextOnnxLabelScorer::computeScoreAccessors(std::vector<ScoringContextRef> const& scoringContexts) {
-    if (scoringContexts.empty()) {
-        return {};
-    }
-
-    std::vector<std::optional<ScoreAccessorRef>> scoreAccessors(scoringContexts.size(), std::nullopt);
+Core::Status NoContextOnnxLabelScorer::computeScoreAccessors(std::vector<ScoringContextRef> const& scoringContexts, std::vector<std::optional<ScoreAccessorRef>>& scoreAccessors) {
+    scoreAccessors.assign(scoringContexts.size(), std::nullopt);
 
     size_t numComputed = 0ul;
 
@@ -96,7 +94,10 @@ std::vector<std::optional<ScoreAccessorRef>> NoContextOnnxLabelScorer::computeSc
             continue;
         }
         if (scoreCache_.find(stepScoringContext) == scoreCache_.end()) {
-            forwardContext(stepScoringContext);
+            auto status = forwardContext(stepScoringContext);
+            if (not status.ok()) {
+                return status;
+            }
             ++numComputed;
         }
 
@@ -105,11 +106,14 @@ std::vector<std::optional<ScoreAccessorRef>> NoContextOnnxLabelScorer::computeSc
 
     countUncomputedAccessors(scoringContexts.size() - numComputed);
 
-    return scoreAccessors;
+    return Core::Status();
 }
 
-std::optional<ScoreAccessorRef> NoContextOnnxLabelScorer::computeScoreAccessor(ScoringContextRef scoringContext) {
-    return computeScoreAccessors({scoringContext})[0];
+Core::Status NoContextOnnxLabelScorer::computeScoreAccessor(ScoringContextRef scoringContext, std::optional<ScoreAccessorRef>& scoreAccessor) {
+    std::vector<std::optional<ScoreAccessorRef>> scoreAccessors;
+    auto                                         status = computeScoreAccessors({scoringContext}, scoreAccessors);
+    scoreAccessor                                       = scoreAccessors.front();
+    return status;
 }
 
 size_t NoContextOnnxLabelScorer::getMinActiveInputIndex(Core::CollapsedVector<ScoringContextRef> const& activeContexts) const {
@@ -126,7 +130,7 @@ void NoContextOnnxLabelScorer::logScoringBreakdown() const {
     statisticsChannel_ << Core::XmlFull("onnx-session-time", onnxSessionTime_.elapsedMilliseconds());
 }
 
-void NoContextOnnxLabelScorer::forwardContext(StepScoringContextRef const& scoringContext) {
+Core::Status NoContextOnnxLabelScorer::forwardContext(StepScoringContextRef const& scoringContext) {
     /*
      * Create session inputs
      */
@@ -142,8 +146,11 @@ void NoContextOnnxLabelScorer::forwardContext(StepScoringContextRef const& scori
      */
     std::vector<Onnx::Value> sessionOutputs;
     onnxSessionTime_.start();
-    onnxModel_->session.run(std::move(sessionInputs), {scoresName_}, sessionOutputs);
+    auto status = onnxModel_->session.run(std::move(sessionInputs), {scoresName_}, sessionOutputs);
     onnxSessionTime_.stop();
+    if (not status.ok()) {
+        return status;
+    }
 
     /*
      * Put resulting scores into cache map
@@ -151,5 +158,6 @@ void NoContextOnnxLabelScorer::forwardContext(StepScoringContextRef const& scori
     auto scoreVec = std::make_shared<std::vector<Score>>();
     sessionOutputs.front().get(0, *scoreVec);
     scoreCache_.emplace(scoringContext, scoreVec);
+    return Core::Status();
 }
 }  // namespace Nn

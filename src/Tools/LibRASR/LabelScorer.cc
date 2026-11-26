@@ -125,7 +125,8 @@ void bindLabelScorer(py::module_& module) {
             " - `allowed_transition_types`\n"
             " - `extended_scoring_context`\n"
             " - `add_inputs`\n"
-            " - `compute_scores_with_times`");
+            " - `compute_scores_with_times`\n"
+            "All of them except `reset` and `allowed_transition_types` return a `Status`, alone or as the first element of a tuple.");
 
     pyLabelScorer.def(
             py::init<Core::Configuration const&>(),
@@ -140,12 +141,13 @@ void bindLabelScorer(py::module_& module) {
     pyLabelScorer.def(
             "signal_no_more_features",
             &Nn::LabelScorer::signalNoMoreFeatures,
-            "Signal to the label scorer that all features for the current segment have been passed.");
+            "Signal to the label scorer that all features for the current segment have been passed. Returns a `Status`.");
 
     pyLabelScorer.def(
             "get_initial_scoring_context",
             [](Python::PythonLabelScorer& self) { return self.getInitialPythonScoringContext(); },
-            "Create some arbitrary (hashable) python object which symbolizes the scoring context in the first search step");
+            "Create some arbitrary (hashable) python object which symbolizes the scoring context in the first search step.\n"
+            "Returns a tuple of a `Status` and the scoring context.");
 
     pyLabelScorer.def(
             "allowed_transition_types",
@@ -167,17 +169,19 @@ void bindLabelScorer(py::module_& module) {
             "    next_token: The most recent token that has been hypothesized and can now be integrated into the scoring context.\n"
             "    transition_type: The kind of transition that has just been performed.\n\n"
             "Returns:\n"
-            "    An extended scoring context. The type of this object should be the same as the type of the input `context`.");
+            "    A tuple of a `Status` and the extended scoring context. The type of the context should be the same as the type of the input `context`.");
 
     pyLabelScorer.def(
             "add_inputs",
             [](
                     Python::PythonLabelScorer& self,
-                    py::array const&           inputs) { self.addPythonInputs(inputs); },
+                    py::array const&           inputs) { return self.addPythonInputs(inputs); },
             py::arg("inputs"),
             "Feed an array of input features to the label scorer.\n\n"
             "Args:\n"
-            "    inputs: A numpy array of shape [T, F] containing the input features for `T` time steps.");
+            "    inputs: A numpy array of shape [T, F] containing the input features for `T` time steps.\n\n"
+            "Returns:\n"
+            "    A `Status`.");
 
     pyLabelScorer.def(
             "compute_scores_with_times",
@@ -191,9 +195,9 @@ void bindLabelScorer(py::module_& module) {
             "    contexts: A list of length `B` containing current scoring contexts for all requests. The type is the same as the one returned by"
             "              `get_initial_scoring_context` and `extended_scoring_context`.\n"
             "Returns:\n"
-            "    A vector of length `B` containing either `None` if the label scorer is not ready to process the requests (e.g. expects more features or segment end signal)\n"
-            "    or a tuple of a score-list and a timestamp for each context. The returned timestamps will be used\n"
-            "    to form word boundaries in the search traceback.");
+            "    A tuple of a `Status` and a vector of length `B` containing either `None` if the label scorer is not ready to process the requests\n"
+            "    (e.g. expects more features or segment end signal) or a tuple of a score-list and a timestamp for each context. The returned\n"
+            "    timestamps will be used to form word boundaries in the search traceback.");
 
     py::class_<Nn::ScaledLabelScorer, Nn::LabelScorer, Core::Ref<Nn::ScaledLabelScorer>> pyScaledLabelScorer(
             module,

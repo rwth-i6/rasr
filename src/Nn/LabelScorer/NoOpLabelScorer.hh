@@ -34,15 +34,15 @@ public:
     StepwiseNoOpLabelScorer(Core::Configuration const& config);
 
     // Initial scoring context just contains step 0.
-    ScoringContextRef getInitialScoringContext() override;
+    Core::Status getInitialScoringContext(ScoringContextRef& initialScoringContext) override;
 
     // Scoring context with step incremented by 1.
-    ScoringContextRef extendedScoringContext(ScoringContextRef scoringContext, LabelIndex nextToken, TransitionType transitionType) override;
+    Core::Status extendedScoringContext(ScoringContextRef scoringContext, LabelIndex nextToken, TransitionType transitionType, ScoringContextRef& extendedContext) override;
 
 protected:
     // Gets an accessor for the buffered scores at the requested step
-    std::optional<ScoreAccessorRef> computeScoreAccessor(ScoringContextRef scoringContext) override;
-    size_t                          getMinActiveInputIndex(Core::CollapsedVector<ScoringContextRef> const& activeContexts) const override;
+    Core::Status computeScoreAccessor(ScoringContextRef scoringContext, std::optional<ScoreAccessorRef>& scoreAccessor) override;
+    size_t       getMinActiveInputIndex(Core::CollapsedVector<ScoringContextRef> const& activeContexts) const override;
 };
 
 }  // namespace Nn

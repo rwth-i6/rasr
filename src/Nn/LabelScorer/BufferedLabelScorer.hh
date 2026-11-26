@@ -34,10 +34,10 @@ public:
     BufferedLabelScorer(Core::Configuration const& config, TransitionPresetType defaultPreset);
 
     // Tells the LabelScorer that there will be no more input features coming in the current segment
-    virtual void signalNoMoreFeatures() override;
+    virtual Core::Status signalNoMoreFeatures() override;
 
     // Add a single input feature to the buffer
-    virtual void addInput(DataView const& input) override;
+    virtual Core::Status addInput(DataView const& input) override;
 
     // Clean up input buffer
     virtual void cleanupCaches(Core::CollapsedVector<ScoringContextRef> const& activeContexts) override;

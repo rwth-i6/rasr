@@ -142,23 +142,31 @@ void CombineLabelScorer::logStatistics() const {
     }
 }
 
-void CombineLabelScorer::signalNoMoreFeatures() {
+Core::Status CombineLabelScorer::signalNoMoreFeatures() {
     for (auto& scorer : scorers_) {
-        scorer->signalNoMoreFeatures();
+        auto status = scorer->signalNoMoreFeatures();
+        if (not status.ok()) {
+            return status;
+        }
     }
+    return Core::Status();
 }
 
-ScoringContextRef CombineLabelScorer::getInitialScoringContext() {
+Core::Status CombineLabelScorer::getInitialScoringContext(ScoringContextRef& initialScoringContext) {
     std::vector<ScoringContextRef> scoringContexts;
     scoringContexts.reserve(scorers_.size());
 
     for (auto const& scorer : scorers_) {
-        scoringContexts.push_back(scorer->getInitialScoringContext());
+        auto status = scorer->getInitialScoringContext(scoringContexts.emplace_back());
+        if (not status.ok()) {
+            return status;
+        }
     }
-    return Core::ref(new CombineScoringContext(std::move(scoringContexts)));
+    initialScoringContext = Core::ref(new CombineScoringContext(std::move(scoringContexts)));
+    return Core::Status();
 }
 
-ScoringContextRef CombineLabelScorer::extendedScoringContext(ScoringContextRef scoringContext, LabelIndex nextToken, TransitionType transitionType) {
+Core::Status CombineLabelScorer::extendedScoringContext(ScoringContextRef scoringContext, LabelIndex nextToken, TransitionType transitionType, ScoringContextRef& extendedContext) {
     auto combineContext = dynamic_cast<CombineScoringContext const*>(scoringContext.get());
 
     std::vector<ScoringContextRef> extScoringContexts;
@@ -168,9 +176,13 @@ ScoringContextRef CombineLabelScorer::extendedScoringContext(ScoringContextRef s
     auto contextIt = combineContext->scoringContexts.begin();
 
     for (; scorerIt != scorers_.end(); ++scorerIt, ++contextIt) {
-        extScoringContexts.push_back((*scorerIt)->extendedScoringContext(*contextIt, nextToken, transitionType));
+        auto status = (*scorerIt)->extendedScoringContext(*contextIt, nextToken, transitionType, extScoringContexts.emplace_back());
+        if (not status.ok()) {
+            return status;
+        }
     }
-    return Core::ref(new CombineScoringContext(std::move(extScoringContexts)));
+    extendedContext = Core::ref(new CombineScoringContext(std::move(extScoringContexts)));
+    return Core::Status();
 }
 
 void CombineLabelScorer::cleanupCaches(Core::CollapsedVector<ScoringContextRef> const& activeContexts) {
@@ -191,16 +203,24 @@ void CombineLabelScorer::cleanupCaches(Core::CollapsedVector<ScoringContextRef> 
     }
 }
 
-void CombineLabelScorer::addInput(DataView const& input) {
+Core::Status CombineLabelScorer::addInput(DataView const& input) {
     for (auto& scorer : scorers_) {
-        scorer->addInput(input);
+        auto status = scorer->addInput(input);
+        if (not status.ok()) {
+            return status;
+        }
     }
+    return Core::Status();
 }
 
-void CombineLabelScorer::addInputs(DataView const& input, size_t nTimesteps) {
+Core::Status CombineLabelScorer::addInputs(DataView const& input, size_t nTimesteps) {
     for (auto& scorer : scorers_) {
-        scorer->addInputs(input, nTimesteps);
+        auto status = scorer->addInputs(input, nTimesteps);
+        if (not status.ok()) {
+            return status;
+        }
     }
+    return Core::Status();
 }
 
 void CombineLabelScorer::reset() {
@@ -209,7 +229,7 @@ void CombineLabelScorer::reset() {
     }
 }
 
-std::optional<ScoreAccessorRef> CombineLabelScorer::getScoreAccessor(ScoringContextRef scoringContext) {
+Core::Status CombineLabelScorer::getScoreAccessor(ScoringContextRef scoringContext, std::optional<ScoreAccessorRef>& scoreAccessor) {
     auto combineContext = dynamic_cast<CombineScoringContext const*>(scoringContext.get());
 
     auto                          combinedAccessor = Core::ref(new CombinedScoreAccessor());
@@ -219,19 +239,25 @@ std::optional<ScoreAccessorRef> CombineLabelScorer::getScoreAccessor(ScoringCont
     auto scorerIt  = scorers_.begin();
     auto contextIt = combineContext->scoringContexts.begin();
     for (; scorerIt != scorers_.end(); ++scorerIt, ++contextIt) {
-        auto subAccessor = (*scorerIt)->getScoreAccessor(*contextIt);
+        std::optional<ScoreAccessorRef> subAccessor;
+        auto                            status = (*scorerIt)->getScoreAccessor(*contextIt, subAccessor);
+        if (not status.ok()) {
+            return status;
+        }
         // If any of the sub-scorers can't score, the overall result is also None
         if (not subAccessor) {
-            return {};
+            scoreAccessor = std::nullopt;
+            return Core::Status();
         }
 
         combinedAccessor->addSubAccessor(*subAccessor);
     }
 
-    return combinedAccessor;
+    scoreAccessor = combinedAccessor;
+    return Core::Status();
 }
 
-std::vector<std::optional<ScoreAccessorRef>> CombineLabelScorer::getScoreAccessors(std::vector<ScoringContextRef> const& scoringContexts) {
+Core::Status CombineLabelScorer::getScoreAccessors(std::vector<ScoringContextRef> const& scoringContexts, std::vector<std::optional<ScoreAccessorRef>>& scoreAccessors) {
     // Collect CombineScoringContexts
     std::vector<CombineScoringContext const*> combineContexts;
     combineContexts.reserve(scoringContexts.size());
@@ -239,7 +265,8 @@ std::vector<std::optional<ScoreAccessorRef>> CombineLabelScorer::getScoreAccesso
         combineContexts.push_back(dynamic_cast<CombineScoringContext const*>(scoringContext.get()));
     }
 
-    std::vector<std::optional<ScoreAccessorRef>> combinedAccessors;
+    auto& combinedAccessors = scoreAccessors;
+    combinedAccessors.clear();
     combinedAccessors.reserve(scoringContexts.size());
     for (size_t i = 0ul; i < scoringContexts.size(); ++i) {
         combinedAccessors.push_back(Core::ref(new CombinedScoreAccessor()));
@@ -258,7 +285,11 @@ std::vector<std::optional<ScoreAccessorRef>> CombineLabelScorer::getScoreAccesso
         }
 
         // Get score accessors for sub-scorer and merge them into the existing combinedAccessors
-        auto subAccessors = scorers_[scorerIdx]->getScoreAccessors(subScorerContexts);
+        std::vector<std::optional<ScoreAccessorRef>> subAccessors;
+        auto                                         status = scorers_[scorerIdx]->getScoreAccessors(subScorerContexts, subAccessors);
+        if (not status.ok()) {
+            return status;
+        }
         for (size_t i = 0ul; i < combinedAccessors.size(); ++i) {
             if (not combinedAccessors[i]) {
                 // Null accessors continue to be null for all further scorers
@@ -273,13 +304,13 @@ std::vector<std::optional<ScoreAccessorRef>> CombineLabelScorer::getScoreAccesso
 
                 // Break early if all elements are null
                 if (numNullAccessors == combinedAccessors.size()) {
-                    return combinedAccessors;
+                    return Core::Status();
                 }
             }
         }
     }
 
-    return combinedAccessors;
+    return Core::Status();
 }
 
 }  // namespace Nn

@@ -1,6 +1,8 @@
 #include <string>
 #include <pybind11/pybind11.h>
 
+#include <Core/Status.hh>
+
 #include <Python/AllophoneStateFsaBuilder.hh>
 #include <Python/Configuration.hh>
 
@@ -23,6 +25,36 @@ PYBIND11_MODULE(librasr, m) {
             },
             py::arg("config"),
             "Initialize RASR logging from config. Call directly after importing librasr, before creating other RASR objects.");
+
+    py::enum_<Core::StatusCode>(m, "StatusCode")
+            .value("OK", Core::StatusCode::Ok)
+            .value("CANCELLED", Core::StatusCode::Cancelled)
+            .value("UNKNOWN", Core::StatusCode::Unknown)
+            .value("INVALID_ARGUMENT", Core::StatusCode::InvalidArgument)
+            .value("DEADLINE_EXCEEDED", Core::StatusCode::DeadlineExceeded)
+            .value("NOT_FOUND", Core::StatusCode::NotFound)
+            .value("ALREADY_EXISTS", Core::StatusCode::AlreadyExists)
+            .value("PERMISSION_DENIED", Core::StatusCode::PermissionDenied)
+            .value("RESOURCE_EXHAUSTED", Core::StatusCode::ResourceExhausted)
+            .value("FAILED_PRECONDITION", Core::StatusCode::FailedPrecondition)
+            .value("ABORTED", Core::StatusCode::Aborted)
+            .value("OUT_OF_RANGE", Core::StatusCode::OutOfRange)
+            .value("UNIMPLEMENTED", Core::StatusCode::Unimplemented)
+            .value("INTERNAL", Core::StatusCode::Internal)
+            .value("UNAVAILABLE", Core::StatusCode::Unavailable)
+            .value("DATA_LOSS", Core::StatusCode::DataLoss)
+            .value("UNAUTHENTICATED", Core::StatusCode::Unauthenticated)
+            .value("INVALID_FILE_FORMAT", Core::StatusCode::InvalidFileFormat);
+
+    py::class_<Core::Status>(m, "Status", "Result of an operation that can fail: OK, or an error code with a message.")
+            .def(py::init<>(), "Create an OK status.")
+            .def(py::init<Core::StatusCode, std::string>(), py::arg("code"), py::arg("message"), "Create a status with the given code and message.")
+            .def("ok", &Core::Status::ok)
+            .def("code", &Core::Status::code)
+            .def("message", &Core::Status::message)
+            .def("__repr__", [](Core::Status const& self) {
+                return "Status(" + (self.ok() ? Core::statusCodeToString(self.code()) : self.message()) + ")";
+            });
 
     py::class_<Core::Configuration> baseConfigClass(m, "_BaseConfig");
     baseConfigClass.def("enable_logging", &Core::Configuration::enableLogging)

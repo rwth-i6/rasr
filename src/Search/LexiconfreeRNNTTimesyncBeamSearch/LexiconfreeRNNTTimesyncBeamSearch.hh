@@ -66,17 +66,17 @@ public:
 
     Speech::ModelCombination::Mode requiredModelCombination() const override;
     bool                           setModelCombination(Speech::ModelCombination const& modelCombination) override;
-    void                           enterSegment(Bliss::SpeechSegment const* = nullptr) override;
-    void                           finishSegment() override;
-    void                           putFeature(Nn::DataView const& feature) override;
-    void                           putFeatures(Nn::DataView const& features, size_t nTimesteps) override;
+    Core::Status                   enterSegment(Bliss::SpeechSegment const* = nullptr) override;
+    Core::Status                   finishSegment() override;
+    Core::Status                   putFeature(Nn::DataView const& feature) override;
+    Core::Status                   putFeatures(Nn::DataView const& features, size_t nTimesteps) override;
 
     Core::Ref<const Traceback>      getCurrentBestTraceback() const override;
     Core::Ref<const LatticeAdaptor> getCurrentBestWordLattice() const override;
     Core::Ref<const LatticeTrace>   getCurrentBestLatticeTrace() const override;
     Core::Ref<const LatticeTrace>   getCommonPrefix() const override;
 
-    bool decodeStep() override;
+    Core::Status decodeStep(bool& stepMade) override;
 
 protected:
     /*
@@ -188,6 +188,7 @@ private:
 
     size_t currentSearchStep_;
     bool   finishedSegment_;
+    bool   searchStepsOpen_;  // Whether the `search-steps` element of the current segment is open
 
     LabelHypothesis const& getBestHypothesis() const;
     LabelHypothesis const& getWorstHypothesis() const;
@@ -219,15 +220,15 @@ private:
      * Score `extensions` (raw score) with labelScorers_[1..], applying intermediate score-threshold
      * and max-beam-size pruning after each of them except the last.
      * `countStatistics` enables the intermediate pruning statistics.
-     * Returns false if one of these label scorers can't score any of the needed contexts yet, e.g. because it
+     * `scored` is false if one of these label scorers can't score any of the needed contexts yet, e.g. because it
      * hasn't received enough input. Then the timestep has to be redone later.
      */
-    bool scoreAndPruneWithRemainingLabelScorers(std::vector<ExtensionCandidate>& extensions, std::vector<LabelHypothesis> const& baseHyps, bool countStatistics);
+    Core::Status scoreAndPruneWithRemainingLabelScorers(std::vector<ExtensionCandidate>& extensions, std::vector<LabelHypothesis> const& baseHyps, bool countStatistics, bool& scored);
 
     /*
      * Append a new hypothesis to `hyps` for every extension in `extensions_` on top of its base hyp in `innerHyps_`
      */
-    void buildHypsFromExtensions(std::vector<LabelHypothesis>& hyps);
+    Core::Status buildHypsFromExtensions(std::vector<LabelHypothesis>& hyps);
 
     /*
      * Helper function for pruning to a given score-threshold/max-beam-size, approximated via
@@ -249,6 +250,16 @@ private:
      */
     void openStepStatistics();
     void closeStepStatistics();
+
+    /*
+     * The `search-steps` element wraps the step statistics of one segment in the stepwise statistics channel.
+     * `closeSearchSteps` does nothing if the element isn't open.
+     */
+    void openSearchSteps();
+    void closeSearchSteps();
+
+    // A segment with a failed step can't be continued, so close its `search-steps` element. Returns `status`.
+    Core::Status closeSearchStepsOnError(Core::Status status);
 
     /*
      * Log the per-step statistics and debug output for the current beam.

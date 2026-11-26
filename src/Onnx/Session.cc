@@ -282,16 +282,16 @@ std::vector<int64_t> Session::getOutputShape(std::string const& name) const {
     return res;
 }
 
-bool Session::run(std::vector<std::pair<std::string, Value>>&& inputs,
-                  std::vector<std::string> const&              output_names,
-                  std::vector<Value>&                          outputs) {
+Core::Status Session::run(std::vector<std::pair<std::string, Value>>&& inputs,
+                          std::vector<std::string> const&              output_names,
+                          std::vector<Value>&                          outputs) {
     return run(std::move(inputs), output_names, outputs, {});
 }
 
-bool Session::run(std::vector<std::pair<std::string, Value>>&& inputs,
-                  std::vector<std::string> const&              output_names,
-                  std::vector<Value>&                          outputs,
-                  std::vector<MemoryLocation> const&           output_locations) {
+Core::Status Session::run(std::vector<std::pair<std::string, Value>>&& inputs,
+                          std::vector<std::string> const&              output_names,
+                          std::vector<Value>&                          outputs,
+                          std::vector<MemoryLocation> const&           output_locations) {
     verify(output_locations.empty() or output_locations.size() == output_names.size());
 
     std::unordered_set<std::string> deviceInputs;
@@ -370,9 +370,9 @@ void Session::initializeStateVariablesMetadata() {
     }
 }
 
-bool Session::runPlain(std::vector<std::pair<std::string, Value>>&& inputs,
-                       std::vector<std::string> const&              output_names,
-                       std::vector<Value>&                          outputs) {
+Core::Status Session::runPlain(std::vector<std::pair<std::string, Value>>&& inputs,
+                               std::vector<std::string> const&              output_names,
+                               std::vector<Value>&                          outputs) {
     Ort::RunOptions run_options;
 
     std::vector<char const*> input_names;
@@ -392,8 +392,7 @@ bool Session::runPlain(std::vector<std::pair<std::string, Value>>&& inputs,
         out_vals = session_.Run(run_options, input_names.data(), input_vals.data(), inputs.size(), output_cnames.data(), output_cnames.size());
     }
     catch (Ort::Exception& e) {
-        warning() << "Exception during ONNX session run: " << e.what();
-        return false;
+        return Core::Status(Core::StatusCode::Internal, std::string("Exception during ONNX session run: ") + e.what());
     }
 
     outputs.resize(out_vals.size());
@@ -401,13 +400,13 @@ bool Session::runPlain(std::vector<std::pair<std::string, Value>>&& inputs,
         outputs[i] = std::move(out_vals[i]);
     }
 
-    return true;
+    return Core::Status();
 }
 
-bool Session::runWithBinding(std::vector<std::pair<std::string, Value>>& inputs,
-                             std::vector<std::string> const&             output_names,
-                             std::vector<Value>&                         outputs,
-                             std::vector<MemoryLocation> const&          output_locations) {
+Core::Status Session::runWithBinding(std::vector<std::pair<std::string, Value>>& inputs,
+                                     std::vector<std::string> const&             output_names,
+                                     std::vector<Value>&                         outputs,
+                                     std::vector<MemoryLocation> const&          output_locations) {
 #ifdef MODULE_CUDA
     // Configuration errors: the callers can't continue without the outputs
     if (executionProviderType_ != ExecutionProviderType::cuda) {
@@ -439,17 +438,16 @@ bool Session::runWithBinding(std::vector<std::pair<std::string, Value>>& inputs,
     }
     catch (Ort::Exception& e) {
         inputs.clear();  // like in `runPlain`, where the inputs are moved into the run
-        warning() << "Exception during ONNX session run: " << e.what();
-        return false;
+        return Core::Status(Core::StatusCode::Internal, std::string("Exception during ONNX session run: ") + e.what());
     }
 
     // Free the inputs as early as the run without binding does
     inputs.clear();
     outputs = std::move(results);
-    return true;
+    return Core::Status();
 #else
     criticalError() << "ONNX session inputs/outputs in device memory require RASR compiled with MODULE_CUDA";
-    return false;
+    return Core::Status(Core::StatusCode::FailedPrecondition, "ONNX session inputs/outputs in device memory require RASR compiled with MODULE_CUDA");
 #endif
 }
 

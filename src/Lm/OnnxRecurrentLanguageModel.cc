@@ -1,5 +1,7 @@
 #include "OnnxRecurrentLanguageModel.hh"
 
+#include <stdexcept>
+
 #include <Nn/Module.hh>
 
 #include "OnnxNceSoftmaxAdapter.hh"
@@ -104,7 +106,10 @@ void OnnxRecurrentLanguageModel::extendTargets(std::vector<std::string>& targets
 void OnnxRecurrentLanguageModel::getOutputs(std::vector<std::pair<std::string, Onnx::Value>>& inputs,
                                             std::vector<Onnx::Value>&                         outputs,
                                             std::vector<std::string> const&                   targets) const {
-    session_.run(std::move(inputs), targets, outputs);
+    auto status = session_.run(std::move(inputs), targets, outputs);
+    if (not status.ok()) {
+        throw std::runtime_error(status.message());
+    }
 }
 
 std::vector<Onnx::Value> OnnxRecurrentLanguageModel::fetchStates(std::vector<Onnx::Value>& outputs) const {

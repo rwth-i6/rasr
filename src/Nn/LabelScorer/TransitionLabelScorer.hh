@@ -50,23 +50,23 @@ public:
     virtual ~TransitionLabelScorer() = default;
 
     // No op
-    void signalNoMoreFeatures() override;
+    Core::Status signalNoMoreFeatures() override;
 
     // Return dummy-context
-    ScoringContextRef getInitialScoringContext() override;
+    Core::Status getInitialScoringContext(ScoringContextRef& initialScoringContext) override;
 
     // Return dummy-context
-    ScoringContextRef extendedScoringContext(ScoringContextRef scoringContext, LabelIndex nextToken, TransitionType transitionType) override;
+    Core::Status extendedScoringContext(ScoringContextRef scoringContext, LabelIndex nextToken, TransitionType transitionType, ScoringContextRef& extendedContext) override;
 
     // No op
-    void addInput(DataView const& input) override;
+    Core::Status addInput(DataView const& input) override;
 
 protected:
     // No op
     void resetInternal() override;
 
     // Return transition score based on transition type of the request
-    std::optional<ScoreAccessorRef> computeScoreAccessor(ScoringContextRef scoringContext) override;
+    Core::Status computeScoreAccessor(ScoringContextRef scoringContext, std::optional<ScoreAccessorRef>& scoreAccessor) override;
 
 private:
     Core::Ref<FixedTransitionScoreAccessor> transitionScoreAccessor_;

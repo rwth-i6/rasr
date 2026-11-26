@@ -38,10 +38,10 @@ public:
     virtual ~NoContextOnnxLabelScorer() = default;
 
     // Initial scoring context contains step 0
-    ScoringContextRef getInitialScoringContext() override;
+    Core::Status getInitialScoringContext(ScoringContextRef& initialScoringContext) override;
 
     // Increment the step by 1
-    ScoringContextRef extendedScoringContext(ScoringContextRef scoringContext, LabelIndex nextToken, TransitionType transitionType) override;
+    Core::Status extendedScoringContext(ScoringContextRef scoringContext, LabelIndex nextToken, TransitionType transitionType, ScoringContextRef& extendedContext) override;
 
     // Clean up input buffer as well as cached score vectors that are no longer needed
     void cleanupCaches(Core::CollapsedVector<ScoringContextRef> const& activeContexts) override;
@@ -52,11 +52,11 @@ protected:
 
     // If scores for the given scoring contexts are not yet cached, prepare and run an ONNX session to
     // compute the scores and cache them
-    std::vector<std::optional<ScoreAccessorRef>> computeScoreAccessors(std::vector<ScoringContextRef> const& scoringContexts) override;
+    Core::Status computeScoreAccessors(std::vector<ScoringContextRef> const& scoringContexts, std::vector<std::optional<ScoreAccessorRef>>& scoreAccessors) override;
 
     // Uses `computeScoreAccessors` internally with some wrapping for vector packing/expansion
-    std::optional<ScoreAccessorRef> computeScoreAccessor(ScoringContextRef scoringContext) override;
-    size_t                          getMinActiveInputIndex(Core::CollapsedVector<ScoringContextRef> const& activeContexts) const override;
+    Core::Status computeScoreAccessor(ScoringContextRef scoringContext, std::optional<ScoreAccessorRef>& scoreAccessor) override;
+    size_t       getMinActiveInputIndex(Core::CollapsedVector<ScoringContextRef> const& activeContexts) const override;
 
 private:
     using Precursor = BufferedLabelScorer;
@@ -72,7 +72,7 @@ private:
 
     void logScoringBreakdown() const override;
 
-    void forwardContext(StepScoringContextRef const& scoringContext);
+    Core::Status forwardContext(StepScoringContextRef const& scoringContext);
 };
 
 }  // namespace Nn

@@ -62,32 +62,36 @@ void Encoder::addInputs(DataView const& input, size_t nTimesteps) {
     }
 }
 
-std::optional<EncodedSpan> Encoder::getNextOutput() {
+Core::Status Encoder::getNextOutput(std::optional<EncodedSpan>& output) {
     // Check if there are still outputs in the buffer to pass
     if (not outputBuffer_.empty()) {
-        auto result = outputBuffer_.front();
+        output = outputBuffer_.front();
         outputBuffer_.pop_front();
-        return result;
+        return Core::Status();
     }
 
     // Output buffer is empty but encoder is not ready? -> Return none
+    output = std::nullopt;
     if (not canEncode()) {
-        return {};
+        return Core::Status();
     }
 
     // Encoder is ready to run, so run it and try fetching an output again.
     encodeTime_.start();
-    encode();
+    auto status = encode();
     encodeTime_.stop();
+    if (not status.ok()) {
+        return status;
+    }
     postEncodeCleanup();
 
     // If there are still no outputs after encoding, return None to avoid recursive call
     // resulting in infinite loop
     if (outputBuffer_.empty()) {
-        return {};
+        return Core::Status();
     }
 
-    return getNextOutput();
+    return getNextOutput(output);
 }
 
 void Encoder::resetInternal() {

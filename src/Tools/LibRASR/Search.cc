@@ -124,7 +124,10 @@ void bindSearchAlgorithm(py::module_& module) {
             "via `put_feature` or `put_features` and finally calling `finish_segment()`.\n"
             "Intermediate and final results can be retrieved via `get_current_best_traceback()`.\n"
             "There is also a convenience function `recognize_segment` that performs all\n"
-            "these steps in one go given an array of segment features.");
+            "these steps in one go given an array of segment features.\n\n"
+            "`enter_segment`, `finish_segment`, `put_feature` and `put_features` return a `Status`.\n"
+            "The methods that return a result set `status()` instead and return an empty result on failure.\n"
+            "After a non-OK status, the current segment can't be continued; start a new one with `enter_segment`.");
 
     pySearchAlgorithm.def(
             py::init<const Core::Configuration&>(),
@@ -132,10 +135,15 @@ void bindSearchAlgorithm(py::module_& module) {
             "Initialize search algorithm using a RASR config.");
 
     pySearchAlgorithm.def(
+            "status",
+            &SearchAlgorithm::status,
+            "Return the status of the last call.");
+
+    pySearchAlgorithm.def(
             "enter_segment",
             &SearchAlgorithm::enterSegment,
             py::arg("name") = "",
-            "Call at the beginning of a new segment.\n\n"
+            "Call at the beginning of a new segment. Returns a `Status`.\n\n"
             "Opens a `segment` element in the log so that all messages until\n"
             "`finish_segment()` are grouped under it. The optional `name` is only\n"
             "used to identify the segment in the log.");
@@ -143,19 +151,19 @@ void bindSearchAlgorithm(py::module_& module) {
     pySearchAlgorithm.def(
             "finish_segment",
             &SearchAlgorithm::finishSegment,
-            "Call after all features of the current segment have been passed");
+            "Call after all features of the current segment have been passed. Returns a `Status`.");
 
     pySearchAlgorithm.def(
             "put_feature",
             &SearchAlgorithm::putFeature,
             py::arg("feature_vector"),
-            "Pass a single feature as a numpy array of shape [F] or [1, F].");
+            "Pass a single feature as a numpy array of shape [F] or [1, F]. Returns a `Status`.");
 
     pySearchAlgorithm.def(
             "put_features",
             &SearchAlgorithm::putFeatures,
             py::arg("feature_array"),
-            "Pass multiple features as a numpy array of shape [T, F] or [1, T, F].");
+            "Pass multiple features as a numpy array of shape [T, F] or [1, T, F]. Returns a `Status`.");
 
     pySearchAlgorithm.def(
             "get_current_best_traceback",

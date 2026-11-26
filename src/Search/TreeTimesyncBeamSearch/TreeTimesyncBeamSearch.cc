@@ -467,7 +467,7 @@ bool TreeTimesyncBeamSearch::setModelCombination(Speech::ModelCombination const&
     return true;
 }
 
-void TreeTimesyncBeamSearch::enterSegment(Bliss::SpeechSegment const* segment) {
+Core::Status TreeTimesyncBeamSearch::enterSegment(Bliss::SpeechSegment const* segment) {
     initializationTime_.reset();
     featureProcessingTime_.reset();
     finalizeScoringTime_.reset();
@@ -517,7 +517,11 @@ void TreeTimesyncBeamSearch::enterSegment(Bliss::SpeechSegment const* segment) {
     beam_.push_back(LabelHypothesis());
     beam_.front().scoringContexts.clear();
     for (auto& labelScorer : labelScorers_) {
-        beam_.front().scoringContexts.push_back(labelScorer->getInitialScoringContext());
+        auto status = labelScorer->getInitialScoringContext(beam_.front().scoringContexts.emplace_back());
+        if (not status.ok()) {
+            initializationTime_.stop();
+            return status;
+        }
     }
     beam_.front().currentState = network_->rootState;
     beam_.front().lmHistory    = languageModel_->startHistory();
@@ -551,39 +555,58 @@ void TreeTimesyncBeamSearch::enterSegment(Bliss::SpeechSegment const* segment) {
     if (stepwiseStatisticsChannel_.isOpen()) {
         stepwiseStatisticsChannel_ << Core::XmlOpen("search-steps");
     }
+    return Core::Status();
 }
 
-void TreeTimesyncBeamSearch::finishSegment() {
+Core::Status TreeTimesyncBeamSearch::finishSegment() {
     featureProcessingTime_.start();
     for (auto& labelScorer : labelScorers_) {
-        labelScorer->signalNoMoreFeatures();
+        auto status = labelScorer->signalNoMoreFeatures();
+        if (not status.ok()) {
+            featureProcessingTime_.stop();
+            return status;
+        }
     }
     featureProcessingTime_.stop();
-    decodeManySteps();
+    unsigned numSteps;
+    auto     status = decodeManySteps(numSteps);
+    if (not status.ok()) {
+        return status;
+    }
     finalizeTime_.start();
-    finalizeHypotheses();
+    status = finalizeHypotheses();
     finalizeTime_.stop();
+    if (not status.ok()) {
+        return status;
+    }
     finishedSegment_ = true;
     if (stepwiseStatisticsChannel_.isOpen()) {
         stepwiseStatisticsChannel_ << Core::XmlClose("search-steps");
     }
     logStatistics();
+    return Core::Status();
 }
 
-void TreeTimesyncBeamSearch::putFeature(Nn::DataView const& feature) {
-    featureProcessingTime_.start();
+Core::Status TreeTimesyncBeamSearch::putFeature(Nn::DataView const& feature) {
+    Core::StopWatch::Scope timer(featureProcessingTime_);
     for (auto& labelScorer : labelScorers_) {
-        labelScorer->addInput(feature);
+        auto status = labelScorer->addInput(feature);
+        if (not status.ok()) {
+            return status;
+        }
     }
-    featureProcessingTime_.stop();
+    return Core::Status();
 }
 
-void TreeTimesyncBeamSearch::putFeatures(Nn::DataView const& features, size_t nTimesteps) {
-    featureProcessingTime_.start();
+Core::Status TreeTimesyncBeamSearch::putFeatures(Nn::DataView const& features, size_t nTimesteps) {
+    Core::StopWatch::Scope timer(featureProcessingTime_);
     for (auto& labelScorer : labelScorers_) {
-        labelScorer->addInputs(features, nTimesteps);
+        auto status = labelScorer->addInputs(features, nTimesteps);
+        if (not status.ok()) {
+            return status;
+        }
     }
-    featureProcessingTime_.stop();
+    return Core::Status();
 }
 
 Core::Ref<const Traceback> TreeTimesyncBeamSearch::getCurrentBestTraceback() const {
@@ -625,24 +648,31 @@ Core::Ref<const LatticeTrace> TreeTimesyncBeamSearch::getCommonPrefix() const {
     return Core::Ref<const LatticeTrace>(searcher.rootTrace());
 }
 
-bool TreeTimesyncBeamSearch::decodeStep() {
+Core::Status TreeTimesyncBeamSearch::decodeStep(bool& stepMade) {
+    stepMade = false;
     if (finishedSegment_) {
-        return false;
+        return Core::Status();
     }
 
     recognitionTime_.start();
 
-    bool hasExtensions = scoreAndPruneExtensions();
+    bool hasExtensions = false;
+    auto status        = scoreAndPruneExtensions(hasExtensions);
 
-    if (not hasExtensions) {
+    if (not status.ok() or not hasExtensions) {
         closeStepStatistics();
         recognitionTime_.stop();
-        return false;
+        return status;
     }
 
     buildWithinWordHypsTime_.start();
-    buildNewBeamFromExtensions();
+    status = buildNewBeamFromExtensions();
     buildWithinWordHypsTime_.stop();
+    if (not status.ok()) {
+        closeStepStatistics();
+        recognitionTime_.stop();
+        return status;
+    }
 
     // Recombine hypotheses at the same state with the same scoring context and LM history
     recombinationTime_.start();
@@ -662,8 +692,13 @@ bool TreeTimesyncBeamSearch::decodeStep() {
     }
 
     wordEndExpansionTime_.start();
-    expandAndPruneWordEndHypotheses();
+    status = expandAndPruneWordEndHypotheses();
     wordEndExpansionTime_.stop();
+    if (not status.ok()) {
+        closeStepStatistics();
+        recognitionTime_.stop();
+        return status;
+    }
 
     beam_.swap(newBeam_);
     beam_.insert(beam_.end(), wordEndHypotheses_.begin(), wordEndHypotheses_.end());
@@ -695,7 +730,8 @@ bool TreeTimesyncBeamSearch::decodeStep() {
     recognitionTime_.stop();
 
     logStepStatistics();
-    return true;
+    stepMade = true;
+    return Core::Status();
 }
 
 TreeTimesyncBeamSearch::LabelHypothesis const& TreeTimesyncBeamSearch::getBestHypothesis() const {
@@ -993,7 +1029,8 @@ void TreeTimesyncBeamSearch::recombination(std::vector<TreeTimesyncBeamSearch::L
     hypotheses.swap(tempHypotheses_);
 }
 
-bool TreeTimesyncBeamSearch::scoreAndPruneExtensions() {
+Core::Status TreeTimesyncBeamSearch::scoreAndPruneExtensions(bool& hasExtensions) {
+    hasExtensions = false;
     /*
      * Collect all possible extensions for all hypotheses in the beam.
      * We build a list of all scoring contexts that need to be passed to the LabelScorer for scoring scored inside `scoringContexts_`.
@@ -1021,7 +1058,10 @@ bool TreeTimesyncBeamSearch::scoreAndPruneExtensions() {
         std::vector<std::optional<Nn::ScoreAccessorRef>> scoreAccessors;
         {
             Core::StopWatch::Scope scoringTimer(scoringTimes_[scorerIdx]);
-            scoreAccessors = labelScorers_[scorerIdx]->getScoreAccessors(scoringContexts_);
+            auto                   status = labelScorers_[scorerIdx]->getScoreAccessors(scoringContexts_, scoreAccessors);
+            if (not status.ok()) {
+                return status;
+            }
         }
 
         // Scores and timeframes of this label scorer, indexed like `scoringContexts_`. The spans
@@ -1043,7 +1083,7 @@ bool TreeTimesyncBeamSearch::scoreAndPruneExtensions() {
         }
 
         if (withinWordExtensions_.empty()) {
-            return false;
+            return Core::Status();
         }
 
         if (scorerIdx == 0ul) {
@@ -1069,7 +1109,7 @@ bool TreeTimesyncBeamSearch::scoreAndPruneExtensions() {
             stepwiseStatisticsChannel_ << Core::XmlFull("num-within-word-hyps-after-intermediate-pruning", withinWordExtensions_.size()) + Core::XmlAttribute("scorer", scorerIdx + 1);
         }
         if (withinWordExtensions_.empty()) {
-            return false;
+            return Core::Status();
         }
 
         if (not isLastScorer) {
@@ -1077,7 +1117,8 @@ bool TreeTimesyncBeamSearch::scoreAndPruneExtensions() {
         }
     }
 
-    return not withinWordExtensions_.empty();
+    hasExtensions = not withinWordExtensions_.empty();
+    return Core::Status();
 }
 
 void TreeTimesyncBeamSearch::readOutScoreAccessors(std::vector<std::optional<Nn::ScoreAccessorRef>> const& scoreAccessors, std::vector<std::optional<Nn::DenseScoreSpan>>& denseScoreSpans, std::vector<Nn::TimeframeIndex>& scoreTimes) const {
@@ -1202,30 +1243,38 @@ void TreeTimesyncBeamSearch::prepareNextScoringContexts(size_t scorerIdx) {
     }
 }
 
-void TreeTimesyncBeamSearch::buildNewBeamFromExtensions() {
+Core::Status TreeTimesyncBeamSearch::buildNewBeamFromExtensions() {
     newBeam_.clear();
     for (auto const& extension : withinWordExtensions_) {
         auto const& baseHyp = beam_[extension.baseHypIndex];
 
         std::vector<Nn::ScoringContextRef> newScoringContexts;
         for (size_t scorerIdx = 0ul; scorerIdx < labelScorers_.size(); ++scorerIdx) {
-            newScoringContexts.push_back(labelScorers_[scorerIdx]->extendedScoringContext(
+            auto status = labelScorers_[scorerIdx]->extendedScoringContext(
                     baseHyp.scoringContexts[scorerIdx],
                     extension.nextToken,
-                    extension.transitionType));
+                    extension.transitionType,
+                    newScoringContexts.emplace_back());
+            if (not status.ok()) {
+                return status;
+            }
         }
 
         newBeam_.push_back({baseHyp, extension, newScoringContexts});
     }
+    return Core::Status();
 }
 
-void TreeTimesyncBeamSearch::expandAndPruneWordEndHypotheses() {
+Core::Status TreeTimesyncBeamSearch::expandAndPruneWordEndHypotheses() {
     /*
      * Expand hypotheses to word-end hypotheses and incorporate the language model
      */
     wordEndExtensionTime_.start();
-    createWordEndExtensions();
+    auto status = createWordEndExtensions();
     wordEndExtensionTime_.stop();
+    if (not status.ok()) {
+        return status;
+    }
 
     numWordEndExtensionsBeforePruning_ += wordEndExtensions_.size();
     if (stepwiseStatisticsChannel_.isOpen()) {
@@ -1263,9 +1312,10 @@ void TreeTimesyncBeamSearch::expandAndPruneWordEndHypotheses() {
     if (stepwiseStatisticsChannel_.isOpen()) {
         stepwiseStatisticsChannel_ << Core::XmlFull("num-word-end-hyps-after-beam-pruning", wordEndHypotheses_.size());
     }
+    return Core::Status();
 }
 
-void TreeTimesyncBeamSearch::createWordEndExtensions() {
+Core::Status TreeTimesyncBeamSearch::createWordEndExtensions() {
     wordEndExtensions_.clear();
 
     for (size_t hypIndex = 0ul; hypIndex < newBeam_.size(); ++hypIndex) {
@@ -1314,7 +1364,11 @@ void TreeTimesyncBeamSearch::createWordEndExtensions() {
                 }
                 auto& scoreAccessor = wordEndScoreAccessors_[scorerIdx];
                 if (not scoreAccessor) {
-                    auto fetched = labelScorers_[scorerIdx]->getScoreAccessor(hyp.scoringContexts[scorerIdx]);
+                    std::optional<Nn::ScoreAccessorRef> fetched;
+                    auto                                status = labelScorers_[scorerIdx]->getScoreAccessor(hyp.scoringContexts[scorerIdx], fetched);
+                    if (not status.ok()) {
+                        return status;
+                    }
                     if (not fetched) {
                         continue;
                     }
@@ -1332,6 +1386,7 @@ void TreeTimesyncBeamSearch::createWordEndExtensions() {
             });
         }
     }
+    return Core::Status();
 }
 
 void TreeTimesyncBeamSearch::buildWordEndHypotheses() {
@@ -1505,7 +1560,7 @@ void TreeTimesyncBeamSearch::createSuccessorLookups() {
     stateExitsOffset_[numStates]      = stateExits_.size();
 }
 
-void TreeTimesyncBeamSearch::finalizeHypotheses() {
+Core::Status TreeTimesyncBeamSearch::finalizeHypotheses() {
     tempHypotheses_.clear();
     for (auto const& hyp : beam_) {
         if (network_->finalStates.contains(hyp.currentState)) {
@@ -1547,9 +1602,13 @@ void TreeTimesyncBeamSearch::finalizeHypotheses() {
                 scoringContexts_.push_back(hyp.scoringContexts[scorerIdx]);
             }
 
+            std::vector<std::optional<Nn::ScoreAccessorRef>> scoreAccessors;
             finalizeScoringTime_.start();
-            auto scoreAccessors = labelScorers_[scorerIdx]->getScoreAccessors(scoringContexts_);
+            auto status = labelScorers_[scorerIdx]->getScoreAccessors(scoringContexts_, scoreAccessors);
             finalizeScoringTime_.stop();
+            if (not status.ok()) {
+                return status;
+            }
             std::vector<std::optional<Nn::DenseScoreSpan>> denseScoreSpans(scoreAccessors.size(), std::nullopt);
             std::vector<Nn::TimeframeIndex>                scoreTimes(scoreAccessors.size(), 0);
             for (size_t accessorIdx = 0ul; accessorIdx < scoreAccessors.size(); ++accessorIdx) {
@@ -1635,6 +1694,7 @@ void TreeTimesyncBeamSearch::finalizeHypotheses() {
         ss << "\n";
         debugChannel_ << ss.str();
     }
+    return Core::Status();
 }
 
 void TreeTimesyncBeamSearch::maximumStableDelayPruning() {

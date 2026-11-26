@@ -48,21 +48,25 @@ public:
     // Return the model combination used by the search.
     Speech::ModelCombination& modelCombination();
 
+    // Status of the last call. After a non-OK status, the current segment can't be continued.
+    Core::Status status() const;
+
     // Call at the beginning of a new segment.
     // Opens a `segment` element in the log that groups everything logged until `finishSegment`.
     // `name` only identifies the segment in the log and may be empty.
-    void enterSegment(std::string const& name = "");
+    Core::Status enterSegment(std::string const& name = "");
 
     // Call after all features of the current segment have been passed
-    void finishSegment();
+    Core::Status finishSegment();
 
     // Pass a feature array of shape [F] or [1, F]
-    void putFeature(py::array_t<f32> const& feature);
+    Core::Status putFeature(py::array_t<f32> const& feature);
 
     // Pass an array of features of shape [T, F] or [1, T, F]
-    void putFeatures(py::array_t<f32> const& features);
+    Core::Status putFeatures(py::array_t<f32> const& features);
 
     // Return the current best result. May contain unstable results.
+    // The getters below decode first. If that fails, they return an empty result and set `status`.
     Traceback getCurrentBestTraceback();
 
     // Return the current stable result, i.e. common prefix of all current search hypotheses.
@@ -84,6 +88,8 @@ private:
     std::unique_ptr<Search::SearchAlgorithmV2> searchAlgorithm_;
     Flf::LexiconRef                            lexicon_;
     Speech::ModelCombination                   modelCombination_;
+
+    Core::Status status_;
 
     bool   segmentOpen_  = false;  // Whether a `segment` log element is currently open
     size_t segmentIndex_ = 0ul;    // Running index of the current segment, used to identify it in the log

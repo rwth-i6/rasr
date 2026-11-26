@@ -66,15 +66,15 @@ public:
     Speech::ModelCombination::Mode  requiredModelCombination() const override;
     Am::AcousticModel::Mode         requiredAcousticModel() const override;
     bool                            setModelCombination(Speech::ModelCombination const& modelCombination) override;
-    void                            enterSegment(Bliss::SpeechSegment const* = nullptr) override;
-    void                            finishSegment() override;
-    void                            putFeature(Nn::DataView const& feature) override;
-    void                            putFeatures(Nn::DataView const& features, size_t nTimesteps) override;
+    Core::Status                    enterSegment(Bliss::SpeechSegment const* = nullptr) override;
+    Core::Status                    finishSegment() override;
+    Core::Status                    putFeature(Nn::DataView const& feature) override;
+    Core::Status                    putFeatures(Nn::DataView const& features, size_t nTimesteps) override;
     Core::Ref<const Traceback>      getCurrentBestTraceback() const override;
     Core::Ref<const LatticeAdaptor> getCurrentBestWordLattice() const override;
     Core::Ref<const LatticeTrace>   getCurrentBestLatticeTrace() const override;
     Core::Ref<const LatticeTrace>   getCommonPrefix() const override;
-    bool                            decodeStep() override;
+    Core::Status                    decodeStep(bool& stepMade) override;
 
 protected:
     /*
@@ -308,9 +308,9 @@ private:
     /*
      * Run the multi-scorer loop: create within-word extensions from the first scorer, update scores
      * with subsequent scorers, apply intermediate pruning after each scorer.
-     * Populates `withinWordExtensions_`. Returns false if no extensions survive (decode step should abort).
+     * Populates `withinWordExtensions_`. `hasExtensions` is false if no extensions survive (decode step should abort).
      */
-    bool scoreAndPruneExtensions();
+    Core::Status scoreAndPruneExtensions(bool& hasExtensions);
 
     /*
      * Read the scores and timeframes of the current label scorer into `denseScoreSpans` and
@@ -340,21 +340,21 @@ private:
      * Carries over terminated hypotheses from the current beam and adds new ones from extensions.
      * Populates `newBeam_`.
      */
-    void buildNewBeamFromExtensions();
+    Core::Status buildNewBeamFromExtensions();
 
     /*
      * Expand within-word hypotheses in `newBeam_` to word-end hypotheses by applying
      * the language model. Prune word-end hypotheses, create word-end label hypotheses,
      * and merge them back into `newBeam_`.
      */
-    void expandAndPruneWordEndHypotheses();
+    Core::Status expandAndPruneWordEndHypotheses();
 
     /*
      * Create one word-end extension candidate per exit of every hypothesis in `newBeam_`,
      * applying the language model and the word-end transition scores.
      * Populates `wordEndExtensions_`.
      */
-    void createWordEndExtensions();
+    Core::Status createWordEndExtensions();
 
     /*
      * Prune `wordEndExtensions_` according to the configured pruning strategy.
@@ -452,7 +452,7 @@ private:
      * they get the sentence-end AM and LM score added as well as a trace item with
      * the sentence-end pronunciation.
      */
-    void finalizeHypotheses();
+    Core::Status finalizeHypotheses();
 };
 
 }  // namespace Search

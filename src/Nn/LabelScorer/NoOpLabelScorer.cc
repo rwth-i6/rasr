@@ -22,24 +22,28 @@ StepwiseNoOpLabelScorer::StepwiseNoOpLabelScorer(Core::Configuration const& conf
         : Core::Component(config),
           Precursor(config, TransitionPresetType::CTC) {}
 
-ScoringContextRef StepwiseNoOpLabelScorer::getInitialScoringContext() {
-    return Core::ref(new StepScoringContext());
+Core::Status StepwiseNoOpLabelScorer::getInitialScoringContext(ScoringContextRef& initialScoringContext) {
+    initialScoringContext = Core::ref(new StepScoringContext());
+    return Core::Status();
 }
 
-ScoringContextRef StepwiseNoOpLabelScorer::extendedScoringContext(ScoringContextRef scoringContext, LabelIndex nextToken, TransitionType transitionType) {
+Core::Status StepwiseNoOpLabelScorer::extendedScoringContext(ScoringContextRef scoringContext, LabelIndex nextToken, TransitionType transitionType, ScoringContextRef& extendedContext) {
     StepScoringContextRef stepScoringContext(dynamic_cast<StepScoringContext const*>(scoringContext.get()));
-    return Core::ref(new StepScoringContext(stepScoringContext->currentStep + 1));
+    extendedContext = Core::ref(new StepScoringContext(stepScoringContext->currentStep + 1));
+    return Core::Status();
 }
 
-std::optional<ScoreAccessorRef> StepwiseNoOpLabelScorer::computeScoreAccessor(ScoringContextRef scoringContext) {
+Core::Status StepwiseNoOpLabelScorer::computeScoreAccessor(ScoringContextRef scoringContext, std::optional<ScoreAccessorRef>& scoreAccessor) {
     StepScoringContextRef stepScoringContext(dynamic_cast<StepScoringContext const*>(scoringContext.get()));
     auto                  input = getInput(stepScoringContext->currentStep);
     if (not input) {
         countUncomputedAccessors();
-        return {};
+        scoreAccessor = std::nullopt;
+        return Core::Status();
     }
 
-    return Core::ref(new DataViewScoreAccessor(*input, stepScoringContext->currentStep));
+    scoreAccessor = Core::ref(new DataViewScoreAccessor(*input, stepScoringContext->currentStep));
+    return Core::Status();
 }
 
 size_t StepwiseNoOpLabelScorer::getMinActiveInputIndex(Core::CollapsedVector<ScoringContextRef> const& activeContexts) const {

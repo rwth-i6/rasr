@@ -41,19 +41,19 @@ public:
     PythonLabelScorer(Core::Configuration const& config);
     virtual ~PythonLabelScorer() = default;
 
-    // Can be overridden in python. No-op per default.
-    virtual void signalNoMoreFeatures() override;
+    // Must be overridden in python by name "signal_no_more_features"
+    virtual Core::Status signalNoMoreFeatures() override;
 
     // Must be overridden in python by name "get_initial_scoring_context"
-    virtual Nn::ScoringContextRef getInitialScoringContext() override;
-    virtual py::object            getInitialPythonScoringContext();
+    virtual Core::Status                        getInitialScoringContext(Nn::ScoringContextRef& initialScoringContext) override;
+    virtual std::pair<Core::Status, py::object> getInitialPythonScoringContext();
 
     // Calls batched version with `nTimesteps = 1`
-    virtual void addInput(Nn::DataView const& input) override;
+    virtual Core::Status addInput(Nn::DataView const& input) override;
 
     // Must be overridden in python by name "add_inputs"
-    virtual void addInputs(Nn::DataView const& input, size_t nTimesteps) override;
-    virtual void addPythonInputs(py::array const& inputs);
+    virtual Core::Status addInputs(Nn::DataView const& input, size_t nTimesteps) override;
+    virtual Core::Status addPythonInputs(py::array const& inputs);
 
     // Keep track of python object as a member to make sure it doesn't get garbage collected
     void setInstance(py::object const& instance);
@@ -63,12 +63,13 @@ public:
 
     // the following methods are protected in the base class
 
-    // Must be overridden in python by name "extended_scoring_context_internal"
-    virtual Nn::ScoringContextRef extendedScoringContext(Nn::ScoringContextRef scoringContext, Nn::LabelIndex nextToken, Nn::TransitionType transitionType) override;
-    virtual py::object            extendedPythonScoringContext(py::object const& pythonContext, Nn::LabelIndex nextToken, Nn::TransitionType transitionType);
+    // Must be overridden in python by name "extended_scoring_context"
+    virtual Core::Status                        extendedScoringContext(Nn::ScoringContextRef scoringContext, Nn::LabelIndex nextToken, Nn::TransitionType transitionType, Nn::ScoringContextRef& extendedContext) override;
+    virtual std::pair<Core::Status, py::object> extendedPythonScoringContext(py::object const& pythonContext, Nn::LabelIndex nextToken, Nn::TransitionType transitionType);
 
-    // Must be overridden in python by name "compute_scores_with_times_internal"
-    virtual std::vector<std::optional<std::pair<std::vector<Nn::Score>, Nn::TimeframeIndex>>> getPythonScoresWithTimes(std::vector<py::object> const& pythonContexts);
+    // Must be overridden in python by name "compute_scores_with_times"
+    using PythonScoresWithTimes = std::vector<std::optional<std::pair<std::vector<Nn::Score>, Nn::TimeframeIndex>>>;
+    virtual std::pair<Core::Status, PythonScoresWithTimes> getPythonScoresWithTimes(std::vector<py::object> const& pythonContexts);
 
 protected:
     py::object pyInstance_;  // Hold the Python wrapper
@@ -77,10 +78,10 @@ protected:
     virtual void resetInternal() override;
 
     // Calls batched version
-    virtual std::optional<Nn::ScoreAccessorRef> computeScoreAccessor(Nn::ScoringContextRef scoringContext) override;
+    virtual Core::Status computeScoreAccessor(Nn::ScoringContextRef scoringContext, std::optional<Nn::ScoreAccessorRef>& scoreAccessor) override;
 
     // Forwards to `getPythonScoresWithTimes`
-    virtual std::vector<std::optional<Nn::ScoreAccessorRef>> computeScoreAccessors(std::vector<Nn::ScoringContextRef> const& scoringContexts) override;
+    virtual Core::Status computeScoreAccessors(std::vector<Nn::ScoringContextRef> const& scoringContexts, std::vector<std::optional<Nn::ScoreAccessorRef>>& scoreAccessors) override;
 };
 
 }  // namespace Python

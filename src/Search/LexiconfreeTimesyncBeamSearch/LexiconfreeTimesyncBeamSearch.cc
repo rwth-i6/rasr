@@ -310,7 +310,7 @@ bool LexiconfreeTimesyncBeamSearch::setModelCombination(Speech::ModelCombination
     return true;
 }
 
-void LexiconfreeTimesyncBeamSearch::enterSegment(Bliss::SpeechSegment const* segment) {
+Core::Status LexiconfreeTimesyncBeamSearch::enterSegment(Bliss::SpeechSegment const* segment) {
     initializationTime_.reset();
     featureProcessingTime_.reset();
     finalizeScoringTime_.reset();
@@ -344,7 +344,11 @@ void LexiconfreeTimesyncBeamSearch::enterSegment(Bliss::SpeechSegment const* seg
     beam_.push_back(LabelHypothesis());
     beam_.front().scoringContexts.clear();
     for (auto& labelScorer : labelScorers_) {
-        beam_.front().scoringContexts.push_back(labelScorer->getInitialScoringContext());
+        auto status = labelScorer->getInitialScoringContext(beam_.front().scoringContexts.emplace_back());
+        if (not status.ok()) {
+            initializationTime_.stop();
+            return status;
+        }
     }
 
     currentSearchStep_  = 0ul;
@@ -356,39 +360,58 @@ void LexiconfreeTimesyncBeamSearch::enterSegment(Bliss::SpeechSegment const* seg
     if (stepwiseStatisticsChannel_.isOpen()) {
         stepwiseStatisticsChannel_ << Core::XmlOpen("search-steps");
     }
+    return Core::Status();
 }
 
-void LexiconfreeTimesyncBeamSearch::finishSegment() {
+Core::Status LexiconfreeTimesyncBeamSearch::finishSegment() {
     featureProcessingTime_.start();
     for (auto& labelScorer : labelScorers_) {
-        labelScorer->signalNoMoreFeatures();
+        auto status = labelScorer->signalNoMoreFeatures();
+        if (not status.ok()) {
+            featureProcessingTime_.stop();
+            return status;
+        }
     }
     featureProcessingTime_.stop();
-    decodeManySteps();
+    unsigned numSteps;
+    auto     status = decodeManySteps(numSteps);
+    if (not status.ok()) {
+        return status;
+    }
     finalizeTime_.start();
-    finalizeHypotheses();
+    status = finalizeHypotheses();
     finalizeTime_.stop();
+    if (not status.ok()) {
+        return status;
+    }
     finishedSegment_ = true;
     if (stepwiseStatisticsChannel_.isOpen()) {
         stepwiseStatisticsChannel_ << Core::XmlClose("search-steps");
     }
     logStatistics();
+    return Core::Status();
 }
 
-void LexiconfreeTimesyncBeamSearch::putFeature(Nn::DataView const& feature) {
-    featureProcessingTime_.start();
+Core::Status LexiconfreeTimesyncBeamSearch::putFeature(Nn::DataView const& feature) {
+    Core::StopWatch::Scope timer(featureProcessingTime_);
     for (auto& labelScorer : labelScorers_) {
-        labelScorer->addInput(feature);
+        auto status = labelScorer->addInput(feature);
+        if (not status.ok()) {
+            return status;
+        }
     }
-    featureProcessingTime_.stop();
+    return Core::Status();
 }
 
-void LexiconfreeTimesyncBeamSearch::putFeatures(Nn::DataView const& features, size_t nTimesteps) {
-    featureProcessingTime_.start();
+Core::Status LexiconfreeTimesyncBeamSearch::putFeatures(Nn::DataView const& features, size_t nTimesteps) {
+    Core::StopWatch::Scope timer(featureProcessingTime_);
     for (auto& labelScorer : labelScorers_) {
-        labelScorer->addInputs(features, nTimesteps);
+        auto status = labelScorer->addInputs(features, nTimesteps);
+        if (not status.ok()) {
+            return status;
+        }
     }
-    featureProcessingTime_.stop();
+    return Core::Status();
 }
 
 Core::Ref<const Traceback> LexiconfreeTimesyncBeamSearch::getCurrentBestTraceback() const {
@@ -429,24 +452,31 @@ Core::Ref<const LatticeTrace> LexiconfreeTimesyncBeamSearch::getCommonPrefix() c
     return Core::Ref<const LatticeTrace>(searcher.rootTrace());
 }
 
-bool LexiconfreeTimesyncBeamSearch::decodeStep() {
+Core::Status LexiconfreeTimesyncBeamSearch::decodeStep(bool& stepMade) {
+    stepMade = false;
     if (finishedSegment_) {
-        return false;
+        return Core::Status();
     }
 
     recognitionTime_.start();
 
-    bool hasExtensions = scoreAndPruneExtensions();
+    bool hasExtensions = false;
+    auto status        = scoreAndPruneExtensions(hasExtensions);
 
-    if (not hasExtensions) {
+    if (not status.ok() or not hasExtensions) {
         closeStepStatistics();
         recognitionTime_.stop();
-        return false;
+        return status;
     }
 
     buildNewBeamTime_.start();
-    buildNewBeamFromExtensions();
+    status = buildNewBeamFromExtensions();
     buildNewBeamTime_.stop();
+    if (not status.ok()) {
+        closeStepStatistics();
+        recognitionTime_.stop();
+        return status;
+    }
 
     // Recombine hypotheses with the same scoring context, keeping only the best
     recombinationTime_.start();
@@ -493,7 +523,8 @@ bool LexiconfreeTimesyncBeamSearch::decodeStep() {
     recognitionTime_.stop();
 
     logStepStatistics();
-    return true;
+    stepMade = true;
+    return Core::Status();
 }
 
 LexiconfreeTimesyncBeamSearch::LabelHypothesis const& LexiconfreeTimesyncBeamSearch::getBestHypothesis() const {
@@ -745,7 +776,8 @@ void LexiconfreeTimesyncBeamSearch::recombination(std::vector<LexiconfreeTimesyn
     hypotheses.swap(tempHypotheses_);
 }
 
-bool LexiconfreeTimesyncBeamSearch::scoreAndPruneExtensions() {
+Core::Status LexiconfreeTimesyncBeamSearch::scoreAndPruneExtensions(bool& hasExtensions) {
+    hasExtensions = false;
     /*
      * We collect the scoring contexts that need to be passed to the LabelScorer into `scoringContexts_`.
      * `hypIndexToContextIndexMap_` maps a beam index to the position of its context in `scoringContexts_`,
@@ -773,7 +805,10 @@ bool LexiconfreeTimesyncBeamSearch::scoreAndPruneExtensions() {
         std::vector<std::optional<Nn::ScoreAccessorRef>> scoreAccessors;
         {
             Core::StopWatch::Scope scoringTimer(scoringTimes_[scorerIdx]);
-            scoreAccessors = labelScorers_[scorerIdx]->getScoreAccessors(scoringContexts_);
+            auto                   status = labelScorers_[scorerIdx]->getScoreAccessors(scoringContexts_, scoreAccessors);
+            if (not status.ok()) {
+                return status;
+            }
         }
 
         // Scores and timeframes of this label scorer, indexed like `scoringContexts_`. The spans
@@ -795,7 +830,7 @@ bool LexiconfreeTimesyncBeamSearch::scoreAndPruneExtensions() {
         }
 
         if (extensions_.empty()) {
-            return false;
+            return Core::Status();
         }
 
         if (scorerIdx == 0ul) {
@@ -821,7 +856,7 @@ bool LexiconfreeTimesyncBeamSearch::scoreAndPruneExtensions() {
             stepwiseStatisticsChannel_ << Core::XmlFull("num-hyps-after-intermediate-pruning", extensions_.size()) + Core::XmlAttribute("scorer", scorerIdx + 1);
         }
         if (extensions_.empty()) {
-            return false;
+            return Core::Status();
         }
 
         if (not isLastScorer) {
@@ -829,7 +864,8 @@ bool LexiconfreeTimesyncBeamSearch::scoreAndPruneExtensions() {
         }
     }
 
-    return not extensions_.empty();
+    hasExtensions = not extensions_.empty();
+    return Core::Status();
 }
 
 void LexiconfreeTimesyncBeamSearch::readOutScoreAccessors(std::vector<std::optional<Nn::ScoreAccessorRef>> const& scoreAccessors, std::vector<std::optional<Nn::DenseScoreSpan>>& denseScoreSpans, std::vector<Nn::TimeframeIndex>& scoreTimes) const {
@@ -932,21 +968,26 @@ void LexiconfreeTimesyncBeamSearch::prepareNextScoringContexts(size_t scorerIdx)
     }
 }
 
-void LexiconfreeTimesyncBeamSearch::buildNewBeamFromExtensions() {
+Core::Status LexiconfreeTimesyncBeamSearch::buildNewBeamFromExtensions() {
     newBeam_.clear();
     for (auto const& extension : extensions_) {
         auto const& baseHyp = beam_[extension.baseHypIndex];
 
         std::vector<Nn::ScoringContextRef> newScoringContexts;
         for (size_t scorerIdx = 0ul; scorerIdx < labelScorers_.size(); ++scorerIdx) {
-            newScoringContexts.push_back(labelScorers_[scorerIdx]->extendedScoringContext(
+            auto status = labelScorers_[scorerIdx]->extendedScoringContext(
                     baseHyp.scoringContexts[scorerIdx],
                     extension.nextToken,
-                    extension.transitionType));
+                    extension.transitionType,
+                    newScoringContexts.emplace_back());
+            if (not status.ok()) {
+                return status;
+            }
         }
 
         newBeam_.push_back({baseHyp, extension, newScoringContexts});
     }
+    return Core::Status();
 }
 
 void LexiconfreeTimesyncBeamSearch::openStepStatistics() {
@@ -989,9 +1030,9 @@ void LexiconfreeTimesyncBeamSearch::logStepStatistics() {
     closeStepStatistics();
 }
 
-void LexiconfreeTimesyncBeamSearch::finalizeHypotheses() {
+Core::Status LexiconfreeTimesyncBeamSearch::finalizeHypotheses() {
     if (not useSentenceEnd_) {
-        return;
+        return Core::Status();
     }
 
     // Create extensions for all hypotheses in beam
@@ -1018,9 +1059,13 @@ void LexiconfreeTimesyncBeamSearch::finalizeHypotheses() {
             scoringContexts_.push_back(hyp.scoringContexts[scorerIdx]);
         }
 
+        std::vector<std::optional<Nn::ScoreAccessorRef>> scoreAccessors;
         finalizeScoringTime_.start();
-        auto scoreAccessors = labelScorers_[scorerIdx]->getScoreAccessors(scoringContexts_);
+        auto status = labelScorers_[scorerIdx]->getScoreAccessors(scoringContexts_, scoreAccessors);
         finalizeScoringTime_.stop();
+        if (not status.ok()) {
+            return status;
+        }
 
         for (size_t extensionIdx = 0ul; extensionIdx < extensions_.size(); ++extensionIdx) {
             if (not scoreAccessors[extensionIdx]) {
@@ -1062,6 +1107,7 @@ void LexiconfreeTimesyncBeamSearch::finalizeHypotheses() {
         stepwiseStatisticsChannel_ << Core::XmlFull("worst-hyp-score", getWorstHypothesis().score);
         stepwiseStatisticsChannel_ << Core::XmlClose("final-beam-stats");
     }
+    return Core::Status();
 }
 
 void LexiconfreeTimesyncBeamSearch::maximumStableDelayPruning() {

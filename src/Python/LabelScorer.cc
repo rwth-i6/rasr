@@ -31,34 +31,39 @@ PythonLabelScorer::PythonLabelScorer(Core::Configuration const& config)
           Precursor(config) {
 }
 
-void PythonLabelScorer::signalNoMoreFeatures() {
+Core::Status PythonLabelScorer::signalNoMoreFeatures() {
     PYBIND11_OVERRIDE_PURE_NAME(
-            void,
+            Core::Status,
             LabelScorer,
             "signal_no_more_features",
             signalNoMoreFeatures);
 }
 
-Nn::ScoringContextRef PythonLabelScorer::getInitialScoringContext() {
+Core::Status PythonLabelScorer::getInitialScoringContext(Nn::ScoringContextRef& initialScoringContext) {
     py::gil_scoped_acquire gil;
-    // Store `py::object` from virtual python call in a `PythonScoringContext`
-    return Core::ref(new PythonScoringContext(getInitialPythonScoringContext()));
+    auto [status, pythonContext] = getInitialPythonScoringContext();
+    if (status.ok()) {
+        // Store `py::object` from virtual python call in a `PythonScoringContext`
+        initialScoringContext = Core::ref(new PythonScoringContext(std::move(pythonContext)));
+    }
+    return status;
 }
 
-py::object PythonLabelScorer::getInitialPythonScoringContext() {
+std::pair<Core::Status, py::object> PythonLabelScorer::getInitialPythonScoringContext() {
+    using ReturnType = std::pair<Core::Status, py::object>;  // Macro can't handle types with commas inside properly
     PYBIND11_OVERRIDE_PURE_NAME(
-            py::object,
+            ReturnType,
             Nn::LabelScorer,
             "get_initial_scoring_context",
             getInitialPythonScoringContext);
 }
 
-void PythonLabelScorer::addInput(Nn::DataView const& input) {
+Core::Status PythonLabelScorer::addInput(Nn::DataView const& input) {
     // Call batched version
-    addInputs(input, 1);
+    return addInputs(input, 1);
 }
 
-void PythonLabelScorer::addInputs(Nn::DataView const& input, size_t nTimesteps) {
+Core::Status PythonLabelScorer::addInputs(Nn::DataView const& input, size_t nTimesteps) {
     py::gil_scoped_acquire gil;
 
     // Convert `input` to a `py::array` for virtual python call
@@ -69,12 +74,12 @@ void PythonLabelScorer::addInputs(Nn::DataView const& input, size_t nTimesteps) 
             {sizeof(f32) * featureDimSize, sizeof(f32)},
             input.data());
 
-    addPythonInputs(inputArray);
+    return addPythonInputs(inputArray);
 }
 
-void PythonLabelScorer::addPythonInputs(py::array const& inputs) {
+Core::Status PythonLabelScorer::addPythonInputs(py::array const& inputs) {
     PYBIND11_OVERRIDE_PURE_NAME(
-            void,
+            Core::Status,
             Nn::LabelScorer,
             "add_inputs",
             addPythonInputs,
@@ -99,17 +104,21 @@ py::object PythonLabelScorer::getPythonAllowedTransitionTypes() {
             getPythonAllowedTransitionTypes);
 }
 
-Nn::ScoringContextRef PythonLabelScorer::extendedScoringContext(Nn::ScoringContextRef scoringContext, Nn::LabelIndex nextToken, Nn::TransitionType transitionType) {
+Core::Status PythonLabelScorer::extendedScoringContext(Nn::ScoringContextRef scoringContext, Nn::LabelIndex nextToken, Nn::TransitionType transitionType, Nn::ScoringContextRef& extendedContext) {
     auto*                  pythonScoringContext = dynamic_cast<PythonScoringContext const*>(scoringContext.get());
     py::gil_scoped_acquire gil;
-    // Store `py::object` from virtual python call in a `PythonScoringContext`
-    auto newScoringContext = extendedPythonScoringContext(pythonScoringContext->object, nextToken, transitionType);
-    return Core::ref(new PythonScoringContext(std::move(newScoringContext)));
+    auto [status, newPythonContext] = extendedPythonScoringContext(pythonScoringContext->object, nextToken, transitionType);
+    if (status.ok()) {
+        // Store `py::object` from virtual python call in a `PythonScoringContext`
+        extendedContext = Core::ref(new PythonScoringContext(std::move(newPythonContext)));
+    }
+    return status;
 }
 
-py::object PythonLabelScorer::extendedPythonScoringContext(py::object const& pythonContext, Nn::LabelIndex nextToken, Nn::TransitionType transitionType) {
+std::pair<Core::Status, py::object> PythonLabelScorer::extendedPythonScoringContext(py::object const& pythonContext, Nn::LabelIndex nextToken, Nn::TransitionType transitionType) {
+    using ReturnType = std::pair<Core::Status, py::object>;  // Macro can't handle types with commas inside properly
     PYBIND11_OVERRIDE_PURE_NAME(
-            py::object,
+            ReturnType,
             Nn::LabelScorer,
             "extended_scoring_context",
             extendedPythonScoringContext,
@@ -118,10 +127,10 @@ py::object PythonLabelScorer::extendedPythonScoringContext(py::object const& pyt
             transitionType);
 }
 
-std::vector<std::optional<std::pair<std::vector<Nn::Score>, Nn::TimeframeIndex>>> PythonLabelScorer::getPythonScoresWithTimes(std::vector<py::object> const& pythonContexts) {
-    using returnType = std::vector<std::optional<std::pair<std::vector<Nn::Score>, Nn::TimeframeIndex>>>;  // Macro can't handle types with commas inside properly
+std::pair<Core::Status, PythonLabelScorer::PythonScoresWithTimes> PythonLabelScorer::getPythonScoresWithTimes(std::vector<py::object> const& pythonContexts) {
+    using ReturnType = std::pair<Core::Status, PythonScoresWithTimes>;  // Macro can't handle types with commas inside properly
     PYBIND11_OVERRIDE_PURE_NAME(
-            returnType,
+            ReturnType,
             Nn::LabelScorer,
             "compute_scores_with_times",
             computePythonScoresWithTimes,
@@ -136,11 +145,16 @@ void PythonLabelScorer::resetInternal() {
             resetInternal);
 }
 
-std::optional<Nn::ScoreAccessorRef> PythonLabelScorer::computeScoreAccessor(Nn::ScoringContextRef scoringContext) {
-    return computeScoreAccessors({scoringContext})[0];
+Core::Status PythonLabelScorer::computeScoreAccessor(Nn::ScoringContextRef scoringContext, std::optional<Nn::ScoreAccessorRef>& scoreAccessor) {
+    std::vector<std::optional<Nn::ScoreAccessorRef>> scoreAccessors;
+    auto                                             status = computeScoreAccessors({scoringContext}, scoreAccessors);
+    scoreAccessor                                           = scoreAccessors.front();
+    return status;
 }
 
-std::vector<std::optional<Nn::ScoreAccessorRef>> PythonLabelScorer::computeScoreAccessors(std::vector<Nn::ScoringContextRef> const& scoringContexts) {
+Core::Status PythonLabelScorer::computeScoreAccessors(std::vector<Nn::ScoringContextRef> const& scoringContexts, std::vector<std::optional<Nn::ScoreAccessorRef>>& scoreAccessors) {
+    scoreAccessors.assign(scoringContexts.size(), std::nullopt);
+
     std::vector<py::object> pythonContexts;
 
     pythonContexts.reserve(scoringContexts.size());
@@ -153,8 +167,10 @@ std::vector<std::optional<Nn::ScoreAccessorRef>> PythonLabelScorer::computeScore
 
     py::gil_scoped_acquire gil;
 
-    std::vector<std::optional<Nn::ScoreAccessorRef>> scoreAccessors(scoringContexts.size(), std::nullopt);
-    auto                                             pythonScoresWithTimes = getPythonScoresWithTimes(pythonContexts);
+    auto [status, pythonScoresWithTimes] = getPythonScoresWithTimes(pythonContexts);
+    if (not status.ok()) {
+        return status;
+    }
     for (size_t contextIndex = 0ul; contextIndex < scoringContexts.size(); ++contextIndex) {
         if (not pythonScoresWithTimes[contextIndex]) {
             countUncomputedAccessors();
@@ -164,7 +180,7 @@ std::vector<std::optional<Nn::ScoreAccessorRef>> PythonLabelScorer::computeScore
         scoreAccessors[contextIndex] = Core::ref(new Nn::VectorScoreAccessor(scoreVec, pythonScoresWithTimes[contextIndex]->second));
     }
 
-    return scoreAccessors;
+    return Core::Status();
 }
 
 }  // namespace Python

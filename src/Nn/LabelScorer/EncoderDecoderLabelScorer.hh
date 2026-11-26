@@ -45,13 +45,13 @@ public:
 
     // Signal end of feature stream to encoder, then encode features, pass them to the decoder and
     // finally signal end of feature stream to decoder.
-    void signalNoMoreFeatures() override;
+    Core::Status signalNoMoreFeatures() override;
 
     // Get start context from decoder component
-    ScoringContextRef getInitialScoringContext() override;
+    Core::Status getInitialScoringContext(ScoringContextRef& initialScoringContext) override;
 
     // Get extended context from decoder component
-    ScoringContextRef extendedScoringContext(ScoringContextRef scoringContext, LabelIndex nextToken, TransitionType transitionType) override;
+    Core::Status extendedScoringContext(ScoringContextRef scoringContext, LabelIndex nextToken, TransitionType transitionType, ScoringContextRef& extendedContext) override;
 
     // Cleanup decoder component. Encoder is "self-cleaning" already in that it only stores outputs until they are
     // retrieved.
@@ -59,19 +59,19 @@ public:
 
     // Add an input feature to the encoder component and if possible forward the encoder and add
     // the encoder states as inputs to the decoder component
-    void addInput(DataView const& input) override;
+    Core::Status addInput(DataView const& input) override;
 
     // Same as `addInput` but adds features for multiple timesteps at once
-    void addInputs(DataView const& input, size_t nTimesteps) override;
+    Core::Status addInputs(DataView const& input, size_t nTimesteps) override;
 
     // Resets both encoder and decoder component
     void reset() override;
 
     // Return accessor from decoder component
-    std::optional<ScoreAccessorRef> getScoreAccessor(ScoringContextRef scoringContext) override;
+    Core::Status getScoreAccessor(ScoringContextRef scoringContext, std::optional<ScoreAccessorRef>& scoreAccessor) override;
 
     // Return accessors from decoder component
-    std::vector<std::optional<ScoreAccessorRef>> getScoreAccessors(std::vector<ScoringContextRef> const& scoringContexts) override;
+    Core::Status getScoreAccessors(std::vector<ScoringContextRef> const& scoringContexts, std::vector<std::optional<ScoreAccessorRef>>& scoreAccessors) override;
 
 private:
     Core::Ref<Encoder>           encoder_;
@@ -79,7 +79,7 @@ private:
 
     // Fetch as many outputs as possible from the encoder given its available features and pass
     // these outputs over to the decoder
-    void passEncoderOutputsToDecoder();
+    Core::Status passEncoderOutputsToDecoder();
 };
 
 }  // namespace Nn

@@ -10,8 +10,6 @@
 #include <cuda_runtime.h>
 #endif
 
-#include <Core/Application.hh>
-
 #include "Util.hh"
 
 // 1.16: UpdateCUDAProviderOptionsWithValue, 1.18: CUDA provider option `use_tf32`

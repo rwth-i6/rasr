@@ -30,12 +30,13 @@ public:
     static const Core::ParameterInt    paramInterOpNumThreads;
     static const Core::ParameterString paramStatePrefix;
     static const Core::ParameterBool   paramRemovePrefixFromKey;
+    static const Core::ParameterBool   paramCudaUseTf32;
 
     static const Core::Choice          executionProviderChoice;
     static const Core::ParameterChoice paramExecutionProviderType;
 
     Session(Core::Configuration const& config);
-    virtual ~Session() = default;
+    virtual ~Session();
 
     bool                 hasInput(std::string const& name) const;
     bool                 hasOutput(std::string const& name) const;
@@ -46,9 +47,27 @@ public:
     std::vector<int64_t> getInputShape(std::string const& name) const;
     std::vector<int64_t> getOutputShape(std::string const& name) const;
 
+    // Same as the overload below with all outputs at their DEFAULT location
     Core::Status run(std::vector<std::pair<std::string, Value>>&& inputs,
                      std::vector<std::string> const&              output_names,
                      std::vector<Value>&                          outputs);
+
+    /*
+     * Run with a memory location per output (empty: all DEFAULT)
+     * DEFAULT: state outputs go to the device if their state input is there, all other outputs to the host
+     * Device inputs or outputs require the CUDA execution provider
+     */
+    Core::Status run(std::vector<std::pair<std::string, Value>>&& inputs,
+                     std::vector<std::string> const&              output_names,
+                     std::vector<Value>&                          outputs,
+                     std::vector<MemoryLocation> const&           output_locations);
+
+    /*
+     * cudaStream_t of this session (nullptr without the CUDA execution provider)
+     * Write device memory for inputs of this session on this stream
+     * Runs of this session are ordered on it, other sessions use their own streams
+     */
+    void* cudaStream() const;
 
     std::string                     getCustomMetadata(std::string const& key) const;
     std::vector<std::string> const& getCustomMetadataKeys() const;
@@ -56,11 +75,15 @@ public:
     std::vector<OnnxStateVariable> const& getStateVariablesMetadata() const;
 
 private:
-    const std::string file_;
-    const size_t      intraOpNumThreads_;
-    const size_t      interOpNumThreads_;
-    const std::string statePrefix_;
-    const bool        removePrefixFromKey_;
+    const std::string           file_;
+    const size_t                intraOpNumThreads_;
+    const size_t                interOpNumThreads_;
+    const std::string           statePrefix_;
+    const bool                  removePrefixFromKey_;
+    const bool                  cudaUseTf32_;
+    const ExecutionProviderType executionProviderType_;
+    int                         cudaDevice_;
+    void*                       cudaStream_;  // cudaStream_t, destroyed after `session_`
 
     Ort::AllocatorWithDefaultOptions allocator_;
     Ort::Env                         env_;
@@ -72,9 +95,20 @@ private:
     std::unordered_map<std::string, std::string> customMetadata_;
     std::vector<std::string>                     customMetadataKeys_;
 
-    std::vector<OnnxStateVariable> stateVariables_;
+    std::vector<OnnxStateVariable>               stateVariables_;
+    std::unordered_map<std::string, std::string> stateOutputToInput_;  // output_state_key -> input_state_key
 
     void initializeStateVariablesMetadata();
+
+    // Run without IO binding (all inputs and outputs in host memory)
+    Core::Status runPlain(std::vector<std::pair<std::string, Value>>&& inputs,
+                          std::vector<std::string> const&              output_names,
+                          std::vector<Value>&                          outputs);
+
+    Core::Status runWithBinding(std::vector<std::pair<std::string, Value>>& inputs,
+                                std::vector<std::string> const&             output_names,
+                                std::vector<Value>&                         outputs,
+                                std::vector<MemoryLocation> const&          output_locations);
 };
 
 }  // namespace Onnx

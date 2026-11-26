@@ -52,7 +52,7 @@ PYBIND11_MODULE(librasr, m) {
             .def("code", &Core::Status::code)
             .def("message", &Core::Status::message)
             .def("__repr__", [](Core::Status const& self) {
-                return "Status(" + Core::statusCodeToString(self.code()) + (self.ok() ? "" : ", " + self.message()) + ")";
+                return "Status(" + (self.ok() ? Core::statusCodeToString(self.code()) : self.message()) + ")";
             });
 
     py::class_<Core::Configuration> baseConfigClass(m, "_BaseConfig");

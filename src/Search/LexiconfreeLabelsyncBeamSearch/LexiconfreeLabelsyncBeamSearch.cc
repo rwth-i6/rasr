@@ -223,7 +223,8 @@ LexiconfreeLabelsyncBeamSearch::LexiconfreeLabelsyncBeamSearch(Core::Configurati
           numActiveHypsAfterBeamPruning_("num-active-hyps-after-beam-pruning"),
           currentSearchStep_(0ul),
           totalTimesteps_(0ul),
-          finishedSegment_(false) {
+          finishedSegment_(false),
+          searchStepsOpen_(false) {
     auto maxBeamSizes = paramMaxBeamSizes(config);
     maxBeamSizes_.insert(maxBeamSizes_.begin(), maxBeamSizes.begin(), maxBeamSizes.end());
 
@@ -317,6 +318,9 @@ bool LexiconfreeLabelsyncBeamSearch::setModelCombination(Speech::ModelCombinatio
 }
 
 Core::Status LexiconfreeLabelsyncBeamSearch::enterSegment(Bliss::SpeechSegment const* segment) {
+    // A previous segment that failed or was never finished may have left its element open
+    closeSearchSteps();
+
     initializationTime_.reset();
     featureProcessingTime_.reset();
     recognitionTime_.reset();
@@ -365,9 +369,7 @@ Core::Status LexiconfreeLabelsyncBeamSearch::enterSegment(Bliss::SpeechSegment c
 
     initializationTime_.stop();
 
-    if (stepwiseStatisticsChannel_.isOpen()) {
-        stepwiseStatisticsChannel_ << Core::XmlOpen("search-steps");
-    }
+    openSearchSteps();
     return Core::Status();
 }
 
@@ -377,18 +379,16 @@ Core::Status LexiconfreeLabelsyncBeamSearch::finishSegment() {
         auto status = labelScorer->signalNoMoreFeatures();
         if (not status.ok()) {
             featureProcessingTime_.stop();
-            return status;
+            return closeSearchStepsOnError(status);
         }
     }
     featureProcessingTime_.stop();
     unsigned numSteps;
     auto     status = decodeManySteps(numSteps);
     if (not status.ok()) {
-        return status;
+        return closeSearchStepsOnError(status);
     }
-    if (stepwiseStatisticsChannel_.isOpen()) {
-        stepwiseStatisticsChannel_ << Core::XmlClose("search-steps");
-    }
+    closeSearchSteps();
     logStatistics();
     finishedSegment_ = true;
     return Core::Status();
@@ -399,7 +399,7 @@ Core::Status LexiconfreeLabelsyncBeamSearch::putFeature(Nn::DataView const& feat
     for (auto& labelScorer : labelScorers_) {
         auto status = labelScorer->addInput(feature);
         if (not status.ok()) {
-            return status;
+            return closeSearchStepsOnError(status);
         }
     }
     ++totalTimesteps_;
@@ -411,7 +411,7 @@ Core::Status LexiconfreeLabelsyncBeamSearch::putFeatures(Nn::DataView const& fea
     for (auto& labelScorer : labelScorers_) {
         auto status = labelScorer->addInputs(features, nTimesteps);
         if (not status.ok()) {
-            return status;
+            return closeSearchStepsOnError(status);
         }
     }
     totalTimesteps_ += nTimesteps;
@@ -480,7 +480,7 @@ Core::Status LexiconfreeLabelsyncBeamSearch::decodeStep(bool& stepMade) {
     if (not status.ok() or not hasExtensions) {
         closeStepStatistics();
         recognitionTime_.stop();
-        return status;
+        return closeSearchStepsOnError(status);
     }
 
     buildNewBeamTime_.start();
@@ -489,7 +489,7 @@ Core::Status LexiconfreeLabelsyncBeamSearch::decodeStep(bool& stepMade) {
     if (not status.ok()) {
         closeStepStatistics();
         recognitionTime_.stop();
-        return status;
+        return closeSearchStepsOnError(status);
     }
 
     // Prune terminated and active hypotheses by score according to the selected pruning strategy
@@ -949,6 +949,28 @@ void LexiconfreeLabelsyncBeamSearch::closeStepStatistics() {
 
     stepwiseStatisticsChannel_ << Core::XmlClose("search-step-stats");
     stepStatisticsOpen_ = false;
+}
+
+void LexiconfreeLabelsyncBeamSearch::openSearchSteps() {
+    if (stepwiseStatisticsChannel_.isOpen()) {
+        stepwiseStatisticsChannel_ << Core::XmlOpen("search-steps");
+        searchStepsOpen_ = true;
+    }
+}
+
+void LexiconfreeLabelsyncBeamSearch::closeSearchSteps() {
+    if (not searchStepsOpen_) {
+        return;
+    }
+    stepwiseStatisticsChannel_ << Core::XmlClose("search-steps");
+    searchStepsOpen_ = false;
+}
+
+Core::Status LexiconfreeLabelsyncBeamSearch::closeSearchStepsOnError(Core::Status status) {
+    if (not status.ok()) {
+        closeSearchSteps();
+    }
+    return status;
 }
 
 void LexiconfreeLabelsyncBeamSearch::logStepStatistics() {

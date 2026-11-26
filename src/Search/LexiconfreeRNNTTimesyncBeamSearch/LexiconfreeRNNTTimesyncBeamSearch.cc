@@ -240,7 +240,8 @@ LexiconfreeRNNTTimesyncBeamSearch::LexiconfreeRNNTTimesyncBeamSearch(Core::Confi
           numHypsAfterPruning_("num-hyps-after-pruning"),
           numActiveHyps_("num-active-hyps"),
           currentSearchStep_(0ul),
-          finishedSegment_(false) {
+          finishedSegment_(false),
+          searchStepsOpen_(false) {
     auto maxBeamSizes = paramMaxBeamSizes(config);
     maxBeamSizes_.insert(maxBeamSizes_.begin(), maxBeamSizes.begin(), maxBeamSizes.end());
 
@@ -333,6 +334,9 @@ bool LexiconfreeRNNTTimesyncBeamSearch::setModelCombination(Speech::ModelCombina
 }
 
 Core::Status LexiconfreeRNNTTimesyncBeamSearch::enterSegment(Bliss::SpeechSegment const* segment) {
+    // A previous segment that failed or was never finished may have left its element open
+    closeSearchSteps();
+
     initializationTime_.reset();
     featureProcessingTime_.reset();
     recognitionTime_.reset();
@@ -379,9 +383,7 @@ Core::Status LexiconfreeRNNTTimesyncBeamSearch::enterSegment(Bliss::SpeechSegmen
 
     initializationTime_.stop();
 
-    if (stepwiseStatisticsChannel_.isOpen()) {
-        stepwiseStatisticsChannel_ << Core::XmlOpen("search-steps");
-    }
+    openSearchSteps();
     return Core::Status();
 }
 
@@ -391,22 +393,20 @@ Core::Status LexiconfreeRNNTTimesyncBeamSearch::finishSegment() {
         auto status = labelScorer->signalNoMoreFeatures();
         if (not status.ok()) {
             featureProcessingTime_.stop();
-            return status;
+            return closeSearchStepsOnError(status);
         }
     }
     featureProcessingTime_.stop();
     unsigned numSteps;
     auto     status = decodeManySteps(numSteps);
     if (not status.ok()) {
-        return status;
+        return closeSearchStepsOnError(status);
     }
     finalizeTime_.start();
     finalizeHypotheses();
     finalizeTime_.stop();
     finishedSegment_ = true;
-    if (stepwiseStatisticsChannel_.isOpen()) {
-        stepwiseStatisticsChannel_ << Core::XmlClose("search-steps");
-    }
+    closeSearchSteps();
     logStatistics();
     return Core::Status();
 }
@@ -416,7 +416,7 @@ Core::Status LexiconfreeRNNTTimesyncBeamSearch::putFeature(Nn::DataView const& f
     for (auto& labelScorer : labelScorers_) {
         auto status = labelScorer->addInput(feature);
         if (not status.ok()) {
-            return status;
+            return closeSearchStepsOnError(status);
         }
     }
     return Core::Status();
@@ -427,7 +427,7 @@ Core::Status LexiconfreeRNNTTimesyncBeamSearch::putFeatures(Nn::DataView const& 
     for (auto& labelScorer : labelScorers_) {
         auto status = labelScorer->addInputs(features, nTimesteps);
         if (not status.ok()) {
-            return status;
+            return closeSearchStepsOnError(status);
         }
     }
     return Core::Status();
@@ -493,7 +493,7 @@ Core::Status LexiconfreeRNNTTimesyncBeamSearch::decodeStep(bool& stepMade) {
         outerHyps_.clear();
         closeStepStatistics();
         recognitionTime_.stop();
-        return status;
+        return closeSearchStepsOnError(status);
     };
 
     // Start timestep with beam of previous timestep
@@ -1172,6 +1172,28 @@ void LexiconfreeRNNTTimesyncBeamSearch::closeStepStatistics() {
 
     stepwiseStatisticsChannel_ << Core::XmlClose("search-step-stats");
     stepStatisticsOpen_ = false;
+}
+
+void LexiconfreeRNNTTimesyncBeamSearch::openSearchSteps() {
+    if (stepwiseStatisticsChannel_.isOpen()) {
+        stepwiseStatisticsChannel_ << Core::XmlOpen("search-steps");
+        searchStepsOpen_ = true;
+    }
+}
+
+void LexiconfreeRNNTTimesyncBeamSearch::closeSearchSteps() {
+    if (not searchStepsOpen_) {
+        return;
+    }
+    stepwiseStatisticsChannel_ << Core::XmlClose("search-steps");
+    searchStepsOpen_ = false;
+}
+
+Core::Status LexiconfreeRNNTTimesyncBeamSearch::closeSearchStepsOnError(Core::Status status) {
+    if (not status.ok()) {
+        closeSearchSteps();
+    }
+    return status;
 }
 
 void LexiconfreeRNNTTimesyncBeamSearch::logStepStatistics() {

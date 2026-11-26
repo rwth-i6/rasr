@@ -298,6 +298,7 @@ TreeTimesyncBeamSearch::TreeTimesyncBeamSearch(Core::Configuration const& config
           tempHypotheses_(),
           currentSearchStep_(0ul),
           finishedSegment_(false),
+          searchStepsOpen_(false),
           initializationTime_(),
           featureProcessingTime_(),
           numInputHyps_("num-input-hyps"),
@@ -468,6 +469,9 @@ bool TreeTimesyncBeamSearch::setModelCombination(Speech::ModelCombination const&
 }
 
 Core::Status TreeTimesyncBeamSearch::enterSegment(Bliss::SpeechSegment const* segment) {
+    // A previous segment that failed or was never finished may have left its element open
+    closeSearchSteps();
+
     initializationTime_.reset();
     featureProcessingTime_.reset();
     finalizeScoringTime_.reset();
@@ -552,9 +556,7 @@ Core::Status TreeTimesyncBeamSearch::enterSegment(Bliss::SpeechSegment const* se
         }
     }
 
-    if (stepwiseStatisticsChannel_.isOpen()) {
-        stepwiseStatisticsChannel_ << Core::XmlOpen("search-steps");
-    }
+    openSearchSteps();
     return Core::Status();
 }
 
@@ -564,25 +566,23 @@ Core::Status TreeTimesyncBeamSearch::finishSegment() {
         auto status = labelScorer->signalNoMoreFeatures();
         if (not status.ok()) {
             featureProcessingTime_.stop();
-            return status;
+            return closeSearchStepsOnError(status);
         }
     }
     featureProcessingTime_.stop();
     unsigned numSteps;
     auto     status = decodeManySteps(numSteps);
     if (not status.ok()) {
-        return status;
+        return closeSearchStepsOnError(status);
     }
     finalizeTime_.start();
     status = finalizeHypotheses();
     finalizeTime_.stop();
     if (not status.ok()) {
-        return status;
+        return closeSearchStepsOnError(status);
     }
     finishedSegment_ = true;
-    if (stepwiseStatisticsChannel_.isOpen()) {
-        stepwiseStatisticsChannel_ << Core::XmlClose("search-steps");
-    }
+    closeSearchSteps();
     logStatistics();
     return Core::Status();
 }
@@ -592,7 +592,7 @@ Core::Status TreeTimesyncBeamSearch::putFeature(Nn::DataView const& feature) {
     for (auto& labelScorer : labelScorers_) {
         auto status = labelScorer->addInput(feature);
         if (not status.ok()) {
-            return status;
+            return closeSearchStepsOnError(status);
         }
     }
     return Core::Status();
@@ -603,7 +603,7 @@ Core::Status TreeTimesyncBeamSearch::putFeatures(Nn::DataView const& features, s
     for (auto& labelScorer : labelScorers_) {
         auto status = labelScorer->addInputs(features, nTimesteps);
         if (not status.ok()) {
-            return status;
+            return closeSearchStepsOnError(status);
         }
     }
     return Core::Status();
@@ -662,7 +662,7 @@ Core::Status TreeTimesyncBeamSearch::decodeStep(bool& stepMade) {
     if (not status.ok() or not hasExtensions) {
         closeStepStatistics();
         recognitionTime_.stop();
-        return status;
+        return closeSearchStepsOnError(status);
     }
 
     buildWithinWordHypsTime_.start();
@@ -671,7 +671,7 @@ Core::Status TreeTimesyncBeamSearch::decodeStep(bool& stepMade) {
     if (not status.ok()) {
         closeStepStatistics();
         recognitionTime_.stop();
-        return status;
+        return closeSearchStepsOnError(status);
     }
 
     // Recombine hypotheses at the same state with the same scoring context and LM history
@@ -697,7 +697,7 @@ Core::Status TreeTimesyncBeamSearch::decodeStep(bool& stepMade) {
     if (not status.ok()) {
         closeStepStatistics();
         recognitionTime_.stop();
-        return status;
+        return closeSearchStepsOnError(status);
     }
 
     beam_.swap(newBeam_);
@@ -1444,6 +1444,28 @@ void TreeTimesyncBeamSearch::closeStepStatistics() {
 
     stepwiseStatisticsChannel_ << Core::XmlClose("search-step-stats");
     stepStatisticsOpen_ = false;
+}
+
+void TreeTimesyncBeamSearch::openSearchSteps() {
+    if (stepwiseStatisticsChannel_.isOpen()) {
+        stepwiseStatisticsChannel_ << Core::XmlOpen("search-steps");
+        searchStepsOpen_ = true;
+    }
+}
+
+void TreeTimesyncBeamSearch::closeSearchSteps() {
+    if (not searchStepsOpen_) {
+        return;
+    }
+    stepwiseStatisticsChannel_ << Core::XmlClose("search-steps");
+    searchStepsOpen_ = false;
+}
+
+Core::Status TreeTimesyncBeamSearch::closeSearchStepsOnError(Core::Status status) {
+    if (not status.ok()) {
+        closeSearchSteps();
+    }
+    return status;
 }
 
 template void TreeTimesyncBeamSearch::scorePruning<TreeTimesyncBeamSearch::WithinWordExtensionCandidate>(std::vector<TreeTimesyncBeamSearch::WithinWordExtensionCandidate>&, Score, size_t);

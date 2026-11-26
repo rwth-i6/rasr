@@ -175,6 +175,7 @@ private:
 
     size_t currentSearchStep_;
     bool   finishedSegment_;
+    bool   searchStepsOpen_;  // Whether the `search-steps` element of the current segment is open
 
     LabelHypothesis const& getBestHypothesis() const;
     LabelHypothesis const& getWorstHypothesis() const;
@@ -247,6 +248,16 @@ private:
      */
     void openStepStatistics();
     void closeStepStatistics();
+
+    /*
+     * The `search-steps` element wraps the step statistics of one segment in the stepwise statistics channel.
+     * `closeSearchSteps` does nothing if the element isn't open.
+     */
+    void openSearchSteps();
+    void closeSearchSteps();
+
+    // A segment with a failed step can't be continued, so close its `search-steps` element. Returns `status`.
+    Core::Status closeSearchStepsOnError(Core::Status status);
 
     /*
      * Log the per-step statistics and debug output for the current beam.

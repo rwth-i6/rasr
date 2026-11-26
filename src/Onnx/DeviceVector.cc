@@ -22,12 +22,6 @@
 
 namespace Onnx {
 
-void checkCudaStatus(cudaError_t status, char const* what) {
-    if (status != cudaSuccess) {
-        Core::Application::us()->criticalError("%s failed: %s", what, cudaGetErrorString(status));
-    }
-}
-
 /*
  * ==============================
  * ======= DeviceSlotPool =======
@@ -127,6 +121,12 @@ void* DeviceBuffer::allocate(size_t bytes) {
     return data_;
 }
 
+void checkCudaStatus(cudaError_t status, char const* what) {
+    if (status != cudaSuccess) {
+        Core::Application::us()->criticalError("%s failed: %s", what, cudaGetErrorString(status));
+    }
+}
+
 /*
  * ============================
  * ======= DeviceVector =======
@@ -152,21 +152,11 @@ size_t DeviceVector::size() const {
     return size_;
 }
 
-std::vector<float> DeviceVector::toHost() const {
-    std::vector<float> result(size_);
-    if (size_ > 0ul) {
-        // The data may still be written on the shared stream
-        checkCudaStatus(cudaStreamSynchronize(sharedStream()), "Synchronizing the shared CUDA stream");
-        checkCudaStatus(cudaMemcpy(result.data(), data_, size_ * sizeof(float), cudaMemcpyDeviceToHost), "Copying a state from the device (cudaMemcpy)");
-    }
-    return result;
-}
-
 float DeviceVector::get(size_t pos) const {
     require_lt(pos, size_);
     float result = 0.0f;
-    // The data may still be written on the shared stream
-    checkCudaStatus(cudaStreamSynchronize(sharedStream()), "Synchronizing the shared CUDA stream");
+    // The data may still be written on the stream of its state manager (rare path, so wait for the whole device)
+    checkCudaStatus(cudaDeviceSynchronize(), "Synchronizing the CUDA device");
     checkCudaStatus(cudaMemcpy(&result, data_ + pos, sizeof(float), cudaMemcpyDeviceToHost), "Copying a state element from the device (cudaMemcpy)");
     return result;
 }
@@ -200,6 +190,16 @@ size_t DeviceVector::usedMemory() const {
 
 float* DeviceVector::deviceData() const {
     return data_;
+}
+
+std::vector<float> DeviceVector::toHost() const {
+    std::vector<float> result(size_);
+    if (size_ > 0ul) {
+        // The data may still be written on the stream of its state manager (rare path, so wait for the whole device)
+        checkCudaStatus(cudaDeviceSynchronize(), "Synchronizing the CUDA device");
+        checkCudaStatus(cudaMemcpy(result.data(), data_, size_ * sizeof(float), cudaMemcpyDeviceToHost), "Copying a state from the device (cudaMemcpy)");
+    }
+    return result;
 }
 
 }  // namespace Onnx

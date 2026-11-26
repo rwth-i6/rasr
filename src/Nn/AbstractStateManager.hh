@@ -29,6 +29,9 @@ public:
     // are already on the device
     virtual bool keepsStatesOnDevice() const;
 
+    // Stream (cudaStream_t) of the session whose inputs are written, used by the CUDA state managers
+    virtual void setCudaStream(void* stream);
+
     virtual HistoryState initialState(StateVariables const& vars, CompressedVectorFactory<float> const& vector_factory) = 0;
 
     virtual void mergeStates(StateVariables const&                   vars,
@@ -51,6 +54,10 @@ inline bool AbstractStateManager<value_t, state_variable_t>::requiresAllParentSt
 template<typename value_t, typename state_variable_t>
 inline bool AbstractStateManager<value_t, state_variable_t>::keepsStatesOnDevice() const {
     return false;
+}
+
+template<typename value_t, typename state_variable_t>
+inline void AbstractStateManager<value_t, state_variable_t>::setCudaStream(void*) {
 }
 
 template<typename value_t, typename state_variable_t>

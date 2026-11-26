@@ -119,6 +119,13 @@ add_module_option(MODULE_TENSORFLOW OFF)
 # ****** ONNX integration ******
 add_module_option(MODULE_ONNX ON)
 
+if(MODULE_LM_ONNX AND NOT MODULE_ONNX)
+    message(
+        FATAL_ERROR
+            "MODULE_LM_ONNX requires MODULE_ONNX; also pass -DMODULE_LM_ONNX=OFF"
+    )
+endif()
+
 # ****** Tools ******
 add_tool_option(AcousticModelTrainer ON)
 add_tool_option(Archiver ON)

@@ -64,7 +64,7 @@ struct MergeLayout {
 
 /*
  * Merge the states of all state variables into their left-padded tensors in one launch, without a separate memset.
- * Batch entry `b` has `prefixLengths[b]` states, right-aligned to `maxPrefix`; the time steps before them are zeroed.
+ * Batch entry `b` has `prefixLengths[b]` states, right-aligned to `maxPrefix`, the time steps before them are zeroed.
  * The state of variable `v`, batch entry `b`, prefix position `p` is `states[v * numStates + batchStarts[b] + p]`
  * (`numStates` = sum of the prefix lengths). All arrays are device pointers.
  * Requires `numBatch` and `numVars` <= 65535 (grid dimensions).

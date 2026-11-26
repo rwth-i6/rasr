@@ -12,7 +12,7 @@
  *  See the License for the specific language governing permissions and
  *  limitations under the License.
  */
-#include "TransformerGpuStateManager.hh"
+#include "TransformerCudaStateManager.hh"
 
 #include <algorithm>
 #include <cstring>
@@ -97,49 +97,47 @@ StateCopier::Batch makeBatch(StepLayout const& layout) {
 
 }  // namespace
 
-const Core::ParameterInt TransformerGpuStateManager::paramMaxHistoryLength(
+const Core::ParameterInt TransformerCudaStateManager::paramMaxHistoryLength(
         "max-history",
         "maximum length of the history to feed to the transformer",
         std::numeric_limits<int>::max(),
         0);
 
-const Core::ParameterBool TransformerGpuStateManager::paramAlwaysIncludeFirstTokenState(
+const Core::ParameterBool TransformerCudaStateManager::paramAlwaysIncludeFirstTokenState(
         "always-include-first-token-state",
         "whether to always include the state of the first token, even if history is restricted by max-history",
         false);
 
-const Core::ParameterInt TransformerGpuStateManager::paramSlotsPerChunk(
+const Core::ParameterInt TransformerCudaStateManager::paramSlotsPerChunk(
         "slots-per-chunk",
         "number of states (one time step of one state variable each) per device memory allocation of the state pool",
         4096,
         1);
 
-TransformerGpuStateManager::TransformerGpuStateManager(Core::Configuration const& config)
+TransformerCudaStateManager::TransformerCudaStateManager(Core::Configuration const& config)
         : Precursor(config),
           maxHistory_(paramMaxHistoryLength(config)),
           alwaysIncludeFirstTokenState_(paramAlwaysIncludeFirstTokenState(config)),
           compressionWarningLogged_(false),
+          stream_(nullptr),
           pools_(paramSlotsPerChunk(config)) {
 }
 
-TransformerGpuStateManager::~TransformerGpuStateManager() = default;
+TransformerCudaStateManager::~TransformerCudaStateManager() = default;
 
-bool TransformerGpuStateManager::requiresAllParentStates() const {
+bool TransformerCudaStateManager::requiresAllParentStates() const {
     return true;
 }
 
-bool TransformerGpuStateManager::keepsStatesOnDevice() const {
+bool TransformerCudaStateManager::keepsStatesOnDevice() const {
     return true;
 }
 
-void TransformerGpuStateManager::warnIfCompressed(Nn::CompressedVectorFactory<float> const& vectorFactory) {
-    if (not compressionWarningLogged_ and dynamic_cast<Nn::DummyCompressedVectorFactory<float> const*>(&vectorFactory) == nullptr) {
-        warning("The transformer-cuda state manager ignores the configured state-compression, its states are uncompressed floats on the device");
-        compressionWarningLogged_ = true;
-    }
+void TransformerCudaStateManager::setCudaStream(void* stream) {
+    stream_ = static_cast<cudaStream_t>(stream);
 }
 
-TransformerGpuStateManager::HistoryState TransformerGpuStateManager::initialState(StateVariables const& vars, Nn::CompressedVectorFactory<float> const& vectorFactory) {
+TransformerCudaStateManager::HistoryState TransformerCudaStateManager::initialState(StateVariables const& vars, Nn::CompressedVectorFactory<float> const& vectorFactory) {
     warnIfCompressed(vectorFactory);
     HistoryState result;
     result.reserve(vars.size());
@@ -149,11 +147,11 @@ TransformerGpuStateManager::HistoryState TransformerGpuStateManager::initialStat
     return result;
 }
 
-void TransformerGpuStateManager::mergeStates(StateVariables const&                   vars,
-                                             std::vector<size_t>&                    prefixLengths,
-                                             std::vector<HistoryState const*> const& prefixStates,
-                                             FeedDict&                               feedDict,
-                                             TargetList&                             targets) {
+void TransformerCudaStateManager::mergeStates(StateVariables const&                   vars,
+                                              std::vector<size_t>&                    prefixLengths,
+                                              std::vector<HistoryState const*> const& prefixStates,
+                                              FeedDict&                               feedDict,
+                                              TargetList&                             targets) {
     std::vector<size_t> originalPrefixLengths(prefixLengths);
 
     size_t maxPrefix = 0ul;
@@ -244,7 +242,7 @@ void TransformerGpuStateManager::mergeStates(StateVariables const&              
 
     char* deviceInput = static_cast<char*>(mergeInputBuffer_.allocate(hostInput.size()));
     // hostInput is pageable memory, so cudaMemcpyAsync returns only after it has been copied to a staging buffer
-    checkCudaStatus(cudaMemcpyAsync(deviceInput, hostInput.data(), hostInput.size(), cudaMemcpyHostToDevice, sharedStream()), "Uploading merge inputs");
+    checkCudaStatus(cudaMemcpyAsync(deviceInput, hostInput.data(), hostInput.size(), cudaMemcpyHostToDevice, stream_), "Uploading merge inputs");
     char const* devicePos = deviceInput + pointerBytes;
     checkCudaStatus(CudaKernels::launchStateMerge(reinterpret_cast<float const* const*>(deviceInput),
                                                   reinterpret_cast<size_t const*>(devicePos),
@@ -255,7 +253,7 @@ void TransformerGpuStateManager::mergeStates(StateVariables const&              
                                                   maxPrefix,
                                                   numBatch,
                                                   numVars,
-                                                  sharedStream()),
+                                                  stream_),
                     "Merging states on the device");
 
     feedDict.reserve(feedDict.size() + numVars);
@@ -266,7 +264,7 @@ void TransformerGpuStateManager::mergeStates(StateVariables const&              
     }
 }
 
-std::vector<TransformerGpuStateManager::HistoryState> TransformerGpuStateManager::splitStates(
+std::vector<TransformerCudaStateManager::HistoryState> TransformerCudaStateManager::splitStates(
         StateVariables const&                     vars,
         std::vector<size_t>&                      suffixLengths,
         std::vector<Value> const&                 stateTensors,
@@ -300,7 +298,7 @@ std::vector<TransformerGpuStateManager::HistoryState> TransformerGpuStateManager
     }
 
     // Step model outputs are on the device (their merged state inputs are), initializer outputs may be in host memory
-    std::vector<float const*> bases = copier_.deviceData(stateTensors);
+    std::vector<float const*> bases = copier_.deviceData(stateTensors, stream_);
 
     std::vector<HistoryState> result(sumSuffix);
     for (auto& state : result) {
@@ -328,11 +326,18 @@ std::vector<TransformerGpuStateManager::HistoryState> TransformerGpuStateManager
         }
     }
 
-    copier_.copy(batches, CudaKernels::StateCopyDirection::TensorToState);
+    copier_.copy(batches, CudaKernels::StateCopyDirection::TensorToState, stream_);
 
     // The caller may release the output tensors right after this call, so the copies must be done
-    checkCudaStatus(cudaStreamSynchronize(sharedStream()), "Synchronizing the shared CUDA stream after splitting states");
+    checkCudaStatus(cudaStreamSynchronize(stream_), "Synchronizing the CUDA stream after splitting states");
     return result;
+}
+
+void TransformerCudaStateManager::warnIfCompressed(Nn::CompressedVectorFactory<float> const& vectorFactory) {
+    if (not compressionWarningLogged_ and dynamic_cast<Nn::DummyCompressedVectorFactory<float> const*>(&vectorFactory) == nullptr) {
+        warning("The transformer-cuda state manager ignores the configured state-compression, its states are uncompressed floats on the device");
+        compressionWarningLogged_ = true;
+    }
 }
 
 }  // namespace Onnx

@@ -38,6 +38,7 @@ add_subdirectory(BatchedTreeLabelsyncBeamSearch)
 add_subdirectory(BatchedTreeTimesyncBeamSearch)
 add_subdirectory(LexiconfreeLabelsyncBeamSearch)
 add_subdirectory(LexiconfreeTimesyncBeamSearch)
+add_subdirectory(LexiconfreeRNNTTimesyncBeamSearch)
 add_subdirectory(TreeLabelsyncBeamSearch)
 add_subdirectory(TreeTimesyncBeamSearch)
 

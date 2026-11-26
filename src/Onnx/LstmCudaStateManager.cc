@@ -12,7 +12,7 @@
  *  See the License for the specific language governing permissions and
  *  limitations under the License.
  */
-#include "LstmGpuStateManager.hh"
+#include "LstmCudaStateManager.hh"
 
 #include <Nn/DummyCompressedVectorFactory.hh>
 
@@ -32,30 +32,28 @@ StateCopier::Batch makeBatch(size_t stateSize, size_t batchSize) {
 
 }  // namespace
 
-const Core::ParameterInt LstmGpuStateManager::paramSlotsPerChunk(
+const Core::ParameterInt LstmCudaStateManager::paramSlotsPerChunk(
         "slots-per-chunk",
         "number of states (of one state variable each) per device memory allocation of the state pool",
         4096,
         1);
 
-LstmGpuStateManager::LstmGpuStateManager(Core::Configuration const& config)
+LstmCudaStateManager::LstmCudaStateManager(Core::Configuration const& config)
         : Precursor(config),
-          pools_(paramSlotsPerChunk(config)),
-          compressionWarningLogged_(false) {
+          compressionWarningLogged_(false),
+          stream_(nullptr),
+          pools_(paramSlotsPerChunk(config)) {
 }
 
-bool LstmGpuStateManager::keepsStatesOnDevice() const {
+bool LstmCudaStateManager::keepsStatesOnDevice() const {
     return true;
 }
 
-void LstmGpuStateManager::warnIfCompressed(Nn::CompressedVectorFactory<float> const& vectorFactory) {
-    if (not compressionWarningLogged_ and dynamic_cast<Nn::DummyCompressedVectorFactory<float> const*>(&vectorFactory) == nullptr) {
-        warning("The lstm-cuda state manager ignores the configured state-compression, its states are uncompressed floats on the device");
-        compressionWarningLogged_ = true;
-    }
+void LstmCudaStateManager::setCudaStream(void* stream) {
+    stream_ = static_cast<cudaStream_t>(stream);
 }
 
-LstmGpuStateManager::HistoryState LstmGpuStateManager::initialState(StateVariables const& vars, Nn::CompressedVectorFactory<float> const& vectorFactory) {
+LstmCudaStateManager::HistoryState LstmCudaStateManager::initialState(StateVariables const& vars, Nn::CompressedVectorFactory<float> const& vectorFactory) {
     warnIfCompressed(vectorFactory);
     HistoryState result;
     result.reserve(vars.size());
@@ -66,17 +64,17 @@ LstmGpuStateManager::HistoryState LstmGpuStateManager::initialState(StateVariabl
             criticalError("lstm-cuda state manager: state %s must have a fixed size", var.input_state_key.c_str());
         }
         auto state = std::make_unique<DeviceVector>(pools_.get(stateSize), stateSize);
-        checkCudaStatus(cudaMemsetAsync(state->deviceData(), 0, stateSize * sizeof(float), sharedStream()), "Zeroing initial state");
+        checkCudaStatus(cudaMemsetAsync(state->deviceData(), 0, stateSize * sizeof(float), stream_), "Zeroing initial state");
         result.push_back(std::move(state));
     }
     return result;
 }
 
-void LstmGpuStateManager::mergeStates(StateVariables const&                   vars,
-                                      std::vector<size_t>&                    prefixLengths,
-                                      std::vector<HistoryState const*> const& prefixStates,
-                                      FeedDict&                               feedDict,
-                                      TargetList&                             targets) {
+void LstmCudaStateManager::mergeStates(StateVariables const&                   vars,
+                                       std::vector<size_t>&                    prefixLengths,
+                                       std::vector<HistoryState const*> const& prefixStates,
+                                       FeedDict&                               feedDict,
+                                       TargetList&                             targets) {
     require_eq(prefixStates.size(), prefixLengths.size());
     size_t const batchSize = prefixStates.size();
 
@@ -107,7 +105,7 @@ void LstmGpuStateManager::mergeStates(StateVariables const&                   va
             batches.back().tasks.push_back({state->deviceData(), merged + tensorOffsets[v] + b * stateSizes[v]});
         }
     }
-    copier_.copy(batches, CudaKernels::StateCopyDirection::StateToTensor);
+    copier_.copy(batches, CudaKernels::StateCopyDirection::StateToTensor, stream_);
 
     feedDict.reserve(feedDict.size() + vars.size());
     targets.reserve(targets.size() + vars.size());
@@ -118,7 +116,7 @@ void LstmGpuStateManager::mergeStates(StateVariables const&                   va
     }
 }
 
-std::vector<LstmGpuStateManager::HistoryState> LstmGpuStateManager::splitStates(
+std::vector<LstmCudaStateManager::HistoryState> LstmCudaStateManager::splitStates(
         StateVariables const&                     vars,
         std::vector<size_t>&                      suffixLengths,
         std::vector<Value> const&                 stateTensors,
@@ -136,8 +134,9 @@ std::vector<LstmGpuStateManager::HistoryState> LstmGpuStateManager::splitStates(
         require_eq(static_cast<size_t>(tensor.dimSize(0)), batchSize);
         stateSizes[v] = tensor.dimSize(1);
     }
+
     // Outputs in host memory are uploaded into a staging buffer
-    std::vector<float const*> bases = copier_.deviceData(stateTensors);
+    std::vector<float const*> bases = copier_.deviceData(stateTensors, stream_);
 
     std::vector<HistoryState> result(batchSize);
     for (auto& state : result) {
@@ -147,13 +146,14 @@ std::vector<LstmGpuStateManager::HistoryState> LstmGpuStateManager::splitStates(
     batches.reserve(vars.size());
     for (size_t v = 0ul; v < vars.size(); ++v) {
         batches.push_back(makeBatch(stateSizes[v], batchSize));
+        auto const& pool = pools_.get(stateSizes[v]);
         for (size_t b = 0ul; b < batchSize; ++b) {
-            auto state = std::make_unique<DeviceVector>(pools_.get(stateSizes[v]), stateSizes[v]);
+            auto state = std::make_unique<DeviceVector>(pool, stateSizes[v]);
             batches.back().tasks.push_back({bases[v] + b * stateSizes[v], state->deviceData()});
             result[b].push_back(std::move(state));
         }
     }
-    copier_.copy(batches, CudaKernels::StateCopyDirection::TensorToState);
+    copier_.copy(batches, CudaKernels::StateCopyDirection::TensorToState, stream_);
 
     // One state per batch entry, like the `lstm-cpu` state manager
     for (auto& suffixLength : suffixLengths) {
@@ -161,8 +161,15 @@ std::vector<LstmGpuStateManager::HistoryState> LstmGpuStateManager::splitStates(
     }
 
     // The caller may release the output tensors right after this call, so the copies must be done
-    checkCudaStatus(cudaStreamSynchronize(sharedStream()), "Synchronizing the shared CUDA stream after splitting states");
+    checkCudaStatus(cudaStreamSynchronize(stream_), "Synchronizing the CUDA stream after splitting states");
     return result;
+}
+
+void LstmCudaStateManager::warnIfCompressed(Nn::CompressedVectorFactory<float> const& vectorFactory) {
+    if (not compressionWarningLogged_ and dynamic_cast<Nn::DummyCompressedVectorFactory<float> const*>(&vectorFactory) == nullptr) {
+        warning("The lstm-cuda state manager ignores the configured state-compression, its states are uncompressed floats on the device");
+        compressionWarningLogged_ = true;
+    }
 }
 
 }  // namespace Onnx

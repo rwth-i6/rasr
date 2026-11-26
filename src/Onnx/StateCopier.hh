@@ -25,7 +25,7 @@ namespace Onnx {
 
 /*
  * Copies states between `DeviceVector`s and the (merged) state tensors of a model on the GPU, for the GPU state managers.
- * Everything runs asynchronously on `Session::sharedCudaStream()`.
+ * Everything runs asynchronously on the given stream (of the session the states are for).
  */
 class StateCopier {
 public:
@@ -39,12 +39,12 @@ public:
     };
 
     // Upload the tasks of all batches at once and launch the copies, one launch per batch
-    void copy(std::vector<Batch> const& batches, CudaKernels::StateCopyDirection direction);
+    void copy(std::vector<Batch> const& batches, CudaKernels::StateCopyDirection direction, cudaStream_t stream);
 
     // Device pointers to the data of the float `tensors`. Tensors in host memory (e.g. the state outputs of an
     // initializer model, which has no state inputs on the device) are uploaded into a staging buffer, valid until
     // the next call
-    std::vector<float const*> deviceData(std::vector<Value> const& tensors);
+    std::vector<float const*> deviceData(std::vector<Value> const& tensors, cudaStream_t stream);
 
 private:
     DeviceBuffer taskBuffer_;

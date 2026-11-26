@@ -12,8 +12,8 @@
  *  See the License for the specific language governing permissions and
  *  limitations under the License.
  */
-#ifndef _ONNX_LSTM_GPU_STATE_MANAGER_HH
-#define _ONNX_LSTM_GPU_STATE_MANAGER_HH
+#ifndef _ONNX_LSTM_CUDA_STATE_MANAGER_HH
+#define _ONNX_LSTM_CUDA_STATE_MANAGER_HH
 
 #include <Nn/AbstractStateManager.hh>
 #include <Onnx/OnnxStateVariable.hh>
@@ -28,16 +28,18 @@ namespace Onnx {
  * Like the `lstm-cpu` state manager, but keeps the states (`DeviceVector`s) in CUDA device memory and merges and splits them
  * on the GPU. States must be float tensors of shape [batch, size]. Requires MODULE_CUDA and the CUDA execution provider.
  */
-class LstmGpuStateManager : public Nn::AbstractStateManager<Value, OnnxStateVariable> {
+class LstmCudaStateManager : public Nn::AbstractStateManager<Value, OnnxStateVariable> {
 public:
     using Precursor = Nn::AbstractStateManager<Value, OnnxStateVariable>;
 
     static const Core::ParameterInt paramSlotsPerChunk;
 
-    LstmGpuStateManager(Core::Configuration const& config);
-    ~LstmGpuStateManager() override = default;
+    LstmCudaStateManager(Core::Configuration const& config);
+    ~LstmCudaStateManager() override = default;
 
     bool keepsStatesOnDevice() const override;
+
+    void setCudaStream(void* stream) override;
 
     HistoryState initialState(StateVariables const& vars, Nn::CompressedVectorFactory<float> const& vectorFactory) override;
 
@@ -53,15 +55,17 @@ public:
                                           Nn::CompressedVectorFactory<float> const& vectorFactory) override;
 
 private:
-    DeviceSlotPools pools_;         // by state size (floats per state)
-    DeviceBuffer    mergedBuffer_;  // merged state inputs of the model
-    StateCopier     copier_;
-    bool            compressionWarningLogged_;
+    bool         compressionWarningLogged_;
+    cudaStream_t stream_;  // of the session the states are for
 
     // Warn (once) if a state compression is configured: the states stay uncompressed floats on the device
     void warnIfCompressed(Nn::CompressedVectorFactory<float> const& vectorFactory);
+
+    DeviceSlotPools pools_;         // by state size (floats per state)
+    DeviceBuffer    mergedBuffer_;  // merged state inputs of the model
+    StateCopier     copier_;
 };
 
 }  // namespace Onnx
 
-#endif  // _ONNX_LSTM_GPU_STATE_MANAGER_HH
+#endif  // _ONNX_LSTM_CUDA_STATE_MANAGER_HH

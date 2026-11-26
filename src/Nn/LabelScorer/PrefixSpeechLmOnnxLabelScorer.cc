@@ -345,6 +345,8 @@ PrefixSpeechLmOnnxLabelScorer::PrefixSpeechLmOnnxLabelScorer(Core::Configuration
     Core::Configuration stepModelConfig(config, "step-model");
     stepOnnxModel_ = modelCache.getOrCreate<Onnx::Model>(modelCacheKey.empty() ? stepModelConfig.getSelection() : modelCacheKey + ".step-model", stepModelConfig, stepIoSpec);
 
+    // All state inputs go to the step model, so the states are written on its stream
+    stateManager_->setCudaStream(stepOnnxModel_->session.cudaStream());
     stateVariables_ = stepOnnxModel_->session.getStateVariablesMetadata();
 
     stepTokenName_        = stepOnnxModel_->mapping.getOnnxName("token");

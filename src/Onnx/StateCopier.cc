@@ -21,7 +21,7 @@
 
 namespace Onnx {
 
-void StateCopier::copy(std::vector<Batch> const& batches, CudaKernels::StateCopyDirection direction) {
+void StateCopier::copy(std::vector<Batch> const& batches, CudaKernels::StateCopyDirection direction, cudaStream_t stream) {
     // Tasks of all batches first, then their run offsets
     size_t numTasks   = 0ul;
     size_t numOffsets = 0ul;
@@ -46,19 +46,19 @@ void StateCopier::copy(std::vector<Batch> const& batches, CudaKernels::StateCopy
     char* deviceTasks = static_cast<char*>(taskBuffer_.allocate(hostTasks.size()));
     // hostTasks is pageable memory, so cudaMemcpyAsync returns only after it has been copied to a staging buffer
     // it may be freed at the end of this function although the copy to the device can still be pending
-    checkCudaStatus(cudaMemcpyAsync(deviceTasks, hostTasks.data(), hostTasks.size(), cudaMemcpyHostToDevice, sharedStream()), "Uploading copy tasks");
+    checkCudaStatus(cudaMemcpyAsync(deviceTasks, hostTasks.data(), hostTasks.size(), cudaMemcpyHostToDevice, stream), "Uploading copy tasks");
 
     auto const* deviceTaskArray   = reinterpret_cast<CudaKernels::StateCopyTask const*>(deviceTasks);
     auto const* deviceOffsetArray = reinterpret_cast<size_t const*>(deviceTasks + taskBytes);
     for (auto const& batch : batches) {
-        checkCudaStatus(CudaKernels::launchStateCopy(deviceTaskArray, batch.tasks.size(), deviceOffsetArray, batch.runLength, batch.stepSize, direction, sharedStream()),
+        checkCudaStatus(CudaKernels::launchStateCopy(deviceTaskArray, batch.tasks.size(), deviceOffsetArray, batch.runLength, batch.stepSize, direction, stream),
                         "Copying states on the device");
         deviceTaskArray += batch.tasks.size();
         deviceOffsetArray += batch.runOffsets.size();
     }
 }
 
-std::vector<float const*> StateCopier::deviceData(std::vector<Value> const& tensors) {
+std::vector<float const*> StateCopier::deviceData(std::vector<Value> const& tensors, cudaStream_t stream) {
     std::vector<size_t> numElements(tensors.size());
     std::vector<size_t> stagingOffsets(tensors.size(), std::numeric_limits<size_t>::max());
     size_t              stagingFloats = 0ul;
@@ -78,7 +78,7 @@ std::vector<float const*> StateCopier::deviceData(std::vector<Value> const& tens
     for (size_t i = 0ul; i < tensors.size(); ++i) {
         result[i] = tensors[i].rawData<float>();
         if (stagingOffsets[i] != std::numeric_limits<size_t>::max()) {
-            checkCudaStatus(cudaMemcpyAsync(staging + stagingOffsets[i], result[i], numElements[i] * sizeof(float), cudaMemcpyHostToDevice, sharedStream()),
+            checkCudaStatus(cudaMemcpyAsync(staging + stagingOffsets[i], result[i], numElements[i] * sizeof(float), cudaMemcpyHostToDevice, stream),
                             "Uploading states");
             result[i] = staging + stagingOffsets[i];
         }

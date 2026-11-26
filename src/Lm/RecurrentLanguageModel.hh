@@ -139,6 +139,8 @@ protected:
 
     void setEmptyHistory();
 
+    Nn::AbstractStateManager<value_t, state_variable_t>& stateManager();
+
 private:
     using ScoresWithContext = detail::ScoresWithContext;
 
@@ -395,6 +397,11 @@ void RecurrentLanguageModel<value_t, state_variable_t>::setEmptyHistory() {
     cache->computed.store(true);
     cache->last_used = std::numeric_limits<Search::TimeframeIndex>::max();
     empty_history_   = history(h);
+}
+
+template<typename value_t, typename state_variable_t>
+Nn::AbstractStateManager<value_t, state_variable_t>& RecurrentLanguageModel<value_t, state_variable_t>::stateManager() {
+    return *state_manager_;
 }
 
 template<typename value_t, typename state_variable_t>

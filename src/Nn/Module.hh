@@ -94,7 +94,7 @@ public:
      * `sessionExecutionProvider` is the execution provider of the session whose states are managed (see
      * `Onnx::Session::executionProviderType`). The types `lstm` and `transformer` use it to choose between the CPU and the CUDA version.
      */
-    std::unique_ptr<AbstractStateManager<Onnx::Value, Onnx::OnnxStateVariable>> createStateManager(Core::Configuration const&   config,
+    std::unique_ptr<AbstractStateManager<Onnx::Value, Onnx::OnnxStateVariable>> createStateManager(Core::Configuration const&  config,
                                                                                                    Onnx::ExecutionProviderType sessionExecutionProvider);
 #endif
 

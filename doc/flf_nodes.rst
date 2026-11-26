@@ -2905,9 +2905,18 @@ and works with a ``SearchAlgorithmV2`` instead of
 ``SearchAlgorithm``. Performs recognition of the input segments
 and sends the result lattices as outputs.
 
-If recognition of a segment fails (e.g. a failing ONNX model run), an error is logged, no lattice (a null lattice
-reference) is sent for that segment and the run continues with the next segment. The status of the current segment
-is available on port 1: as bool whether it succeeded, as int the status code and as string the error message.
+If recognition of a segment fails (e.g. a failing ONNX model run), an error is logged. With the default
+``on-error = immediate-exit``, this ends the run. To skip failed segments instead, set ``on-error = ignore`` for this
+node:
+
+.. code-block:: ini
+
+    [*.network.recognizer-v2]
+    on-error = ignore
+
+Then no lattice (a null lattice reference) is sent for a failed segment and the run continues with the next segment.
+The process still exits with status 0, so check port 1 or the log for failed segments. Port 1 holds the status of the
+current segment: as bool whether it succeeded, as int the status code and as string the error message.
 
 See :doc:`search_v2` for a full guide to configuring the search algorithm and label scorer(s) used by this node.
 

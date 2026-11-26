@@ -14,6 +14,11 @@
 
 #include "Util.hh"
 
+// 1.16: UpdateCUDAProviderOptionsWithValue, 1.18: CUDA provider option `use_tf32`
+#if ORT_API_VERSION < 18
+#error "The ONNX module requires onnxruntime >= 1.18"
+#endif
+
 namespace Onnx {
 
 const Core::ParameterString Session::paramFile("file",
@@ -38,8 +43,7 @@ const Core::ParameterBool Session::paramRemovePrefixFromKey("remove-prefix-from-
 
 const Core::ParameterBool Session::paramCudaUseTf32("cuda-use-tf32",
                                                     "Whether the CUDA execution provider may use TF32 for float matrix multiplications and convolutions"
-                                                    " (onnxruntime default: yes). Faster, but results depend slightly on e.g. the batch size."
-                                                    " Disabling it requires an onnxruntime version that knows the CUDA provider option `use_tf32`",
+                                                    " (onnxruntime default: yes). Faster, but results depend slightly on e.g. the batch size.",
                                                     true);
 
 const Core::Choice Session::executionProviderChoice(
@@ -64,6 +68,7 @@ Session::Session(Core::Configuration const& config)
           cudaUseTf32_(paramCudaUseTf32(config)),
           executionProviderType_(executionProviderType(config)),
           cudaDevice_(0),
+          cudaStream_(nullptr),
           allocator_(),
           env_(ORT_LOGGING_LEVEL_WARNING),
           session_(nullptr),
@@ -93,17 +98,29 @@ Session::Session(Core::Configuration const& config)
             if (cudaGetDevice(&cudaDevice_) != cudaSuccess) {
                 error() << "Could not get the current CUDA device.";
             }
+            cudaStream_t stream = nullptr;
+            if (cudaStreamCreate(&stream) != cudaSuccess) {
+                criticalError() << "Could not create the CUDA stream for the ONNX session.";
+            }
+            cudaStream_ = stream;
+
             OrtCUDAProviderOptionsV2* cuda_opts = nullptr;
-            Ort::ThrowOnError(Ort::GetApi().CreateCUDAProviderOptions(&cuda_opts));
-            // `use_tf32` is only passed if TF32 is disabled, so that the default also works with onnxruntime versions without this option
-            std::string const device_id = std::to_string(cudaDevice_);
-            char const*       keys[]    = {"device_id", "use_tf32"};
-            char const*       values[]  = {device_id.c_str(), "0"};
-            Ort::ThrowOnError(Ort::GetApi().UpdateCUDAProviderOptions(cuda_opts, keys, values, cudaUseTf32_ ? 1 : 2));
-            // All sessions compute on one stream, which other code writing device memory for the sessions can use as well
-            Ort::ThrowOnError(Ort::GetApi().UpdateCUDAProviderOptionsWithValue(cuda_opts, "user_compute_stream", sharedCudaStream()));
-            session_opts.AppendExecutionProvider_CUDA_V2(*cuda_opts);
-            Ort::GetApi().ReleaseCUDAProviderOptions(cuda_opts);
+            try {
+                Ort::ThrowOnError(Ort::GetApi().CreateCUDAProviderOptions(&cuda_opts));
+                std::string const device_id = std::to_string(cudaDevice_);
+                char const*       keys[]    = {"device_id", "use_tf32"};
+                char const*       values[]  = {device_id.c_str(), cudaUseTf32_ ? "1" : "0"};
+                Ort::ThrowOnError(Ort::GetApi().UpdateCUDAProviderOptions(cuda_opts, keys, values, 2));
+                // The session computes on its own stream, which code writing device memory for its inputs uses as well
+                Ort::ThrowOnError(Ort::GetApi().UpdateCUDAProviderOptionsWithValue(cuda_opts, "user_compute_stream", cudaStream_));
+                session_opts.AppendExecutionProvider_CUDA_V2(*cuda_opts);
+            }
+            catch (Ort::Exception const& e) {
+                criticalError() << "Could not configure the CUDA execution provider for the ONNX session: " << e.what();
+            }
+            if (cuda_opts != nullptr) {
+                Ort::GetApi().ReleaseCUDAProviderOptions(cuda_opts);
+            }
             break;
 #else
             error() << "Requested CUDA execution provider but RASR was not compiled with MODULE_CUDA which is required for it.";
@@ -158,6 +175,16 @@ Session::Session(Core::Configuration const& config)
     }
 
     initializeStateVariablesMetadata();
+}
+
+Session::~Session() {
+#ifdef MODULE_CUDA
+    if (cudaStream_ != nullptr) {
+        // onnxruntime must not outlive its compute stream
+        session_ = Ort::Session(nullptr);
+        cudaStreamDestroy(static_cast<cudaStream_t>(cudaStream_));
+    }
+#endif
 }
 
 bool Session::hasInput(std::string const& name) const {
@@ -272,19 +299,8 @@ bool Session::run(std::vector<std::pair<std::string, Value>>&& inputs,
     return runPlain(std::move(inputs), output_names, outputs);
 }
 
-void* Session::sharedCudaStream() {
-#ifdef MODULE_CUDA
-    static cudaStream_t stream = []() {
-        cudaStream_t s = nullptr;
-        if (cudaStreamCreate(&s) != cudaSuccess) {
-            Core::Application::us()->criticalError("Could not create the shared CUDA stream for the ONNX sessions");
-        }
-        return s;
-    }();
-    return stream;
-#else
-    return nullptr;
-#endif
+void* Session::cudaStream() const {
+    return cudaStream_;
 }
 
 std::string Session::getCustomMetadata(std::string const& key) const {

@@ -629,7 +629,7 @@ public:
 
 template<class T>
 bool InstrumentalVariablesBuilder<T>::work(const std::vector<T>* u, const std::vector<T>* y, const std::vector<T>* z) {
-    if (y == 0 || (u != 0 && y->size() != u->size()) || (this->order_B > 0 && u == 0) && (z != 0 && y->size() != z->size()))
+    if (y == 0 || (u != 0 && y->size() != u->size()) || (this->order_B_ > 0 && u == 0) && (z != 0 && y->size() != z->size()))
         return false;
 
     if (need_init_ && !init())

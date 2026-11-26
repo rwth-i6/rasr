@@ -1461,9 +1461,8 @@ Value Value::toHost() const {
     Ort::AllocatorWithDefaultOptions allocator;
     Ort::Value                       host = Ort::Value::CreateTensor(allocator, shape.data(), shape.size(), info.GetElementType());
 
-    // Device data may still be written on the shared compute stream
-    auto        stream = static_cast<cudaStream_t>(Session::sharedCudaStream());
-    cudaError_t status = cudaStreamSynchronize(stream);
+    // Device data may still be written on the stream of any session (rare path, so wait for the whole device)
+    cudaError_t status = cudaDeviceSynchronize();
     if (status == cudaSuccess) {
         status = cudaMemcpy(host.GetTensorMutableRawData(), value_.GetTensorRawData(), value_.GetTensorSizeInBytes(), cudaMemcpyDeviceToHost);
     }

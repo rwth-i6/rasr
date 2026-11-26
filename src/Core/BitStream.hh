@@ -19,8 +19,10 @@
 #include <functional>
 #include <vector>
 
+#if defined(__SSE3__) && defined(__SSSE3__)
 #include <emmintrin.h>
 #include <tmmintrin.h>
+#endif
 
 #include "Assertions.hh"
 

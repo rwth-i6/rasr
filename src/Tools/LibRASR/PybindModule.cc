@@ -8,6 +8,7 @@
 #include "Lexicon.hh"
 #include "LibRASR.hh"
 #include "Search.hh"
+#include "Tokenizer.hh"
 
 namespace py = pybind11;
 
@@ -55,4 +56,5 @@ PYBIND11_MODULE(librasr, m) {
     bindLabelScorer(m);
     bindLexicon(m);
     bindSearchAlgorithm(m);
+    bindTokenizer(m);
 }

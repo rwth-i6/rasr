@@ -1,0 +1,249 @@
+/** Copyright 2026 RWTH Aachen University. All rights reserved.
+ *
+ *  Licensed under the RWTH ASR License (the "License");
+ *  you may not use this file except in compliance with the License.
+ *  You may obtain a copy of the License at
+ *
+ *      http://www.hltpr.rwth-aachen.de/rwth-asr/rwth-asr-license.html
+ *
+ *  Unless required by applicable law or agreed to in writing, software
+ *  distributed under the License is distributed on an "AS IS" BASIS,
+ *  WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ *  See the License for the specific language governing permissions and
+ *  limitations under the License.
+ */
+
+#include "SentencePieceTokenizer.hh"
+
+#include <string_view>
+
+#include <Core/StringUtilities.hh>
+
+#include "Text.hh"
+
+namespace {
+
+// SentencePiece represents blanks by this character
+std::string const whitespace = "\u2581";
+
+bool endsWith(std::string const& text, std::string const& suffix) {
+    return text.size() >= suffix.size() and text.compare(text.size() - suffix.size(), suffix.size(), suffix) == 0;
+}
+
+// Field of a protobuf message, see https://protobuf.dev/programming-guides/encoding
+struct ProtobufField {
+    u32              number;
+    u32              wireType;
+    u64              varint;  // Value of varint fields (wire type 0)
+    std::string_view bytes;   // Value of length-delimited fields (wire type 2)
+};
+
+bool readVarint(std::string_view data, size_t& position, u64& value) {
+    value = 0u;
+    for (u32 shift = 0u; shift < 64u and position < data.size(); shift += 7u) {
+        u8 byte = static_cast<u8>(data[position++]);
+        value |= static_cast<u64>(byte & 0x7fu) << shift;
+        if ((byte & 0x80u) == 0u) {
+            return true;
+        }
+    }
+    return false;
+}
+
+// Calls `visit` for each field of the message, returns false for malformed messages
+template<typename Visit>
+bool forEachProtobufField(std::string_view message, Visit visit) {
+    size_t position = 0ul;
+    while (position < message.size()) {
+        u64 key;
+        if (not readVarint(message, position, key)) {
+            return false;
+        }
+        ProtobufField field{static_cast<u32>(key >> 3u), static_cast<u32>(key & 7u), 0u, {}};
+        u64           length = 0u;
+        switch (field.wireType) {
+            case 0u:
+                if (not readVarint(message, position, field.varint)) {
+                    return false;
+                }
+                break;
+            case 1u: length = 8u; break;
+            case 2u:
+                if (not readVarint(message, position, length)) {
+                    return false;
+                }
+                break;
+            case 5u: length = 4u; break;
+            default: return false;
+        }
+        if (length > message.size() - position) {
+            return false;
+        }
+        if (field.wireType == 2u) {
+            field.bytes = message.substr(position, length);
+        }
+        position += length;
+        visit(field);
+    }
+    return true;
+}
+
+// Field numbers and piece types of sentencepiece_model.proto
+u32 const modelPiecesField               = 1u;
+u32 const modelTrainerSpecField          = 2u;
+u32 const pieceTypeField                 = 3u;
+u32 const trainerWhitespaceAsSuffixField = 24u;
+u64 const normalPieceType                = 1u;
+u64 const unknownPieceType               = 2u;
+u64 const controlPieceType               = 3u;
+u64 const userDefinedPieceType           = 4u;
+
+// The status codes of SentencePiece are the same as those of RASR
+Core::Status convertStatus(sentencepiece::util::Status const& status) {
+    if (status.ok()) {
+        return {};
+    }
+    return Core::Status(static_cast<Core::StatusCode>(status.code()), "SentencePiece error: " + status.ToString());
+}
+
+}  // namespace
+
+namespace Tokenizer {
+
+const Core::ParameterString SentencePieceTokenizer::paramModelFile(
+        "model-file",
+        "SentencePiece model file",
+        "");
+
+Core::Status SentencePieceTokenizer::create(Core::Configuration const& config, TokenizerRef& tokenizer) {
+    std::shared_ptr<SentencePieceTokenizer> sentencePiece(new SentencePieceTokenizer(config));
+    Core::Status                            status = sentencePiece->load();
+    if (status.ok()) {
+        tokenizer = std::move(sentencePiece);
+    }
+    return status;
+}
+
+Core::Status SentencePieceTokenizer::encode(std::string const& text, std::vector<TokenId>& ids) const {
+    std::vector<int> pieceIds;
+    Core::Status     status = convertStatus(processor_.Encode(text, &pieceIds));
+    ids.assign(pieceIds.begin(), pieceIds.end());
+    return status;
+}
+
+Core::Status SentencePieceTokenizer::decode(std::vector<TokenId> const& ids, std::string& text) const {
+    for (auto id : ids) {
+        Core::Status status = checkTokenId(id);
+        if (not status.ok()) {
+            return status;
+        }
+    }
+    return convertStatus(processor_.Decode(std::vector<int>(ids.begin(), ids.end()), &text));
+}
+
+Core::Status SentencePieceTokenizer::vocabularySize(u32& size) const {
+    size = processor_.GetPieceSize();
+    return {};
+}
+
+Core::Status SentencePieceTokenizer::tokenStrToId(std::string const& token, TokenId& id) const {
+    // `PieceToId` returns the unknown id for unknown pieces
+    int pieceId = processor_.PieceToId(token);
+    if (processor_.IsUnknown(pieceId) and processor_.IdToPiece(pieceId) != token) {
+        return Core::Status(Core::StatusCode::NotFound, "Token '" + token + "' is not part of the vocabulary");
+    }
+    id = pieceId;
+    return {};
+}
+
+Core::Status SentencePieceTokenizer::tokenIdToStr(TokenId id, std::string& token) const {
+    // `IdToPiece` does not check the range
+    Core::Status status = checkTokenId(id);
+    if (status.ok()) {
+        token = processor_.IdToPiece(id);
+    }
+    return status;
+}
+
+Core::Status SentencePieceTokenizer::wordBoundaryMarks(TokenId id, WordBoundaryMarks& marks) const {
+    Core::Status status = checkTokenId(id);
+    if (not status.ok()) {
+        return status;
+    }
+    std::string const& piece = processor_.IdToPiece(id);
+    if (standalonePieces_[id]) {
+        marks = {true, true};
+    }
+    else if (whitespaceAsSuffix_) {
+        marks = {false, endsWith(piece, whitespace), whitespacePieces_[id]};
+    }
+    else {
+        marks = {Core::startsWith(piece, whitespace), false, whitespacePieces_[id]};
+    }
+    return {};
+}
+
+Core::Status SentencePieceTokenizer::tokenize(std::string const& text, std::vector<std::string>& tokens) const {
+    return convertStatus(processor_.Encode(text, &tokens));
+}
+
+Core::Status SentencePieceTokenizer::detokenize(std::vector<std::string> const& tokens, std::string& text) const {
+    return convertStatus(processor_.Decode(tokens, &text));
+}
+
+SentencePieceTokenizer::SentencePieceTokenizer(Core::Configuration const& config)
+        : Core::Component(config),
+          Precursor(config),
+          whitespaceAsSuffix_(false) {}
+
+Core::Status SentencePieceTokenizer::load() {
+    std::string modelFile = paramModelFile(config);
+    auto        status    = processor_.Load(modelFile);
+    if (not status.ok()) {
+        // SentencePiece reports malformed models as internal errors
+        auto code = status.code() == sentencepiece::util::StatusCode::kNotFound ? Core::StatusCode::NotFound : Core::StatusCode::InvalidFileFormat;
+        return Core::Status(code, "Failed to load SentencePiece model '" + modelFile + "': " + status.ToString());
+    }
+
+    // The piece types and the option `treat_whitespace_as_suffix` are read from the model, see sentencepiece_model.proto
+    std::string model       = processor_.serialized_model_proto();
+    bool        nestedValid = true;
+    bool        valid       = forEachProtobufField(model, [&](ProtobufField const& field) {
+        if (field.number == modelPiecesField and field.wireType == 2u) {
+            u64 type = normalPieceType;
+            nestedValid &= forEachProtobufField(field.bytes, [&](ProtobufField const& pieceField) {
+                if (pieceField.number == pieceTypeField and pieceField.wireType == 0u) {
+                    type = pieceField.varint;
+                }
+            });
+            standalonePieces_.push_back(type == unknownPieceType or type == controlPieceType or type == userDefinedPieceType);
+        }
+        else if (field.number == modelTrainerSpecField and field.wireType == 2u) {
+            nestedValid &= forEachProtobufField(field.bytes, [&](ProtobufField const& trainerField) {
+                if (trainerField.number == trainerWhitespaceAsSuffixField and trainerField.wireType == 0u) {
+                    whitespaceAsSuffix_ = trainerField.varint != 0u;
+                }
+            });
+        }
+    });
+    if (not valid or not nestedValid or standalonePieces_.size() != static_cast<size_t>(processor_.GetPieceSize())) {
+        return Core::Status(Core::StatusCode::InvalidFileFormat, "Failed to read the pieces of SentencePiece model '" + modelFile + "'");
+    }
+
+    whitespacePieces_.assign(standalonePieces_.size(), false);
+    for (size_t id = 0ul; id < standalonePieces_.size(); ++id) {
+        std::string text;
+        if (not standalonePieces_[id]) {
+            Core::Status decodeStatus = convertStatus(processor_.Decode(std::vector<int>{static_cast<int>(id)}, &text));
+            if (not decodeStatus.ok()) {
+                return decodeStatus;
+            }
+            whitespacePieces_[id] = isWhitespace(text);
+        }
+    }
+
+    log("Loaded SentencePiece model with vocabulary size %d from '%s'", processor_.GetPieceSize(), modelFile.c_str());
+    return {};
+}
+
+}  // namespace Tokenizer

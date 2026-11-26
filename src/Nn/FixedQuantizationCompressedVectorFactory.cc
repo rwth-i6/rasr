@@ -14,7 +14,9 @@
  */
 #include "FixedQuantizationCompressedVectorFactory.hh"
 
+#ifdef __AVX2__
 #include <immintrin.h>
+#endif
 
 namespace Nn {
 

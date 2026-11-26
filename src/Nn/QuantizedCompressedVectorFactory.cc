@@ -14,8 +14,10 @@
  */
 #include "QuantizedCompressedVectorFactory.hh"
 
-#ifdef __AVX__
+#if defined(__AVX__)
 #include <immintrin.h>
+#elif defined(__SSE3__)
+#include <pmmintrin.h>
 #endif
 
 namespace Nn {

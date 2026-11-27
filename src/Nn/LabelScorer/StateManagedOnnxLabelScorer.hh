@@ -16,6 +16,8 @@
 #ifndef STATE_MANAGED_ONNX_LABEL_SCORER_HH
 #define STATE_MANAGED_ONNX_LABEL_SCORER_HH
 
+#include <unordered_map>
+
 #include <Core/FIFOCache.hh>
 #include <Onnx/Model.hh>
 
@@ -116,8 +118,13 @@ private:
     void setupEncoderStatesValue();
     void setupEncoderStatesSizeValue();
 
+    // Score vectors that have been looked up or computed during one `computeScoreAccessors` call.
+    // Unlike the score cache, entries can't be evicted while the call still needs them.
+    using ResolvedScoreMap = std::unordered_map<StateManagedOnnxScoringContextRef, std::shared_ptr<std::vector<Score>>, ScoringContextHash, ScoringContextEq>;
+
     // Forward a batch of scoringContexts through the ONNX model and put the resulting states and scores into the caches
-    void cacheStatesAndScores(std::vector<StateManagedOnnxScoringContextRef> const& scoringContextBatch);
+    // and the scores into `resolvedScores`
+    void cacheStatesAndScores(std::vector<StateManagedOnnxScoringContextRef> const& scoringContextBatch, ResolvedScoreMap& resolvedScores);
 
     void logScoringBreakdown() const override;
 };

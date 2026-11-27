@@ -119,9 +119,12 @@ private:
     // Hidden states that have been looked up or computed during one `computeScoreAccessors` call.
     // Unlike the state cache, entries can't be evicted while the call still needs them.
     using ResolvedStateMap = std::unordered_map<StepOnnxHiddenStateScoringContextRef, Onnx::OnnxNamedValuesRef, LabelSeqHash, LabelSeqEq>;
+    // Same for the score vectors and the score cache
+    using ResolvedScoreMap = std::unordered_map<StepOnnxHiddenStateScoringContextRef, std::shared_ptr<std::vector<Score>>, ScoringContextHash, ScoringContextEq>;
 
     // Forward a batch of scoringContexts through the ONNX scorer model and put the resulting scores into the score cache
-    void cacheScores(std::vector<StepOnnxHiddenStateScoringContextRef> const& scoringContextBatch, ResolvedStateMap const& resolvedStates);
+    // and into `resolvedScores`
+    void cacheScores(std::vector<StepOnnxHiddenStateScoringContextRef> const& scoringContextBatch, ResolvedStateMap const& resolvedStates, ResolvedScoreMap& resolvedScores);
 
     // Computes new hidden state based on previous hidden state and next token with batched state-updater call
     std::vector<Onnx::OnnxNamedValuesRef> updatedHiddenStates(std::vector<Onnx::OnnxNamedValuesRef> const& hiddenStatesBatch, std::vector<s32> nextTokensBatch);

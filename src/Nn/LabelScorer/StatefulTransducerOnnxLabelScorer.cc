@@ -260,6 +260,7 @@ std::vector<std::optional<ScoreAccessorRef>> StatefulTransducerOnnxLabelScorer::
      */
     size_t           numComputed = 0ul;
     ResolvedStateMap resolvedStates;
+    ResolvedScoreMap resolvedScores;
     for (auto const& [timestep, contextIndices] : contextsWithTimestep) {
         /*
          * Identify unique scoring contexts that still need session runs
@@ -282,7 +283,15 @@ std::vector<std::optional<ScoreAccessorRef>> StatefulTransducerOnnxLabelScorer::
                 }
             }
 
-            if (stateMissing or not scoreCache_.contains(scoringContextRef)) {
+            // Take cached scores out now for the same reason
+            if (not stateMissing and resolvedScores.find(scoringContextRef) == resolvedScores.end()) {
+                auto cachedScores = scoreCache_.get(scoringContextRef);
+                if (cachedScores) {
+                    resolvedScores.emplace(scoringContextRef, *cachedScores);
+                }
+            }
+
+            if (stateMissing or resolvedScores.find(scoringContextRef) == resolvedScores.end()) {
                 // Group by unique scoringContext
                 uniqueUncachedScoringContexts.emplace(scoringContextRef);
             }
@@ -300,20 +309,20 @@ std::vector<std::optional<ScoreAccessorRef>> StatefulTransducerOnnxLabelScorer::
             scoringContextBatch.push_back(scoringContext);
             if (scoringContextBatch.size() == maxBatchSize_) {  // Batch is full -> forward now
                 cacheStates(scoringContextBatch, resolvedStates);
-                cacheScores(scoringContextBatch, resolvedStates);
+                cacheScores(scoringContextBatch, resolvedStates, resolvedScores);
                 scoringContextBatch.clear();
             }
         }
 
         // Forward remaining scoring contexts
         cacheStates(scoringContextBatch, resolvedStates);
-        cacheScores(scoringContextBatch, resolvedStates);
+        cacheScores(scoringContextBatch, resolvedStates, resolvedScores);
     }
 
     countUncomputedAccessors(scoringContexts.size() - numComputed);
 
     /*
-     * Assign resolved states to scoring contexts and scores from cache to result vector
+     * Assign resolved states to scoring contexts and resolved scores to result vector
      */
     contextPreparationTime_.start();
     for (size_t contextIndex = 0ul; contextIndex < scoringContexts.size(); ++contextIndex) {
@@ -330,9 +339,9 @@ std::vector<std::optional<ScoreAccessorRef>> StatefulTransducerOnnxLabelScorer::
             scoringContext->requiresFinalize = false;
         }
 
-        verify(scoreCache_.contains(scoringContext));
-        auto const& scoreVec         = scoreCache_.get(scoringContext)->get();
-        scoreAccessors[contextIndex] = Core::ref(new VectorScoreAccessor(scoreVec, scoringContext->currentStep));
+        auto scoreVec = resolvedScores.find(scoringContext);
+        verify(scoreVec != resolvedScores.end());
+        scoreAccessors[contextIndex] = Core::ref(new VectorScoreAccessor(scoreVec->second, scoringContext->currentStep));
     }
     contextPreparationTime_.stop();
 
@@ -349,7 +358,7 @@ size_t StatefulTransducerOnnxLabelScorer::getMinActiveInputIndex(Core::Collapsed
     return minTimeIndex;
 }
 
-void StatefulTransducerOnnxLabelScorer::cacheScores(std::vector<StepOnnxHiddenStateScoringContextRef> const& scoringContextBatch, ResolvedStateMap const& resolvedStates) {
+void StatefulTransducerOnnxLabelScorer::cacheScores(std::vector<StepOnnxHiddenStateScoringContextRef> const& scoringContextBatch, ResolvedStateMap const& resolvedStates, ResolvedScoreMap& resolvedScores) {
     if (scoringContextBatch.empty()) {
         return;
     }
@@ -382,7 +391,7 @@ void StatefulTransducerOnnxLabelScorer::cacheScores(std::vector<StepOnnxHiddenSt
     }
 
     /*
-     * Run scorer and put resulting scores into cache map
+     * Run scorer and put resulting scores into cache map and resolved scores
      */
     auto scoreVecs = initUpdateScoreBundle_.scores(hiddenStates, std::move(sessionInputs));
     verify(scoreVecs.size() == scoringContextBatch.size());
@@ -390,6 +399,7 @@ void StatefulTransducerOnnxLabelScorer::cacheScores(std::vector<StepOnnxHiddenSt
     Core::StopWatch::Scope marshallingTimer(stateMarshallingTime_);
     for (size_t b = 0ul; b < scoringContextBatch.size(); ++b) {
         scoreCache_.put(scoringContextBatch[b], scoreVecs[b]);
+        resolvedScores.emplace(scoringContextBatch[b], scoreVecs[b]);
     }
 }
 

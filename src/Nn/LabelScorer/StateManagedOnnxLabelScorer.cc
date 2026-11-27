@@ -184,7 +184,8 @@ ScoringContextRef StateManagedOnnxLabelScorer::getInitialScoringContext() {
         std::vector<LabelIndex> labelSeq(context->labelSeq);
         labelSeq.push_back(label);
         context = Core::ref(new StateManagedOnnxScoringContext(std::move(labelSeq), context));
-        cacheStatesAndScores({context});
+        ResolvedScoreMap resolvedScores;
+        cacheStatesAndScores({context}, resolvedScores);
     }
     return context;
 }
@@ -261,16 +262,22 @@ std::vector<std::optional<ScoreAccessorRef>> StateManagedOnnxLabelScorer::comput
      * Identify unique scoring contexts that still need session runs
      */
     contextPreparationTime_.start();
+    ResolvedScoreMap                                                                            resolvedScores;
     std::unordered_set<StateManagedOnnxScoringContextRef, ScoringContextHash, ScoringContextEq> uniqueUncachedScoringContexts;
     for (auto const& scoringContext : scoringContexts) {
         StateManagedOnnxScoringContextRef context(dynamic_cast<StateManagedOnnxScoringContext const*>(scoringContext.get()));
         verify(context);
-        if (not context->state and stateCache_.contains(context)) {
-            context->state = *stateCache_.get(context);
+        if (not context->state) {
+            // Take cached scores out now, as later insertions could evict them
+            auto cachedState  = stateCache_.get(context);
+            auto cachedScores = scoreCache_.get(context);
+            if (cachedState and cachedScores) {
+                context->state = cachedState->get();
+                resolvedScores.emplace(context, cachedScores->get());
+                continue;
+            }
         }
-        else {
-            uniqueUncachedScoringContexts.emplace(context);
-        }
+        uniqueUncachedScoringContexts.emplace(context);
     }
     contextPreparationTime_.stop();
 
@@ -284,21 +291,21 @@ std::vector<std::optional<ScoreAccessorRef>> StateManagedOnnxLabelScorer::comput
     for (auto const& scoringContext : uniqueUncachedScoringContexts) {
         scoringContextBatch.push_back(scoringContext);
         if (scoringContextBatch.size() == maxBatchSize_) {
-            cacheStatesAndScores(scoringContextBatch);
+            cacheStatesAndScores(scoringContextBatch, resolvedScores);
             scoringContextBatch.clear();
         }
     }
-    cacheStatesAndScores(scoringContextBatch);
+    cacheStatesAndScores(scoringContextBatch, resolvedScores);
 
     /*
-     * Assign scores from cache to result vector
+     * Assign resolved scores to result vector
      */
     contextPreparationTime_.start();
     for (size_t i = 0ul; i < scoringContexts.size(); ++i) {
         StateManagedOnnxScoringContextRef context(dynamic_cast<StateManagedOnnxScoringContext const*>(scoringContexts[i].get()));
-        auto                              scores = scoreCache_.get(context);
-        verify(scores);
-        scoreAccessors[i] = Core::ref(new VectorScoreAccessor(scores->get(), context->labelSeq.empty() ? 0ul : context->labelSeq.size() - 1ul));
+        auto                              scores = resolvedScores.find(context);
+        verify(scores != resolvedScores.end());
+        scoreAccessors[i] = Core::ref(new VectorScoreAccessor(scores->second, context->labelSeq.empty() ? 0ul : context->labelSeq.size() - 1ul));
     }
     contextPreparationTime_.stop();
 
@@ -333,7 +340,7 @@ void StateManagedOnnxLabelScorer::setupEncoderStatesSizeValue() {
     encoderStatesSizeValue_ = Onnx::Value::create(std::vector<s32>{static_cast<s32>(bufferSize())});
 }
 
-void StateManagedOnnxLabelScorer::cacheStatesAndScores(std::vector<StateManagedOnnxScoringContextRef> const& scoringContextBatch) {
+void StateManagedOnnxLabelScorer::cacheStatesAndScores(std::vector<StateManagedOnnxScoringContextRef> const& scoringContextBatch, ResolvedScoreMap& resolvedScores) {
     if (scoringContextBatch.empty()) {
         return;
     }
@@ -406,6 +413,7 @@ void StateManagedOnnxLabelScorer::cacheStatesAndScores(std::vector<StateManagedO
         auto scores = std::make_shared<std::vector<Score>>();
         outputs.front().get(b, 0, *scores);
         scoreCache_.put(scoringContextBatch[b], scores);
+        resolvedScores.emplace(scoringContextBatch[b], std::move(scores));
     }
 
     std::vector<Onnx::Value> stateOutputs(std::make_move_iterator(outputs.begin() + 1), std::make_move_iterator(outputs.end()));

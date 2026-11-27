@@ -34,34 +34,37 @@ void EncoderDecoderLabelScorer::logStatistics() const {
     decoder_->logStatistics();
 }
 
-void EncoderDecoderLabelScorer::signalNoMoreFeatures() {
+Core::Status EncoderDecoderLabelScorer::signalNoMoreFeatures() {
     encoder_->signalNoMoreFeatures();
     // Call `passEncoderOutputsToDecoder()` before signaling segment end to the decoder since the decoder
     // is supposed to receive all available encoder outputs before this signal
-    passEncoderOutputsToDecoder();
-    decoder_->signalNoMoreFeatures();
+    auto status = passEncoderOutputsToDecoder();
+    if (not status.ok()) {
+        return status;
+    }
+    return decoder_->signalNoMoreFeatures();
 }
 
-ScoringContextRef EncoderDecoderLabelScorer::getInitialScoringContext() {
-    return decoder_->getInitialScoringContext();
+Core::Status EncoderDecoderLabelScorer::getInitialScoringContext(ScoringContextRef& initialScoringContext) {
+    return decoder_->getInitialScoringContext(initialScoringContext);
 }
 
-ScoringContextRef EncoderDecoderLabelScorer::extendedScoringContext(ScoringContextRef scoringContext, LabelIndex nextToken, TransitionType transitionType) {
-    return decoder_->extendedScoringContext(scoringContext, nextToken, transitionType);
+Core::Status EncoderDecoderLabelScorer::extendedScoringContext(ScoringContextRef scoringContext, LabelIndex nextToken, TransitionType transitionType, ScoringContextRef& extendedContext) {
+    return decoder_->extendedScoringContext(scoringContext, nextToken, transitionType, extendedContext);
 }
 
 void EncoderDecoderLabelScorer::cleanupCaches(Core::CollapsedVector<ScoringContextRef> const& activeContexts) {
     decoder_->cleanupCaches(activeContexts);
 }
 
-void EncoderDecoderLabelScorer::addInput(DataView const& input) {
+Core::Status EncoderDecoderLabelScorer::addInput(DataView const& input) {
     encoder_->addInput(input);
-    passEncoderOutputsToDecoder();
+    return passEncoderOutputsToDecoder();
 }
 
-void EncoderDecoderLabelScorer::addInputs(DataView const& input, size_t nTimesteps) {
+Core::Status EncoderDecoderLabelScorer::addInputs(DataView const& input, size_t nTimesteps) {
     encoder_->addInputs(input, nTimesteps);
-    passEncoderOutputsToDecoder();
+    return passEncoderOutputsToDecoder();
 }
 
 void EncoderDecoderLabelScorer::reset() {
@@ -69,18 +72,25 @@ void EncoderDecoderLabelScorer::reset() {
     decoder_->reset();
 }
 
-std::optional<ScoreAccessorRef> EncoderDecoderLabelScorer::getScoreAccessor(ScoringContextRef scoringContext) {
-    return decoder_->getScoreAccessor(scoringContext);
+Core::Status EncoderDecoderLabelScorer::getScoreAccessor(ScoringContextRef scoringContext, std::optional<ScoreAccessorRef>& scoreAccessor) {
+    return decoder_->getScoreAccessor(scoringContext, scoreAccessor);
 }
 
-std::vector<std::optional<ScoreAccessorRef>> EncoderDecoderLabelScorer::getScoreAccessors(std::vector<ScoringContextRef> const& scoringContexts) {
-    return decoder_->getScoreAccessors(scoringContexts);
+Core::Status EncoderDecoderLabelScorer::getScoreAccessors(std::vector<ScoringContextRef> const& scoringContexts, std::vector<std::optional<ScoreAccessorRef>>& scoreAccessors) {
+    return decoder_->getScoreAccessors(scoringContexts, scoreAccessors);
 }
 
-void EncoderDecoderLabelScorer::passEncoderOutputsToDecoder() {
+Core::Status EncoderDecoderLabelScorer::passEncoderOutputsToDecoder() {
     std::optional<EncodedSpan> encoderOutput;
-    while ((encoderOutput = encoder_->getNextOutput())) {
-        decoder_->addInput(encoderOutput->encoding);
+    while (true) {
+        auto status = encoder_->getNextOutput(encoderOutput);
+        if (not status.ok() or not encoderOutput) {
+            return status;
+        }
+        status = decoder_->addInput(encoderOutput->encoding);
+        if (not status.ok()) {
+            return status;
+        }
     }
 }
 

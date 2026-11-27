@@ -43,31 +43,31 @@ public:
     void logStatistics() const override;
 
     // Forward signal to all sub-scorers
-    void signalNoMoreFeatures() override;
+    Core::Status signalNoMoreFeatures() override;
 
     // Combine initial ScoringContexts from all sub-scorers
-    ScoringContextRef getInitialScoringContext() override;
+    Core::Status getInitialScoringContext(ScoringContextRef& initialScoringContext) override;
 
     // Combine extended ScoringContexts from all sub-scorers
-    ScoringContextRef extendedScoringContext(ScoringContextRef scoringContext, LabelIndex nextToken, TransitionType transitionType) override;
+    Core::Status extendedScoringContext(ScoringContextRef scoringContext, LabelIndex nextToken, TransitionType transitionType, ScoringContextRef& extendedContext) override;
 
     // Cleanup all sub-scorers
     void cleanupCaches(Core::CollapsedVector<ScoringContextRef> const& activeContexts) override;
 
     // Add input to all sub-scorers
-    void addInput(DataView const& input) override;
+    Core::Status addInput(DataView const& input) override;
 
     // Add inputs to all sub-scorers
-    virtual void addInputs(DataView const& input, size_t nTimesteps) override;
+    virtual Core::Status addInputs(DataView const& input, size_t nTimesteps) override;
 
     // Reset all sub-scorers
     void reset() override;
 
     // Get accessor that returns score-sum of all sub-scorers
-    std::optional<ScoreAccessorRef> getScoreAccessor(ScoringContextRef scoringContext) override;
+    Core::Status getScoreAccessor(ScoringContextRef scoringContext, std::optional<ScoreAccessorRef>& scoreAccessor) override;
 
     // Get accessors that return score-sums of all sub-scorers
-    std::vector<std::optional<ScoreAccessorRef>> getScoreAccessors(std::vector<ScoringContextRef> const& scoringContexts) override;
+    Core::Status getScoreAccessors(std::vector<ScoringContextRef> const& scoringContexts, std::vector<std::optional<ScoreAccessorRef>>& scoreAccessors) override;
 
 private:
     using Precursor = LabelScorer;

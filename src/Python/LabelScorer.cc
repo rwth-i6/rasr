@@ -26,39 +26,87 @@ namespace py = pybind11;
 
 namespace Python {
 
+namespace {
+
+/*
+ * Helpers to call the Python overrides that return a `librasr.Status`, alone or as the first element of a
+ * `(Status, value)` tuple. Unlike `PYBIND11_OVERRIDE_PURE_NAME`, they check the type of the returned object and raise a
+ * `TypeError` that names the override. Otherwise a wrong return value, e.g. `None` from an override written before
+ * these methods returned a Status, surfaces as a misleading "incompatible function arguments" error of whichever
+ * `librasr` function the search was called from. The caller must hold the GIL.
+ */
+
+py::function getPythonOverride(Nn::LabelScorer const* self, char const* name) {
+    py::function override = py::get_override(self, name);
+    if (not override) {
+        py::pybind11_fail(std::string("Tried to call pure virtual function \"LabelScorer.") + name + "\"");
+    }
+    return override;
+}
+
+[[noreturn]] void throwReturnTypeError(py::function const& override, char const* expected, py::handle result) {
+    throw py::type_error(py::str(override.attr("__qualname__")).cast<std::string>() + "() must return " + expected +
+                         ", but returned " + py::str(py::type::handle_of(result).attr("__name__")).cast<std::string>() +
+                         ". Python label scorers report errors by returning a librasr.Status, see \"Writing a custom label "
+                         "scorer in Python\" in the SearchV2 documentation.");
+}
+
+template<typename... Args>
+Core::Status callStatusOverride(Nn::LabelScorer const* self, char const* name, Args const&... args) {
+    auto       override = getPythonOverride(self, name);
+    py::object result   = override(args...);
+    if (not py::isinstance<Core::Status>(result)) {
+        throwReturnTypeError(override, "a librasr.Status", result);
+    }
+    return result.cast<Core::Status>();
+}
+
+template<typename... Args>
+std::pair<Core::Status, py::object> callStatusAndValueOverride(Nn::LabelScorer const* self, char const* name, Args const&... args) {
+    auto       override = getPythonOverride(self, name);
+    py::object result   = override(args...);
+    if (py::isinstance<py::tuple>(result)) {
+        auto tuple = result.cast<py::tuple>();
+        if (tuple.size() == 2 and py::isinstance<Core::Status>(tuple[0])) {
+            return {tuple[0].cast<Core::Status>(), tuple[1]};
+        }
+    }
+    throwReturnTypeError(override, "a tuple (librasr.Status, value)", result);
+}
+
+}  // namespace
+
 PythonLabelScorer::PythonLabelScorer(Core::Configuration const& config)
         : Core::Component(config),
           Precursor(config) {
 }
 
-void PythonLabelScorer::signalNoMoreFeatures() {
-    PYBIND11_OVERRIDE_PURE_NAME(
-            void,
-            LabelScorer,
-            "signal_no_more_features",
-            signalNoMoreFeatures);
-}
-
-Nn::ScoringContextRef PythonLabelScorer::getInitialScoringContext() {
+Core::Status PythonLabelScorer::signalNoMoreFeatures() {
     py::gil_scoped_acquire gil;
-    // Store `py::object` from virtual python call in a `PythonScoringContext`
-    return Core::ref(new PythonScoringContext(getInitialPythonScoringContext()));
+    return callStatusOverride(this, "signal_no_more_features");
 }
 
-py::object PythonLabelScorer::getInitialPythonScoringContext() {
-    PYBIND11_OVERRIDE_PURE_NAME(
-            py::object,
-            Nn::LabelScorer,
-            "get_initial_scoring_context",
-            getInitialPythonScoringContext);
+Core::Status PythonLabelScorer::getInitialScoringContext(Nn::ScoringContextRef& initialScoringContext) {
+    py::gil_scoped_acquire gil;
+    auto [status, pythonContext] = getInitialPythonScoringContext();
+    if (status.ok()) {
+        // Store `py::object` from virtual python call in a `PythonScoringContext`
+        initialScoringContext = Core::ref(new PythonScoringContext(std::move(pythonContext)));
+    }
+    return status;
 }
 
-void PythonLabelScorer::addInput(Nn::DataView const& input) {
+std::pair<Core::Status, py::object> PythonLabelScorer::getInitialPythonScoringContext() {
+    py::gil_scoped_acquire gil;
+    return callStatusAndValueOverride(this, "get_initial_scoring_context");
+}
+
+Core::Status PythonLabelScorer::addInput(Nn::DataView const& input) {
     // Call batched version
-    addInputs(input, 1);
+    return addInputs(input, 1);
 }
 
-void PythonLabelScorer::addInputs(Nn::DataView const& input, size_t nTimesteps) {
+Core::Status PythonLabelScorer::addInputs(Nn::DataView const& input, size_t nTimesteps) {
     py::gil_scoped_acquire gil;
 
     // Convert `input` to a `py::array` for virtual python call
@@ -69,16 +117,12 @@ void PythonLabelScorer::addInputs(Nn::DataView const& input, size_t nTimesteps) 
             {sizeof(f32) * featureDimSize, sizeof(f32)},
             input.data());
 
-    addPythonInputs(inputArray);
+    return addPythonInputs(inputArray);
 }
 
-void PythonLabelScorer::addPythonInputs(py::array const& inputs) {
-    PYBIND11_OVERRIDE_PURE_NAME(
-            void,
-            Nn::LabelScorer,
-            "add_inputs",
-            addPythonInputs,
-            inputs);
+Core::Status PythonLabelScorer::addPythonInputs(py::array const& inputs) {
+    py::gil_scoped_acquire gil;
+    return callStatusOverride(this, "add_inputs", inputs);
 }
 
 void PythonLabelScorer::setInstance(py::object const& instance) {
@@ -99,33 +143,30 @@ py::object PythonLabelScorer::getPythonAllowedTransitionTypes() {
             getPythonAllowedTransitionTypes);
 }
 
-Nn::ScoringContextRef PythonLabelScorer::extendedScoringContext(Nn::ScoringContextRef scoringContext, Nn::LabelIndex nextToken, Nn::TransitionType transitionType) {
+Core::Status PythonLabelScorer::extendedScoringContext(Nn::ScoringContextRef scoringContext, Nn::LabelIndex nextToken, Nn::TransitionType transitionType, Nn::ScoringContextRef& extendedContext) {
     auto*                  pythonScoringContext = dynamic_cast<PythonScoringContext const*>(scoringContext.get());
     py::gil_scoped_acquire gil;
-    // Store `py::object` from virtual python call in a `PythonScoringContext`
-    auto newScoringContext = extendedPythonScoringContext(pythonScoringContext->object, nextToken, transitionType);
-    return Core::ref(new PythonScoringContext(std::move(newScoringContext)));
+    auto [status, newPythonContext] = extendedPythonScoringContext(pythonScoringContext->object, nextToken, transitionType);
+    if (status.ok()) {
+        // Store `py::object` from virtual python call in a `PythonScoringContext`
+        extendedContext = Core::ref(new PythonScoringContext(std::move(newPythonContext)));
+    }
+    return status;
 }
 
-py::object PythonLabelScorer::extendedPythonScoringContext(py::object const& pythonContext, Nn::LabelIndex nextToken, Nn::TransitionType transitionType) {
-    PYBIND11_OVERRIDE_PURE_NAME(
-            py::object,
-            Nn::LabelScorer,
-            "extended_scoring_context",
-            extendedPythonScoringContext,
-            pythonContext,
-            nextToken,
-            transitionType);
+std::pair<Core::Status, py::object> PythonLabelScorer::extendedPythonScoringContext(py::object const& pythonContext, Nn::LabelIndex nextToken, Nn::TransitionType transitionType) {
+    py::gil_scoped_acquire gil;
+    return callStatusAndValueOverride(this, "extended_scoring_context", pythonContext, nextToken, transitionType);
 }
 
-std::vector<std::optional<std::pair<std::vector<Nn::Score>, Nn::TimeframeIndex>>> PythonLabelScorer::getPythonScoresWithTimes(std::vector<py::object> const& pythonContexts) {
-    using returnType = std::vector<std::optional<std::pair<std::vector<Nn::Score>, Nn::TimeframeIndex>>>;  // Macro can't handle types with commas inside properly
-    PYBIND11_OVERRIDE_PURE_NAME(
-            returnType,
-            Nn::LabelScorer,
-            "compute_scores_with_times",
-            computePythonScoresWithTimes,
-            pythonContexts);
+std::pair<Core::Status, PythonLabelScorer::PythonScoresWithTimes> PythonLabelScorer::getPythonScoresWithTimes(std::vector<py::object> const& pythonContexts) {
+    py::gil_scoped_acquire gil;
+    auto [status, scoresWithTimes] = callStatusAndValueOverride(this, "compute_scores_with_times", pythonContexts);
+    if (not status.ok()) {
+        // The value accompanying an error status is ignored, so it doesn't have to be a valid score list
+        return {status, {}};
+    }
+    return {status, scoresWithTimes.cast<PythonScoresWithTimes>()};
 }
 
 void PythonLabelScorer::resetInternal() {
@@ -136,11 +177,16 @@ void PythonLabelScorer::resetInternal() {
             resetInternal);
 }
 
-std::optional<Nn::ScoreAccessorRef> PythonLabelScorer::computeScoreAccessor(Nn::ScoringContextRef scoringContext) {
-    return computeScoreAccessors({scoringContext})[0];
+Core::Status PythonLabelScorer::computeScoreAccessor(Nn::ScoringContextRef scoringContext, std::optional<Nn::ScoreAccessorRef>& scoreAccessor) {
+    std::vector<std::optional<Nn::ScoreAccessorRef>> scoreAccessors;
+    auto                                             status = computeScoreAccessors({scoringContext}, scoreAccessors);
+    scoreAccessor                                           = scoreAccessors.front();
+    return status;
 }
 
-std::vector<std::optional<Nn::ScoreAccessorRef>> PythonLabelScorer::computeScoreAccessors(std::vector<Nn::ScoringContextRef> const& scoringContexts) {
+Core::Status PythonLabelScorer::computeScoreAccessors(std::vector<Nn::ScoringContextRef> const& scoringContexts, std::vector<std::optional<Nn::ScoreAccessorRef>>& scoreAccessors) {
+    scoreAccessors.assign(scoringContexts.size(), std::nullopt);
+
     std::vector<py::object> pythonContexts;
 
     pythonContexts.reserve(scoringContexts.size());
@@ -153,8 +199,10 @@ std::vector<std::optional<Nn::ScoreAccessorRef>> PythonLabelScorer::computeScore
 
     py::gil_scoped_acquire gil;
 
-    std::vector<std::optional<Nn::ScoreAccessorRef>> scoreAccessors(scoringContexts.size(), std::nullopt);
-    auto                                             pythonScoresWithTimes = getPythonScoresWithTimes(pythonContexts);
+    auto [status, pythonScoresWithTimes] = getPythonScoresWithTimes(pythonContexts);
+    if (not status.ok()) {
+        return status;
+    }
     for (size_t contextIndex = 0ul; contextIndex < scoringContexts.size(); ++contextIndex) {
         if (not pythonScoresWithTimes[contextIndex]) {
             countUncomputedAccessors();
@@ -164,7 +212,7 @@ std::vector<std::optional<Nn::ScoreAccessorRef>> PythonLabelScorer::computeScore
         scoreAccessors[contextIndex] = Core::ref(new Nn::VectorScoreAccessor(scoreVec, pythonScoresWithTimes[contextIndex]->second));
     }
 
-    return scoreAccessors;
+    return Core::Status();
 }
 
 }  // namespace Python

@@ -99,19 +99,19 @@ public:
     StatefulTransducerOnnxLabelScorer(Core::Configuration const& config, ModelCache& modelCache);
     virtual ~StatefulTransducerOnnxLabelScorer() = default;
 
-    ScoringContextRef getInitialScoringContext() override;
+    Core::Status getInitialScoringContext(ScoringContextRef& initialScoringContext) override;
 
     // Append the new token to the label sequence; does not update the hidden-state. This is only done once the scoringContext is used for scoring again.
-    ScoringContextRef extendedScoringContext(ScoringContextRef scoringContext, LabelIndex nextToken, TransitionType transitionType) override;
+    Core::Status extendedScoringContext(ScoringContextRef scoringContext, LabelIndex nextToken, TransitionType transitionType, ScoringContextRef& extendedContext) override;
 
 protected:
     void resetInternal() override;
 
     // Update hidden state, run scorer and get an accessor for the output score vector
-    std::optional<ScoreAccessorRef> computeScoreAccessor(ScoringContextRef scoringContext) override;
+    Core::Status computeScoreAccessor(ScoringContextRef scoringContext, std::optional<ScoreAccessorRef>& scoreAccessor) override;
 
     // Update hidden states (batched), run scorers (batched) and get accessor for the output score vectors
-    std::vector<std::optional<ScoreAccessorRef>> computeScoreAccessors(std::vector<ScoringContextRef> const& scoringContexts) override;
+    Core::Status computeScoreAccessors(std::vector<ScoringContextRef> const& scoringContexts, std::vector<std::optional<ScoreAccessorRef>>& scoreAccessors) override;
 
     size_t getMinActiveInputIndex(Core::CollapsedVector<ScoringContextRef> const& activeContexts) const override;
 
@@ -121,14 +121,14 @@ private:
     using ResolvedStateMap = std::unordered_map<StepOnnxHiddenStateScoringContextRef, Onnx::OnnxNamedValuesRef, LabelSeqHash, LabelSeqEq>;
 
     // Forward a batch of scoringContexts through the ONNX scorer model and put the resulting scores into the score cache
-    void cacheScores(std::vector<StepOnnxHiddenStateScoringContextRef> const& scoringContextBatch, ResolvedStateMap const& resolvedStates);
+    Core::Status cacheScores(std::vector<StepOnnxHiddenStateScoringContextRef> const& scoringContextBatch, ResolvedStateMap const& resolvedStates);
 
     // Computes new hidden state based on previous hidden state and next token with batched state-updater call
-    std::vector<Onnx::OnnxNamedValuesRef> updatedHiddenStates(std::vector<Onnx::OnnxNamedValuesRef> const& hiddenStatesBatch, std::vector<s32> nextTokensBatch);
+    Core::Status updatedHiddenStates(std::vector<Onnx::OnnxNamedValuesRef> const& hiddenStatesBatch, std::vector<s32> nextTokensBatch, std::vector<Onnx::OnnxNamedValuesRef>& newHiddenStates);
 
     // Compute updated states for all non-finalized scoring contexts whose state isn't resolved yet and put them into the
     // state cache and into `resolvedStates`
-    void cacheStates(std::vector<StepOnnxHiddenStateScoringContextRef> const& scoringContextBatch, ResolvedStateMap& resolvedStates);
+    Core::Status cacheStates(std::vector<StepOnnxHiddenStateScoringContextRef> const& scoringContextBatch, ResolvedStateMap& resolvedStates);
 
     void logScoringBreakdown() const override;
 

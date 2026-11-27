@@ -2153,12 +2153,18 @@ void registerNodeCreators(NodeFactory* factory) {
                     "and works with a `SearchAlgorithmV2` instead of\n"
                     "`SearchAlgorithm`. Performs recognition of the input segments\n"
                     "and sends the result lattices as outputs.\n"
+                    "If recognition of a segment fails, an error is logged, which\n"
+                    "ends the run with the default on-error = immediate-exit.\n"
+                    "With on-error = ignore for this node, no lattice is sent for\n"
+                    "the failed segment, port 1 holds the failure status and the\n"
+                    "run continues with the next segment.\n"
                     "[*.network.recognizer-v2]\n"
                     "type = recognizer-v2\n"
                     "input:\n"
                     "  0:bliss-speech-segment\n"
                     "output:\n"
-                    "  0:lattice",
+                    "  0:lattice\n"
+                    "  1:bool (status ok), int (status code), string (status message)",
                     &createRecognizerNodeV2));
 
     factory->add(

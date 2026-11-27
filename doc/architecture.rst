@@ -140,7 +140,7 @@ For a native build, the following tools and libraries are required:
 * libsndfile
 
 Depending on the enabled modules and tools, additional dependencies may be required, for example
-TensorFlow, ONNX Runtime, CUDA, OpenMP, FFmpeg, OpenFST or FLAC, and Python 3, NumPy and pybind11 for ``LibRASR``.
+TensorFlow, ONNX Runtime, CUDA, OpenMP, FFmpeg, OpenFST or FLAC, and Python 3, NumPy and pybind11 (3.0 or newer) for ``LibRASR``.
 
 Runtime environment
 -------------------

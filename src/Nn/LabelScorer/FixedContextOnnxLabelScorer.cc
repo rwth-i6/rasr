@@ -126,13 +126,14 @@ FixedContextOnnxLabelScorer::FixedContextOnnxLabelScorer(Core::Configuration con
     scoresName_             = onnxModel_->mapping.getOnnxName("scores");
 }
 
-ScoringContextRef FixedContextOnnxLabelScorer::getInitialScoringContext() {
+Core::Status FixedContextOnnxLabelScorer::getInitialScoringContext(ScoringContextRef& initialScoringContext) {
     auto hist = Core::ref(new SeqStepScoringContext());
     hist->labelSeq.resize(historyLength_, startLabelIndex_);
-    return hist;
+    initialScoringContext = hist;
+    return Core::Status();
 }
 
-ScoringContextRef FixedContextOnnxLabelScorer::extendedScoringContext(ScoringContextRef scoringContext, LabelIndex nextToken, TransitionType transitionType) {
+Core::Status FixedContextOnnxLabelScorer::extendedScoringContext(ScoringContextRef scoringContext, LabelIndex nextToken, TransitionType transitionType, ScoringContextRef& extendedContext) {
     bool   pushToken     = false;
     size_t timeIncrement = 0ul;
     switch (transitionType) {
@@ -172,7 +173,8 @@ ScoringContextRef FixedContextOnnxLabelScorer::extendedScoringContext(ScoringCon
 
     // If context is not going to be modified, return the original one to avoid copying
     if (not pushToken and timeIncrement == 0ul) {
-        return scoringContext;
+        extendedContext = scoringContext;
+        return Core::Status();
     }
 
     SeqStepScoringContextRef seqStepScoringContext(dynamic_cast<SeqStepScoringContext const*>(scoringContext.get()));
@@ -187,7 +189,8 @@ ScoringContextRef FixedContextOnnxLabelScorer::extendedScoringContext(ScoringCon
         newLabelSeq = seqStepScoringContext->labelSeq;
     }
 
-    return Core::ref(new SeqStepScoringContext(std::move(newLabelSeq), seqStepScoringContext->currentStep + timeIncrement));
+    extendedContext = Core::ref(new SeqStepScoringContext(std::move(newLabelSeq), seqStepScoringContext->currentStep + timeIncrement));
+    return Core::Status();
 }
 
 void FixedContextOnnxLabelScorer::cleanupCaches(Core::CollapsedVector<ScoringContextRef> const& activeContexts) {
@@ -213,9 +216,10 @@ void FixedContextOnnxLabelScorer::resetInternal() {
     scoreCache_.clear();
 }
 
-std::vector<std::optional<ScoreAccessorRef>> FixedContextOnnxLabelScorer::computeScoreAccessors(std::vector<ScoringContextRef> const& scoringContexts) {
+Core::Status FixedContextOnnxLabelScorer::computeScoreAccessors(std::vector<ScoringContextRef> const& scoringContexts, std::vector<std::optional<ScoreAccessorRef>>& scoreAccessors) {
+    scoreAccessors.assign(scoringContexts.size(), std::nullopt);
     if (scoringContexts.empty()) {
-        return {};
+        return Core::Status();
     }
 
     contextPreparationTime_.start();
@@ -249,8 +253,6 @@ std::vector<std::optional<ScoreAccessorRef>> FixedContextOnnxLabelScorer::comput
 
     contextPreparationTime_.stop();
 
-    std::vector<std::optional<ScoreAccessorRef>> scoreAccessors(scoringContexts.size(), std::nullopt);
-
     size_t numComputed = 0ul;
 
     /*
@@ -278,12 +280,18 @@ std::vector<std::optional<ScoreAccessorRef>> FixedContextOnnxLabelScorer::comput
         for (auto context : uniqueUncachedContexts) {
             contextBatch.push_back(context);
             if (contextBatch.size() == maxBatchSize_) {  // Batch is full -> forward now
-                forwardBatch(contextBatch);
+                auto status = forwardBatch(contextBatch);
+                if (not status.ok()) {
+                    return status;
+                }
                 contextBatch.clear();
             }
         }
 
-        forwardBatch(contextBatch);  // Forward remaining histories
+        auto status = forwardBatch(contextBatch);  // Forward remaining histories
+        if (not status.ok()) {
+            return status;
+        }
 
         // Create score accessors from cache
         contextPreparationTime_.start();
@@ -296,11 +304,14 @@ std::vector<std::optional<ScoreAccessorRef>> FixedContextOnnxLabelScorer::comput
 
     countUncomputedAccessors(scoringContexts.size() - numComputed);
 
-    return scoreAccessors;
+    return Core::Status();
 }
 
-std::optional<ScoreAccessorRef> FixedContextOnnxLabelScorer::computeScoreAccessor(ScoringContextRef scoringContext) {
-    return computeScoreAccessors({scoringContext})[0];
+Core::Status FixedContextOnnxLabelScorer::computeScoreAccessor(ScoringContextRef scoringContext, std::optional<ScoreAccessorRef>& scoreAccessor) {
+    std::vector<std::optional<ScoreAccessorRef>> scoreAccessors;
+    auto                                         status = computeScoreAccessors({scoringContext}, scoreAccessors);
+    scoreAccessor                                       = scoreAccessors.front();
+    return status;
 }
 
 size_t FixedContextOnnxLabelScorer::getMinActiveInputIndex(Core::CollapsedVector<ScoringContextRef> const& activeContexts) const {
@@ -313,9 +324,9 @@ size_t FixedContextOnnxLabelScorer::getMinActiveInputIndex(Core::CollapsedVector
     return minTimeIndex;
 }
 
-void FixedContextOnnxLabelScorer::forwardBatch(std::vector<SeqStepScoringContextRef> const& scoringContextBatch) {
+Core::Status FixedContextOnnxLabelScorer::forwardBatch(std::vector<SeqStepScoringContextRef> const& scoringContextBatch) {
     if (scoringContextBatch.empty()) {
-        return;
+        return Core::Status();
     }
 
     /*
@@ -347,8 +358,11 @@ void FixedContextOnnxLabelScorer::forwardBatch(std::vector<SeqStepScoringContext
      */
     std::vector<Onnx::Value> sessionOutputs;
     onnxSessionTime_.start();
-    onnxModel_->session.run(std::move(sessionInputs), {scoresName_}, sessionOutputs);
+    auto status = onnxModel_->session.run(std::move(sessionInputs), {scoresName_}, sessionOutputs);
     onnxSessionTime_.stop();
+    if (not status.ok()) {
+        return status;
+    }
 
     /*
      * Put resulting scores into cache map
@@ -359,6 +373,7 @@ void FixedContextOnnxLabelScorer::forwardBatch(std::vector<SeqStepScoringContext
         sessionOutputs.front().get(b, *scoreVec);
         scoreCache_.emplace(scoringContextBatch[b], scoreVec);
     }
+    return Core::Status();
 }
 
 void FixedContextOnnxLabelScorer::logScoringBreakdown() const {

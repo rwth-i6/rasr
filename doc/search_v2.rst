@@ -1453,9 +1453,13 @@ and intermediate results:
 * ``SearchAlgorithm(config)`` : construct and initialize everything (lexicon, acoustic/language model, label
   scorer(s), search tree if needed) from a ``Configuration``.
 * ``enter_segment()`` : start a new segment; clears hypotheses/buffers left over from a previous segment.
+  Returns a ``Status``.
 * ``put_feature(feature_vector)`` : feed a single feature vector, numpy array of shape ``[F]`` or ``[1, F]``.
+  Returns a ``Status``.
 * ``put_features(feature_array)`` : feed multiple feature vectors at once, shape ``[T, F]`` or ``[1, T, F]``.
+  Returns a ``Status``.
 * ``finish_segment()`` : signal that all features for the segment have been passed; finalizes the search.
+  Returns a ``Status``.
 * ``get_current_best_traceback()`` : run any pending decode steps and return the current single-best
   ``Traceback`` (list of ``TracebackItem``). Safe to call mid-segment for streaming/partial results.
 * ``get_common_prefix()`` : return the ``Traceback`` of the stable common prefix shared by all currently active
@@ -1466,6 +1470,20 @@ and intermediate results:
 * ``recognize_segment_n_best(features, n)`` : same, but returns ``get_current_n_best_list(n)``.
 * ``model_combination()`` : return the underlying ``ModelCombination`` (see below) for accessing/adjusting
   scales at runtime.
+* ``status()`` : return the ``Status`` of the last call to one of the methods above.
+
+**Error handling:** errors during decoding, e.g. a failing ONNX model run, don't raise exceptions. Instead,
+the methods above return a ``librasr.Status`` (``ok()``, ``code()`` as a ``librasr.StatusCode`` and
+``message()``). Methods that return a result instead, such as ``get_current_best_traceback`` or
+``recognize_segment``, return an empty result on failure; check ``status()`` to tell the two apart. After a
+failure, the current segment can't be continued: until the next ``enter_segment()``, all other calls return the
+same status, or an empty result, without running the models again. Start a new segment with ``enter_segment()``:
+
+.. code-block:: python
+
+    traceback = search.recognize_segment(features)
+    if not search.status().ok():
+        print(f"Recognition failed: {search.status().message()}")
 
 **Traceback / TracebackItem:** a ``Traceback`` is a plain Python list of ``TracebackItem``, each with
 read/write attributes ``lemma`` (str), ``am_score`` (float), ``lm_score`` (float), ``start_time`` (int) and
@@ -1508,28 +1526,33 @@ subclassing ``librasr.LabelScorer`` and registering the class:
             self.buffered_inputs = []
 
         def signal_no_more_features(self):
-            pass  # mark that no further add_inputs() calls will come for this segment, if relevant
+            # mark that no further add_inputs() calls will come for this segment, if relevant
+            return librasr.Status()
 
         def get_initial_scoring_context(self):
             # any hashable python object representing "no history yet", e.g.:
-            return ()
+            return librasr.Status(), ()
 
         def allowed_transition_types(self):
             return [librasr.TransitionType.LABEL_TO_LABEL, librasr.TransitionType.LABEL_LOOP]
 
         def extended_scoring_context(self, context, next_token, transition_type):
-            return context + (next_token,)  # e.g. extend a label-history tuple
+            return librasr.Status(), context + (next_token,)  # e.g. extend a label-history tuple
 
         def add_inputs(self, inputs):
             # inputs: numpy array of shape [T, F]
             self.buffered_inputs.append(inputs)
+            return librasr.Status()
 
         def compute_scores_with_times(self, contexts):
             # contexts: list of scoring-context objects (as returned by get_initial_scoring_context /
             # extended_scoring_context) to score in one batch.
-            # Return a list with, for each context, either None (not enough input buffered yet to score it)
-            # or a tuple (score_list, timestamp).
-            return self.model.score_batch(contexts, self.buffered_inputs)
+            # Return a Status and a list with, for each context, either None (not enough input buffered yet
+            # to score it) or a tuple (score_list, timestamp).
+            try:
+                return librasr.Status(), self.model.score_batch(contexts, self.buffered_inputs)
+            except RuntimeError as e:
+                return librasr.Status(librasr.StatusCode.INTERNAL, str(e)), []
 
     librasr.register_label_scorer_type("my-torch-scorer", MyTorchLabelScorer)
 
@@ -1552,6 +1575,11 @@ scorer, or used as the ``decoder`` of an ``encoder-decoder`` label scorer.
 * Required overrides on a ``librasr.LabelScorer`` subclass: ``reset``, ``signal_no_more_features``,
   ``get_initial_scoring_context``, ``allowed_transition_types``, ``extended_scoring_context``, ``add_inputs``,
   ``compute_scores_with_times`` (signatures shown in the example above).
+* All of them except ``reset`` and ``allowed_transition_types`` return a ``librasr.Status``, either alone or as
+  the first element of a tuple together with their result. An error status makes the search stop the current
+  segment and report the status to the caller. Returning anything else, e.g. ``None`` from an override written for
+  an older version, raises a ``TypeError`` that names the method. Exceptions raised in these methods are not converted to a
+  ``Status``, so catch them and return an error status instead.
 * A native label scorer wrapping a Python one exposes ``get_sub_scorer(index=0)`` on ``ScaledLabelScorer``
   (e.g. to reach into a ``combine`` or ``encoder-decoder`` scorer instance from Python at runtime) and
   ``set_scale``/``scale`` for adjusting its log-linear weight without touching the config.

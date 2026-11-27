@@ -31,9 +31,8 @@ public:
 
         validator.validate(io_spec, mapping, session);
 
-        std::vector<std::pair<std::string, Onnx::Value>> inputs;
-        std::vector<std::string>                         output_names;
-        std::vector<Onnx::Value>                         outputs;
+        std::vector<std::string> output_names;
+        std::vector<Onnx::Value> outputs;
 
         std::vector<Math::FastMatrix<f32>> batch;
         size_t                             batch_size = 1ul;
@@ -46,20 +45,25 @@ public:
             }
         }
 
-        inputs.emplace_back(std::make_pair<>(mapping.getOnnxName("features"), Onnx::Value::create(batch)));
-
         std::vector<int32_t> seq_length;
         for (auto const& m : batch) {
             seq_length.push_back(m.nRows());
         }
-        inputs.emplace_back(std::make_pair<>(mapping.getOnnxName("features-size"), Onnx::Value::create(seq_length)));
 
         output_names.push_back(mapping.getOnnxName("output"));
 
         double total = 0.0;
         for (size_t i = 0ul; i < 20; i++) {
-            auto start = std::chrono::steady_clock::now();
-            session.run(std::move(inputs), output_names, outputs);
+            // `Session::run` moves the values out of its inputs, so they have to be created anew for every run
+            std::vector<std::pair<std::string, Onnx::Value>> inputs;
+            inputs.emplace_back(mapping.getOnnxName("features"), Onnx::Value::create(batch));
+            inputs.emplace_back(mapping.getOnnxName("features-size"), Onnx::Value::create(seq_length));
+
+            auto start  = std::chrono::steady_clock::now();
+            auto status = session.run(std::move(inputs), output_names, outputs);
+            if (not status.ok()) {
+                criticalError() << status.message();
+            }
             auto                                      end      = std::chrono::steady_clock::now();
             std::chrono::duration<double, std::milli> duration = end - start;
             total += duration.count();

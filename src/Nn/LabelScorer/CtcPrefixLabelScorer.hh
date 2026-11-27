@@ -90,18 +90,18 @@ public:
     Core::Ref<ScaledLabelScorer> getCtcLabelScorer() const;
 
     // Logs the prefix-scoring statistics of this scorer and forwards to the wrapped CTC scorer
-    void logStatistics() const override;
-    void signalNoMoreFeatures() override;
-    void addInput(DataView const& input) override;
-    void addInputs(DataView const& inputs, size_t nTimesteps) override;
+    void         logStatistics() const override;
+    Core::Status signalNoMoreFeatures() override;
+    Core::Status addInput(DataView const& input) override;
+    Core::Status addInputs(DataView const& inputs, size_t nTimesteps) override;
 
-    ScoringContextRef getInitialScoringContext() override;
-    ScoringContextRef extendedScoringContext(ScoringContextRef scoringContext, LabelIndex nextToken, TransitionType transitionType) override;
+    Core::Status getInitialScoringContext(ScoringContextRef& initialScoringContext) override;
+    Core::Status extendedScoringContext(ScoringContextRef scoringContext, LabelIndex nextToken, TransitionType transitionType, ScoringContextRef& extendedContext) override;
 
 protected:
     void resetInternal() override;
 
-    std::optional<ScoreAccessorRef> computeScoreAccessor(ScoringContextRef scoringContext) override;
+    Core::Status computeScoreAccessor(ScoringContextRef scoringContext, std::optional<ScoreAccessorRef>& scoreAccessor) override;
 
 private:
     using Precursor = StatTrackingLabelScorer;
@@ -130,7 +130,7 @@ private:
     void logAdditionalStatistics() const override;
 
     // Retrieve matrix of CTC scores from sub-scorer. Assumes that these scores only depend on timestep and label index, not history or transition type.
-    void setupCTCScores();
+    Core::Status setupCTCScores();
 
     // Update prefix scores in scoringContext
     void finalizeScoringContext(CtcPrefixScoringContextRef const& scoringContext) const;

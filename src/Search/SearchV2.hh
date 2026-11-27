@@ -46,6 +46,8 @@ namespace Search {
  *  7. Call `finishSegment` to signal that all features have been passed and finalize the search with all the segment features.
  *  8. Retrieve the final result via `getCurrentBestTraceback` or `getCurrentBestWordLattice`.
  *  9. Continue again at step 3.
+ *
+ * Methods that may run a model return a `Core::Status`. After a non-OK status, the current segment can't be continued.
  */
 class SearchAlgorithmV2 : public virtual Core::Component {
 public:
@@ -66,16 +68,16 @@ public:
 
     // Signal the beginning of a new audio segment.
     // Cleans up buffers, hypotheses, flags etc. from the previous segment recognition.
-    virtual void enterSegment(Bliss::SpeechSegment const* = nullptr) = 0;
+    virtual Core::Status enterSegment(Bliss::SpeechSegment const* = nullptr) = 0;
 
     // Signal that all features of the current segment have been passed.
-    virtual void finishSegment() = 0;
+    virtual Core::Status finishSegment() = 0;
 
     // Pass a single feature vector.
-    virtual void putFeature(Nn::DataView const& feature) = 0;
+    virtual Core::Status putFeature(Nn::DataView const& feature) = 0;
 
     // Pass feature vectors for multiple time steps.
-    virtual void putFeatures(Nn::DataView const& features, size_t nTimesteps) = 0;
+    virtual Core::Status putFeatures(Nn::DataView const& features, size_t nTimesteps) = 0;
 
     // Return the current best traceback of TracebackItem. May contain unstable results.
     virtual Core::Ref<const Traceback> getCurrentBestTraceback() const = 0;
@@ -89,17 +91,21 @@ public:
     // Return common prefix of all active traces.
     virtual Core::Ref<const LatticeTrace> getCommonPrefix() const = 0;
 
-    // Try to decode one more step. Return bool indicates whether a step could be made.
-    virtual bool decodeStep() = 0;
+    // Try to decode one more step. `stepMade` indicates whether a step could be made.
+    virtual Core::Status decodeStep(bool& stepMade) = 0;
 
-    // Decode as much as possible given the currently available features. Return number of successfull steps.
-    virtual unsigned decodeManySteps() {
-        unsigned count = 0u;
-        while (decodeStep()) {
-            count++;
+    // Decode as much as possible given the currently available features. `numSteps` is the number of successful steps.
+    virtual Core::Status decodeManySteps(unsigned& numSteps) {
+        numSteps      = 0u;
+        bool stepMade = true;
+        while (stepMade) {
+            auto status = decodeStep(stepMade);
+            if (not status.ok()) {
+                return status;
+            }
+            numSteps += stepMade;
         }
-
-        return count;
+        return Core::Status();
     }
 };
 

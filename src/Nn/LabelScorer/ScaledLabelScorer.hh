@@ -45,31 +45,31 @@ public:
     void logStatistics() const override;
 
     // Forward signal to sub-scorer
-    void signalNoMoreFeatures() override;
+    Core::Status signalNoMoreFeatures() override;
 
     // Initial ScoringContext from sub-scorer
-    ScoringContextRef getInitialScoringContext() override;
+    Core::Status getInitialScoringContext(ScoringContextRef& initialScoringContext) override;
 
     // Extended ScoringContext from sub-scorer
-    ScoringContextRef extendedScoringContext(ScoringContextRef context, LabelIndex nextToken, TransitionType transitionType) override;
+    Core::Status extendedScoringContext(ScoringContextRef context, LabelIndex nextToken, TransitionType transitionType, ScoringContextRef& extendedContext) override;
 
     // Cleanup sub-scorer
     void cleanupCaches(Core::CollapsedVector<ScoringContextRef> const& activeContexts) override;
 
     // Add input to sub-scorer
-    void addInput(DataView const& input) override;
+    Core::Status addInput(DataView const& input) override;
 
     // Add inputs to sub-scorer
-    virtual void addInputs(DataView const& input, size_t nTimesteps) override;
+    virtual Core::Status addInputs(DataView const& input, size_t nTimesteps) override;
 
     // Reset sub-scorer
     void reset() override;
 
     // Score accessor wrapper that scales the scores
-    std::optional<ScoreAccessorRef> getScoreAccessor(ScoringContextRef scoringContext) override;
+    Core::Status getScoreAccessor(ScoringContextRef scoringContext, std::optional<ScoreAccessorRef>& scoreAccessor) override;
 
     // Score accessor wrapper that scales the scores
-    std::vector<std::optional<ScoreAccessorRef>> getScoreAccessors(std::vector<ScoringContextRef> const& scoringContexts) override;
+    Core::Status getScoreAccessors(std::vector<ScoringContextRef> const& scoringContexts, std::vector<std::optional<ScoreAccessorRef>>& scoreAccessors) override;
 
 private:
     Core::Ref<LabelScorer> scorer_;

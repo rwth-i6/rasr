@@ -86,51 +86,53 @@ void ScaledLabelScorer::logStatistics() const {
     scorer_->logStatistics();
 }
 
-void ScaledLabelScorer::signalNoMoreFeatures() {
-    scorer_->signalNoMoreFeatures();
+Core::Status ScaledLabelScorer::signalNoMoreFeatures() {
+    return scorer_->signalNoMoreFeatures();
 }
 
-ScoringContextRef ScaledLabelScorer::getInitialScoringContext() {
-    return scorer_->getInitialScoringContext();
+Core::Status ScaledLabelScorer::getInitialScoringContext(ScoringContextRef& initialScoringContext) {
+    return scorer_->getInitialScoringContext(initialScoringContext);
 }
 
-ScoringContextRef ScaledLabelScorer::extendedScoringContext(ScoringContextRef context, LabelIndex nextToken, TransitionType transitionType) {
-    return scorer_->extendedScoringContext(context, nextToken, transitionType);
+Core::Status ScaledLabelScorer::extendedScoringContext(ScoringContextRef context, LabelIndex nextToken, TransitionType transitionType, ScoringContextRef& extendedContext) {
+    return scorer_->extendedScoringContext(context, nextToken, transitionType, extendedContext);
 }
 
 void ScaledLabelScorer::cleanupCaches(Core::CollapsedVector<ScoringContextRef> const& activeContexts) {
     scorer_->cleanupCaches(activeContexts);
 }
 
-void ScaledLabelScorer::addInput(DataView const& input) {
-    scorer_->addInput(input);
+Core::Status ScaledLabelScorer::addInput(DataView const& input) {
+    return scorer_->addInput(input);
 }
 
-void ScaledLabelScorer::addInputs(DataView const& input, size_t nTimesteps) {
-    scorer_->addInputs(input, nTimesteps);
+Core::Status ScaledLabelScorer::addInputs(DataView const& input, size_t nTimesteps) {
+    return scorer_->addInputs(input, nTimesteps);
 }
 
 void ScaledLabelScorer::reset() {
     scorer_->reset();
 }
 
-std::optional<ScoreAccessorRef> ScaledLabelScorer::getScoreAccessor(ScoringContextRef scoringContext) {
-    auto subAccessor = scorer_->getScoreAccessor(scoringContext);
-    if (subAccessor) {
-        return Core::ref(new ScaledScoreAccessor(*subAccessor, scale_));
+Core::Status ScaledLabelScorer::getScoreAccessor(ScoringContextRef scoringContext, std::optional<ScoreAccessorRef>& scoreAccessor) {
+    auto status = scorer_->getScoreAccessor(scoringContext, scoreAccessor);
+    if (status.ok() and scoreAccessor) {
+        scoreAccessor = Core::ref(new ScaledScoreAccessor(*scoreAccessor, scale_));
     }
-    return {};
+    return status;
 }
 
-std::vector<std::optional<ScoreAccessorRef>> ScaledLabelScorer::getScoreAccessors(std::vector<ScoringContextRef> const& scoringContexts) {
-    auto                                         subAccessors = scorer_->getScoreAccessors(scoringContexts);
-    std::vector<std::optional<ScoreAccessorRef>> result(subAccessors.size(), std::nullopt);
-    for (size_t i = 0ul; i < subAccessors.size(); ++i) {
-        if (subAccessors[i]) {
-            result[i] = Core::ref(new ScaledScoreAccessor(*subAccessors[i], scale_));
+Core::Status ScaledLabelScorer::getScoreAccessors(std::vector<ScoringContextRef> const& scoringContexts, std::vector<std::optional<ScoreAccessorRef>>& scoreAccessors) {
+    auto status = scorer_->getScoreAccessors(scoringContexts, scoreAccessors);
+    if (not status.ok()) {
+        return status;
+    }
+    for (auto& scoreAccessor : scoreAccessors) {
+        if (scoreAccessor) {
+            scoreAccessor = Core::ref(new ScaledScoreAccessor(*scoreAccessor, scale_));
         }
     }
-    return result;
+    return status;
 }
 
 }  // namespace Nn

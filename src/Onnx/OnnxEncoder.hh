@@ -63,11 +63,11 @@ protected:
     void resetInternal() override;
 
     // Encode features inside the input buffer and put the results into the output buffer
-    virtual void encode() override;
+    virtual Core::Status encode() override;
 
     // Runs onnxModel_ on features from inputBuffer_[inputStartIndex : inputStartIndex + nInputs]
     // Potentially add zero-padding features to inputs before running session
-    SessionRunResult runSession(size_t inputStartIndex, size_t nInputs, size_t leftZeroPadding = 0ul, size_t rightZeroPadding = 0ul);
+    Core::Status runSession(std::optional<SessionRunResult>& result, size_t inputStartIndex, size_t nInputs, size_t leftZeroPadding = 0ul, size_t rightZeroPadding = 0ul);
 
     void logEncodeBreakdown() const override;
     void logAdditionalStatistics() const override;
@@ -107,7 +107,7 @@ protected:
     virtual bool canEncode() const override;
 
     // Encode a single chunk of features
-    virtual void encode() override;
+    virtual Core::Status encode() override;
 
     // Discard all features from input buffer that are no longer needed for future chunks
     virtual void postEncodeCleanup() override;

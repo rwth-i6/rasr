@@ -400,9 +400,61 @@ bool XmlLexiconParser::parseFile(const std::string& filename) {
     return parser()->Core::XmlSchemaParser::parseFile(filename.c_str()) == 0;
 }
 
+const Core::ParameterString VocabTextLexiconParser::paramSpecialLemmaBlank(
+        "special-lemma-blank",
+        "token which is defined as special lemma 'blank'",
+        "");
+
+const Core::ParameterString VocabTextLexiconParser::paramSpecialLemmaSilence(
+        "special-lemma-silence",
+        "token which is defined as special lemma 'silence'",
+        "");
+
+const Core::ParameterString VocabTextLexiconParser::paramSpecialLemmaUnknown(
+        "special-lemma-unknown",
+        "token which is defined as special lemma 'unknown'",
+        "");
+
+const Core::ParameterString VocabTextLexiconParser::paramSpecialLemmaSentenceBegin(
+        "special-lemma-sentence-begin",
+        "token which is defined as special lemma 'sentence-begin'",
+        "");
+
+const Core::ParameterString VocabTextLexiconParser::paramSpecialLemmaSentenceEnd(
+        "special-lemma-sentence-end",
+        "token which is defined as special lemma 'sentence-end'",
+        "");
+
+const Core::ParameterString VocabTextLexiconParser::paramSpecialLemmaSentenceBoundary(
+        "special-lemma-sentence-boundary",
+        "token which is defined as special lemma 'sentence-boundary'",
+        "");
+
+const Core::ParameterStringVector VocabTextLexiconParser::paramEmptyEvalTokens(
+        "empty-eval-tokens",
+        "space-separated list of tokens which get an empty eval token sequence",
+        " ");
+
+const Core::ParameterStringVector VocabTextLexiconParser::paramEmptySyntTokens(
+        "empty-synt-tokens",
+        "space-separated list of tokens which get an empty synt token sequence",
+        " ");
+
 VocabTextLexiconParser::VocabTextLexiconParser(Lexicon* _lexicon)
         : LexiconParser(),
           lexicon_(_lexicon) {
+    const Core::Configuration& config = lexicon_->getConfiguration();
+    specialLemmas_                    = {
+            {"blank", paramSpecialLemmaBlank(config)},
+            {"silence", paramSpecialLemmaSilence(config)},
+            {"unknown", paramSpecialLemmaUnknown(config)},
+            {"sentence-begin", paramSpecialLemmaSentenceBegin(config)},
+            {"sentence-end", paramSpecialLemmaSentenceEnd(config)},
+            {"sentence-boundary", paramSpecialLemmaSentenceBoundary(config)}};
+    std::vector<std::string> emptyEvalList = paramEmptyEvalTokens(config);
+    std::vector<std::string> emptySyntList = paramEmptySyntTokens(config);
+    emptyEval_.insert(emptyEvalList.begin(), emptyEvalList.end());
+    emptySynt_.insert(emptySyntList.begin(), emptySyntList.end());
     phonemeInventory_ = Core::Ref(new PhonemeInventory());
 }
 
@@ -473,5 +525,40 @@ void VocabTextLexiconParser::createLemmata() {
         }
         lexicon_->addPronunciation(newLemma_, pron);
         lexicon_->setDefaultLemmaName(newLemma_);
+        // set eval, so that the labels are regarded as words
+        if (emptyEval_.count(symbol)) {
+            lexicon_->addEvaluationTokenSequence(newLemma_, std::vector<std::string>());
+        }
+        else {
+            lexicon_->setDefaultEvaluationToken(newLemma_);
+        }
+        if (emptySynt_.count(symbol)) {
+            lexicon_->setSyntacticTokenSequence(newLemma_, std::vector<std::string>());
+        }
+        else {
+            lexicon_->setDefaultSyntacticToken(newLemma_);
+        }
+        for (const auto& [name, specialSymbol] : specialLemmas_) {
+            if (specialSymbol == symbol) {
+                lexicon_->defineSpecialLemma(name, newLemma_);
+            }
+        }
+    }
+
+    // warn about configured tokens which are not in the vocab
+    for (const auto& [name, specialSymbol] : specialLemmas_) {
+        if (!specialSymbol.empty() && !lexicon_->lemma(specialSymbol)) {
+            Core::Application::us()->warning("Token \"%s\" for special lemma \"%s\" not found in the vocab.", specialSymbol.c_str(), name.c_str());
+        }
+    }
+    for (const auto& symbol : emptyEval_) {
+        if (!lexicon_->lemma(symbol)) {
+            Core::Application::us()->warning("Token \"%s\" for empty eval not found in the vocab.", symbol.c_str());
+        }
+    }
+    for (const auto& symbol : emptySynt_) {
+        if (!lexicon_->lemma(symbol)) {
+            Core::Application::us()->warning("Token \"%s\" for empty synt not found in the vocab.", symbol.c_str());
+        }
     }
 }

@@ -33,6 +33,10 @@ std::optional<DenseScoreSpan> ScoreAccessor::getDenseScores() const {
     return std::nullopt;
 }
 
+std::optional<SparseScoreSpan> ScoreAccessor::getSparseScores() const {
+    return std::nullopt;
+}
+
 TimeframeIndex ScoreAccessor::getTime() const {
     return 0;
 }

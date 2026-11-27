@@ -19,6 +19,7 @@
 
 #include <Core/Hash.hh>
 #include <Core/XmlBuilder.hh>
+#include <unordered_set>
 #include "Lexicon.hh"
 
 namespace Bliss {
@@ -152,8 +153,20 @@ struct XmlLexiconFormat : public Core::FormatSet::Format<Lexicon> {
  */
 class VocabTextLexiconParser : public LexiconParser {
 private:
-    Core::Ref<Lexicon>          lexicon_;
-    Core::Ref<PhonemeInventory> phonemeInventory_;
+    static const Core::ParameterString       paramSpecialLemmaBlank;
+    static const Core::ParameterString       paramSpecialLemmaSilence;
+    static const Core::ParameterString       paramSpecialLemmaUnknown;
+    static const Core::ParameterString       paramSpecialLemmaSentenceBegin;
+    static const Core::ParameterString       paramSpecialLemmaSentenceEnd;
+    static const Core::ParameterString       paramSpecialLemmaSentenceBoundary;
+    static const Core::ParameterStringVector paramEmptyEvalTokens;
+    static const Core::ParameterStringVector paramEmptySyntTokens;
+
+    Core::Ref<Lexicon>                               lexicon_;
+    Core::Ref<PhonemeInventory>                      phonemeInventory_;
+    std::vector<std::pair<std::string, std::string>> specialLemmas_;  // (special lemma name, token)
+    std::unordered_set<std::string>                  emptyEval_;
+    std::unordered_set<std::string>                  emptySynt_;
     void                        createPhoneme(const std::string& line);
     void                        createLemmata();
 

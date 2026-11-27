@@ -79,6 +79,10 @@ const Core::Choice Session::executionProviderChoice(
 const Core::ParameterChoice Session::paramExecutionProviderType(
         "execution-provider-type", &Session::executionProviderChoice, "type of execution provider", ExecutionProviderType::cpu);
 
+ExecutionProviderType Session::executionProviderType(Core::Configuration const& config) {
+    return static_cast<ExecutionProviderType>(paramExecutionProviderType(config));
+}
+
 Session::Session(Core::Configuration const& config)
         : Precursor(config),
           file_(paramFile(config)),
@@ -87,7 +91,7 @@ Session::Session(Core::Configuration const& config)
           statePrefix_(paramStatePrefix(config)),
           removePrefixFromKey_(paramRemovePrefixFromKey(config)),
           cudaUseTf32_(paramCudaUseTf32(config)),
-          executionProviderType_(static_cast<ExecutionProviderType>(paramExecutionProviderType(config))),
+          executionProviderType_(executionProviderType(config)),
           cudaDevice_(0),
           cudaStream_(nullptr),
           allocator_(),

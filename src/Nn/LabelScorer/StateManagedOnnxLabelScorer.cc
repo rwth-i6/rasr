@@ -144,7 +144,9 @@ StateManagedOnnxLabelScorer::StateManagedOnnxLabelScorer(Core::Configuration con
           silenceUpdatesHistory_(paramSilenceUpdatesHistory(config)),
           loopUpdatesHistory_(paramLoopUpdatesHistory(config)),
           maxBatchSize_(paramMaxBatchSize(config)),
-          stateManager_(Module::instance().createStateManager(select("state-manager"))),
+          stateManager_(Module::instance().createStateManager(
+                  select("state-manager"),
+                  Onnx::Session::executionProviderType(Core::Configuration(Core::Configuration(config, "onnx-model"), "session")))),
           stateVectorFactory_(Module::instance().createCompressedVectorFactory(select("state-compression"))),
           encoderStatesValue_(),
           encoderStatesSizeValue_(),
@@ -160,6 +162,7 @@ StateManagedOnnxLabelScorer::StateManagedOnnxLabelScorer(Core::Configuration con
     encoderStatesName_      = onnxModel_->mapping.getOnnxName("encoder-states");
     encoderStatesSizeName_  = onnxModel_->mapping.getOnnxName("encoder-states-size");
 
+    stateManager_->setCudaStream(onnxModel_->session.cudaStream());
     stateVariables_ = onnxModel_->session.getStateVariablesMetadata();
 
     auto startLabels = paramStartLabels(config);

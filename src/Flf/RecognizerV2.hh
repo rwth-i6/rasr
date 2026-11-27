@@ -15,6 +15,7 @@
 #ifndef RECOGNIZER_V2_HH
 #define RECOGNIZER_V2_HH
 
+#include <Core/Status.hh>
 #include <Flf/FlfCore/Lattice.hh>
 #include <Search/Module.hh>
 #include <Search/SearchV2.hh>
@@ -43,6 +44,11 @@ public:
     virtual ConstSegmentRef sendSegment(Port to) override;
     virtual ConstLatticeRef sendLattice(Port to) override;
 
+    // Status of the last segment on port 1: ok (bool), code (int) and message (string)
+    virtual bool        sendBool(Port to) override;
+    virtual s32         sendInt(Port to) override;
+    virtual std::string sendString(Port to) override;
+
 private:
     /*
      * Perform recognition of `segment` using `searchAlgorithm_` and store the result in `resultBuffer_`
@@ -56,6 +62,8 @@ private:
 
     ConstLatticeRef latticeResultBuffer_;
     ConstSegmentRef segmentResultBuffer_;
+    Core::Status    status_;
+    bool            resultValid_;
 
     std::unique_ptr<Flf::LatticeHandler>       latticeHandler_;
     std::unique_ptr<Search::SearchAlgorithmV2> searchAlgorithm_;

@@ -75,12 +75,12 @@ PriorLabelScorer::PriorLabelScorer(Core::Configuration const& config)
     }
 }
 
-std::optional<ScoreAccessorRef> PriorLabelScorer::computeScoreAccessor(ScoringContextRef scoringContext) {
-    auto res = StepwiseNoOpLabelScorer::computeScoreAccessor(scoringContext);
-    if (res) {
-        return Core::ref(new PriorScoreAccessor(*res, negateInput_, prior_));
+Core::Status PriorLabelScorer::computeScoreAccessor(ScoringContextRef scoringContext, std::optional<ScoreAccessorRef>& scoreAccessor) {
+    auto status = StepwiseNoOpLabelScorer::computeScoreAccessor(scoringContext, scoreAccessor);
+    if (status.ok() and scoreAccessor) {
+        scoreAccessor = Core::ref(new PriorScoreAccessor(*scoreAccessor, negateInput_, prior_));
     }
-    return res;
+    return status;
 }
 
 }  // namespace Nn

@@ -61,17 +61,17 @@ public:
 
     Speech::ModelCombination::Mode requiredModelCombination() const override;
     bool                           setModelCombination(Speech::ModelCombination const& modelCombination) override;
-    void                           enterSegment(Bliss::SpeechSegment const* = nullptr) override;
-    void                           finishSegment() override;
-    void                           putFeature(Nn::DataView const& feature) override;
-    void                           putFeatures(Nn::DataView const& features, size_t nTimesteps) override;
+    Core::Status                   enterSegment(Bliss::SpeechSegment const* = nullptr) override;
+    Core::Status                   finishSegment() override;
+    Core::Status                   putFeature(Nn::DataView const& feature) override;
+    Core::Status                   putFeatures(Nn::DataView const& features, size_t nTimesteps) override;
 
     Core::Ref<const Traceback>      getCurrentBestTraceback() const override;
     Core::Ref<const LatticeAdaptor> getCurrentBestWordLattice() const override;
     Core::Ref<const LatticeTrace>   getCurrentBestLatticeTrace() const override;
     Core::Ref<const LatticeTrace>   getCommonPrefix() const override;
 
-    bool decodeStep() override;
+    Core::Status decodeStep(bool& stepMade) override;
 
 protected:
     /*
@@ -175,6 +175,7 @@ private:
 
     size_t currentSearchStep_;
     bool   finishedSegment_;
+    bool   searchStepsOpen_;  // Whether the `search-steps` element of the current segment is open
 
     LabelHypothesis const& getBestHypothesis() const;
     LabelHypothesis const& getWorstHypothesis() const;
@@ -207,9 +208,9 @@ private:
     /*
      * Run the multi-scorer loop: create extensions from the first scorer, update scores with
      * subsequent scorers, apply intermediate pruning after each scorer.
-     * Populates `extensions_`. Returns false if no extensions survive (decode step should abort).
+     * Populates `extensions_`. `hasExtensions` is false if no extensions survive (decode step should abort).
      */
-    bool scoreAndPruneExtensions();
+    Core::Status scoreAndPruneExtensions(bool& hasExtensions);
 
     /*
      * Read the scores and timeframes of the current label scorer into `denseScoreSpans` and
@@ -238,7 +239,7 @@ private:
      * Create new beam hypotheses from the surviving extensions in `extensions_`.
      * Populates `newBeam_`.
      */
-    void buildNewBeamFromExtensions();
+    Core::Status buildNewBeamFromExtensions();
 
     /*
      * Open the per-step statistics element before the first statistic of a step is written, and
@@ -249,6 +250,16 @@ private:
     void closeStepStatistics();
 
     /*
+     * The `search-steps` element wraps the step statistics of one segment in the stepwise statistics channel.
+     * `closeSearchSteps` does nothing if the element isn't open.
+     */
+    void openSearchSteps();
+    void closeSearchSteps();
+
+    // A segment with a failed step can't be continued, so close its `search-steps` element. Returns `status`.
+    Core::Status closeSearchStepsOnError(Core::Status status);
+
+    /*
      * Log the per-step statistics and debug output for the current beam.
      */
     void logStepStatistics();
@@ -256,7 +267,7 @@ private:
     /*
      * Score sentence-end with all label scores for all hypotheses in the beam
      */
-    void finalizeHypotheses();
+    Core::Status finalizeHypotheses();
 
     /*
      * Apply maximum-stable-delay-pruning to beam_

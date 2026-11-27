@@ -60,17 +60,17 @@ public:
     StateManagedOnnxLabelScorer(Core::Configuration const& config, ModelCache& modelCache);
     virtual ~StateManagedOnnxLabelScorer() = default;
 
-    void addInput(DataView const& input) override;
+    Core::Status addInput(DataView const& input) override;
 
-    ScoringContextRef getInitialScoringContext() override;
-    ScoringContextRef extendedScoringContext(ScoringContextRef scoringContext, LabelIndex nextToken, TransitionType transitionType) override;
+    Core::Status getInitialScoringContext(ScoringContextRef& initialScoringContext) override;
+    Core::Status extendedScoringContext(ScoringContextRef scoringContext, LabelIndex nextToken, TransitionType transitionType, ScoringContextRef& extendedContext) override;
 
 protected:
     void resetInternal() override;
 
-    std::optional<ScoreAccessorRef>              computeScoreAccessor(ScoringContextRef scoringContext) override;
-    std::vector<std::optional<ScoreAccessorRef>> computeScoreAccessors(std::vector<ScoringContextRef> const& scoringContexts) override;
-    size_t                                       getMinActiveInputIndex(Core::CollapsedVector<ScoringContextRef> const& activeContexts) const override;
+    Core::Status computeScoreAccessor(ScoringContextRef scoringContext, std::optional<ScoreAccessorRef>& scoreAccessor) override;
+    Core::Status computeScoreAccessors(std::vector<ScoringContextRef> const& scoringContexts, std::vector<std::optional<ScoreAccessorRef>>& scoreAccessors) override;
+    size_t       getMinActiveInputIndex(Core::CollapsedVector<ScoringContextRef> const& activeContexts) const override;
 
 private:
     using Precursor    = BufferedLabelScorer;
@@ -119,7 +119,7 @@ private:
     void setupEncoderStatesSizeValue();
 
     // Forward a batch of scoringContexts through the ONNX model and put the resulting states and scores into the caches
-    void cacheStatesAndScores(std::vector<StateManagedOnnxScoringContextRef> const& scoringContextBatch);
+    Core::Status cacheStatesAndScores(std::vector<StateManagedOnnxScoringContextRef> const& scoringContextBatch);
 
     void logScoringBreakdown() const override;
 };

@@ -73,14 +73,19 @@ void OnnxEncoder::resetInternal() {
     stateManager_->setInitialStates(stateVariables_);
 }
 
-void OnnxEncoder::encode() {
+Core::Status OnnxEncoder::encode() {
     if (inputBuffer_.empty()) {
-        return;
+        return Core::Status();
     }
 
     size_t nInputs = inputBuffer_.size();
 
-    auto [outputView, nOutputs, outputSize] = runSession(0ul, nInputs);
+    std::optional<SessionRunResult> runResult;
+    auto                            status = runSession(runResult, 0ul, nInputs);
+    if (not status.ok()) {
+        return status;
+    }
+    auto [outputView, nOutputs, outputSize] = *runResult;
 
     size_t inputsPerOutput = (inputsPerOutput_ != 0ul) ? inputsPerOutput_ : (nInputs / nOutputs + (nInputs % nOutputs != 0ul));
     size_t inputStep       = (inputStepSize_ != 0ul) ? inputStepSize_ : inputsPerOutput;
@@ -95,9 +100,10 @@ void OnnxEncoder::encode() {
                         .input_end   = endInput});
         startInput = std::min(startInput + inputStep, std::max(nInputs, 1ul) - 1ul);
     }
+    return Core::Status();
 }
 
-OnnxEncoder::SessionRunResult OnnxEncoder::runSession(size_t inputStartIndex, size_t nInputs, size_t leftZeroPadding, size_t rightZeroPadding) {
+Core::Status OnnxEncoder::runSession(std::optional<SessionRunResult>& result, size_t inputStartIndex, size_t nInputs, size_t leftZeroPadding, size_t rightZeroPadding) {
     verify(inputStartIndex + nInputs <= inputBuffer_.size());
     verify(nInputs > 0ul);
 
@@ -131,8 +137,11 @@ OnnxEncoder::SessionRunResult OnnxEncoder::runSession(size_t inputStartIndex, si
     // Run session
     std::vector<Value> sessionOutputs;
     onnxSessionTime_.start();
-    onnxModel_->session.run(std::move(sessionInputs), outputNames, sessionOutputs);
+    auto status = onnxModel_->session.run(std::move(sessionInputs), outputNames, sessionOutputs);
     onnxSessionTime_.stop();
+    if (not status.ok()) {
+        return status;
+    }
     ++numSessionRuns_;
 
     // Retrieve outputs
@@ -147,7 +156,8 @@ OnnxEncoder::SessionRunResult OnnxEncoder::runSession(size_t inputStartIndex, si
     }
     stateManager_->updateStates(outputStates);
 
-    return {.outputView = std::move(outputView), .nOutputs = T_out, .outputSize = outputSize};
+    result = SessionRunResult{.outputView = std::move(outputView), .nOutputs = T_out, .outputSize = outputSize};
+    return Core::Status();
 }
 
 void OnnxEncoder::logEncodeBreakdown() const {
@@ -253,7 +263,7 @@ bool ChunkedOnnxEncoder::canEncode() const {
     return availableEnd >= chunkCenterStart_ + chunkSize_ + rightPadding_;
 }
 
-void ChunkedOnnxEncoder::encode() {
+Core::Status ChunkedOnnxEncoder::encode() {
     size_t availableEnd = numDiscardedFeatures_ + inputBuffer_.size();
 
     // Figure out which inputs need to be supplied to the session and which parts belong to the chunk center
@@ -276,7 +286,12 @@ void ChunkedOnnxEncoder::encode() {
     size_t inputStartIndex = chunkStart - numDiscardedFeatures_;
     size_t nInputs         = chunkEnd - chunkStart;
 
-    auto [outputView, nOutputs, outputSize] = runSession(inputStartIndex, nInputs, prependZeroCount, appendZeroCount);
+    std::optional<SessionRunResult> runResult;
+    auto                            status = runSession(runResult, inputStartIndex, nInputs, prependZeroCount, appendZeroCount);
+    if (not status.ok()) {
+        return status;
+    }
+    auto [outputView, nOutputs, outputSize] = *runResult;
 
     size_t totalSessionInputs = prependZeroCount + nInputs + appendZeroCount;
     size_t inputsPerOutput    = (inputsPerOutput_ != 0ul) ? inputsPerOutput_ : (totalSessionInputs / nOutputs + (totalSessionInputs % nOutputs != 0ul));
@@ -319,6 +334,7 @@ void ChunkedOnnxEncoder::encode() {
             flushPendingOutputsUpTo(chunkCenterStart_);
         }
     }
+    return Core::Status();
 }
 
 void ChunkedOnnxEncoder::postEncodeCleanup() {

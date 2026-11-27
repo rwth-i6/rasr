@@ -166,13 +166,14 @@ StateManagedOnnxLabelScorer::StateManagedOnnxLabelScorer(Core::Configuration con
     startLabels_.insert(startLabels_.begin(), startLabels.begin(), startLabels.end());
 }
 
-void StateManagedOnnxLabelScorer::addInput(DataView const& input) {
-    Precursor::addInput(input);
+Core::Status StateManagedOnnxLabelScorer::addInput(DataView const& input) {
+    auto status = Precursor::addInput(input);
     encoderStatesValue_.clear();
     encoderStatesSizeValue_ = Onnx::Value();
+    return status;
 }
 
-ScoringContextRef StateManagedOnnxLabelScorer::getInitialScoringContext() {
+Core::Status StateManagedOnnxLabelScorer::getInitialScoringContext(ScoringContextRef& initialScoringContext) {
     auto rootState = stateManager_->initialState(stateVariables_, *stateVectorFactory_);
     if (rootState.empty()) {
         error("Initial recurrent state is empty.");
@@ -183,13 +184,17 @@ ScoringContextRef StateManagedOnnxLabelScorer::getInitialScoringContext() {
     for (auto const label : startLabels_) {
         std::vector<LabelIndex> labelSeq(context->labelSeq);
         labelSeq.push_back(label);
-        context = Core::ref(new StateManagedOnnxScoringContext(std::move(labelSeq), context));
-        cacheStatesAndScores({context});
+        context     = Core::ref(new StateManagedOnnxScoringContext(std::move(labelSeq), context));
+        auto status = cacheStatesAndScores({context});
+        if (not status.ok()) {
+            return status;
+        }
     }
-    return context;
+    initialScoringContext = context;
+    return Core::Status();
 }
 
-ScoringContextRef StateManagedOnnxLabelScorer::extendedScoringContext(ScoringContextRef scoringContext, LabelIndex nextToken, TransitionType transitionType) {
+Core::Status StateManagedOnnxLabelScorer::extendedScoringContext(ScoringContextRef scoringContext, LabelIndex nextToken, TransitionType transitionType, ScoringContextRef& extendedContext) {
     bool updateState = false;
     switch (transitionType) {
         case TransitionType::BLANK_LOOP:
@@ -220,7 +225,8 @@ ScoringContextRef StateManagedOnnxLabelScorer::extendedScoringContext(ScoringCon
             error() << "Unknown transition type " << transitionType;
     }
     if (not updateState) {
-        return scoringContext;
+        extendedContext = scoringContext;
+        return Core::Status();
     }
 
     StateManagedOnnxScoringContextRef context(dynamic_cast<StateManagedOnnxScoringContext const*>(scoringContext.get()));
@@ -228,7 +234,8 @@ ScoringContextRef StateManagedOnnxLabelScorer::extendedScoringContext(ScoringCon
 
     std::vector<LabelIndex> labelSeq(context->labelSeq);
     labelSeq.push_back(nextToken);
-    return Core::ref(new StateManagedOnnxScoringContext(std::move(labelSeq), context));
+    extendedContext = Core::ref(new StateManagedOnnxScoringContext(std::move(labelSeq), context));
+    return Core::Status();
 }
 
 void StateManagedOnnxLabelScorer::resetInternal() {
@@ -242,19 +249,22 @@ void StateManagedOnnxLabelScorer::resetInternal() {
     stateCache_.clear();
 }
 
-std::optional<ScoreAccessorRef> StateManagedOnnxLabelScorer::computeScoreAccessor(ScoringContextRef scoringContext) {
-    return computeScoreAccessors({scoringContext})[0];
+Core::Status StateManagedOnnxLabelScorer::computeScoreAccessor(ScoringContextRef scoringContext, std::optional<ScoreAccessorRef>& scoreAccessor) {
+    std::vector<std::optional<ScoreAccessorRef>> scoreAccessors;
+    auto                                         status = computeScoreAccessors({scoringContext}, scoreAccessors);
+    scoreAccessor                                       = scoreAccessors.front();
+    return status;
 }
 
-std::vector<std::optional<ScoreAccessorRef>> StateManagedOnnxLabelScorer::computeScoreAccessors(std::vector<ScoringContextRef> const& scoringContexts) {
+Core::Status StateManagedOnnxLabelScorer::computeScoreAccessors(std::vector<ScoringContextRef> const& scoringContexts, std::vector<std::optional<ScoreAccessorRef>>& scoreAccessors) {
+    scoreAccessors.assign(scoringContexts.size(), std::nullopt);
     if (scoringContexts.empty()) {
-        return {};
+        return Core::Status();
     }
 
-    std::vector<std::optional<ScoreAccessorRef>> scoreAccessors(scoringContexts.size(), std::nullopt);
     if ((encoderStatesName_ != "" or encoderStatesSizeName_ != "") and (expectMoreFeatures_ or bufferSize() == 0)) {
         countUncomputedAccessors(scoringContexts.size());
-        return scoreAccessors;
+        return Core::Status();
     }
 
     /*
@@ -284,11 +294,17 @@ std::vector<std::optional<ScoreAccessorRef>> StateManagedOnnxLabelScorer::comput
     for (auto const& scoringContext : uniqueUncachedScoringContexts) {
         scoringContextBatch.push_back(scoringContext);
         if (scoringContextBatch.size() == maxBatchSize_) {
-            cacheStatesAndScores(scoringContextBatch);
+            auto status = cacheStatesAndScores(scoringContextBatch);
+            if (not status.ok()) {
+                return status;
+            }
             scoringContextBatch.clear();
         }
     }
-    cacheStatesAndScores(scoringContextBatch);
+    auto status = cacheStatesAndScores(scoringContextBatch);
+    if (not status.ok()) {
+        return status;
+    }
 
     /*
      * Assign scores from cache to result vector
@@ -302,7 +318,7 @@ std::vector<std::optional<ScoreAccessorRef>> StateManagedOnnxLabelScorer::comput
     }
     contextPreparationTime_.stop();
 
-    return scoreAccessors;
+    return Core::Status();
 }
 
 size_t StateManagedOnnxLabelScorer::getMinActiveInputIndex(Core::CollapsedVector<ScoringContextRef> const& activeContexts) const {
@@ -334,14 +350,14 @@ void StateManagedOnnxLabelScorer::setupEncoderStatesSizeValue() {
     encoderStatesSizeValue_ = Onnx::Value::create(std::vector<s32>{static_cast<s32>(bufferSize())});
 }
 
-void StateManagedOnnxLabelScorer::cacheStatesAndScores(std::vector<StateManagedOnnxScoringContextRef> const& scoringContextBatch) {
+Core::Status StateManagedOnnxLabelScorer::cacheStatesAndScores(std::vector<StateManagedOnnxScoringContextRef> const& scoringContextBatch) {
     if (scoringContextBatch.empty()) {
-        return;
+        return Core::Status();
     }
 
     // Can't score before any encoder features are buffered; defer (mirrors the guard in computeScoreAccessors()).
     if ((not encoderStatesName_.empty() or not encoderStatesSizeName_.empty()) and bufferSize() == 0ul) {
-        return;
+        return Core::Status();
     }
 
     std::vector<size_t>              prefixLengths;
@@ -400,8 +416,11 @@ void StateManagedOnnxLabelScorer::cacheStatesAndScores(std::vector<StateManagedO
 
     std::vector<Onnx::Value> outputs;
     onnxSessionTime_.start();
-    onnxModel_->session.run(std::move(inputs), targets, outputs);
+    auto status = onnxModel_->session.run(std::move(inputs), targets, outputs);
     onnxSessionTime_.stop();
+    if (not status.ok()) {
+        return status;
+    }
 
     for (size_t b = 0ul; b < scoringContextBatch.size(); ++b) {
         auto scores = std::make_shared<std::vector<Score>>();
@@ -422,6 +441,7 @@ void StateManagedOnnxLabelScorer::cacheStatesAndScores(std::vector<StateManagedO
             scoringContextBatch[i]->parent.reset();
         }
     }
+    return Core::Status();
 }
 
 void StateManagedOnnxLabelScorer::logScoringBreakdown() const {

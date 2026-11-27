@@ -23,7 +23,7 @@ public:
 
 protected:
     // Gets a prior-corrected accessor for the buffered scores at the requested step
-    std::optional<ScoreAccessorRef> computeScoreAccessor(ScoringContextRef scoringContext) override;
+    Core::Status computeScoreAccessor(ScoringContextRef scoringContext, std::optional<ScoreAccessorRef>& scoreAccessor) override;
 
 private:
     const bool negateInput_;

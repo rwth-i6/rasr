@@ -104,7 +104,7 @@ Session const& OnnxInitUpdateScoreBundle::stateUpdaterSession() const {
     return stateUpdaterOnnxModel_->session;
 }
 
-OnnxNamedValuesRef OnnxInitUpdateScoreBundle::initialState(SessionInputs extraInputs) {
+Core::Status OnnxInitUpdateScoreBundle::initialState(OnnxNamedValuesRef& hiddenState, SessionInputs extraInputs) {
     std::vector<std::string> sessionOutputNames;
     std::vector<std::string> stateNames;
     {
@@ -114,17 +114,23 @@ OnnxNamedValuesRef OnnxInitUpdateScoreBundle::initialState(SessionInputs extraIn
 
     std::vector<Value> sessionOutputs;
     initializerSessionTime_.start();
-    stateInitializerOnnxModel_->session.run(std::move(extraInputs), sessionOutputNames, sessionOutputs);
+    auto status = stateInitializerOnnxModel_->session.run(std::move(extraInputs), sessionOutputNames, sessionOutputs);
     initializerSessionTime_.stop();
+    if (not status.ok()) {
+        return status;
+    }
 
     Core::StopWatch::Scope marshallingTimer(marshallingTime_);
-    return Core::ref(new OnnxNamedValues(std::move(stateNames), std::move(sessionOutputs)));
+    hiddenState = Core::ref(new OnnxNamedValues(std::move(stateNames), std::move(sessionOutputs)));
+    return Core::Status();
 }
 
-std::vector<OnnxNamedValuesRef> OnnxInitUpdateScoreBundle::updatedStates(std::vector<OnnxNamedValuesRef> const& hiddenStatesBatch,
-                                                                         SessionInputs                          extraInputs) {
+Core::Status OnnxInitUpdateScoreBundle::updatedStates(std::vector<OnnxNamedValuesRef> const& hiddenStatesBatch,
+                                                      std::vector<OnnxNamedValuesRef>&       newHiddenStates,
+                                                      SessionInputs                          extraInputs) {
+    newHiddenStates.clear();
     if (hiddenStatesBatch.empty()) {
-        return {};
+        return Core::Status();
     }
 
     /*
@@ -143,14 +149,16 @@ std::vector<OnnxNamedValuesRef> OnnxInitUpdateScoreBundle::updatedStates(std::ve
      */
     std::vector<Value> sessionOutputs;
     updaterSessionTime_.start();
-    stateUpdaterOnnxModel_->session.run(std::move(extraInputs), sessionOutputNames, sessionOutputs);
+    auto status = stateUpdaterOnnxModel_->session.run(std::move(extraInputs), sessionOutputNames, sessionOutputs);
     updaterSessionTime_.stop();
+    if (not status.ok()) {
+        return status;
+    }
 
     /*
      * Return resulting hidden states
      */
-    Core::StopWatch::Scope          marshallingTimer(marshallingTime_);
-    std::vector<OnnxNamedValuesRef> newHiddenStates;
+    Core::StopWatch::Scope marshallingTimer(marshallingTime_);
     newHiddenStates.reserve(hiddenStatesBatch.size());
     for (size_t b = 0ul; b < hiddenStatesBatch.size(); ++b) {
         std::vector<Value> stateValues;
@@ -161,13 +169,15 @@ std::vector<OnnxNamedValuesRef> OnnxInitUpdateScoreBundle::updatedStates(std::ve
         newHiddenStates.push_back(Core::ref(new OnnxNamedValues({stateNames.begin(), stateNames.end()}, std::move(stateValues))));
     }
 
-    return newHiddenStates;
+    return Core::Status();
 }
 
-std::vector<std::shared_ptr<std::vector<Nn::Score>>> OnnxInitUpdateScoreBundle::scores(std::vector<OnnxNamedValuesRef> const& hiddenStatesBatch,
-                                                                                       SessionInputs                          extraInputs) {
+Core::Status OnnxInitUpdateScoreBundle::scores(std::vector<OnnxNamedValuesRef> const&                hiddenStatesBatch,
+                                               std::vector<std::shared_ptr<std::vector<Nn::Score>>>& scoreVecs,
+                                               SessionInputs                                         extraInputs) {
+    scoreVecs.clear();
     if (hiddenStatesBatch.empty()) {
-        return {};
+        return Core::Status();
     }
 
     /*
@@ -183,14 +193,16 @@ std::vector<std::shared_ptr<std::vector<Nn::Score>>> OnnxInitUpdateScoreBundle::
      */
     std::vector<Value> sessionOutputs;
     scorerSessionTime_.start();
-    scorerOnnxModel_->session.run(std::move(extraInputs), {scorerScoresName_}, sessionOutputs);
+    auto status = scorerOnnxModel_->session.run(std::move(extraInputs), {scorerScoresName_}, sessionOutputs);
     scorerSessionTime_.stop();
+    if (not status.ok()) {
+        return status;
+    }
 
     /*
      * Return resulting score vectors
      */
-    Core::StopWatch::Scope                               marshallingTimer(marshallingTime_);
-    std::vector<std::shared_ptr<std::vector<Nn::Score>>> scoreVecs;
+    Core::StopWatch::Scope marshallingTimer(marshallingTime_);
     scoreVecs.reserve(hiddenStatesBatch.size());
     for (size_t b = 0ul; b < hiddenStatesBatch.size(); ++b) {
         auto scoreVec = std::make_shared<std::vector<Nn::Score>>();
@@ -198,7 +210,7 @@ std::vector<std::shared_ptr<std::vector<Nn::Score>>> OnnxInitUpdateScoreBundle::
         scoreVecs.push_back(scoreVec);
     }
 
-    return scoreVecs;
+    return Core::Status();
 }
 
 Core::StopWatch const& OnnxInitUpdateScoreBundle::initializerSessionTime() const {

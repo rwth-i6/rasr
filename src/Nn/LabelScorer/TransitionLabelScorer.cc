@@ -60,22 +60,29 @@ TransitionLabelScorer::TransitionLabelScorer(Core::Configuration const& config)
     }
 }
 
-void TransitionLabelScorer::signalNoMoreFeatures() {}
-
-ScoringContextRef TransitionLabelScorer::getInitialScoringContext() {
-    return Core::ref(new ScoringContext());
+Core::Status TransitionLabelScorer::signalNoMoreFeatures() {
+    return Core::Status();
 }
 
-ScoringContextRef TransitionLabelScorer::extendedScoringContext(ScoringContextRef scoringContext, LabelIndex nextToken, TransitionType transitionType) {
-    return Core::ref(new ScoringContext());
+Core::Status TransitionLabelScorer::getInitialScoringContext(ScoringContextRef& initialScoringContext) {
+    initialScoringContext = Core::ref(new ScoringContext());
+    return Core::Status();
 }
 
-void TransitionLabelScorer::addInput(DataView const& input) {}
+Core::Status TransitionLabelScorer::extendedScoringContext(ScoringContextRef scoringContext, LabelIndex nextToken, TransitionType transitionType, ScoringContextRef& extendedContext) {
+    extendedContext = Core::ref(new ScoringContext());
+    return Core::Status();
+}
+
+Core::Status TransitionLabelScorer::addInput(DataView const& input) {
+    return Core::Status();
+}
 
 void TransitionLabelScorer::resetInternal() {}
 
-std::optional<ScoreAccessorRef> TransitionLabelScorer::computeScoreAccessor(ScoringContextRef scoringContext) {
-    return transitionScoreAccessor_;
+Core::Status TransitionLabelScorer::computeScoreAccessor(ScoringContextRef scoringContext, std::optional<ScoreAccessorRef>& scoreAccessor) {
+    scoreAccessor = transitionScoreAccessor_;
+    return Core::Status();
 }
 
 }  // namespace Nn

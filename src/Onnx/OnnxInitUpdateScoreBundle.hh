@@ -25,6 +25,7 @@
 #include <Core/Component.hh>
 #include <Core/Configuration.hh>
 #include <Core/ReferenceCounting.hh>
+#include <Core/Status.hh>
 #include <Core/StopWatch.hh>
 #include <Nn/LabelScorer/ModelCache.hh>
 #include <Nn/LabelScorer/Types.hh>
@@ -105,15 +106,17 @@ public:
     Session const& stateUpdaterSession() const;
 
     // Run the state initializer to obtain the hidden state for the first step
-    OnnxNamedValuesRef initialState(SessionInputs extraInputs = {});
+    Core::Status initialState(OnnxNamedValuesRef& hiddenState, SessionInputs extraInputs = {});
 
     // Run the state updater on a batch of hidden states to obtain one updated hidden state per batch entry
-    std::vector<OnnxNamedValuesRef> updatedStates(std::vector<OnnxNamedValuesRef> const& hiddenStatesBatch,
-                                                  SessionInputs                          extraInputs = {});
+    Core::Status updatedStates(std::vector<OnnxNamedValuesRef> const& hiddenStatesBatch,
+                               std::vector<OnnxNamedValuesRef>&       newHiddenStates,
+                               SessionInputs                          extraInputs = {});
 
     // Run the scorer on a batch of hidden states to obtain one score vector per batch entry
-    std::vector<std::shared_ptr<std::vector<Nn::Score>>> scores(std::vector<OnnxNamedValuesRef> const& hiddenStatesBatch,
-                                                                SessionInputs                          extraInputs = {});
+    Core::Status scores(std::vector<OnnxNamedValuesRef> const&                hiddenStatesBatch,
+                        std::vector<std::shared_ptr<std::vector<Nn::Score>>>& scoreVecs,
+                        SessionInputs                                         extraInputs = {});
 
     // Time spent in the session runs of the individual models
     Core::StopWatch const& initializerSessionTime() const;

@@ -30,14 +30,16 @@ namespace Nn {
 StateManagedOnnxScoringContext::StateManagedOnnxScoringContext(HistoryState&& initialState)
         : labelSeq(),
           parent(),
-          state(std::make_shared<HistoryState>(std::move(initialState))) {
+          state(std::make_shared<HistoryState>(std::move(initialState))),
+          scores() {
 }
 
 StateManagedOnnxScoringContext::StateManagedOnnxScoringContext(std::vector<LabelIndex>&&                       labelSeq,
                                                                Core::Ref<StateManagedOnnxScoringContext const> parent)
         : labelSeq(std::move(labelSeq)),
           parent(parent),
-          state() {
+          state(),
+          scores() {
 }
 
 bool StateManagedOnnxScoringContext::isEqual(ScoringContextRef const& other) const {
@@ -278,7 +280,8 @@ Core::Status StateManagedOnnxLabelScorer::computeScoreAccessors(std::vector<Scor
         if (not context->state and stateCache_.contains(context)) {
             context->state = *stateCache_.get(context);
         }
-        else {
+        // Contexts that kept their parent can be forwarded again if their scores were evicted
+        if (not context->scores and not scoreCache_.contains(context)) {
             uniqueUncachedScoringContexts.emplace(context);
         }
     }
@@ -312,9 +315,13 @@ Core::Status StateManagedOnnxLabelScorer::computeScoreAccessors(std::vector<Scor
     contextPreparationTime_.start();
     for (size_t i = 0ul; i < scoringContexts.size(); ++i) {
         StateManagedOnnxScoringContextRef context(dynamic_cast<StateManagedOnnxScoringContext const*>(scoringContexts[i].get()));
-        auto                              scores = scoreCache_.get(context);
-        verify(scores);
-        scoreAccessors[i] = Core::ref(new VectorScoreAccessor(scores->get(), context->labelSeq.empty() ? 0ul : context->labelSeq.size() - 1ul));
+        auto                              scores = context->scores;
+        if (not scores) {
+            auto cachedScores = scoreCache_.get(context);
+            verify(cachedScores);
+            scores = cachedScores->get();
+        }
+        scoreAccessors[i] = Core::ref(new VectorScoreAccessor(scores, context->labelSeq.empty() ? 0ul : context->labelSeq.size() - 1ul));
     }
     contextPreparationTime_.stop();
 
@@ -425,6 +432,9 @@ Core::Status StateManagedOnnxLabelScorer::cacheStatesAndScores(std::vector<State
         auto scores = std::make_shared<std::vector<Score>>();
         outputs.front().get(b, 0, *scores);
         scoreCache_.put(scoringContextBatch[b], scores);
+        if (not stateManager_->requiresAllParentStates()) {
+            scoringContextBatch[b]->scores = scores;
+        }
     }
 
     std::vector<Onnx::Value> stateOutputs(std::make_move_iterator(outputs.begin() + 1), std::make_move_iterator(outputs.end()));

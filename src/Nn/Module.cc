@@ -35,6 +35,7 @@
 #include <Onnx/OnnxLstmStateManager.hh>
 #include <Onnx/OnnxTransformerStateManager.hh>
 #ifdef MODULE_CUDA
+#include <Onnx/LstmCudaStateManager.hh>
 #include <Onnx/TransformerCudaStateManager.hh>
 #endif
 
@@ -73,7 +74,9 @@ enum CompressedVectorFactoryType {
 
 #ifdef MODULE_ONNX
 enum StateManagerType {
-    LstmStateManagerType,
+    LstmStateManagerType,  // CPU or CUDA, depending on the execution provider of the session
+    LstmCpuStateManagerType,
+    LstmCudaStateManagerType,
     TransformerStateManagerType,  // CPU or CUDA, depending on the execution provider of the session
     TransformerCpuStateManagerType,
     TransformerCudaStateManagerType,
@@ -100,6 +103,8 @@ const Core::ParameterChoice Module_::compressedVectorFactoryTypeParam(
 #ifdef MODULE_ONNX
 const Core::Choice Module_::stateManagerTypeChoice(
         "lstm", LstmStateManagerType,
+        "lstm-cpu", LstmCpuStateManagerType,
+        "lstm-cuda", LstmCudaStateManagerType,
         "transformer", TransformerStateManagerType,
         "transformer-cpu", TransformerCpuStateManagerType,
         "transformer-cuda", TransformerCudaStateManagerType,
@@ -284,7 +289,7 @@ CompressedVectorFactoryPtr<float> Module_::createCompressedVectorFactory(Core::C
 std::unique_ptr<AbstractStateManager<Onnx::Value, Onnx::OnnxStateVariable>> Module_::createStateManager(Core::Configuration const&  config,
                                                                                                         Onnx::ExecutionProviderType sessionExecutionProvider) {
     auto type = stateManagerTypeParam(config);
-    if (type == TransformerStateManagerType) {
+    if (type == LstmStateManagerType or type == TransformerStateManagerType) {
         // States on the device if the session runs on CUDA (and RASR supports device memory), otherwise on the host.
         // The quantized variants (-16bit, -8bit) have no device version and are not switched.
 #ifdef MODULE_CUDA
@@ -292,16 +297,31 @@ std::unique_ptr<AbstractStateManager<Onnx::Value, Onnx::OnnxStateVariable>> Modu
 #else
         bool onDevice = false;
 #endif
-        type = onDevice ? TransformerCudaStateManagerType : TransformerCpuStateManagerType;
-        Core::Application::us()->log("State manager %s: using %s for a session on the %s execution provider",
+        bool isLstm = type == LstmStateManagerType;
+        if (isLstm) {
+            type = onDevice ? LstmCudaStateManagerType : LstmCpuStateManagerType;
+        }
+        else {
+            type = onDevice ? TransformerCudaStateManagerType : TransformerCpuStateManagerType;
+        }
+        Core::Application::us()->log("State manager %s: using %s%s for a session on the %s execution provider",
                                      config.getSelection().c_str(),
-                                     onDevice ? "transformer-cuda" : "transformer-cpu",
+                                     isLstm ? "lstm" : "transformer",
+                                     onDevice ? "-cuda" : "-cpu",
                                      sessionExecutionProvider == Onnx::ExecutionProviderType::cuda ? "CUDA" : "CPU");
     }
     switch (type) {
-        case LstmStateManagerType:
+        case LstmCpuStateManagerType:
             return std::unique_ptr<AbstractStateManager<Onnx::Value, Onnx::OnnxStateVariable>>(
                     new Onnx::OnnxLstmStateManager(config));
+        case LstmCudaStateManagerType:
+#ifdef MODULE_CUDA
+            return std::unique_ptr<AbstractStateManager<Onnx::Value, Onnx::OnnxStateVariable>>(
+                    new Onnx::LstmCudaStateManager(config));
+#else
+            Core::Application::us()->criticalError("State manager type lstm-cuda requires RASR compiled with MODULE_CUDA");
+            return nullptr;
+#endif
         case TransformerCpuStateManagerType:
             return std::unique_ptr<AbstractStateManager<Onnx::Value, Onnx::OnnxStateVariable>>(
                     new Onnx::OnnxTransformerStateManager<float>(config));

@@ -16,6 +16,8 @@
 #ifndef PREFIX_SPEECH_LM_ONNX_LABEL_SCORER_HH
 #define PREFIX_SPEECH_LM_ONNX_LABEL_SCORER_HH
 
+#include <unordered_map>
+
 #include <Core/FIFOCache.hh>
 #include <Onnx/Model.hh>
 
@@ -45,6 +47,9 @@ struct PrefixSpeechLmScoringContext : public ScoringContext {
     mutable Core::Ref<PrefixSpeechLmScoringContext const> parent;
 
     mutable std::shared_ptr<HistoryState> state;
+
+    // Only set once the parent is cut, since the scores can't be recomputed afterwards
+    mutable std::shared_ptr<std::vector<Score>> scores;
 
     PrefixSpeechLmScoringContext();
     PrefixSpeechLmScoringContext(std::vector<LabelIndex>&& labelSeq, Core::Ref<PrefixSpeechLmScoringContext const> parent);
@@ -155,8 +160,17 @@ private:
     void        setupInitialStates();
     Onnx::Value createEncoderStatesValue() const;
 
+    // Scores and states needed within one `computeScoreAccessors` call. They are held here from when they are looked up
+    // or computed, since `FIFOCache::put` can evict cache entries before they are read back.
+    struct ResolvedEntry {
+        std::shared_ptr<std::vector<Score>> scores;
+        std::shared_ptr<HistoryState>       state;
+    };
+    using ResolvedEntryMap = std::unordered_map<PrefixSpeechLmScoringContextRef, ResolvedEntry, ScoringContextHash, ScoringContextEq>;
+
     // Forward a batch of scoringContexts through the step ONNX model and put the resulting states and scores into the caches
-    void cacheStatesAndScores(std::vector<PrefixSpeechLmScoringContextRef> const& scoringContextBatch);
+    // and into `resolvedEntries`
+    void cacheStatesAndScores(std::vector<PrefixSpeechLmScoringContextRef> const& scoringContextBatch, ResolvedEntryMap& resolvedEntries);
 
     void logScoringBreakdown() const override;
 };

@@ -36,14 +36,16 @@ PrefixSpeechLmScoringContext::PrefixSpeechLmScoringContext()
         : labelSeq(),
           historyLength(0ul),
           parent(),
-          state() {
+          state(),
+          scores() {
 }
 
 PrefixSpeechLmScoringContext::PrefixSpeechLmScoringContext(std::vector<LabelIndex>&& labelSeq, Core::Ref<PrefixSpeechLmScoringContext const> parent)
         : labelSeq(std::move(labelSeq)),
           historyLength(0ul),
           parent(parent),
-          state() {
+          state(),
+          scores() {
 }
 
 size_t PrefixSpeechLmScoringContext::hash() const {
@@ -341,12 +343,33 @@ std::vector<std::optional<ScoreAccessorRef>> PrefixSpeechLmOnnxLabelScorer::comp
      * Identify unique scoring contexts that still need session runs
      */
     contextPreparationTime_.start();
+    ResolvedEntryMap                                                                          resolvedEntries;
     std::unordered_set<PrefixSpeechLmScoringContextRef, ScoringContextHash, ScoringContextEq> uniqueUncachedScoringContexts;
     for (auto const& scoringContext : scoringContexts) {
         PrefixSpeechLmScoringContextRef context(dynamic_cast<PrefixSpeechLmScoringContext const*>(scoringContext.get()));
         verify(context);
 
-        if (scoreCache_.contains(context)) {
+        if (resolvedEntries.find(context) != resolvedEntries.end()) {
+            continue;
+        }
+        // Contexts that kept their parent can be forwarded again if their scores were evicted
+        auto scores = context->scores;
+        if (not scores) {
+            auto cachedScores = scoreCache_.get(context);
+            if (cachedScores) {
+                scores = cachedScores->get();
+            }
+        }
+        // The caches don't evict in sync, since only `scoreCache_` holds the initial context
+        auto state = context->state;
+        if (scores and not state) {
+            auto cachedState = stateCache_.get(context);
+            if (cachedState) {
+                state = cachedState->get();
+            }
+        }
+        if (scores and state) {
+            resolvedEntries.emplace(context, ResolvedEntry{std::move(scores), std::move(state)});
             continue;
         }
 
@@ -365,28 +388,26 @@ std::vector<std::optional<ScoreAccessorRef>> PrefixSpeechLmOnnxLabelScorer::comp
     for (auto const& scoringContext : uniqueUncachedScoringContexts) {
         scoringContextBatch.push_back(scoringContext);
         if (scoringContextBatch.size() == maxBatchSize_) {
-            cacheStatesAndScores(scoringContextBatch);
+            cacheStatesAndScores(scoringContextBatch, resolvedEntries);
             scoringContextBatch.clear();
         }
     }
-    cacheStatesAndScores(scoringContextBatch);
+    cacheStatesAndScores(scoringContextBatch, resolvedEntries);
 
     /*
-     * Assign scores from cache to result vector and states to contexts that are equal to a computed one
+     * Assign resolved scores to result vector and states to contexts that are equal to a computed or cached one
      */
     contextPreparationTime_.start();
     for (size_t i = 0ul; i < scoringContexts.size(); ++i) {
         PrefixSpeechLmScoringContextRef context(dynamic_cast<PrefixSpeechLmScoringContext const*>(scoringContexts[i].get()));
+        auto                            entry = resolvedEntries.find(context);
+        verify(entry != resolvedEntries.end());
         if (not context->state) {
-            auto cachedState = stateCache_.get(context);  // Score and state caches evict in sync
-            verify(cachedState);
             verify(context->parent);
-            context->state         = cachedState->get();
+            context->state         = entry->second.state;
             context->historyLength = context->parent->historyLength + 1ul;
         }
-        auto scores = scoreCache_.get(context);
-        verify(scores);
-        scoreAccessors[i] = Core::ref(new VectorScoreAccessor(scores->get(), context->labelSeq.size()));
+        scoreAccessors[i] = Core::ref(new VectorScoreAccessor(entry->second.scores, context->labelSeq.size()));
     }
     contextPreparationTime_.stop();
 
@@ -591,7 +612,7 @@ Onnx::Value PrefixSpeechLmOnnxLabelScorer::createEncoderStatesValue() const {
     return value;
 }
 
-void PrefixSpeechLmOnnxLabelScorer::cacheStatesAndScores(std::vector<PrefixSpeechLmScoringContextRef> const& scoringContextBatch) {
+void PrefixSpeechLmOnnxLabelScorer::cacheStatesAndScores(std::vector<PrefixSpeechLmScoringContextRef> const& scoringContextBatch, ResolvedEntryMap& resolvedEntries) {
     if (scoringContextBatch.empty()) {
         return;
     }
@@ -655,10 +676,13 @@ void PrefixSpeechLmOnnxLabelScorer::cacheStatesAndScores(std::vector<PrefixSpeec
     stepOnnxModel_->session.run(std::move(inputs), targets, outputs);
     stepSessionTime_.stop();
 
+    std::vector<std::shared_ptr<std::vector<Score>>> batchScores;
+    batchScores.reserve(scoringContextBatch.size());
     for (size_t b = 0ul; b < scoringContextBatch.size(); ++b) {
         auto scores = std::make_shared<std::vector<Score>>();
         outputs.front().get(b, 0, *scores);
         scoreCache_.put(scoringContextBatch[b], scores);
+        batchScores.push_back(std::move(scores));
     }
 
     std::vector<Onnx::Value> stateOutputs(std::make_move_iterator(outputs.begin() + 1), std::make_move_iterator(outputs.end()));
@@ -672,8 +696,10 @@ void PrefixSpeechLmOnnxLabelScorer::cacheStatesAndScores(std::vector<PrefixSpeec
         scoringContextBatch[i]->historyLength = scoringContextBatch[i]->parent->historyLength + 1ul;
         scoringContextBatch[i]->state         = std::make_shared<HistoryState>(std::move(splitStates[i]));
         stateCache_.put(scoringContextBatch[i], scoringContextBatch[i]->state);
+        resolvedEntries.emplace(scoringContextBatch[i], ResolvedEntry{batchScores[i], scoringContextBatch[i]->state});
         if (not stateManager_->requiresAllParentStates()) {
             scoringContextBatch[i]->parent.reset();
+            scoringContextBatch[i]->scores = batchScores[i];
         }
     }
 }

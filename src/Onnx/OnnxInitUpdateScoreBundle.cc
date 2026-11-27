@@ -96,6 +96,14 @@ std::string OnnxInitUpdateScoreBundle::scorerOnnxName(std::string const& key) co
     return scorerOnnxModel_->mapping.getOnnxName(key);
 }
 
+Session const& OnnxInitUpdateScoreBundle::stateInitializerSession() const {
+    return stateInitializerOnnxModel_->session;
+}
+
+Session const& OnnxInitUpdateScoreBundle::stateUpdaterSession() const {
+    return stateUpdaterOnnxModel_->session;
+}
+
 Core::Status OnnxInitUpdateScoreBundle::initialState(OnnxNamedValuesRef& hiddenState, SessionInputs extraInputs) {
     std::vector<std::string> sessionOutputNames;
     std::vector<std::string> stateNames;

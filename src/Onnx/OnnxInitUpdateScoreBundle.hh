@@ -101,6 +101,10 @@ public:
     std::string stateUpdaterOnnxName(std::string const& key) const;
     std::string scorerOnnxName(std::string const& key) const;
 
+    // Sessions of the models, e.g. to prepare extra inputs in their memory location
+    Session const& stateInitializerSession() const;
+    Session const& stateUpdaterSession() const;
+
     // Run the state initializer to obtain the hidden state for the first step
     Core::Status initialState(OnnxNamedValuesRef& hiddenState, SessionInputs extraInputs = {});
 

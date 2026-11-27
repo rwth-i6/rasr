@@ -24,6 +24,7 @@
 #include <Core/ReferenceCounting.hh>
 #include <Mm/FeatureScorer.hh>
 #include <Onnx/OnnxInitUpdateScoreBundle.hh>
+#include <Onnx/PersistentInput.hh>
 #include <Speech/Feature.hh>
 
 #include "BufferedLabelScorer.hh"
@@ -118,8 +119,9 @@ private:
     std::string updaterTokenName_;
 
     // Store the onnx values with all encoder states and lengths inside so that it doesn't have to be recomputed every time
-    Onnx::Value encoderStatesValue_;
-    Onnx::Value encoderStatesSizeValue_;
+    // The encoder states are passed to the session runs as views to avoid copies (and uploaded to the device only once for CUDA sessions)
+    Onnx::PersistentInput encoderStatesValue_;
+    Onnx::Value           encoderStatesSizeValue_;
 
     // Preparing the session inputs that are not hidden states and moving hidden states between the
     // caches and the batches. The session times and the marshalling done inside `initUpdateScoreBundle_`

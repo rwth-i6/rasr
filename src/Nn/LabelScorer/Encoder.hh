@@ -21,6 +21,7 @@
 
 #include <Core/Channel.hh>
 #include <Core/Component.hh>
+#include <Core/Status.hh>
 #include <Core/StopWatch.hh>
 
 #include "DataView.hh"
@@ -65,8 +66,8 @@ public:
 
     // Retrieve the next encoder output frame
     // Performs encoder forwarding internally if necessary
-    // Can return None if not enough input features are available yet
-    std::optional<EncodedSpan> getNextOutput();
+    // `output` is None if not enough input features are available yet
+    Core::Status getNextOutput(std::optional<EncodedSpan>& output);
 
 protected:
     std::deque<DataView>    inputBuffer_;
@@ -87,7 +88,7 @@ protected:
     virtual void resetInternal();
 
     // Encode features inside the input buffer and put the results into the output buffer
-    virtual void encode() = 0;
+    virtual Core::Status encode() = 0;
 
     // Clean up all features from input buffer that have been processed by `encode` and are not needed anymore.
     // By default, this clears out the entire input buffer.

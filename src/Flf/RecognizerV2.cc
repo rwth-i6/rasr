@@ -31,6 +31,8 @@ RecognizerNodeV2::RecognizerNodeV2(const std::string& name, const Core::Configur
         : Node(name, config),
           latticeResultBuffer_(),
           segmentResultBuffer_(),
+          status_(),
+          resultValid_(false),
           latticeHandler_(Flf::Module::instance().createLatticeHandler(config)),
           searchAlgorithm_(Search::Module::instance().createSearchAlgorithmV2(select("search-algorithm"))),
           modelCombination_() {
@@ -47,8 +49,14 @@ void RecognizerNodeV2::recognizeSegment(const Bliss::SpeechSegment* segment) {
                << Core::XmlClose("orth");
     }
 
+    segmentResultBuffer_ = SegmentRef(new Flf::Segment(segment));
+
     // Initialize recognizer and feature extractor
-    searchAlgorithm_->enterSegment();
+    status_ = searchAlgorithm_->enterSegment();
+    if (not status_.ok()) {
+        error() << "Recognition of segment " << segment->name() << " failed: " << status_.message();
+        return;
+    }
 
     featureExtractor_->enterSegment(segment);
     DataSourceRef dataSource = featureExtractor_->extractor();
@@ -63,13 +71,20 @@ void RecognizerNodeV2::recognizeSegment(const Bliss::SpeechSegment* segment) {
 
     // Loop over features and perform recognition
     do {
-        searchAlgorithm_->putFeature(feature->mainStream());
+        status_      = searchAlgorithm_->putFeature(feature->mainStream());
         endTimestamp = feature->timestamp().endTime();
-    } while (dataSource->getData(feature));
+    } while (status_.ok() and dataSource->getData(feature));
 
-    searchAlgorithm_->finishSegment();
+    if (status_.ok()) {
+        status_ = searchAlgorithm_->finishSegment();
+    }
     dataSource->finalize();
     featureExtractor_->leaveSegment(segment);
+
+    if (not status_.ok()) {
+        error() << "Recognition of segment " << segment->name() << " failed: " << status_.message();
+        return;
+    }
 
     // Result processing and logging
     auto traceback = searchAlgorithm_->getCurrentBestTraceback();
@@ -81,7 +96,6 @@ void RecognizerNodeV2::recognizeSegment(const Bliss::SpeechSegment* segment) {
             segment->name(),
             modelCombination_->languageModel()->scale());
     latticeResultBuffer_ = lattice;
-    segmentResultBuffer_ = SegmentRef(new Flf::Segment(segment));
 
     Core::XmlWriter& os(clog());
     os << Core::XmlOpen("traceback");
@@ -108,6 +122,7 @@ void RecognizerNodeV2::work() {
     clog() << Core::XmlOpen("layer") + Core::XmlAttribute("name", name);
     recognizeSegment(static_cast<const Bliss::SpeechSegment*>(requestData(0)));
     clog() << Core::XmlClose("layer");
+    resultValid_ = true;
 }
 
 ConstLatticeRef convertSearchLatticeToFlf(LexiconRef lexicon, Core::Ref<const Search::LatticeAdaptor> latticeAdaptor, Flf::LatticeHandler const* handler, std::string segmentName, f32 lmScale) {
@@ -226,23 +241,49 @@ void RecognizerNodeV2::init(std::vector<std::string> const& arguments) {
 void RecognizerNodeV2::sync() {
     latticeResultBuffer_.reset();
     segmentResultBuffer_.reset();
+    status_      = Core::Status();
+    resultValid_ = false;
 }
 
 void RecognizerNodeV2::finalize() {
 }
 
 ConstSegmentRef RecognizerNodeV2::sendSegment(RecognizerNodeV2::Port to) {
-    if (not segmentResultBuffer_) {
+    if (not resultValid_) {
         work();
     }
     return segmentResultBuffer_;
 }
 
 ConstLatticeRef RecognizerNodeV2::sendLattice(RecognizerNodeV2::Port to) {
-    if (not latticeResultBuffer_) {
+    if (not resultValid_) {
         work();
     }
     return latticeResultBuffer_;
+}
+
+bool RecognizerNodeV2::sendBool(RecognizerNodeV2::Port to) {
+    verify(to == 1);
+    if (not resultValid_) {
+        work();
+    }
+    return status_.ok();
+}
+
+s32 RecognizerNodeV2::sendInt(RecognizerNodeV2::Port to) {
+    verify(to == 1);
+    if (not resultValid_) {
+        work();
+    }
+    return static_cast<s32>(status_.code());
+}
+
+std::string RecognizerNodeV2::sendString(RecognizerNodeV2::Port to) {
+    verify(to == 1);
+    if (not resultValid_) {
+        work();
+    }
+    return status_.message();
 }
 
 }  // namespace Flf

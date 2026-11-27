@@ -25,12 +25,14 @@ BufferedLabelScorer::BufferedLabelScorer(Core::Configuration const& config, Tran
           numDeletedInputs_(0ul) {
 }
 
-void BufferedLabelScorer::signalNoMoreFeatures() {
+Core::Status BufferedLabelScorer::signalNoMoreFeatures() {
     expectMoreFeatures_ = false;
+    return Core::Status();
 }
 
-void BufferedLabelScorer::addInput(DataView const& input) {
+Core::Status BufferedLabelScorer::addInput(DataView const& input) {
     inputBuffer_.push_back(input);
+    return Core::Status();
 }
 
 void BufferedLabelScorer::cleanupCaches(Core::CollapsedVector<ScoringContextRef> const& activeContexts) {

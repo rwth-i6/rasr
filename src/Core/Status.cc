@@ -51,6 +51,8 @@ std::string statusCodeToString(StatusCode code) {
             return "DATA_LOSS";
         case StatusCode::Unauthenticated:
             return "UNAUTHENTICATED";
+        case StatusCode::InvalidFileFormat:
+            return "INVALID_FILE_FORMAT";
     }
     return "UNKNOWN_ERROR_TYPE";
 }
@@ -68,11 +70,11 @@ Status::Status(StatusCode code, std::string msg)
 }
 
 std::string Status::message() const {
-    std::stringstream msg(statusCodeToString(code_));
+    std::string msg = statusCodeToString(code_);
     if (!msg_.empty()) {
-        msg << ": " << msg_;
+        msg += ": " + msg_;
     }
-    return msg.str();
+    return msg;
 }
 
 void Status::update(StatusCode code) {
@@ -87,7 +89,7 @@ void Status::update(StatusCode code, std::string msg) {
 }
 
 void Status::update(Status const& status) {
-    update(status.code(), status.message());
+    update(status.code_, status.msg_);
 }
 
 }  // namespace Core

@@ -240,7 +240,8 @@ LexiconfreeRNNTTimesyncBeamSearch::LexiconfreeRNNTTimesyncBeamSearch(Core::Confi
           numHypsAfterPruning_("num-hyps-after-pruning"),
           numActiveHyps_("num-active-hyps"),
           currentSearchStep_(0ul),
-          finishedSegment_(false) {
+          finishedSegment_(false),
+          searchStepsOpen_(false) {
     auto maxBeamSizes = paramMaxBeamSizes(config);
     maxBeamSizes_.insert(maxBeamSizes_.begin(), maxBeamSizes.begin(), maxBeamSizes.end());
 
@@ -332,7 +333,10 @@ bool LexiconfreeRNNTTimesyncBeamSearch::setModelCombination(Speech::ModelCombina
     return true;
 }
 
-void LexiconfreeRNNTTimesyncBeamSearch::enterSegment(Bliss::SpeechSegment const* segment) {
+Core::Status LexiconfreeRNNTTimesyncBeamSearch::enterSegment(Bliss::SpeechSegment const* segment) {
+    // A previous segment that failed or was never finished may have left its element open
+    closeSearchSteps();
+
     initializationTime_.reset();
     featureProcessingTime_.reset();
     recognitionTime_.reset();
@@ -366,7 +370,11 @@ void LexiconfreeRNNTTimesyncBeamSearch::enterSegment(Bliss::SpeechSegment const*
     beam_.push_back(LabelHypothesis());
     beam_.front().scoringContexts.clear();
     for (auto& labelScorer : labelScorers_) {
-        beam_.front().scoringContexts.push_back(labelScorer->getInitialScoringContext());
+        auto status = labelScorer->getInitialScoringContext(beam_.front().scoringContexts.emplace_back());
+        if (not status.ok()) {
+            initializationTime_.stop();
+            return status;
+        }
     }
 
     currentSearchStep_  = 0ul;
@@ -375,42 +383,54 @@ void LexiconfreeRNNTTimesyncBeamSearch::enterSegment(Bliss::SpeechSegment const*
 
     initializationTime_.stop();
 
-    if (stepwiseStatisticsChannel_.isOpen()) {
-        stepwiseStatisticsChannel_ << Core::XmlOpen("search-steps");
-    }
+    openSearchSteps();
+    return Core::Status();
 }
 
-void LexiconfreeRNNTTimesyncBeamSearch::finishSegment() {
+Core::Status LexiconfreeRNNTTimesyncBeamSearch::finishSegment() {
     featureProcessingTime_.start();
     for (auto& labelScorer : labelScorers_) {
-        labelScorer->signalNoMoreFeatures();
+        auto status = labelScorer->signalNoMoreFeatures();
+        if (not status.ok()) {
+            featureProcessingTime_.stop();
+            return closeSearchStepsOnError(status);
+        }
     }
     featureProcessingTime_.stop();
-    decodeManySteps();
+    unsigned numSteps;
+    auto     status = decodeManySteps(numSteps);
+    if (not status.ok()) {
+        return closeSearchStepsOnError(status);
+    }
     finalizeTime_.start();
     finalizeHypotheses();
     finalizeTime_.stop();
     finishedSegment_ = true;
-    if (stepwiseStatisticsChannel_.isOpen()) {
-        stepwiseStatisticsChannel_ << Core::XmlClose("search-steps");
-    }
+    closeSearchSteps();
     logStatistics();
+    return Core::Status();
 }
 
-void LexiconfreeRNNTTimesyncBeamSearch::putFeature(Nn::DataView const& feature) {
-    featureProcessingTime_.start();
+Core::Status LexiconfreeRNNTTimesyncBeamSearch::putFeature(Nn::DataView const& feature) {
+    Core::StopWatch::Scope timer(featureProcessingTime_);
     for (auto& labelScorer : labelScorers_) {
-        labelScorer->addInput(feature);
+        auto status = labelScorer->addInput(feature);
+        if (not status.ok()) {
+            return closeSearchStepsOnError(status);
+        }
     }
-    featureProcessingTime_.stop();
+    return Core::Status();
 }
 
-void LexiconfreeRNNTTimesyncBeamSearch::putFeatures(Nn::DataView const& features, size_t nTimesteps) {
-    featureProcessingTime_.start();
+Core::Status LexiconfreeRNNTTimesyncBeamSearch::putFeatures(Nn::DataView const& features, size_t nTimesteps) {
+    Core::StopWatch::Scope timer(featureProcessingTime_);
     for (auto& labelScorer : labelScorers_) {
-        labelScorer->addInputs(features, nTimesteps);
+        auto status = labelScorer->addInputs(features, nTimesteps);
+        if (not status.ok()) {
+            return closeSearchStepsOnError(status);
+        }
     }
-    featureProcessingTime_.stop();
+    return Core::Status();
 }
 
 Core::Ref<const Traceback> LexiconfreeRNNTTimesyncBeamSearch::getCurrentBestTraceback() const {
@@ -451,28 +471,29 @@ Core::Ref<const LatticeTrace> LexiconfreeRNNTTimesyncBeamSearch::getCommonPrefix
     return Core::Ref<const LatticeTrace>(searcher.rootTrace());
 }
 
-bool LexiconfreeRNNTTimesyncBeamSearch::decodeStep() {
+Core::Status LexiconfreeRNNTTimesyncBeamSearch::decodeStep(bool& stepMade) {
+    stepMade = false;
     if (finishedSegment_) {
-        return false;
+        return Core::Status();
     }
 
     // Without hypotheses there is nothing to score, so no input can be consumed and the step would never progress
     if (beam_.empty()) {
-        return false;
+        return Core::Status();
     }
 
     recognitionTime_.start();
 
-    // Discard the partial work of this timestep if a label scorer can't score it yet. `beam_` stays intact,
+    // Discard the partial work of this timestep if a label scorer can't score it yet or failed. `beam_` stays intact,
     // so the timestep is redone from scratch once the label scorers have received more input
-    auto postponeTimestep = [this](bool symbolStepStatisticsOpen) {
+    auto postponeTimestep = [this](bool symbolStepStatisticsOpen, Core::Status status = Core::Status()) {
         if (symbolStepStatisticsOpen and stepwiseStatisticsChannel_.isOpen()) {
             stepwiseStatisticsChannel_ << Core::XmlClose("symbol-step-stats");
         }
         outerHyps_.clear();
         closeStepStatistics();
         recognitionTime_.stop();
-        return false;
+        return closeSearchStepsOnError(status);
     };
 
     // Start timestep with beam of previous timestep
@@ -502,7 +523,10 @@ bool LexiconfreeRNNTTimesyncBeamSearch::decodeStep() {
         {
             Core::StopWatch::Scope scoreAndPruneTimer(scoreAndPruneExtensionsTimes_.front());
             Core::StopWatch::Scope scoringTimer(scoringTimes_.front());
-            scoreAccessors = labelScorers_.front()->getScoreAccessors(scoringContexts_);
+            auto                   status = labelScorers_.front()->getScoreAccessors(scoringContexts_, scoreAccessors);
+            if (not status.ok()) {
+                return postponeTimestep(false, status);
+            }
         }
 
         // Check if any scoring context could be scored
@@ -536,14 +560,19 @@ bool LexiconfreeRNNTTimesyncBeamSearch::decodeStep() {
 
         // Unlike the non-blank extensions below, the blank extensions are not pruned after the first label scorer
         // because there is only one blank candidate per inner hyp, so an intermediate cut isn't needed for performance here
-        if (not scoreAndPruneWithRemainingLabelScorers(extensions_, innerHyps_, false)) {
-            return postponeTimestep(true);
+        bool scored = false;
+        auto status = scoreAndPruneWithRemainingLabelScorers(extensions_, innerHyps_, false, scored);
+        if (not status.ok() or not scored) {
+            return postponeTimestep(true, status);
         }
 
         // Create new label hypotheses from extension candidates and add them to the set of all outer hyps of this timestep
         buildNewBeamTime_.start();
-        buildHypsFromExtensions(outerHyps_);
+        status = buildHypsFromExtensions(outerHyps_);
         buildNewBeamTime_.stop();
+        if (not status.ok()) {
+            return postponeTimestep(true, status);
+        }
 
         recombinationTime_.start();
         recombination(outerHyps_);
@@ -586,8 +615,9 @@ bool LexiconfreeRNNTTimesyncBeamSearch::decodeStep() {
             stepwiseStatisticsChannel_ << Core::XmlFull("num-hyps-after-intermediate-pruning", extensions_.size()) + Core::XmlAttribute("scorer", 1);
         }
 
-        if (not scoreAndPruneWithRemainingLabelScorers(extensions_, innerHyps_, true)) {
-            return postponeTimestep(true);
+        status = scoreAndPruneWithRemainingLabelScorers(extensions_, innerHyps_, true, scored);
+        if (not status.ok() or not scored) {
+            return postponeTimestep(true, status);
         }
 
         // Prune extension candidates down to maxBeamSize based on the raw score
@@ -599,8 +629,11 @@ bool LexiconfreeRNNTTimesyncBeamSearch::decodeStep() {
         // Create new label hypotheses from extension candidates
         buildNewBeamTime_.start();
         newBeam_.clear();
-        buildHypsFromExtensions(newBeam_);
+        status = buildHypsFromExtensions(newBeam_);
         buildNewBeamTime_.stop();
+        if (not status.ok()) {
+            return postponeTimestep(true, status);
+        }
 
         // If there are already more than maxBeamSize outer hyps,
         // remove all inner hyps with a score that is worse than the worst score of the max-beam-size best outer hyps
@@ -681,7 +714,8 @@ bool LexiconfreeRNNTTimesyncBeamSearch::decodeStep() {
     recognitionTime_.stop();
 
     logStepStatistics();
-    return true;
+    stepMade = true;
+    return Core::Status();
 }
 
 LexiconfreeRNNTTimesyncBeamSearch::LabelHypothesis const& LexiconfreeRNNTTimesyncBeamSearch::getBestHypothesis() const {
@@ -859,7 +893,8 @@ void LexiconfreeRNNTTimesyncBeamSearch::createExtensions(std::vector<std::option
     }
 }
 
-bool LexiconfreeRNNTTimesyncBeamSearch::scoreAndPruneWithRemainingLabelScorers(std::vector<ExtensionCandidate>& extensions, std::vector<LabelHypothesis> const& baseHyps, bool countStatistics) {
+Core::Status LexiconfreeRNNTTimesyncBeamSearch::scoreAndPruneWithRemainingLabelScorers(std::vector<ExtensionCandidate>& extensions, std::vector<LabelHypothesis> const& baseHyps, bool countStatistics, bool& scored) {
+    scored = false;
     for (size_t scorerIdx = 1ul; scorerIdx < labelScorers_.size(); ++scorerIdx) {
         Core::StopWatch::Scope scoreAndPruneTimer(scoreAndPruneExtensionsTimes_[scorerIdx]);
         auto const&            labelScorer = labelScorers_[scorerIdx];
@@ -877,7 +912,10 @@ bool LexiconfreeRNNTTimesyncBeamSearch::scoreAndPruneWithRemainingLabelScorers(s
         std::vector<std::optional<Nn::ScoreAccessorRef>> scoreAccessors;
         {
             Core::StopWatch::Scope scoringTimer(scoringTimes_[scorerIdx]);
-            scoreAccessors = labelScorer->getScoreAccessors(scoringContexts_);
+            auto                   status = labelScorer->getScoreAccessors(scoringContexts_, scoreAccessors);
+            if (not status.ok()) {
+                return status;
+            }
         }
 
         // Without this check, all extensions would be pruned as unscorable below and the timestep would end
@@ -885,7 +923,7 @@ bool LexiconfreeRNNTTimesyncBeamSearch::scoreAndPruneWithRemainingLabelScorers(s
         bool anyScored = std::any_of(scoreAccessors.begin(), scoreAccessors.end(),
                                      [](auto const& a) { return a.has_value(); });
         if (not scoringContexts_.empty() and not anyScored) {
-            return false;
+            return Core::Status();
         }
 
         {
@@ -934,24 +972,30 @@ bool LexiconfreeRNNTTimesyncBeamSearch::scoreAndPruneWithRemainingLabelScorers(s
             }
         }
     }
-    return true;
+    scored = true;
+    return Core::Status();
 }
 
-void LexiconfreeRNNTTimesyncBeamSearch::buildHypsFromExtensions(std::vector<LabelHypothesis>& hyps) {
+Core::Status LexiconfreeRNNTTimesyncBeamSearch::buildHypsFromExtensions(std::vector<LabelHypothesis>& hyps) {
     for (auto const& extension : extensions_) {
         auto const& baseHyp = innerHyps_[extension.baseHypIndex];
 
         std::vector<Nn::ScoringContextRef> newScoringContexts;
         newScoringContexts.reserve(labelScorers_.size());
         for (size_t scorerIdx = 0ul; scorerIdx < labelScorers_.size(); ++scorerIdx) {
-            newScoringContexts.push_back(labelScorers_[scorerIdx]->extendedScoringContext(
+            auto status = labelScorers_[scorerIdx]->extendedScoringContext(
                     baseHyp.scoringContexts[scorerIdx],
                     extension.nextToken,
-                    extension.transitionType));
+                    extension.transitionType,
+                    newScoringContexts.emplace_back());
+            if (not status.ok()) {
+                return status;
+            }
         }
 
         hyps.push_back({baseHyp, extension, newScoringContexts, lengthNormScale_});
     }
+    return Core::Status();
 }
 
 template<typename Element, typename ScoreFn>
@@ -1128,6 +1172,28 @@ void LexiconfreeRNNTTimesyncBeamSearch::closeStepStatistics() {
 
     stepwiseStatisticsChannel_ << Core::XmlClose("search-step-stats");
     stepStatisticsOpen_ = false;
+}
+
+void LexiconfreeRNNTTimesyncBeamSearch::openSearchSteps() {
+    if (stepwiseStatisticsChannel_.isOpen()) {
+        stepwiseStatisticsChannel_ << Core::XmlOpen("search-steps");
+        searchStepsOpen_ = true;
+    }
+}
+
+void LexiconfreeRNNTTimesyncBeamSearch::closeSearchSteps() {
+    if (not searchStepsOpen_) {
+        return;
+    }
+    stepwiseStatisticsChannel_ << Core::XmlClose("search-steps");
+    searchStepsOpen_ = false;
+}
+
+Core::Status LexiconfreeRNNTTimesyncBeamSearch::closeSearchStepsOnError(Core::Status status) {
+    if (not status.ok()) {
+        closeSearchSteps();
+    }
+    return status;
 }
 
 void LexiconfreeRNNTTimesyncBeamSearch::logStepStatistics() {

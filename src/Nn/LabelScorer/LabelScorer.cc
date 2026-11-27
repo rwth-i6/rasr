@@ -29,11 +29,15 @@ LabelScorer::LabelScorer(Core::Configuration const& config, TransitionPresetType
           enabledTransitions_(config, defaultPreset) {
 }
 
-void LabelScorer::addInputs(DataView const& input, size_t nTimesteps) {
+Core::Status LabelScorer::addInputs(DataView const& input, size_t nTimesteps) {
     auto featureSize = input.size() / nTimesteps;
     for (size_t t = 0ul; t < nTimesteps; ++t) {
-        addInput({input, featureSize, t * featureSize});
+        auto status = addInput({input, featureSize, t * featureSize});
+        if (not status.ok()) {
+            return status;
+        }
     }
+    return Core::Status();
 }
 
 TransitionSet LabelScorer::enabledTransitions() const {
@@ -73,27 +77,30 @@ void StatTrackingLabelScorer::logStatistics() const {
     statisticsChannel_ << Core::XmlClose("label-scorer-statistics");
 }
 
-std::optional<ScoreAccessorRef> StatTrackingLabelScorer::getScoreAccessor(ScoringContextRef scoringContext) {
+Core::Status StatTrackingLabelScorer::getScoreAccessor(ScoringContextRef scoringContext, std::optional<ScoreAccessorRef>& scoreAccessor) {
     ++numScoreAccessorsRequested_;
     ++numScoreAccessorsComputed_;
     Core::StopWatch::Scope timer(scoringTime_);
-    return computeScoreAccessor(scoringContext);
+    return computeScoreAccessor(scoringContext, scoreAccessor);
 }
 
-std::vector<std::optional<ScoreAccessorRef>> StatTrackingLabelScorer::getScoreAccessors(std::vector<ScoringContextRef> const& scoringContexts) {
+Core::Status StatTrackingLabelScorer::getScoreAccessors(std::vector<ScoringContextRef> const& scoringContexts, std::vector<std::optional<ScoreAccessorRef>>& scoreAccessors) {
     numScoreAccessorsRequested_ += scoringContexts.size();
     numScoreAccessorsComputed_ += scoringContexts.size();
     Core::StopWatch::Scope timer(scoringTime_);
-    return computeScoreAccessors(scoringContexts);
+    return computeScoreAccessors(scoringContexts, scoreAccessors);
 }
 
-std::vector<std::optional<ScoreAccessorRef>> StatTrackingLabelScorer::computeScoreAccessors(std::vector<ScoringContextRef> const& scoringContexts) {
-    std::vector<std::optional<ScoreAccessorRef>> result;
-    result.reserve(scoringContexts.size());
+Core::Status StatTrackingLabelScorer::computeScoreAccessors(std::vector<ScoringContextRef> const& scoringContexts, std::vector<std::optional<ScoreAccessorRef>>& scoreAccessors) {
+    scoreAccessors.clear();
+    scoreAccessors.reserve(scoringContexts.size());
     for (auto const& scoringContext : scoringContexts) {
-        result.push_back(computeScoreAccessor(scoringContext));
+        auto status = computeScoreAccessor(scoringContext, scoreAccessors.emplace_back());
+        if (not status.ok()) {
+            return status;
+        }
     }
-    return result;
+    return Core::Status();
 }
 
 void StatTrackingLabelScorer::countUncomputedAccessors(size_t num) const {

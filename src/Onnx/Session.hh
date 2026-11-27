@@ -9,6 +9,7 @@
 #include <onnxruntime_cxx_api.h>
 
 #include <Core/Component.hh>
+#include <Core/Status.hh>
 
 #include "OnnxStateVariable.hh"
 #include "Value.hh"
@@ -51,19 +52,19 @@ public:
     std::vector<int64_t> getOutputShape(std::string const& name) const;
 
     // Same as the overload below with all outputs at their DEFAULT location
-    bool run(std::vector<std::pair<std::string, Value>>&& inputs,
-             std::vector<std::string> const&              output_names,
-             std::vector<Value>&                          outputs);
+    Core::Status run(std::vector<std::pair<std::string, Value>>&& inputs,
+                     std::vector<std::string> const&              output_names,
+                     std::vector<Value>&                          outputs);
 
     /*
      * Run with a memory location per output (empty: all DEFAULT)
      * DEFAULT: state outputs go to the device if their state input is there, all other outputs to the host
      * Device inputs or outputs require the CUDA execution provider
      */
-    bool run(std::vector<std::pair<std::string, Value>>&& inputs,
-             std::vector<std::string> const&              output_names,
-             std::vector<Value>&                          outputs,
-             std::vector<MemoryLocation> const&           output_locations);
+    Core::Status run(std::vector<std::pair<std::string, Value>>&& inputs,
+                     std::vector<std::string> const&              output_names,
+                     std::vector<Value>&                          outputs,
+                     std::vector<MemoryLocation> const&           output_locations);
 
     /*
      * cudaStream_t of this session (nullptr without the CUDA execution provider)
@@ -104,14 +105,14 @@ private:
     void initializeStateVariablesMetadata();
 
     // Run without IO binding (all inputs and outputs in host memory)
-    bool runPlain(std::vector<std::pair<std::string, Value>>&& inputs,
-                  std::vector<std::string> const&              output_names,
-                  std::vector<Value>&                          outputs);
+    Core::Status runPlain(std::vector<std::pair<std::string, Value>>&& inputs,
+                          std::vector<std::string> const&              output_names,
+                          std::vector<Value>&                          outputs);
 
-    bool runWithBinding(std::vector<std::pair<std::string, Value>>& inputs,
-                        std::vector<std::string> const&             output_names,
-                        std::vector<Value>&                         outputs,
-                        std::vector<MemoryLocation> const&          output_locations);
+    Core::Status runWithBinding(std::vector<std::pair<std::string, Value>>& inputs,
+                                std::vector<std::string> const&             output_names,
+                                std::vector<Value>&                         outputs,
+                                std::vector<MemoryLocation> const&          output_locations);
 };
 
 }  // namespace Onnx

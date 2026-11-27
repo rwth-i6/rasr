@@ -24,6 +24,7 @@
 #include <Core/Configuration.hh>
 #include <Core/Parameter.hh>
 #include <Core/ReferenceCounting.hh>
+#include <Core/Status.hh>
 #include <Core/StopWatch.hh>
 #include <Core/Types.hh>
 #include <Core/XmlStream.hh>
@@ -74,6 +75,9 @@ namespace Nn {
  *    to clean up any internal data (e.g. feature buffer) or reset flags of the LabelScorer. Afterwards
  *    it is ready to receive features for the next segment.
  *
+ * Methods that may run a model return a `Core::Status` and their result via an out-parameter.
+ * After a non-OK status, the segment can't be continued and `reset` has to be called.
+ *
  * Each concrete subclass internally implements a concrete type of scoring context which the outside
  * search algorithm is agnostic to. Depending on the model, this scoring context can consist of things like
  * the current timestep, a label history, a hidden state or other values.
@@ -91,32 +95,32 @@ public:
     virtual void logStatistics() const = 0;
 
     // Tells the LabelScorer that there will be no more input features coming in the current segment
-    virtual void signalNoMoreFeatures() = 0;
+    virtual Core::Status signalNoMoreFeatures() = 0;
 
     // Gets initial scoring context to use for the hypotheses in the first search step
-    virtual ScoringContextRef getInitialScoringContext() = 0;
+    virtual Core::Status getInitialScoringContext(ScoringContextRef& initialScoringContext) = 0;
 
     // Creates a copy of the context in the request that is extended using the given token and transition type
-    virtual ScoringContextRef extendedScoringContext(ScoringContextRef scoringContext, LabelIndex nextToken, TransitionType transitionType) = 0;
+    virtual Core::Status extendedScoringContext(ScoringContextRef scoringContext, LabelIndex nextToken, TransitionType transitionType, ScoringContextRef& extendedContext) = 0;
 
     // Given a collection of currently active contexts, this function can clean up values in any internal caches
     // or buffers that are saved for scoring contexts which no longer are active.
     virtual void cleanupCaches(Core::CollapsedVector<ScoringContextRef> const& activeContexts) {};
 
     // Add a single input feature
-    virtual void addInput(DataView const& input) = 0;
+    virtual Core::Status addInput(DataView const& input) = 0;
 
     // Add input features for multiple time steps at once
-    virtual void addInputs(DataView const& input, size_t nTimesteps);
+    virtual Core::Status addInputs(DataView const& input, size_t nTimesteps);
 
     // Perform scoring computation for a single context and return a score accessor
     // that allows retrieving the scores of specific labels or transition types as well
     // as the associated timeframe.
-    // Returns std::nullopt if the LabelScorer is not ready to score the context yet.
-    virtual std::optional<ScoreAccessorRef> getScoreAccessor(ScoringContextRef scoringContext) = 0;
+    // `scoreAccessor` is std::nullopt if the LabelScorer is not ready to score the context yet.
+    virtual Core::Status getScoreAccessor(ScoringContextRef scoringContext, std::optional<ScoreAccessorRef>& scoreAccessor) = 0;
 
     // Same for a batch of contexts, possibly utilizing batched computation.
-    virtual std::vector<std::optional<ScoreAccessorRef>> getScoreAccessors(std::vector<ScoringContextRef> const& scoringContexts) = 0;
+    virtual Core::Status getScoreAccessors(std::vector<ScoringContextRef> const& scoringContexts, std::vector<std::optional<ScoreAccessorRef>>& scoreAccessors) = 0;
 
     // Check whether the given transition type can be scored by this LabelScorer
     inline bool scoresTransition(TransitionType transitionType) const {
@@ -146,8 +150,8 @@ public:
     void reset() final;
     void logStatistics() const override;
 
-    std::optional<ScoreAccessorRef>              getScoreAccessor(ScoringContextRef scoringContext) final;
-    std::vector<std::optional<ScoreAccessorRef>> getScoreAccessors(std::vector<ScoringContextRef> const& scoringContexts) final;
+    Core::Status getScoreAccessor(ScoringContextRef scoringContext, std::optional<ScoreAccessorRef>& scoreAccessor) final;
+    Core::Status getScoreAccessors(std::vector<ScoringContextRef> const& scoringContexts, std::vector<std::optional<ScoreAccessorRef>>& scoreAccessors) final;
 
 protected:
     // Time spent in `computeScoreAccessor(s)`. Scorers that compute scores lazily add those
@@ -166,11 +170,11 @@ protected:
     virtual void resetInternal() = 0;
 
     // Compute the score accessor for a single context.
-    virtual std::optional<ScoreAccessorRef> computeScoreAccessor(ScoringContextRef scoringContext) = 0;
+    virtual Core::Status computeScoreAccessor(ScoringContextRef scoringContext, std::optional<ScoreAccessorRef>& scoreAccessor) = 0;
 
     // Same for a batch of contexts. By default loops over the single-context version;
     // override to exploit batched computation.
-    virtual std::vector<std::optional<ScoreAccessorRef>> computeScoreAccessors(std::vector<ScoringContextRef> const& scoringContexts);
+    virtual Core::Status computeScoreAccessors(std::vector<ScoringContextRef> const& scoringContexts, std::vector<std::optional<ScoreAccessorRef>>& scoreAccessors);
 
     // Hook for subclasses to break down `scoring-time`. Called inside that element, so only
     // timers whose intervals are contained in it belong here.

@@ -42,7 +42,11 @@ Speech::ModelCombination& SearchAlgorithm::modelCombination() {
     return modelCombination_;
 }
 
-void SearchAlgorithm::enterSegment(std::string const& name) {
+Core::Status SearchAlgorithm::status() const {
+    return status_;
+}
+
+Core::Status SearchAlgorithm::enterSegment(std::string const& name) {
     if (segmentOpen_) {
         warning() << "enter_segment was called while segment " << segmentIndex_ << " is still open; closing it implicitly";
         closeSegmentLog();
@@ -55,21 +59,33 @@ void SearchAlgorithm::enterSegment(std::string const& name) {
     clog() << open;
     segmentOpen_ = true;
 
-    searchAlgorithm_->enterSegment();
+    status_ = searchAlgorithm_->enterSegment();
+    return status_;
 }
 
-void SearchAlgorithm::finishSegment() {
+Core::Status SearchAlgorithm::finishSegment() {
+    if (not status_.ok()) {
+        // The segment already failed, so don't run the search on it again
+        closeSegmentLog();
+        return status_;
+    }
+
     // Run the search first so that its statistics are logged inside the segment element
-    searchAlgorithm_->finishSegment();
+    status_ = searchAlgorithm_->finishSegment();
 
     if (not segmentOpen_) {
         warning() << "finish_segment was called without a matching enter_segment";
-        return;
+        return status_;
     }
     closeSegmentLog();
+    return status_;
 }
 
-void SearchAlgorithm::putFeature(py::array_t<f32> const& feature) {
+Core::Status SearchAlgorithm::putFeature(py::array_t<f32> const& feature) {
+    if (not status_.ok()) {
+        return status_;
+    }
+
     size_t F = 0ul;
     if (feature.ndim() == 2) {
         if (feature.shape(0) != 1) {
@@ -84,10 +100,15 @@ void SearchAlgorithm::putFeature(py::array_t<f32> const& feature) {
         error() << "Received feature vector of invalid dim " << feature.ndim() << "; should be 1 or 2";
     }
 
-    searchAlgorithm_->putFeature({feature, F});
+    status_ = searchAlgorithm_->putFeature({feature, F});
+    return status_;
 }
 
-void SearchAlgorithm::putFeatures(py::array_t<f32> const& features) {
+Core::Status SearchAlgorithm::putFeatures(py::array_t<f32> const& features) {
+    if (not status_.ok()) {
+        return status_;
+    }
+
     size_t T = 0ul;
     size_t F = 0ul;
     if (features.ndim() == 3) {
@@ -105,21 +126,43 @@ void SearchAlgorithm::putFeatures(py::array_t<f32> const& features) {
         error() << "Received feature tensor of invalid dim " << features.ndim() << "; should be 2 or 3";
     }
 
-    searchAlgorithm_->putFeatures({features, T * F}, T);
+    status_ = searchAlgorithm_->putFeatures({features, T * F}, T);
+    return status_;
 }
 
 Traceback SearchAlgorithm::getCurrentBestTraceback() {
-    searchAlgorithm_->decodeManySteps();
+    if (not status_.ok()) {
+        return {};
+    }
+    unsigned numSteps;
+    status_ = searchAlgorithm_->decodeManySteps(numSteps);
+    if (not status_.ok()) {
+        return {};
+    }
     return searchTracebackToPythonTraceback(searchAlgorithm_->getCurrentBestTraceback());
 }
 
 Traceback SearchAlgorithm::getCommonPrefix() {
-    searchAlgorithm_->decodeManySteps();
+    if (not status_.ok()) {
+        return {};
+    }
+    unsigned numSteps;
+    status_ = searchAlgorithm_->decodeManySteps(numSteps);
+    if (not status_.ok()) {
+        return {};
+    }
     return searchTracebackToPythonTraceback(searchAlgorithm_->getCommonPrefix()->performTraceback());
 }
 
 std::vector<Traceback> SearchAlgorithm::getCurrentNBestList(size_t nBestSize) {
-    searchAlgorithm_->decodeManySteps();
+    if (not status_.ok()) {
+        return {};
+    }
+    unsigned numSteps;
+    status_ = searchAlgorithm_->decodeManySteps(numSteps);
+    if (not status_.ok()) {
+        return {};
+    }
 
     auto lattice = searchAlgorithm_->getCurrentBestWordLattice();
 
@@ -186,16 +229,18 @@ std::vector<Traceback> SearchAlgorithm::getCurrentNBestList(size_t nBestSize) {
 }
 
 Traceback SearchAlgorithm::recognizeSegment(py::array_t<f32> const& features, std::string const& name) {
-    enterSegment(name);
-    putFeatures(features);
-    finishSegment();
+    if (not enterSegment(name).ok() or not putFeatures(features).ok() or not finishSegment().ok()) {
+        closeSegmentLog();
+        return {};
+    }
     return getCurrentBestTraceback();
 }
 
 std::vector<Traceback> SearchAlgorithm::recognizeSegmentNBest(py::array_t<f32> const& features, size_t nBestSize, std::string const& name) {
-    enterSegment(name);
-    putFeatures(features);
-    finishSegment();
+    if (not enterSegment(name).ok() or not putFeatures(features).ok() or not finishSegment().ok()) {
+        closeSegmentLog();
+        return {};
+    }
     return getCurrentNBestList(nBestSize);
 }
 

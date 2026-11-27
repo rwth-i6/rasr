@@ -185,33 +185,39 @@ void CtcPrefixLabelScorer::logStatistics() const {
     ctcScorer_->logStatistics();
 }
 
-void CtcPrefixLabelScorer::signalNoMoreFeatures() {
-    ctcScorer_->signalNoMoreFeatures();
+Core::Status CtcPrefixLabelScorer::signalNoMoreFeatures() {
+    auto status = ctcScorer_->signalNoMoreFeatures();
+    if (not status.ok()) {
+        return status;
+    }
     expectMoreFeatures_ = false;
     ctcScoreCollectionTime_.start();
-    setupCTCScores();
+    status = setupCTCScores();
     ctcScoreCollectionTime_.stop();
+    return status;
 }
 
-void CtcPrefixLabelScorer::addInput(DataView const& input) {
-    ctcScorer_->addInput(input);
+Core::Status CtcPrefixLabelScorer::addInput(DataView const& input) {
+    return ctcScorer_->addInput(input);
 }
 
-void CtcPrefixLabelScorer::addInputs(DataView const& inputs, size_t nTimesteps) {
-    ctcScorer_->addInputs(inputs, nTimesteps);
+Core::Status CtcPrefixLabelScorer::addInputs(DataView const& inputs, size_t nTimesteps) {
+    return ctcScorer_->addInputs(inputs, nTimesteps);
 }
 
-ScoringContextRef CtcPrefixLabelScorer::getInitialScoringContext() {
-    return Core::ref(new CtcPrefixScoringContext());
+Core::Status CtcPrefixLabelScorer::getInitialScoringContext(ScoringContextRef& initialScoringContext) {
+    initialScoringContext = Core::ref(new CtcPrefixScoringContext());
+    return Core::Status();
 }
 
-ScoringContextRef CtcPrefixLabelScorer::extendedScoringContext(ScoringContextRef scoringContext, LabelIndex nextToken, TransitionType transitionType) {
+Core::Status CtcPrefixLabelScorer::extendedScoringContext(ScoringContextRef scoringContext, LabelIndex nextToken, TransitionType transitionType, ScoringContextRef& extendedContext) {
     auto context = Core::ref(dynamic_cast<CtcPrefixScoringContext const*>(scoringContext.get()));
 
     std::vector<LabelIndex> newLabelSeq(context->labelSeq);
     newLabelSeq.push_back(nextToken);
 
-    return Core::ref(new CtcPrefixScoringContext(std::move(newLabelSeq), scoringContext));
+    extendedContext = Core::ref(new CtcPrefixScoringContext(std::move(newLabelSeq), scoringContext));
+    return Core::Status();
 }
 
 void CtcPrefixLabelScorer::resetInternal() {
@@ -222,10 +228,11 @@ void CtcPrefixLabelScorer::resetInternal() {
     expectMoreFeatures_ = true;
 }
 
-std::optional<ScoreAccessorRef> CtcPrefixLabelScorer::computeScoreAccessor(ScoringContextRef scoringContext) {
+Core::Status CtcPrefixLabelScorer::computeScoreAccessor(ScoringContextRef scoringContext, std::optional<ScoreAccessorRef>& scoreAccessor) {
     if (expectMoreFeatures_) {
         countUncomputedAccessors();
-        return {};
+        scoreAccessor = std::nullopt;
+        return Core::Status();
     }
 
     auto context = Core::ref(dynamic_cast<const CtcPrefixScoringContext*>(scoringContext.get()));
@@ -234,7 +241,8 @@ std::optional<ScoreAccessorRef> CtcPrefixLabelScorer::computeScoreAccessor(Scori
     }
     finalizeScoringContext(context);
 
-    return Core::ref(new CtcPrefixScoreAccessor(context, ctcScores_, scoringTime_, prefixExtensionTime_));
+    scoreAccessor = Core::ref(new CtcPrefixScoreAccessor(context, ctcScores_, scoringTime_, prefixExtensionTime_));
+    return Core::Status();
 }
 
 void CtcPrefixLabelScorer::logScoringBreakdown() const {
@@ -246,20 +254,31 @@ void CtcPrefixLabelScorer::logAdditionalStatistics() const {
     statisticsChannel_ << Core::XmlFull("ctc-score-collection-time", ctcScoreCollectionTime_.elapsedMilliseconds()) + Core::XmlAttribute("unit", "milliseconds");
 }
 
-void CtcPrefixLabelScorer::setupCTCScores() {
-    auto ctcScorerContext = ctcScorer_->getInitialScoringContext();
+Core::Status CtcPrefixLabelScorer::setupCTCScores() {
+    ScoringContextRef ctcScorerContext;
+    auto              status = ctcScorer_->getInitialScoringContext(ctcScorerContext);
+    if (not status.ok()) {
+        return status;
+    }
 
     // Collect score accessors for all timesteps
     std::vector<ScoreAccessorRef> scoreAccessors;
     while (true) {
-        auto scoreAccessor = ctcScorer_->getScoreAccessor(ctcScorerContext);
+        std::optional<ScoreAccessorRef> scoreAccessor;
+        status = ctcScorer_->getScoreAccessor(ctcScorerContext, scoreAccessor);
+        if (not status.ok()) {
+            return status;
+        }
         if (not scoreAccessor) {
             break;
         }
         scoreAccessors.push_back(*scoreAccessor);
 
         // Transition type and next token assumed to not influence the scoring context
-        ctcScorerContext = ctcScorer_->extendedScoringContext(ctcScorerContext, invalidLabelIndex, LABEL_TO_BLANK);
+        status = ctcScorer_->extendedScoringContext(ctcScorerContext, invalidLabelIndex, LABEL_TO_BLANK, ctcScorerContext);
+        if (not status.ok()) {
+            return status;
+        }
     }
 
     // Write score values into matrix
@@ -270,6 +289,7 @@ void CtcPrefixLabelScorer::setupCTCScores() {
             ctcScores_->at(v, t) = scoreAccessors[t]->getScore(Nn::TransitionType::LABEL_TO_BLANK, v);
         }
     }
+    return Core::Status();
 }
 
 void CtcPrefixLabelScorer::finalizeScoringContext(CtcPrefixScoringContextRef const& scoringContext) const {

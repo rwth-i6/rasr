@@ -44,6 +44,10 @@ enum PruningStrategyType {
     PruningStrategySeparate,
 };
 
+inline bool isInfinite(Score score) {
+    return Math::isinf(score) or score >= Core::Type<Score>::max;
+}
+
 }  // namespace
 
 /*
@@ -1465,13 +1469,15 @@ void TreeLabelsyncBeamSearch::scorePruning(std::vector<Element>& hypotheses, Pru
     }
 
     // Find ranges for score histogram and setting absolute threshold
-    Score lowerScore = Core::Type<Score>::max;
-    Score upperScore = Core::Type<Score>::min;
+    Score  lowerScore         = Core::Type<Score>::max;
+    Score  upperScore         = Core::Type<Score>::min;
+    size_t numFiniteScoreHyps = 0ul;
 
     for (auto const& hyp : hypotheses) {
-        if (Math::isinf(hyp.score) or hyp.score >= Core::Type<Score>::max) {
+        if (isInfinite(hyp.score)) {
             continue;
         }
+        ++numFiniteScoreHyps;
         lowerScore = std::min(lowerScore, hyp.pruningScore());
         upperScore = std::max(upperScore, hyp.pruningScore());
     }
@@ -1494,9 +1500,15 @@ void TreeLabelsyncBeamSearch::scorePruning(std::vector<Element>& hypotheses, Pru
     }
 
     if (lowerScore == upperScore) {
-        // All scores are the same (usually only happens when exactly 1 hyp is active)
+        // All finite scores are the same (usually only happens when exactly 1 hyp is active)
         if (hypotheses.size() > pruningParams.maxBeamSize) {
-            hypotheses.resize(pruningParams.maxBeamSize);
+            if (numFiniteScoreHyps < hypotheses.size()) {
+                // Move the hyps with finite score to the front so that only hyps with non-finite score are cut off
+                std::partition(hypotheses.begin(), hypotheses.end(), [](auto const& hyp) {
+                    return not isInfinite(hyp.score);
+                });
+            }
+            hypotheses.resize(std::min(pruningParams.maxBeamSize, numFiniteScoreHyps));
         }
         return;
     }
@@ -1514,7 +1526,7 @@ void TreeLabelsyncBeamSearch::scorePruning(std::vector<Element>& hypotheses, Pru
         scoreHistogram_.setLimits(lowerScore, upperScore);
 
         for (auto const& hyp : hypotheses) {
-            if (Math::isinf(hyp.score) or hyp.score >= Core::Type<Score>::max) {
+            if (isInfinite(hyp.score)) {
                 continue;
             }
             scoreHistogram_ += hyp.pruningScore();
@@ -1570,7 +1582,7 @@ void TreeLabelsyncBeamSearch::separateScorePruning(
         size_t const poolIdx = hyp.isActive ? activeIdx : terminatedIdx;
         ++numElements[poolIdx];
 
-        if (Math::isinf(hyp.score) or hyp.score >= Core::Type<Score>::max) {
+        if (isInfinite(hyp.score)) {
             continue;
         }
 
@@ -1623,9 +1635,7 @@ void TreeLabelsyncBeamSearch::separateScorePruning(
                 histograms[poolIdx]->setLimits(lowerScores[poolIdx], upperScores[poolIdx]);
 
                 for (auto const& hyp : hypotheses) {
-                    if (hyp.isActive == active and
-                        not Math::isinf(hyp.score) and
-                        hyp.score < Core::Type<Score>::max) {
+                    if (hyp.isActive == active and not isInfinite(hyp.score)) {
                         *histograms[poolIdx] += hyp.pruningScore();
                     }
                 }

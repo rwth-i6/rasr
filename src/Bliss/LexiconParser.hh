@@ -167,8 +167,8 @@ private:
     std::vector<std::pair<std::string, std::string>> specialLemmas_;  // (special lemma name, token)
     std::unordered_set<std::string>                  emptyEval_;
     std::unordered_set<std::string>                  emptySynt_;
-    void                        createPhoneme(const std::string& line);
-    void                        createLemmata();
+    void                                             createPhoneme(const std::string& line);
+    void                                             createLemmata();
 
 public:
     VocabTextLexiconParser(Lexicon*);
